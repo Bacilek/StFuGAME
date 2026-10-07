@@ -13,6 +13,7 @@ mod inventory;
 mod journal;
 mod missions;
 mod potions;
+mod roster;
 mod safe;
 mod session;
 mod shops;
@@ -91,6 +92,7 @@ async fn login(c: &Credentials) -> Result<SimpleSession, String> {
         }
     };
 
+    roster::set_character(&c.character);
     report!("Loading character {} on {}...", c.character, session.server_host().unwrap_or("?"));
     // After an account login we have no game state yet - Update downloads it
     safe::send(&mut session, Command::Update)
@@ -135,6 +137,9 @@ fn print_status(session: &SimpleSession) {
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
     loop {
+        if let Some(gs) = session.game_state() {
+            roster::track_level(gs);
+        }
         if let tavern::Outcome::SessionLost = daily::run(session).await {
             return tavern::Outcome::SessionLost;
         }
@@ -200,6 +205,14 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
 
+        // Daily report for the character challenge at ~23:50 (roster/, local only)
+        if roster::due() {
+            match safe::send(session, Command::Update).await {
+                Ok(gs) => roster::write_day(gs),
+                Err(e) => report!("[roster] Update before the daily report failed: {e}"),
+            }
+        }
+
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min
         let gs = session.game_state();
         let arena = gs.and_then(arena::secs_until_ready).unwrap_or(30 * 60);
@@ -213,7 +226,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // The Thirst for Adventure resets at midnight: wake up and start a new day
         let midnight = guard::secs_until_midnight(now);
         let daily = gs.and_then(daily::secs_until_ready).unwrap_or(30 * 60);
-        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily) + fastrand::u64(30..120);
+        let roster_due = roster::secs_until_due().unwrap_or(30 * 60);
+        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Nothing to do, next check in {} min {} s", wait / 60, wait % 60);
         tokio::time::sleep(std::time::Duration::from_secs(wait)).await;

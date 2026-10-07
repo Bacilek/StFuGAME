@@ -18,6 +18,8 @@ macro_rules! report {
 }
 
 pub fn write(msg: &str) {
+    // Successes and issues of the day for the character challenge report (roster/)
+    crate::roster::observe(msg);
     let line = format!("{} {msg}", Local::now().format("%Y-%m-%d %H:%M:%S"));
     println!("{line}");
     let _guard = LOCK.lock();

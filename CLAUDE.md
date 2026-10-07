@@ -10,7 +10,9 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: `logs/progress.log`, journals `logs/expeditions.jsonl`, `logs/arena.jsonl`.
 
 ## Context
-- Friends' characters for the multi-character challenge: `roster/roster.md` (local only, gitignored – never commit it).
+- Friends' character challenge: everything about it lives in `roster/` (local only, gitignored – never commit it):
+  `roster/README.md` (files, how the daily 23:50 report works), `roster/plan.md` (plan/TODO, Czech), `roster/roster.md`.
+  The code is `src/roster.rs`.
 - The user does not know Rust. Claude writes the code and explains only what is necessary.
 - The user knows C#, comparisons with C# are welcome.
 - **Communicate with the user in Czech.** The repository itself (code, logs, docs, commit messages) is in English,

@@ -18,6 +18,7 @@
 | `tasks.rs` | Goblin Gleeman + event tasks: chests, guild skill, attributes, shell game (shop purchases in shops.rs, dungeon pick in dungeons.rs). |
 | `hunt.rs` | Hall of Fame hunt for fight tasks (class, bare hands, no chest plate): weak opponent far below our rank. |
 | `potions.rs` | Potions: target set main + CON + Eternal Life/Luck, drink from the backpack, shop steps (bought in shops.rs). |
+| `roster.rs` | Character challenge report into `roster/` (local only): notes from progress messages, 23:50 daily report, card, leaderboard. |
 | `guard.rs` | City Guard: `StartWork`/`FinishWork`, length so it ends 00:00–00:59. |
 | `daily.rs` | Daily login bonus (`CollectCalendar`) and the free Wheel of Fortune spin. |
 | `stable.rs` | Renting a mount before an expedition (the only exception to the mushroom rule). |
