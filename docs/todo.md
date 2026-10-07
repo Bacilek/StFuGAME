@@ -13,6 +13,15 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Stáj (`docs/stable.md`)
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
+## Denní report postav (roster/, jen lokálně)
+- [ ] Každý den ~23:50 pro každou postavu složka `roster/<nick>/`: `card.html` (karta postavy místo screenshotu – level, atributy, výbava, lektvary, mount, cech, zlato, houby), `days/<datum>.md` (staty, největší úspěch dne, problémy), `history.csv` (řádek za den)
+- [ ] Vždy na konci dne: **pořadí v Hall of Fame** a **level** (do denního záznamu, history.csv i leaderboardu)
+- [ ] Průběžně během dne `notes.log` (úspěchy: level up, epic, truhla s houbami…; problémy: unmapped, MISMATCH, odmítnutý příkaz, chyby, zaseknutí, nejistoty) → ve 23:50 souhrn do `roster/issues.txt` (všechny postavy, otázky na uživatele)
+- [ ] `roster/leaderboard.md`: denní pořadí všech postav (level, síla, pořadí HoF, čest), za 14 dní graf vývoje
+- [ ] Závěrečný turnaj: simulace soubojů každý s každým (sf-api simulation)
+- [ ] Denní účet hub (příjem/výdej a za co), stav bota (výpadky, relogin, chyby), datum založení postav
+- [ ] Nejdřív odladit na TestChar1, pak pro všechny postavy (vyžaduje více postav v jednom procesu)
+
 ## Ověřit po nasazení
 - [ ] Lektvary: pití z batohu, nákup, výměna menšího za větší (`docs/potions.md`); hodiny za zlato při točení (batoh nebo počítadlo?)
 - [ ] Truhly u Goblin Gleemana: porovnat řádky `[tasks] daily/event chest …` v logu (body + odměny) s tím, co ukazuje hra (`docs/tasks.md`)
