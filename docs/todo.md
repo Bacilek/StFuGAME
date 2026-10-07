@@ -11,3 +11,14 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [ ] Event game loop (piva?)
 - [ ] Cech
 - [ ] Stáj
+
+## Návrhy od Clauda
+Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
+
+- [ ] Vylepšování atributů za zlato (sf-api: `UpgradeSkill`) – podle jakého klíče rozdělovat?
+- [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
+- [ ] Denní odměny a kalendář (sf-api: `CollectCalendar`, `CollectDailyQuestReward`)
+- [ ] Záchod (sf-api: `tavern.toilet`) – házení předmětů do záchodu místo prodeje?
+- [ ] Věž, mazlíčci, pevnost, podsvětí – až budou na postavě odemčené
+- [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
+- [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expedice.md`)

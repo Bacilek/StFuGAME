@@ -13,7 +13,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Přihlašovací údaje z `.env` (SF_USER, SF_PASS = S&F účet; SF_CHARACTER = jméno postavy; SF_SERVER volitelně), nikdy je nehardcodovat a nevypisovat do logů. Soubor `.env` nečíst.
 
 ## Pravidla
-- Plán dalších funkcí: `docs/todo.md` (nové nápady připisovat, hotové odškrtnout).
+- Plán dalších funkcí: `docs/todo.md` (nové nápady připisovat, hotové odškrtnout). Kdykoli mě napadne velké herní TODO, připsat ho do sekce „Návrhy od Clauda“.
 - Kdykoli si nejsem jistý jakýmkoli rozhodnutím (strategie, data, co bot smí), zeptat se uživatele a odpověď zapsat do `docs/precedenty.md`. Při podobné situaci se řídit precedenty.
 - Mezi akcemi náhodné prodlevy (simulace člověka), žádné spamování serveru.
 - ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. Všechny příkazy posílat přes `safe::send` (src/safe.rs), který pustí jen příkazy z whitelistu `is_allowed`. Nový příkaz přidat do whitelistu jen po ověření, že neutrácí houby. Nikdy nepovolit:
