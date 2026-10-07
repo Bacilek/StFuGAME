@@ -20,6 +20,7 @@ mod shops;
 mod stable;
 mod tasks;
 mod tavern;
+mod tournament;
 mod tray;
 
 use std::process::ExitCode;
@@ -207,6 +208,12 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
 
         // Daily report for the character challenge at ~23:50 (roster/, local only)
         if roster::due() {
+            // Round-robin tournament at the end of day 1, 3, 7 and 14 of the challenge
+            if let Some(day) = tournament::due_today()
+                && let tavern::Outcome::SessionLost = tournament::run(session, day).await
+            {
+                return tavern::Outcome::SessionLost;
+            }
             match safe::send(session, Command::Update).await {
                 Ok(gs) => {
                     let summary = roster::write_day(gs);

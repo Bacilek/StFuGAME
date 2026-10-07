@@ -52,3 +52,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Shell game bet | Keep the minimal bet (1 silver); 10 losses in a row is just bad luck, no need to worry. |
 | 2026-10-07 | The user's own character | The user plays their own character on another account while the bot runs – fine, the bot must not log in to that account. |
 | 2026-10-07 | Dashboard colours | Colour per class: Warrior steel grey-blue, Scout light brown, Assassin orange, Battle Mage purple, Berserker red, Druid light green, Demon Hunter pink, Bard light blue, Necromancer turquoise, Paladin yellow, Plague Doctor dark green; Mage not specified → blue. |
+| 2026-10-07 | Challenge tournament | Every character against every other at the end of day 1, 3, 7, 14 → table of the best. Done as a simulation (sf-api fight simulator, 1000 fights per pair), not real Arena fights. |
