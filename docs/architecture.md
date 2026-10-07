@@ -35,6 +35,10 @@ Every game feature returns `tavern::Outcome` (`Done` / `SessionLost`). `SessionL
 - **"Mirror image"** in the Dungeons is a level 0 warrior in sf-api → counted as our own character.
 - `fights_for_xp` (Arena) = today's wins for XP, the server resets it itself.
 - Enum sizes/iteration: `gs.dungeons.light.iter()` (EnumMap), do not add `enum-map` as a dependency (different version than in sf-api).
+- Fights (Arena `Fight`, `FightDungeon`, expedition boss `ExpeditionContinue`) have no duration: the server resolves them
+  instantly and returns the result (`gs.last_fight`) in the same response. The fight animation exists only in the game client,
+  so there is nothing to skip; the only wait is the human-like delay in `safe::send` (2.5–7 s before each command).
+  Verified in `logs/progress.log` (Dungeons: result 5–7 s after "Fighting" = just that delay).
 
 ## Workflow (development)
 - Tests: `cargo test` (does not need the bot stopped). Build for the user: `cargo build --release`.

@@ -11,7 +11,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [ ] Event game loop (piva?)
 - [ ] Cech
 - [x] Stáj (`docs/stable.md`)
-- [ ] Skip fights?
+- [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
 ## Návrhy od Clauda
 Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
