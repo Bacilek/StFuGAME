@@ -62,6 +62,8 @@ Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESED
 | Kuřecí stehno +3, další rozcestí jen 2 možnosti | ✅ | 2026-10-07: 37 → 40, další kolo 2 možnosti |
 | Dragon Taming +5 / kus na konci | ✅ | 2026-10-07: 36 → 46 za 2 draky |
 | Truhla se objeví po klíči | ✅ | 2026-10-07: Barkeeper kolo 1 klíč, kolo 2 truhla |
+| Hot Carnal Craving: sele → další rozcestí 1 možnost, stehno → 2 | ✅ | 2026-10-07: Barkeeper kola 6 a 7 |
+| Revealing Lady: pár +12 | ❌ nesedí | 2026-10-07: server ukázal +12, hrdinství 16 → 23 (+7). Příčina neznámá, sledovat |
 | Ostatní bonusy za úkol, Sanitary +20 / −5 | ⏳ | čeká na ověření |
 
 ## Nezmapované
