@@ -146,6 +146,7 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
         && after + allowed_spend < before
     {
         report!("!!! UBYLY HOUBY ({before} → {after}, povoleno {allowed_spend}). Bot se okamžitě zastavuje, prověřit!");
+        crate::tray::message_box(&format!("UBYLY HOUBY ({before} → {after}). Bot se zastavil, podrobnosti v logu."));
         std::process::exit(2);
     }
 

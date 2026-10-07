@@ -1,3 +1,6 @@
+// Ve vydané verzi (release) bez okna konzole, ovládá se ikonou u hodin
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[macro_use]
 mod report;
 mod arena;
@@ -10,6 +13,7 @@ mod missions;
 mod safe;
 mod stable;
 mod tavern;
+mod tray;
 
 use std::process::ExitCode;
 
@@ -190,8 +194,43 @@ const MAX_RELOGINS: u32 = 3;
 /// Session, která vydržela aspoň tak dlouho, se počítá jako v pořádku (počítadlo se nuluje).
 const SESSION_OK_SEC: u64 = 5 * 60;
 
-#[tokio::main]
-async fn main() -> ExitCode {
+/// Najde složku projektu (s `.env`) od aktuální složky a od umístění exe nahoru a přepne se do ní,
+/// aby šlo bota spustit odkudkoli (zástupce na ploše, dvojklik na exe v target\release).
+fn enter_project_dir() {
+    let mut starts = vec![];
+    if let Ok(cwd) = std::env::current_dir() {
+        starts.push(cwd);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        starts.push(exe);
+    }
+    for start in starts {
+        if let Some(dir) = start.ancestors().find(|d| d.join(".env").is_file()) {
+            let _ = std::env::set_current_dir(dir);
+            return;
+        }
+    }
+}
+
+fn main() -> ExitCode {
+    enter_project_dir();
+    if tray::already_running() {
+        tray::message_box("Bot StFuGAME už běží (ikona u hodin).");
+        return ExitCode::FAILURE;
+    }
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            report!("Nepodařilo se spustit async runtime: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    tray::run(&rt, run_bot);
+    ExitCode::SUCCESS
+}
+
+/// Celý bot: přihlášení a hlavní smyčka. Ikona ho spouští a zastavuje.
+async fn run_bot() -> ExitCode {
     // .env je volitelný - proměnné mohou být nastavené i v systému
     let _ = dotenvy::dotenv();
 

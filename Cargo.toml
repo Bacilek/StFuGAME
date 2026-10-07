@@ -10,3 +10,5 @@ fastrand = "2.5.0"
 serde_json = "1.0.151"
 sf-api = "0.4.4"
 tokio = { version = "1.53.2", features = ["full"] }
+tray-icon = "0.26.0"
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Security"] }
