@@ -7,7 +7,8 @@ use chrono::Local;
 use serde_json::json;
 
 const PATH: &str = "logs/expedice.jsonl";
-/// Kolik nad 40 ještě bereme jako úspěch. Víc znamená, že jsme hnali hrdinství místo truhel.
+/// Kolik nad 40 ještě bereme jako úspěch. Víc (a k tomu odmítnutý klíč/truhla) znamená,
+/// že jsme hnali hrdinství místo truhel.
 pub const OVERSHOOT_TOLERANCE: i32 = 5;
 
 #[derive(Debug, Default)]
@@ -26,6 +27,8 @@ pub struct Entry {
     pub unmapped: Vec<String>,
     /// Výsledky ověření dat misí (OK / NESEDÍ)
     pub checks: Vec<String>,
+    /// Kolikrát se s jistou 40 nabízel klíč/truhla a bot je nevzal
+    pub declined_resources: u32,
 }
 
 #[derive(Debug, Default)]
@@ -48,7 +51,7 @@ impl Journal {
         let Some(e) = self.current.take() else { return };
         let verdict = if e.projected < 40 {
             "neúspěch: pod 40"
-        } else if e.projected > 40 + OVERSHOOT_TOLERANCE {
+        } else if e.projected > 40 + OVERSHOOT_TOLERANCE && e.declined_resources > 0 {
             "nejspíš přehnané hrdinství"
         } else {
             "úspěch"
@@ -76,6 +79,7 @@ impl Journal {
             "rewards": e.rewards,
             "unmapped": e.unmapped,
             "checks": e.checks,
+            "declined_resources": e.declined_resources,
         });
         let res = std::fs::create_dir_all("logs").and_then(|()| {
             let mut f = OpenOptions::new().create(true).append(true).open(PATH)?;

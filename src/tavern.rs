@@ -456,6 +456,10 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         opts.join(", "),
                     );
                     entry.picks.push(format!("{}: [{}] → {picked:?}", exp.current_floor, opts.join(", ")));
+                    let is_resource = |t: ExpeditionThing| matches!(t, ExpeditionThing::Key | ExpeditionThing::Suitcase);
+                    if projected_heroism(exp) >= MAX_HEROISM && encs.iter().any(|e| is_resource(e.typ)) && !is_resource(picked) {
+                        entry.declined_resources += 1;
+                    }
                     match picked {
                         ExpeditionThing::Key => entry.keys += 1,
                         ExpeditionThing::Suitcase => entry.chests += 1,
