@@ -141,7 +141,7 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         return if has(exp, t) { 0.0 } else { f64::from(BOUNTY_BONUS) * feasibility(1, floors) };
     }
     let Some((m, idx)) = missions::chain_position(t) else {
-        return 0.0;
+        return unknown_chain_value(exp, t, floors);
     };
     let is_target = m.target() == exp.target_thing;
     let last_idx = m.chain.len() - 1;
@@ -175,6 +175,22 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         (true, Bonus::OnComplete(_)) => 0,
     };
     let payoff = f64::from(rest + bonus) - OPPORTUNITY_COST * f64::from(steps);
+    feasibility(steps, floors) * payoff.max(0.0)
+}
+
+/// Odhad pro krok nezmapované mise. Předměty jedné mise mají v sf-api čísla po sobě
+/// ve stejné desítce (např. Mugs 151 → DraftBeer 152 → Barkeeper 153).
+fn unknown_chain_value(exp: &Expedition, t: ExpeditionThing, floors: u8) -> f64 {
+    let target = exp.target_thing;
+    if missions::for_target(target).is_some() || has(exp, t) {
+        return 0.0;
+    }
+    let (t_id, target_id) = (t as i64, target as i64);
+    if t_id / 10 != target_id / 10 || t_id >= target_id {
+        return 0.0;
+    }
+    let steps = u8::try_from(target_id - t_id).unwrap_or(u8::MAX);
+    let payoff = f64::from(UNKNOWN_TARGET_GUESS * 2) - OPPORTUNITY_COST * f64::from(steps - 1);
     feasibility(steps, floors) * payoff.max(0.0)
 }
 
@@ -581,6 +597,15 @@ mod tests {
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
         // na delší nestačí ALU
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
+    }
+
+    #[test]
+    fn unknown_mission_chain_progresses() {
+        let e = exp(Barkeeper, 0, 1, 0, 3);
+        assert!(future_value(&e, &enc(Mugs, 0)) > 0.0);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Mugs, 0)]), 1);
+        // jiná skupina nic nedostane
+        assert_eq!(future_value(&e, &enc(Socks, 0)), 0.0);
     }
 
     #[test]
