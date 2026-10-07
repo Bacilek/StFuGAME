@@ -318,8 +318,8 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     best
 }
 
-/// Expedice za méně ALU než tohle je „zbytková“: zlata dá málo, přesýpacích hodin stejně.
-const REDUCED_EXPEDITION_SEC: u32 = 5 * 60;
+/// Expedice za nejvýš tolik ALU je „zbytková“: zlata dá málo, přesýpacích hodin stejně.
+const REDUCED_EXPEDITION_SEC: u32 = 3 * 60;
 
 /// Vybere odměnu: houby > zlato > přesýpací hodiny > cokoli.
 /// U zbytkové expedice (za zbytek ALU) houby > přesýpací hodiny > zlato.
@@ -652,7 +652,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         );
                         unknown_in_row = 0;
                         played = true;
-                        reduced_expedition = e.thirst_for_adventure_sec < REDUCED_EXPEDITION_SEC;
+                        reduced_expedition = e.thirst_for_adventure_sec <= REDUCED_EXPEDITION_SEC;
                         if reduced_expedition {
                             report!("[hospoda] Zbytková expedice: u odměn dávám přednost přesýpacím hodinám před zlatem");
                         }

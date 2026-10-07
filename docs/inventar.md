@@ -3,6 +3,10 @@
 ## Pravidla (od uživatele)
 - Kdykoli přibude předmět na nasazení, hned rozhodnout, jestli je lepší než nasazený.
   Hodnota = stejný vzorec jako síla v aréně: 100 % hlavní atribut + 80 % CON + 40 % LCK + 10 % vedlejší (z atributů předmětu).
+- Zbraně (zadání uživatele: brnění nebrat v potaz, pro zbraně vlastní rovnice):
+  hodnota = průměrné poškození × (1 + M / 20), M = celkový hlavní atribut postavy s touto zbraní.
+  Odvozeno ze simulace boje v sf-api (`simulate/damage.rs`): úder = zbraň × (1 + A / 10), A = max(M / 2, M − M_soupeře / 2),
+  proti stejně silnému soupeři A = M / 2. Ostatní atributy zbraně (CON, LCK, vedlejší) tato rovnice nebere.
 - Lepší → nasadit. Horší (nový i ten sundaný) → prodat. **Epické předměty nikdy neprodávat**, necháváme si je na později.
 
 ## Implementace (src/inventory.rs)
@@ -16,10 +20,10 @@
 - Epický = `Item::is_epic()` (model_id ≥ 50, zahrnuje i legendární).
 
 ## Otevřené
-- Vzorec nebere v úvahu poškození zbraně ani brnění, jen atributy (podle zadání). Ověřit s uživatelem.
+- Rovnice zbraní ignoruje CON/LCK/vedlejší atributy zbraně. Případně doplnit po domluvě s uživatelem.
 
 ## Stav ověření
 | Co | Stav |
 |---|---|
-| Prodej přes `SellShop` funguje a přidá stříbro | ⏳ neověřeno |
-| Po `Equip` spadne starý předmět do batohu | ⏳ neověřeno |
+| Po `Equip` spadne starý předmět do batohu | ✅ 2026-10-07 (boty, zbraň) |
+| Prodej přes `SellShop` přidá stříbro | ✅ 2026-10-07 (boty za 1 g 25 s) |

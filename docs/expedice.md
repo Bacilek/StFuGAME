@@ -87,7 +87,7 @@ U nezmapované mise počítá předměty ze stejné číselné desítky jako cí
 
 ## Odměny po bossovi
 - Normálně: houby > zlato > přesýpací hodiny.
-- Zbytková expedice (spuštěná za méně než 5 min ALU, tj. za zbytek dne): houby > přesýpací hodiny > zlato.
+- Zbytková expedice (spuštěná za nejvýš 3 min ALU, tj. za zbytek dne): houby > přesýpací hodiny > zlato.
   Zlata dá málo (2026-10-07: 9 stříbra), hodin pořád stejně. Po restartu bota uprostřed expedice se bere jako plná.
 - Přesýpací hodiny se nikdy nepoužívají.
 

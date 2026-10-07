@@ -20,7 +20,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - a každý další příkaz, u kterého není jisté, že houby neutratí (radši odmítnout).
 - Každou novou funkci přidávat zvlášť a nechat uživatele ji otestovat.
 - Testuje se na vedlejším účtu.
-- Po každé změně udělat git commit (česká commit zpráva). `.env` nikdy necommitovat.
+- Po každé změně udělat git commit (česká commit zpráva) a push na origin (GitHub). `.env` nikdy necommitovat.
 
 ## Hospoda
 - Hospoda už nefunguje jako klasické výpravy (questy) „vyber jednu ze 3 a počkej“. Jsou v ní expedice, kde se během cesty vybírá z možností:
@@ -32,7 +32,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
 - Předměty cizích cyklů (ne hlavní mise) brát jen kvůli okamžitému hrdinství, ne kvůli budoucím krokům.
-- Odměny: houby > zlato > přesýpací hodiny; u zbytkové expedice (< 5 min ALU) houby > hodiny > zlato. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
+- Odměny: houby > zlato > přesýpací hodiny; u zbytkové expedice (ALU ≤ 3 min) houby > hodiny > zlato. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
 - Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`, bot lze pustit na pozadí a log sledovat).
 - Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
