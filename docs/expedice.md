@@ -67,7 +67,8 @@ Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESED
 | Truhla se objeví po klíči | ✅ | 2026-10-07: Barkeeper kolo 1 klíč, kolo 2 truhla |
 | Hot Carnal Craving: sele → další rozcestí 1 možnost, stehno → 2 | ✅ | 2026-10-07: Barkeeper kola 6 a 7 |
 | Sword Trial: 6 / 3 / −4 (FAQ 5 / 2 / −5, uživatel −4 u zlomeného) | ✅ server | 2026-10-07: nabídka i připsané hrdinství |
-| Revealing Lady: pár +12 | ❌ nesedí | 2026-10-07: server ukázal +12, hrdinství 16 → 23 (+7). Příčina neznámá, sledovat |
+| Revealing Lady: pár +12 | ❌ nesedí | 2026-10-07 (Barkeeper, pár nebyl cíl, bez plakátu): server ukázal +12, hrdinství 16 → 23 (+7) |
+| Revealing Lady: bonus za úkol | ⏳ hypotéza +10 | 2026-10-07 (cíl, s plakátem): 3 → 30 (+27). Sedí „pár ve skutečnosti +7, plakát +10, bonus +10“; alternativa „pár +12, bonus +5“ nesedí na Barkeeper běh |
 | Sword Trial +8 / kus (uživatel) | ✅ | 2026-10-07: 4 zlomené meče, +32 po výběru v 10. kole |
 | Plakát platí jen jednou (spotřebuje se) | ✅ | 2026-10-07: druhý zlomený meč už bez +10 |
 | Bewitched Stew: čarodějnice −5, lektvar +15 | ✅ | 2026-10-07: Sword Trial kola 6–7 |
