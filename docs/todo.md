@@ -6,7 +6,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Nákup ve zbrojírně (`docs/shops.md`, čeká na ověření)
 - [x] Nákup v čarovném obchodě
 - [x] Točení v obchodech
-- [ ] Reklamy??
+- [ ] Reklamy – protočení obchodu za reklamu 1× denně v každém obchodě, až je vše za houbičky (`docs/shops.md`). Příkazy známe (`AdvertisementsCompleted:5`, `PlayerNewWares:2/2` pro Magic Shop), čeká se na záchyt z Weapon Shopu + odpovědi serveru (kde server říká, že je reklama dostupná). Bez toho nespouštět (riziko houbičky).
 - [ ] Questy (gamba, síň slávy, povolání, bare hands, …)
 - [ ] Event game loop (piva?)
 - [ ] Cech
