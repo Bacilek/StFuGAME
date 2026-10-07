@@ -1,46 +1,65 @@
 # Expedice v hospodě
 
-Zdroj: zkušenosti uživatele z testovací postavy. Strojová podoba je v `src/missions.rs`, při změně upravit obojí.
+Zdroje:
+- oficiální FAQ: https://playa-games.helpshift.com/hc/en/4-shakes-fidget-1653988985/faq/281-expeditions---encounters/
+  (cykly setkání, hrdinství kroků, limity),
+- zkušenosti uživatele (bonusy za úkol od zadavatele mise),
+- ověření z běhu bota (`logs/expedice.jsonl`).
 
-## Pravidla hry
-- Průběh: klik na zadavatele → výběr ze 2 expedic → 5 kol (rozcestí, bez čekání) → boss → výběr odměny → čekání/doprava
-  → 5 kol → boss → výběr odměny → čekání/doprava. Celkem tedy vždy **10 kol**.
+Strojová podoba je v `src/missions.rs`, při změně upravit obojí.
+
+## Průběh expedice
+Klik na zadavatele → výběr ze 2 expedic → 5 kol (rozcestí, bez čekání) → boss → výběr odměny → čekání/doprava
+→ „pokračovat“ → 5 kol → boss → čekání → konec. Celkem vždy **10 kol**.
+
+Ověřeno z běhu:
+- Po čekání server čeká na „pokračovat“ (`ExpeditionContinue`). Teprve potom pošle novou nabídku rozcestí.
+- Po 2. bossovi bot žádnou nabídku odměny neviděl (`rewards` prázdné). Uživatel uvádí výběr odměny po obou bossech, zatím neověřeno.
+- Bonusy „za kus“ (`+5/`) připíše server po posledním bossovi (Dragon Taming: 36 → 46 za 2 draky).
+
+## Pravidla
+- Každé setkání přidá své hrdinství hned při výběru. Každé patří do nějakého cyklu (řetězu).
 - **40 hrdinství = maximální odměna.** Víc nic nepřidá. Cíl: zajistit si 40 a pak farmit klíče a truhly.
-- Plakát „wanted“ (`*Bounty`) dá 0, ale hledanému dá +10 (např. kostlivec +2 → +12).
-- Formát bonusu: `+5/` = za každý cílový předmět, připíše se až na konci; `+10` = jednorázově při splnění.
+- Limit = kolikrát se cyklus během expedice může zopakovat.
+- „Trvalý konec“ = poslední krok zůstává v nabídce i po dokončení cyklu.
+- Formát bonusu za úkol: `+5/` = za každý cílový předmět, připíše se na konci; `+10` = jednorázově při splnění.
 
-## Známé mise
+## Cykly setkání
 
-| Mise | Úspěch | Neúspěch | Kroky (hrdinství) | sf-api názvy | Snadnost* |
-|---|---|---|---|---|---|
-| Dragon Taming | +5 / kus | 0 | princezna (−2) → drak (+10) | `Bait` → `Dragon` | 6,5 |
-| Extinguished Fire | +4 / kus | 0 | táborák (+3) → fénix (+5) → uhasený oheň (0) | `CampFire` → `Phoenix` → `BurntCampfire` | 4,0 |
-| Hot Carnival Craving | +3 / kus | 0 | sele (+5) | `Cake` | 8,0 |
-| Unicorn Whisperer | +10 | 0 | roh (+1) → osel (+2) → duha (+5) → jednorožec (+7) | `UnicornHorn` → `Donkey` → `Rainbow` → `Unicorn` | 6,3 |
-| Podium Climber | +10 / kus | 0 | malá překážka (−1) → velká překážka (−2) → stupně vítězů (+15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | 7,3 |
-| Sanitary Experiment | +20 | −5 | toaletní papír (0), potřeba 3× | `ToiletPaper` | 8,3 |
-| Broken Sword (neúplné) | +8 / kus | ? | … → rozbitý meč (−4) | `BrokenSword`, předchozí kroky neznámé | 4,0 |
+| Cyklus | Limit | Kroky (hrdinství) | sf-api názvy | Bonus za úkol |
+|---|---|---|---|---|
+| Kostlivci (Dummy) | – | Dummy 1.0 (1), 2.0 (2), 3.0 (3) | `Dummy1..3` | – |
+| Klíč a truhla | 2× | klíč (0) → truhla (0, zlato / suroviny podle eventu) | `Key` → `Suitcase` | – |
+| Hot Carnal Craving | – | kuřecí stehno (3, další rozcestí jen 2 možnosti), sele (5, další rozcestí jen 1 možnost) | `CupCake`, `Cake` | +3 / kus (sele) |
+| Plakáty (Bounty) | 3× na typ | plakát (0), vybraný hledaný pak dá +10 | `*Bounty` | – |
+| Dragon Taming | 2× | návnada/princezna (−2) → drak (10) | `Bait` → `Dragon` | +5 / kus |
+| Sanitary Emergency | 3× | toaletní papír (0), jen když ho chce zadavatel; potřeba 3× | `ToiletPaper` | +20, neúspěch −5 ⚠ |
+| Extinguished Fire | 1×, trvalý konec | táborák (3) → fénix (5) → uhasený oheň (0) | `CampFire` → `Phoenix` → `BurntCampfire` | +4 / kus |
+| Unicorn Whisperer | 1× | roh (1) → osel (3) → duha (5) → jednorožec (7) | `UnicornHorn` → `Donkey` → `Rainbow` → `Unicorn` | +10 |
+| Podium Climber | 2× | malá překážka (−1) → velká překážka (−2) → stupně vítězů (15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | +10 / kus |
+| Revealing Lady | 1× | ponožky (0) → hromada šatů (0) → pár (12) | `Socks` → `ClothPile` → `RevealingCouple` | ? |
+| The Sword Trial | 1×, trvalý konec | meč v kameni (5) → ohnutý meč (2) → zlomený meč (−5) | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / kus |
+| Bewitched Stew | 1× | kotel (2) → čarodějnice (−5) → čarodějný lektvar (15) | `Well` → `Girl` → `Balloons` | ? |
+| Toxic Fountain Cure | 1×, trvalý konec | vílí fontána (8) → znečištěná fontána (−4) | `Prince` → `RoyalFrog` | ? |
+| Build A Friend | 1× | ruka (−5) → nohy (−5) → tělo (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
-\* Snadnost = průměrné hrdinství na kolo při splnění (kroky + bonus + odvrácený trest) / počet kol. Používá se při výběru mezi stejně dlouhými expedicemi.
+⚠ Sanitary: FAQ píše „na konci +5, pokud máš 3 papíry, jinak −5“. Uživatel uvádí +20 / −5. Bot zatím počítá s +20.
 
-Řetězy jdou vždy postupně: další krok se neobjeví, dokud nemáme předchozí (např. stupně vítězů ani velká překážka se neobjeví před malou překážkou).
+Plakáty existují jen pro: kostlivce, draka, uhasený oheň, jednorožce, stupně vítězů, pár, zlomený meč, čarodějný lektvar,
+znečištěnou fontánu a Klause. Objeví se jen ty, jejichž cíl je v aktuální expedici.
 
-Ostatní známé věci:
-- princezna = `Bait` (potvrzeno),
-- kostlivci = `Dummy1..3` (potvrzeno), existují 2 druhy (+2 a +3), hodnotu posílá server,
-- klíč (`Key`), truhla (`Suitcase`). Truhla se bez klíče neobjeví,
-- plakáty (`*Bounty`).
+## Nezmapované
+- Mise z sf-api, které FAQ nezná: hostinský (`Mugs` → `DraftBeer` → `Barkeeper`), mořský muž (`FishingRod` → `FishingBait` → `Merman`),
+  jízda (`Chicken` → `Tiger` → `RidingStan`), zamilovaní (`Cupid` → `LovestruckShakes` → `LoveBirds`).
+- Chybějící bonusy za úkol: Revealing Lady, Bewitched Stew, Toxic Fountain Cure, Build A Friend (bot zatím odhaduje +5 při splnění).
+
+Bot se na neznámých věcech nezastavuje. Vypíše je a zapíše do deníku (`unmapped`).
+U nezmapované mise počítá předměty ze stejné číselné desítky jako cíl za kroky řetězu (např. 151 → 152 → 153).
 
 ## Výběr expedice
 1. Nejkratší (nejméně ALU).
-2. Při stejné délce: nezmapovaná mise (ať ji zmapujeme), jinak nejvyšší snadnost.
-
-## Nezmapované
-Bot se na neznámých věcech nezastavuje. Nezmapované mise a setkání vypíše a zapíše do deníku (`unmapped`), pak je doplnit sem a do `src/missions.rs`.
-U nezmapované mise se cílovému předmětu přičítá odhad +5 (`UNKNOWN_TARGET_GUESS`).
-
-## Otevřené otázky
-- Broken Sword: jaké jsou předchozí kroky (`SwordInStone`, `BentSword`?). Uživatel si pamatuje jen vágně.
+2. Při stejné délce: nezmapovaná mise nebo mise s neověřeným bonusem, jinak nejvyšší snadnost.
+   Snadnost = (hrdinství kroků + bonus + odvrácený trest) / počet kol. Je to hrubý odhad, ladit podle deníku.
 
 ## Deník
 Bot zapisuje každou expedici do `logs/expedice.jsonl` (výběry, hrdinství, klíče, truhly, verdikt).

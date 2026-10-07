@@ -38,9 +38,13 @@ const UNKNOWN_TARGET_GUESS: i32 = 5;
 const MAX_STEPS: u32 = 300;
 
 /// Vybere expedici: nejkratší (nejlevnější v ALU). Při stejné délce ta, kde je nejsnazší
-/// získat 40 hrdinství; neznámá mise má při shodě přednost, abychom ji zmapovali.
+/// získat 40 hrdinství; neznámá mise (nebo s neověřeným bonusem) má při shodě přednost, abychom ji zmapovali.
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize> {
-    let ease = |e: &AvailableExpedition| missions::for_target(e.target).map_or(f64::INFINITY, |m| m.ease());
+    // Neznámá mise nebo neověřený bonus = chceme zmapovat, při shodě má přednost
+    let ease = |e: &AvailableExpedition| match missions::for_target(e.target) {
+        Some(m) if m.bonus_known => m.ease(),
+        _ => f64::INFINITY,
+    };
     let mut best: Option<usize> = None;
     for (i, e) in list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec <= thirst) {
         let better = match best {
@@ -275,7 +279,11 @@ fn is_session_error(e: &SFError) -> bool {
 }
 
 fn mission_name(t: ExpeditionThing) -> String {
-    missions::for_target(t).map_or_else(|| format!("{t:?} (neznámá mise)"), |m| m.name.to_string())
+    match missions::for_target(t) {
+        None => format!("{t:?} (neznámá mise)"),
+        Some(m) if !m.bonus_known => format!("{} (bonus neověřený)", m.name),
+        Some(m) => m.name.to_string(),
+    }
 }
 
 /// Odehraje expedice, dokud je ALU. Čekání vždy vyčká, nikdy nepřeskakuje.
@@ -594,6 +602,8 @@ mod tests {
         // stejná délka: sele (8/kolo) je snazší než oheň (4/kolo)
         assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000), Some(1));
         // stejná délka: nezmapovaná mise má přednost
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Barkeeper, 20)], 6000), Some(1));
+        // stejná délka: mise s neověřeným bonusem má také přednost
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
         // na delší nestačí ALU
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
@@ -605,7 +615,7 @@ mod tests {
         assert!(future_value(&e, &enc(Mugs, 0)) > 0.0);
         assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Mugs, 0)]), 1);
         // jiná skupina nic nedostane
-        assert_eq!(future_value(&e, &enc(Socks, 0)), 0.0);
+        assert_eq!(future_value(&e, &enc(FishingRod, 0)), 0.0);
     }
 
     #[test]

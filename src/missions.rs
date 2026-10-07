@@ -1,4 +1,5 @@
-//! Známé mise (úkoly) expedic. Popis a zdroj dat: docs/expedice.md.
+//! Známé mise (úkoly) a cykly setkání v expedicích. Popis a zdroje dat: docs/expedice.md.
+//! Hrdinství kroků je z oficiálního FAQ, bonusy za úkol od uživatele.
 
 use sf_api::gamestate::tavern::ExpeditionThing::{self, *};
 
@@ -11,16 +12,28 @@ pub enum Bonus {
     OnComplete(i32),
 }
 
+/// Odhad bonusu za úkol, který ještě nemáme zmapovaný.
+const UNKNOWN_BONUS: Bonus = Bonus::OnComplete(5);
+
 #[derive(Debug)]
 pub struct Mission {
     pub name: &'static str,
     /// Řetěz kroků (předmět, hrdinství při sebrání). Poslední krok je cílový předmět.
     pub chain: &'static [(ExpeditionThing, i32)],
     pub bonus: Bonus,
+    /// Je bonus ověřený uživatelem? (jinak jen odhad)
+    pub bonus_known: bool,
     /// Kolik hrdinství se strhne, když úkol na konci není splněný (kladné číslo).
     pub fail_penalty: i32,
     /// Kolik cílových předmětů je potřeba ke splnění (u řetězů 1).
     pub count: u8,
+    /// Kolikrát se cyklus může během expedice zopakovat (FAQ „Limit“). Zatím jen informativní.
+    #[allow(dead_code)]
+    pub limit: u8,
+    /// Poslední krok zůstává v nabídce i po dokončení (FAQ „last encounter remains permanently“).
+    /// Zatím jen informativní.
+    #[allow(dead_code)]
+    pub final_repeats: bool,
 }
 
 impl Mission {
@@ -46,33 +59,60 @@ impl Mission {
     }
 }
 
+/// Mise se známým bonusem. Ostatní pole jsou společná pro většinu misí.
+const fn known(name: &'static str, chain: &'static [(ExpeditionThing, i32)], bonus: Bonus, limit: u8) -> Mission {
+    Mission { name, chain, bonus, bonus_known: true, fail_penalty: 0, count: 1, limit, final_repeats: false }
+}
+
+/// Mise, jejíž bonus za úkol zatím neznáme (odhad UNKNOWN_BONUS).
+const fn unknown(name: &'static str, chain: &'static [(ExpeditionThing, i32)], limit: u8) -> Mission {
+    Mission { name, chain, bonus: UNKNOWN_BONUS, bonus_known: false, fail_penalty: 0, count: 1, limit, final_repeats: false }
+}
+
+const fn repeats(mut m: Mission) -> Mission {
+    m.final_repeats = true;
+    m
+}
+
 pub const MISSIONS: &[Mission] = &[
-    Mission { name: "Dragon Taming", chain: &[(Bait, -2), (Dragon, 10)], bonus: Bonus::PerItem(5), fail_penalty: 0, count: 1 },
+    known("Dragon Taming", &[(Bait, -2), (Dragon, 10)], Bonus::PerItem(5), 2),
+    repeats(known(
+        "Extinguished Fire",
+        &[(CampFire, 3), (Phoenix, 5), (BurntCampfire, 0)],
+        Bonus::PerItem(4),
+        1,
+    )),
+    // Kuřecí stehno (CupCake) a sele (Cake) zúží další rozcestí na 2, resp. 1 možnost
+    known("Hot Carnal Craving", &[(Cake, 5)], Bonus::PerItem(3), u8::MAX),
+    known(
+        "Unicorn Whisperer",
+        &[(UnicornHorn, 1), (Donkey, 3), (Rainbow, 5), (Unicorn, 7)],
+        Bonus::OnComplete(10),
+        1,
+    ),
+    known("Podium Climber", &[(SmallHurdle, -1), (BigHurdle, -2), (WinnersPodium, 15)], Bonus::PerItem(10), 2),
     Mission {
-        name: "Extinguished Fire",
-        chain: &[(CampFire, 3), (Phoenix, 5), (BurntCampfire, 0)],
-        bonus: Bonus::PerItem(4),
-        fail_penalty: 0,
-        count: 1,
+        name: "Sanitary Emergency",
+        chain: &[(ToiletPaper, 0)],
+        bonus: Bonus::OnComplete(20),
+        bonus_known: true,
+        fail_penalty: 5,
+        count: 3,
+        limit: 3,
+        final_repeats: false,
     },
-    Mission { name: "Hot Carnival Craving", chain: &[(Cake, 5)], bonus: Bonus::PerItem(3), fail_penalty: 0, count: 1 },
-    Mission {
-        name: "Unicorn Whisperer",
-        chain: &[(UnicornHorn, 1), (Donkey, 2), (Rainbow, 5), (Unicorn, 7)],
-        bonus: Bonus::OnComplete(10),
-        fail_penalty: 0,
-        count: 1,
-    },
-    Mission {
-        name: "Podium Climber",
-        chain: &[(SmallHurdle, -1), (BigHurdle, -2), (WinnersPodium, 15)],
-        bonus: Bonus::PerItem(10),
-        fail_penalty: 0,
-        count: 1,
-    },
-    Mission { name: "Sanitary Experiment", chain: &[(ToiletPaper, 0)], bonus: Bonus::OnComplete(20), fail_penalty: 5, count: 3 },
-    // Neúplné: známe jen samotný rozbitý meč, předchozí kroky zatím ne
-    Mission { name: "Broken Sword", chain: &[(BrokenSword, -4)], bonus: Bonus::PerItem(8), fail_penalty: 0, count: 1 },
+    repeats(known(
+        "The Sword Trial",
+        &[(SwordInStone, 5), (BentSword, 2), (BrokenSword, -5)],
+        Bonus::PerItem(8),
+        1,
+    )),
+    unknown("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], 1),
+    // sf-api: Well = kotel, Girl = čarodějnice, Balloons = čarodějný lektvar
+    unknown("Bewitched Stew", &[(Well, 2), (Girl, -5), (Balloons, 15)], 1),
+    // sf-api: Prince = vílí fontána, RoyalFrog = znečištěná fontána
+    repeats(unknown("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], 1)),
+    unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),
 ];
 
 /// Mise, jejímž cílem je daný předmět.
@@ -89,5 +129,5 @@ pub fn chain_position(t: ExpeditionThing) -> Option<(&'static Mission, usize)> {
 pub fn is_known(t: ExpeditionThing) -> bool {
     chain_position(t).is_some()
         || t.is_bounty_for().is_some()
-        || matches!(t, Key | Suitcase | Dummy1 | Dummy2 | Dummy3)
+        || matches!(t, Key | Suitcase | Dummy1 | Dummy2 | Dummy3 | CupCake)
 }
