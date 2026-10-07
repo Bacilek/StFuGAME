@@ -65,6 +65,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FinishWork
             | Command::CollectCalendar
             | Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }
+            // Lucky coins only when a task chest needs the spins (user 2026-10-07), see `tasks::plan`
+            | Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )
@@ -108,7 +110,8 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
     match cmd {
         Command::Fight { .. } => Some(Cooldown::Arena),
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
-        Command::SpinWheelOfFortune { .. } => Some(Cooldown::Wheel),
+        // Only the free spin has a cooldown; lucky-coin spins are guarded by `tasks::lucky_spin_justified`
+        Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn } => Some(Cooldown::Wheel),
         _ => None,
     }
 }
@@ -204,6 +207,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))
     {
         return Err(SFError::InvalidRequest("guild upgrade costs mushrooms or is not affordable"));
+    }
+    if matches!(cmd, Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins })
+        && !session.game_state().is_some_and(crate::tasks::lucky_spin_justified)
+    {
+        return Err(SFError::InvalidRequest("lucky coins only when a task chest needs the spins"));
     }
     if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(crate::tasks::beer_justified) {
         return Err(SFError::InvalidRequest("beer costs a mushroom and is not justified by a task chest"));

@@ -9,7 +9,7 @@
 //! Shop purchases for tasks are in `shops.rs`, the Training Camp preference in `dungeons.rs`.
 
 use sf_api::{
-    command::{AttributeType, Command},
+    command::{AttributeType, Command, FortunePayment},
     gamestate::{
         GameState,
         guild::GuildSkill,
@@ -153,49 +153,141 @@ fn natural_points(tasks: &[Task]) -> u32 {
         .sum()
 }
 
-/// Is the shell game worth it for this task list? Only when its points reach a chest that would not be reached
-/// otherwise (earned + natural tasks).
-pub fn gamble_needed(tasks: &[Task], chests: &[RewardChest]) -> bool {
-    let Some(gamble) = tasks.iter().find(|t| t.typ == TaskType::DefeatGambler && !t.is_completed()) else {
-        return false;
-    };
-    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
-    let expected = earned + natural_points(tasks);
-    chests
-        .iter()
-        .any(|c| !c.opened && c.required_points > expected && c.required_points <= expected + gamble.point_reward)
+/// Costly tasks: done only when they are needed for a chest (user 2026-10-07).
+/// Shell game = a few silver, Wheel of Fortune beyond the free spin = lucky coins, beer = mushrooms.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Extra {
+    Gamble,
+    Wheel,
+    Beer,
+}
+
+impl Extra {
+    /// How much we dislike spending on it (per unit): gold < lucky coins < mushrooms.
+    fn weight(self) -> u64 {
+        match self {
+            Extra::Gamble => 1,
+            Extra::Wheel => 10,
+            Extra::Beer => 100,
+        }
+    }
+
+    fn task(self) -> TaskType {
+        match self {
+            Extra::Gamble => TaskType::DefeatGambler,
+            Extra::Wheel => TaskType::SpinWheelOfFortune,
+            Extra::Beer => TaskType::DrinkBeer,
+        }
+    }
+}
+
+/// What we can afford for the costly tasks right now.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Means {
+    /// At least 5 gold for the shell game
+    pub gamble: bool,
+    /// Wheel spins we can pay with lucky coins (+ the free one if still available)
+    pub wheel_spins: u64,
+    /// Beers still allowed today
+    pub beers: u64,
+}
+
+impl Means {
+    pub fn of(gs: &GameState) -> Self {
+        let w = &gs.specials.wheel;
+        Means {
+            gamble: gs.character.silver >= GAMBLE_MIN_SILVER,
+            wheel_spins: u64::from(w.lucky_coins) / LUCKY_COINS_PER_SPIN + u64::from(safe::wheel_is_free(gs)),
+            beers: u64::from(gs.tavern.beer_max.saturating_sub(gs.tavern.beer_drunk)),
+        }
+    }
 }
 
 /// One beer costs one mushroom.
 pub const BEER_MUSHROOMS: u32 = 1;
+/// One Wheel of Fortune spin costs one lucky coin (verify).
+const LUCKY_COINS_PER_SPIN: u64 = 1;
 
-/// Mushrooms in a chest's rewards.
-fn chest_mushrooms(c: &RewardChest) -> u64 {
-    c.rewards.iter().filter(|r| r.typ == RewardType::Mushrooms).map(|r| r.amount).sum()
+/// Amount of one reward type in a chest.
+fn chest_amount(c: &RewardChest, typ: RewardType) -> u64 {
+    c.rewards.iter().filter(|r| r.typ == typ).map(|r| r.amount).sum()
 }
 
-/// Beer for a task (exception to the mushroom rule, user 2026-10-07): only when drinking is the last missing step
-/// to a chest with more mushrooms than the beer costs, i.e. earned + "natural" points (Arena, Dungeons, City Guard)
-/// do not reach that chest and the beer's points do. Called only after everything else for the day was done.
-fn beer_opens_chest(tasks: &[Task], chests: &[RewardChest]) -> bool {
-    let Some(beer) = tasks.iter().find(|t| t.typ == TaskType::DrinkBeer && !t.is_completed()) else {
-        return false;
-    };
+fn chest_mushrooms(c: &RewardChest) -> u64 {
+    chest_amount(c, RewardType::Mushrooms)
+}
+
+/// Is the chest worth what the chosen costly tasks spend? (user 2026-10-07: look at the chest rewards)
+/// Beers (mushrooms): at least as many mushrooms in the chest. Lucky coins: the chest has mushrooms, or at least as
+/// many lucky coins back. The shell game costs a few silver: any chest.
+fn chest_worth(c: &RewardChest, beers: u64, spins: u64) -> bool {
+    let mushrooms = chest_mushrooms(c);
+    (beers == 0 || mushrooms >= beers * u64::from(BEER_MUSHROOMS))
+        && (spins == 0 || mushrooms > 0 || chest_amount(c, RewardType::LuckyCoins) >= spins * LUCKY_COINS_PER_SPIN)
+}
+
+/// Which costly tasks to do for this task list: the combination that reaches the highest chest that earned +
+/// "natural" points (Arena, Dungeons, City Guard) would not reach, and the cheapest one for that chest.
+/// Beers only for a chest with at least as many mushrooms as the beers cost (10 beers for 10 mushrooms + the Thirst
+/// for Adventure is fine, otherwise not). Nothing when the chest is reachable without them.
+pub fn plan(tasks: &[Task], chests: &[RewardChest], means: Means) -> Vec<Extra> {
     let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
     let expected = earned + natural_points(tasks);
-    chests.iter().any(|c| {
-        !c.opened
-            && c.required_points > expected
-            && c.required_points <= expected + beer.point_reward
-            && chest_mushrooms(c) > u64::from(BEER_MUSHROOMS)
-    })
+    // (extra, points, units still needed)
+    let options: Vec<(Extra, u32, u64)> = [Extra::Gamble, Extra::Wheel, Extra::Beer]
+        .into_iter()
+        .filter_map(|e| {
+            let t = tasks.iter().find(|t| t.typ == e.task() && !t.is_completed())?;
+            let left = t.target - t.current;
+            let ok = match e {
+                Extra::Gamble => means.gamble,
+                Extra::Wheel => left <= means.wheel_spins,
+                Extra::Beer => left <= means.beers,
+            };
+            ok.then_some((e, t.point_reward, left))
+        })
+        .collect();
+
+    // Best = (highest chest, lowest cost)
+    let mut best: Option<(u32, u64, Vec<Extra>)> = None;
+    for mask in 1u32..(1 << options.len()) {
+        let chosen: Vec<_> = options.iter().enumerate().filter(|(i, _)| mask & (1 << i) != 0).map(|(_, o)| *o).collect();
+        let points: u32 = chosen.iter().map(|o| o.1).sum();
+        let cost: u64 = chosen.iter().map(|o| o.0.weight() * o.2).sum();
+        let beers = chosen.iter().find(|o| o.0 == Extra::Beer).map_or(0, |o| o.2);
+        let spins = chosen.iter().find(|o| o.0 == Extra::Wheel).map_or(0, |o| o.2);
+        let reached = chests
+            .iter()
+            .filter(|c| !c.opened && c.required_points > expected && c.required_points <= expected + points)
+            .filter(|c| chest_worth(c, beers, spins))
+            .map(|c| c.required_points)
+            .max();
+        let Some(req) = reached else { continue };
+        let better = best.as_ref().is_none_or(|(r, c, _)| req > *r || (req == *r && cost < *c));
+        if better {
+            best = Some((req, cost, chosen.iter().map(|o| o.0).collect()));
+        }
+    }
+    best.map(|b| b.2).unwrap_or_default()
+}
+
+/// Costly tasks planned for the daily and the event list together.
+pub fn planned(gs: &GameState) -> Vec<Extra> {
+    let t = &gs.specials.tasks;
+    let means = Means::of(gs);
+    let mut v = plan(&t.daily.tasks, &t.daily.rewards, means);
+    v.extend(plan(&t.event.tasks, &t.event.rewards, means));
+    v
 }
 
 /// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
 pub fn beer_justified(gs: &GameState) -> bool {
-    let t = &gs.specials.tasks;
-    gs.tavern.beer_drunk < gs.tavern.beer_max
-        && (beer_opens_chest(&t.daily.tasks, &t.daily.rewards) || beer_opens_chest(&t.event.tasks, &t.event.rewards))
+    planned(gs).contains(&Extra::Beer)
+}
+
+/// May the bot spin the Wheel of Fortune for lucky coins now? (Also checked by `safe.rs`.)
+pub fn lucky_spin_justified(gs: &GameState) -> bool {
+    planned(gs).contains(&Extra::Wheel)
 }
 
 async fn drink_beer(session: &mut SimpleSession) -> Outcome {
@@ -203,17 +295,31 @@ async fn drink_beer(session: &mut SimpleSession) -> Outcome {
     if !beer_justified(gs) {
         return Outcome::Done;
     }
-    report!(
-        "[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom): it is the last missing task for a chest with mushrooms"
-    );
+    let left = remaining(gs, |t| t == TaskType::DrinkBeer);
+    report!("[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom, {left} to go): needed for a chest with enough mushrooms");
     send_or_return!(session, Command::BuyBeer);
+    claim_chests(session).await
+}
+
+async fn lucky_spins(session: &mut SimpleSession) -> Outcome {
+    for _ in 0..MAX_ACTIONS {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        if !lucky_spin_justified(gs) || remaining(gs, |t| t == TaskType::SpinWheelOfFortune) == 0 {
+            break;
+        }
+        // The free spin is done by daily.rs; here only lucky coins
+        if safe::wheel_is_free(gs) {
+            break;
+        }
+        report!("[tasks] Wheel of Fortune for a lucky coin ({} coins left): needed for a chest", gs.specials.wheel.lucky_coins);
+        send_or_return!(session, Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins });
+    }
     claim_chests(session).await
 }
 
 async fn gamble(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    let t = &gs.specials.tasks;
-    if !gamble_needed(&t.daily.tasks, &t.daily.rewards) && !gamble_needed(&t.event.tasks, &t.event.rewards) {
+    if !planned(gs).contains(&Extra::Gamble) {
         return Outcome::Done;
     }
     let start = gs.character.silver;
@@ -235,7 +341,7 @@ async fn gamble(session: &mut SimpleSession) -> Outcome {
         let diff = i128::from(gs.character.silver) - i128::from(start);
         report!("[tasks] Shell game total: {}{}", if diff < 0 { "-" } else { "+" }, crate::report::gold(diff.unsigned_abs() as u64));
     }
-    Outcome::Done
+    claim_chests(session).await
 }
 
 /// Logs the open tasks once a day (to see what the Gleeman wants).
@@ -252,13 +358,23 @@ fn log_tasks(gs: &GameState) {
     for (name, tasks, chests) in [("daily", &t.daily.tasks, &t.daily.rewards), ("event", &t.event.tasks, &t.event.rewards)] {
         let list: Vec<String> =
             tasks.iter().map(|t| format!("{:?} {}/{} ({} p)", t.typ, t.current, t.target, t.point_reward)).collect();
-        let need: Vec<String> = chests.iter().map(|c| c.required_points.to_string()).collect();
-        report!("[tasks] {name} tasks (chests at {} points): {}", need.join("/"), list.join(", "));
+        report!("[tasks] {name} tasks: {}", list.join(", "));
+        for (i, c) in chests.iter().enumerate() {
+            let rewards: Vec<String> = c.rewards.iter().map(|r| format!("{:?} {}", r.typ, r.amount)).collect();
+            report!(
+                "[tasks] {name} chest {} ({} points{}): {}",
+                i + 1,
+                c.required_points,
+                if c.opened { ", opened" } else { "" },
+                rewards.join(", ")
+            );
+        }
     }
 }
 
 /// Every pass of the main loop: chests. After the Tavern and the shops (the best equipment is bought first and
-/// the shop reserve is kept): guild skill, attributes, shell game, beer as the last resort.
+/// the shop reserve is kept): guild skill, attributes, then the costly tasks per `plan` (shell game, lucky-coin
+/// wheel spins, beer).
 pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if let Some(gs) = session.game_state() {
         log_tasks(gs);
@@ -273,14 +389,14 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         if let Outcome::SessionLost = buy_attributes(session).await {
             return Outcome::SessionLost;
         }
+        // Costly tasks, cheapest first; each is done only when the plan needs it for a chest
         if let Outcome::SessionLost = gamble(session).await {
             return Outcome::SessionLost;
         }
-        // Points from the shell game may open a chest right away
-        if let Outcome::SessionLost = claim_chests(session).await {
+        if let Outcome::SessionLost = lucky_spins(session).await {
             return Outcome::SessionLost;
         }
-        // Beer only as the very last resort (gives Thirst for Adventure too, the Tavern continues)
+        // Beer last (one per pass: it gives Thirst for Adventure, the Tavern continues before the next one)
         return drink_beer(session).await;
     }
     Outcome::Done
@@ -306,51 +422,100 @@ mod tests {
         }
     }
 
+    const RICH: Means = Means { gamble: true, wheel_spins: 10, beers: 10 };
+
     #[test]
-    fn beer_only_as_the_last_step_to_mushrooms() {
-        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 10)];
-        // earned 9 + Arena 1 = 10, beer +2 → 12 with 10 mushrooms → yes
+    fn nothing_when_natural_tasks_reach_the_chest() {
+        let chests = [chest(4), chest(8), chest(12)];
         let tasks = vec![
-            task(TaskType::LeaseMount, 1, 1, 9),
-            task(TaskType::WinFightsInArena, 5, 10, 1),
+            task(TaskType::LeaseMount, 1, 1, 10),
+            task(TaskType::WinFightsInArena, 5, 10, 2),
+            task(TaskType::DefeatGambler, 0, 3, 1),
             task(TaskType::DrinkBeer, 0, 1, 2),
         ];
-        assert!(beer_opens_chest(&tasks, &chests));
-        // the Arena alone will get there → no beer
-        let tasks = vec![
-            task(TaskType::LeaseMount, 1, 1, 9),
-            task(TaskType::WinFightsInArena, 5, 10, 3),
-            task(TaskType::DrinkBeer, 0, 1, 2),
-        ];
-        assert!(!beer_opens_chest(&tasks, &chests));
-        // even the beer is not enough → no
-        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 6), task(TaskType::DrinkBeer, 0, 1, 2)];
-        assert!(!beer_opens_chest(&tasks, &chests));
-        // a chest without mushrooms is not worth a mushroom
-        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 0)];
-        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::DrinkBeer, 0, 1, 2)];
-        assert!(!beer_opens_chest(&tasks, &chests));
+        assert!(plan(&tasks, &chests, RICH).is_empty());
     }
 
     #[test]
     fn gamble_only_when_it_reaches_a_chest() {
         let chests = [chest(4), chest(8), chest(12)];
-        // earned 6 + Arena 2 = 8 expected; gambling (+1) does not reach 12 → no
+        // earned 6 + Arena 2 = 8; gambling (+1) does not reach 12 → no
         let tasks = vec![
             task(TaskType::LeaseMount, 1, 1, 6),
             task(TaskType::WinFightsInArena, 5, 10, 2),
             task(TaskType::DefeatGambler, 0, 3, 1),
         ];
-        assert!(!gamble_needed(&tasks, &chests));
-        // earned 9 + Arena 2 = 11 expected; gambling (+1) reaches 12 → yes
+        assert!(plan(&tasks, &chests, RICH).is_empty());
+        // earned 9 + Arena 2 = 11; gambling reaches 12 → yes
         let tasks = vec![
             task(TaskType::LeaseMount, 1, 1, 9),
             task(TaskType::WinFightsInArena, 5, 10, 2),
             task(TaskType::DefeatGambler, 0, 3, 1),
         ];
-        assert!(gamble_needed(&tasks, &chests));
-        // already done
-        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 11), task(TaskType::DefeatGambler, 3, 3, 1)];
-        assert!(!gamble_needed(&tasks, &chests));
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Gamble]);
+        // not enough gold → no
+        assert!(plan(&tasks, &chests, Means { gamble: false, ..RICH }).is_empty());
+    }
+
+    fn chest_coins(required_points: u32, coins: u64) -> RewardChest {
+        RewardChest {
+            opened: false,
+            required_points,
+            rewards: vec![sf_api::gamestate::rewards::Reward { typ: RewardType::LuckyCoins, amount: coins }],
+        }
+    }
+
+    #[test]
+    fn cheapest_combination_for_the_highest_chest() {
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 10)];
+        // earned 10: gamble (+1) alone is not enough, wheel (+2) is → wheel only, no beer
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 10),
+            task(TaskType::DefeatGambler, 0, 3, 1),
+            task(TaskType::SpinWheelOfFortune, 1, 5, 2),
+            task(TaskType::DrinkBeer, 0, 1, 2),
+        ];
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Wheel]);
+        // without lucky coins: gamble + beer would give 13 ≥ 12 but beer alone (+2) is enough and cheaper than both
+        let poor = Means { wheel_spins: 0, ..RICH };
+        assert_eq!(plan(&tasks, &chests, poor), [Extra::Beer]);
+        // earned 9: needs 3 → gamble + wheel
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 9),
+            task(TaskType::DefeatGambler, 0, 3, 1),
+            task(TaskType::SpinWheelOfFortune, 1, 5, 2),
+        ];
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Gamble, Extra::Wheel]);
+    }
+
+    #[test]
+    fn beers_only_for_enough_mushrooms() {
+        // 10 beers for a chest with 10 mushrooms: fine (+ Thirst for Adventure)
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 10)];
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::DrinkBeer, 0, 10, 2)];
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Beer]);
+        // 10 beers for 5 mushrooms: no
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 5)];
+        assert!(plan(&tasks, &chests, RICH).is_empty());
+        // not enough beers left today: no
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 10)];
+        assert!(plan(&tasks, &chests, Means { beers: 3, ..RICH }).is_empty());
+        // a chest without mushrooms is never worth a beer
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 0)];
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::DrinkBeer, 0, 1, 2)];
+        assert!(plan(&tasks, &chests, RICH).is_empty());
+    }
+
+    #[test]
+    fn wheel_only_with_enough_lucky_coins() {
+        let chests = [chest(4), chest(8), chest_with(12, 10)];
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::SpinWheelOfFortune, 1, 5, 2)];
+        assert!(plan(&tasks, &chests, Means { wheel_spins: 3, ..RICH }).is_empty());
+        assert_eq!(plan(&tasks, &chests, Means { wheel_spins: 4, ..RICH }), [Extra::Wheel]);
+        // a chest with neither mushrooms nor enough lucky coins back is not worth 4 coins
+        let chests = [chest(4), chest(8), chest_coins(12, 2)];
+        assert!(plan(&tasks, &chests, RICH).is_empty());
+        let chests = [chest(4), chest(8), chest_coins(12, 5)];
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Wheel]);
     }
 }

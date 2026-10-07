@@ -26,7 +26,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Plan of further features: `docs/todo.md` (add new ideas, tick off finished ones). Whenever a big game TODO comes to mind, add it to the "Návrhy od Clauda" section.
 - Whenever unsure about any decision (strategy, data, what the bot may do), ask the user and record the answer in `docs/precedents.md`. Follow the precedents in similar situations.
 - Random delays between actions (human-like), never spam the server.
-- NEVER spend mushrooms under any circumstances until the user explicitly changes this rule. The ONLY exceptions (user, 2026-10-07): (1) renting a mount in the Stable – griffin/dragon for 25 mushrooms, or a tiger for 10 g + 1 mushroom when there are not enough mushrooms; only when the character has no mount and is heading to the Tavern (see `docs/stable.md`); (2) one beer (`BuyBeer`, 1 mushroom) only when "Drink beer" is the last missing Goblin Gleeman/event task for a chest with more mushrooms than the beer costs, after everything else for the day (`tasks::beer_justified`, see `docs/tasks.md`; during future events beer may be allowed more). The mushroom watchdog allows a decrease only for these commands and exactly by their price. Send all commands through `safe::send` (src/safe.rs), which only lets whitelisted commands (`is_allowed`) through. Add a command to the whitelist only after verifying it does not spend mushrooms. Never allow:
+- NEVER spend mushrooms under any circumstances until the user explicitly changes this rule. The ONLY exceptions (user, 2026-10-07): (1) renting a mount in the Stable – griffin/dragon for 25 mushrooms, or a tiger for 10 g + 1 mushroom when there are not enough mushrooms; only when the character has no mount and is heading to the Tavern (see `docs/stable.md`); (2) beer (`BuyBeer`, 1 mushroom each) only for a Goblin Gleeman/event "Drink beer" task (it may ask for 1 or 10 beers) when those beers are needed for a chest that has at least as many mushrooms as the beers cost, after everything else for the day (`tasks::plan`, see `docs/tasks.md`; during future events beer may be allowed more). The mushroom watchdog allows a decrease only for these commands and exactly by their price. Send all commands through `safe::send` (src/safe.rs), which only lets whitelisted commands (`is_allowed`) through. Add a command to the whitelist only after verifying it does not spend mushrooms. Never allow:
   - `BuyBeer` except the task exception above, `TimeSkip::Mushroom` (in `FinishQuest { skip }` and `ExpeditionSkipWait`),
   - `GambleMushrooms`, `GuildLoadMushrooms`, anything with `Mushrooms` in its name (e.g. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
   - and any other command that is not certain to spend no mushrooms (rather refuse).
@@ -84,7 +84,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Description and verification status: `docs/tasks.md`.
 - Claim task chests (daily + event); do tasks that cost only gold or nothing (attributes, guild skill – the cheaper one,
   Instructor on a tie –, shop purchases, Training Camp). Never beer, paid wheel spins, hourglasses, skips.
-- Shell game only with minimal bets, after the Tavern and shops, and only when its points reach a chest.
+- Costly tasks (`tasks::plan`) only when needed for a chest, looking at the chest rewards: shell game (minimal bets), Wheel of
+  Fortune for lucky coins (only for a chest with mushrooms or as many lucky coins back), beer (chest mushrooms ≥ beers).
 - Attributes and guild skill for tasks only after the Tavern and shops and never below the shop reserve (better equipment first).
 - Fight tasks (win against <class>, bare hands, no chest plate): in the Arena prefer a weaker opponent of that class; otherwise a
   Hall of Fame hunt (rank + 1500…, low honor, clearly weaker) once the 10 XP wins are done or after 21:00 – Hall of Fame
@@ -96,7 +97,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Daily rewards
 - Description and verification status: `docs/daily-rewards.md`.
-- Only the daily login bonus (calendar) and one free Wheel of Fortune spin a day. Never for mushrooms or lucky coins.
+- Only the daily login bonus (calendar) and one free Wheel of Fortune spin a day. Never for mushrooms; lucky coins only for a
+  Gleeman/event task spin count when a chest needs it (`docs/tasks.md`).
 
 ## Stable
 - Description: `docs/stable.md`. Buy a mount only right before an expedition when the character has none (not right after it expires).

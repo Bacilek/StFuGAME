@@ -11,6 +11,8 @@
   Only `FreeTurn` is whitelisted; after a spin the next one needs a new time from the server (same safeguard as Arena/Dungeons).
 - A failed action is retried at the earliest after 30 min.
 
+- Lucky coins: only for a Gleeman/event Wheel of Fortune task when a chest needs it (`docs/tasks.md`, user 2026-10-07).
+
 ## Verification status
 | What | Status |
 |---|---|
