@@ -74,15 +74,15 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         let cur = current.map_or(-1.0, |i| value(gs, i));
         if new > cur {
             let what = match current {
-                Some(c) => format!("nasazuji {} (hodnota {new:.0} > {cur:.0} u {})", describe(item), describe(c)),
-                None => format!("nasazuji {} do prázdného slotu {slot:?} (hodnota {new:.0})", describe(item)),
+                Some(c) => format!("nasazuji {} (hodnota {new:.1} > {cur:.1} u {})", describe(item), describe(c)),
+                None => format!("nasazuji {} do prázdného slotu {slot:?} (hodnota {new:.1})", describe(item)),
             };
             return Some((Action::Equip { pos, slot }, what));
         }
         if !item.is_epic() {
             return Some((
                 Action::Sell { pos },
-                format!("prodávám {} (hodnota {new:.0} ≤ {cur:.0} nasazeného)", describe(item)),
+                format!("prodávám {} (hodnota {new:.1} ≤ {cur:.1} nasazeného)", describe(item)),
             ));
         }
     }
