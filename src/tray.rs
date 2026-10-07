@@ -1,24 +1,22 @@
-//! Notification area icon (next to the clock): start and stop the bot, open the log, exit.
-//! Green = bot running, grey = stopped, red = ended with an error (see the log).
+//! Notification area icon (next to the clock): global start/stop, open the log, open the dashboard, exit.
+//! Green = at least one character running, grey = all stopped, red = all ended with an error (see the log).
+//! The actual window (tiles, per-character start/stop, charts) is built in `app.rs`; this module only owns
+//! the icon and its menu, which `app.rs` polls from the same event loop.
 //!
-//! The only place with `unsafe`: Windows API calls (like P/Invoke in C#) for the message loop
-//! the icon needs, and for making sure only one instance runs.
+//! The only place with `unsafe`: Windows API calls (like P/Invoke in C#) for making sure only one instance runs.
 
-use std::{future::Future, process::ExitCode, time::Duration};
-
-use tokio::{runtime::Runtime, task::JoinHandle};
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder,
-    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
 };
 use windows_sys::Win32::{
     Foundation::{ERROR_ALREADY_EXISTS, GetLastError},
     System::Threading::CreateMutexW,
-    UI::WindowsAndMessaging::{DispatchMessageW, MB_ICONINFORMATION, MSG, MessageBoxW, PM_REMOVE, PeekMessageW, TranslateMessage},
+    UI::WindowsAndMessaging::{MB_ICONINFORMATION, MessageBoxW},
 };
 
-#[derive(Clone, Copy, PartialEq)]
-enum State {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum State {
     Running,
     Stopped,
     Failed,
@@ -67,93 +65,56 @@ fn icon(state: State) -> Icon {
     Icon::from_rgba(rgba, size, size).expect("icon from valid RGBA data")
 }
 
-fn set_state(tray: &TrayIcon, start: &MenuItem, stop: &MenuItem, state: State) {
-    let tip = match state {
-        State::Running => "StFuGAME: bot running",
-        State::Stopped => "StFuGAME: bot stopped",
-        State::Failed => "StFuGAME: bot ended with an error (see log)",
-    };
-    let _ = tray.set_icon(Some(icon(state)));
-    let _ = tray.set_tooltip(Some(tip));
-    start.set_enabled(state != State::Running);
-    stop.set_enabled(state == State::Running);
+/// The icon plus its menu items, built once by `app.rs`.
+pub struct Tray {
+    pub tray: TrayIcon,
+    pub start: MenuItem,
+    pub stop: MenuItem,
+    pub log: MenuItem,
+    pub dash: MenuItem,
+    pub eod: MenuItem,
+    pub show: MenuItem,
+    pub quit: MenuItem,
 }
 
-/// Starts the icon and right away the bot. Blocks until the user picks "Exit".
-pub fn run<F, Fut>(rt: &Runtime, bot: F)
-where
-    F: Fn() -> Fut,
-    Fut: Future<Output = ExitCode> + Send + 'static,
-{
-    let menu = Menu::new();
-    let start = MenuItem::new("Start bot", false, None);
-    let stop = MenuItem::new("Stop bot", true, None);
-    let log = MenuItem::new("Open log", true, None);
-    let eod = MenuItem::new("Run end of day now (preview)", true, None);
-    let dash = MenuItem::new("Open dashboard", true, None);
-    let quit = MenuItem::new("Exit", true, None);
-    let _ = menu.append_items(&[&start, &stop, &PredefinedMenuItem::separator(), &log, &dash, &eod, &PredefinedMenuItem::separator(), &quit]);
+impl Tray {
+    pub fn build() -> Self {
+        let menu = Menu::new();
+        let show = MenuItem::new("Open StFuGAME", true, None);
+        let start = MenuItem::new("Start all characters", true, None);
+        let stop = MenuItem::new("Stop all characters", true, None);
+        let log = MenuItem::new("Open log", true, None);
+        let dash = MenuItem::new("Open dashboard in browser", true, None);
+        let eod = MenuItem::new("Run end of day now (preview)", true, None);
+        let quit = MenuItem::new("Exit", true, None);
+        let _ = menu.append_items(&[
+            &show,
+            &PredefinedMenuItem::separator(),
+            &start,
+            &stop,
+            &PredefinedMenuItem::separator(),
+            &log,
+            &dash,
+            &eod,
+            &PredefinedMenuItem::separator(),
+            &quit,
+        ]);
+        let tray = TrayIconBuilder::new()
+            .with_menu(Box::new(menu))
+            .with_icon(icon(State::Running))
+            .with_tooltip("StFuGAME: starting…")
+            .build()
+            .expect("creating the notification area icon");
+        Self { tray, start, stop, log, dash, eod, show, quit }
+    }
 
-    let tray = TrayIconBuilder::new()
-        .with_menu(Box::new(menu))
-        .with_icon(icon(State::Running))
-        .with_tooltip("StFuGAME: bot running")
-        .build()
-        .expect("creating the notification area icon");
-
-    let mut handle: Option<JoinHandle<ExitCode>> = Some(rt.spawn(bot()));
-    report!("[control] Bot started");
-    let mut state = State::Running;
-    set_state(&tray, &start, &stop, state);
-
-    loop {
-        // Windows message loop (the icon does not respond without it)
-        let mut msg: MSG = unsafe { std::mem::zeroed() };
-        // SAFETY: standard message loop over a valid MSG structure
-        unsafe {
-            while PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
-                TranslateMessage(&msg);
-                DispatchMessageW(&msg);
-            }
-        }
-
-        while let Ok(event) = MenuEvent::receiver().try_recv() {
-            if event.id == start.id() && state != State::Running {
-                handle = Some(rt.spawn(bot()));
-                report!("[control] Bot started");
-                state = State::Running;
-                set_state(&tray, &start, &stop, state);
-            } else if event.id == stop.id() && state == State::Running {
-                if let Some(h) = handle.take() {
-                    h.abort();
-                }
-                report!("[control] Bot stopped");
-                state = State::Stopped;
-                set_state(&tray, &start, &stop, state);
-            } else if event.id == eod.id() {
-                report!("[control] End of day requested (preview)");
-                crate::ctx::request_end_of_day();
-            } else if event.id == dash.id() {
-                let _ = std::process::Command::new("explorer").arg("roster\\dashboard.html").spawn();
-            } else if event.id == log.id() {
-                let _ = std::process::Command::new("explorer").arg("logs\\progress.log").spawn();
-            } else if event.id == quit.id() {
-                if let Some(h) = handle.take() {
-                    h.abort();
-                }
-                report!("[control] Exited");
-                return;
-            }
-        }
-
-        // The bot ended by itself (login error etc.)
-        if state == State::Running && handle.as_ref().is_some_and(JoinHandle::is_finished) {
-            handle = None;
-            report!("[control] The bot ended by itself, details in the log");
-            state = State::Failed;
-            set_state(&tray, &start, &stop, state);
-        }
-
-        std::thread::sleep(Duration::from_millis(50));
+    pub fn set_state(&self, state: State) {
+        let tip = match state {
+            State::Running => "StFuGAME: at least one character running",
+            State::Stopped => "StFuGAME: all characters stopped",
+            State::Failed => "StFuGAME: all characters ended with an error (see log)",
+        };
+        let _ = self.tray.set_icon(Some(icon(state)));
+        let _ = self.tray.set_tooltip(Some(tip));
     }
 }

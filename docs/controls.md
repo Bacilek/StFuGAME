@@ -1,26 +1,47 @@
 # Controlling the bot
 
-## Menu (2026-10-08)
-- Start / Stop bot, Open log (combined log of all characters), Open dashboard (`roster\dashboard.html`),
-  Run end of day now (preview): duels + report + dashboard right away; the 23:20 / 23:50 runs replace it, notes are kept.
+## App window (2026-10-08)
+The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`), not just a tray icon:
+- **"StFuGAME bot"** shortcut opens the **app window**: a "Characters" tab with a tile per character (name, class,
+  level, Hall of Fame rank, strength, a colored status dot, and an on/off switch that starts/stops just that
+  character) and a "Charts" tab (the dashboard, `roster/dashboard.html`, in an iframe). Clicking a tile opens a
+  card with that character's current state (gold, mushrooms, attributes, potions, achievements %, collection,
+  dungeons, equipment, guild) – the same data the dashboard's tiles show, refreshed every ~10 min while it plays.
+- Buttons in the header: **Start all / Stop all**, **Run end of day now** (preview: duels + report + dashboard
+  right away; the real 23:20/23:50 runs replace it, nothing counts twice), **Open in browser** (the dashboard as
+  a normal web page, e.g. to share the link elsewhere).
+- **Closing the window** (✕) only hides it; the bot keeps running. The tray icon's **"Open StFuGAME"** brings it
+  back, **"Exit"** really quits.
+- The tray icon still exists (same icon as before): Open StFuGAME, Start/Stop **all** characters, Open log, Open
+  dashboard in browser, Run end of day now, Exit. Green = at least one character running, grey = all stopped,
+  red = all ended with an error.
 
 ## For the user
-- **Start:** double click the **"StFuGAME bot"** shortcut on the desktop. A round icon appears next to the clock and the bot starts right away.
-  (If you cannot see the icon, it may be hidden under the ^ arrow in the notification area.)
-- **Icon:** green = bot running, grey = stopped, red = ended with an error (details in the log).
-- **Right click on the icon:** Start bot / Stop bot / Open log / Exit.
-  - *Stop bot* = the bot stops playing, the icon stays (can be started again).
-  - *Exit* = closes the program including the icon. Start it again with the desktop shortcut
-    (or directly `target\release\stfugame.exe`).
-- When you want to play manually in the browser, **stop** the bot first (otherwise you fight over the session).
+- **Start:** double click the **"StFuGAME bot"** shortcut on the desktop. The app window opens and every
+  configured character starts right away (a few seconds apart, not all at once).
+- Turn a single character on/off with the switch on its tile; **Start all/Stop all** do it for everyone.
+- When you want to play a character manually in the browser, **stop that character first** (switch off its
+  tile, or Stop all) – otherwise you fight over the session. Playing your own character on a *different*
+  account is always fine, it never touches the bot's session.
 - The bot can run only once; a second start reports "already running".
-- Log: `logs\progress.log` (also via "Open log"), keeps only the last 100 messages.
+- Logs: `logs\progress.log` is everyone combined (character name in brackets); `logs\<character>\progress.log`
+  is just that one. Both keep only the last messages.
 - If mushrooms ever decrease outside the allowed exception, the bot stops itself and shows a warning.
 
 ## For Claude (development)
-- The shortcut runs `target\release\stfugame.exe` (working folder = project). The exe finds the folder with `.env` by itself.
-- The release build has no console (`windows_subsystem = "windows"`), debug (`cargo run`) has a console and the icon.
-- Before `cargo build --release` the user must **Exit** the bot (the exe is locked otherwise); after the build the user starts it again
-  with the shortcut (or `Start-Process target\release\stfugame.exe -WorkingDirectory <project>`).
+- The shortcut runs `target\release\stfugame.exe` (working folder = project). The exe finds the folder with
+  `.env` by itself.
+- The release build has no console (`windows_subsystem = "windows"`), debug (`cargo run`) has a console.
+- Before `cargo build --release` the user must **Exit** the bot from the tray icon (the exe is locked
+  otherwise); after the build the user starts it again with the shortcut.
   Do not start the bot for the user unless asked – the user starts it themselves.
-- Do not run `cargo run` while the bot from the icon is running – the single-instance guard shows the "already running" dialog.
+- Do not run `cargo run` while the bot from the shortcut is running – the single-instance guard shows the
+  "already running" dialog.
+- `STFU_NO_LOGIN=1` (env var) skips auto-starting every character – handy for trying out the window itself
+  without touching the server. Never use it to justify logging in with throwaway/fake credentials instead;
+  when a no-network check is needed, use this flag, not real or fake login attempts.
+- **Never screenshot the user's whole screen** to check the app window (a mis-timed `GetWindowRect` can return
+  a zeroed rect and `CopyFromScreen` silently falls back to the full screen, which may show the user's own
+  browser/game session). Confirm the window via the process list, title, and log output instead, or ask the
+  user to look. If a screenshot is genuinely needed, resolve the exact client rect first and sanity-check its
+  width/height are plausible before capturing.

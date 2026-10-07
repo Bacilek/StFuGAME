@@ -3,7 +3,9 @@
 
 #[macro_use]
 mod report;
+mod app;
 mod arena;
+mod control;
 mod ctx;
 mod daily;
 mod dungeons;
@@ -53,10 +55,10 @@ fn describe_login_error(err: &SFError) -> String {
 }
 
 #[derive(Clone)]
-struct Credentials {
+pub(crate) struct Credentials {
     user: String,
     pass: String,
-    character: String,
+    pub(crate) character: String,
     /// Optional: only if there are characters with the same name on several servers
     server: Option<String>,
 }
@@ -290,6 +292,15 @@ fn main() -> ExitCode {
         tray::message_box("The StFuGAME bot is already running (icon next to the clock).");
         return ExitCode::FAILURE;
     }
+    // .env is optional - the variables can also be set in the system
+    let _ = dotenvy::dotenv();
+    let accounts = match accounts() {
+        Ok(a) => a,
+        Err(e) => {
+            report!("{e}");
+            return ExitCode::FAILURE;
+        }
+    };
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
         Err(e) => {
@@ -297,14 +308,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    tray::run(&rt, run_bot);
-    ExitCode::SUCCESS
+    // The app window owns the one message loop (icon + window) and never returns.
+    app::run(rt, accounts)
 }
 
 /// All accounts from the environment (.env): `SF_USER`/`SF_PASS`/`SF_CHARACTER` (optional, one account) and
 /// `SF_ACCOUNTS` = `login|password|character;login|password|character;…` (the challenge characters).
 /// `SF_SERVER` applies to all. Never logs the values.
-fn accounts() -> Result<Vec<Credentials>, String> {
+pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
     let server = env_var("SF_SERVER").ok();
     let mut out = Vec::new();
     if let (Ok(user), Ok(pass), Ok(character)) = (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
@@ -333,39 +344,8 @@ fn accounts() -> Result<Vec<Credentials>, String> {
     Ok(out)
 }
 
-/// The whole bot: every character in its own task (`ctx::CHARACTER`), started a little apart.
-/// The icon starts and stops it; stopping drops the JoinSet, which stops all characters.
-async fn run_bot() -> ExitCode {
-    // .env is optional - the variables can also be set in the system
-    let _ = dotenvy::dotenv();
-    let accounts = match accounts() {
-        Ok(a) => a,
-        Err(e) => {
-            report!("{e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let names: Vec<&str> = accounts.iter().map(|c| c.character.as_str()).collect();
-    report!("Characters: {} ({})", accounts.len(), names.join(", "));
-    let mut set = tokio::task::JoinSet::new();
-    for (i, creds) in accounts.into_iter().enumerate() {
-        // Do not log in all at once (human-like, server-friendly)
-        let delay = if i == 0 { 0 } else { i as u64 * 20 + fastrand::u64(0..20) };
-        let name = creds.character.clone();
-        set.spawn(ctx::CHARACTER.scope(name, async move {
-            tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
-            run_character(creds).await
-        }));
-    }
-    let mut ok = true;
-    while let Some(res) = set.join_next().await {
-        ok &= matches!(res, Ok(code) if code == ExitCode::SUCCESS);
-    }
-    if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }
-}
-
-/// One character: login and main loop, logging in again after a lost session.
-async fn run_character(creds: Credentials) -> ExitCode {
+/// One character: login and main loop, logging in again after a lost session. Spawned by `control::start`.
+pub(crate) async fn run_character(creds: Credentials) -> ExitCode {
     let mut journal = journal::Journal::default();
     // Only consecutive session losses count; when a session lasts, the counter resets
     let mut attempt = 0;

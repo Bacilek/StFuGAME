@@ -4,7 +4,7 @@
 | File | What it does |
 |---|---|
 | `main.rs` | Startup: finds the folder with `.env`, single-instance guard, tokio runtime, icon. `run_bot` = login + the `play` loop, re-login after a lost session. `play`: rewards → inventory → Guild → Arena → Hunt → Dungeons → Tavern (1 expedition) → Shops → Tasks (Gleeman) → City Guard → wait. |
-| `tray.rs` | Icon next to the clock (tray-icon + Win32 message loop), menu Start/Stop/Open log/Exit, single-instance mutex, MessageBox. The only `unsafe` in the project. |
+| `tray.rs` | Icon next to the clock (tray-icon crate), menu + single-instance mutex + MessageBox. No message loop of its own (`app.rs` owns it) except the `unsafe` Win32 calls for `already_running`/`message_box`. |
 | `safe.rs` | **The only path to the server.** Command whitelist, cooldown guards (Arena, Dungeons, wheel), mushroom watchdog (decrease → dialog + `exit(2)`), random pauses 2.5–7 s. |
 | `tavern.rs` | Expeditions: choosing the expedition, encounters, rewards, waiting, data checks (`checks`), journal. During an expedition it also calls inventory/Arena/Dungeons/Stable. Returns `Outcome` after every finished expedition. |
 | `missions.rs` | Table of missions/cycles (chains, heroism, bonuses, limits). Data from the FAQ + from the user + verified on the server. |
@@ -19,6 +19,8 @@
 | `hunt.rs` | Hall of Fame hunt for fight tasks (class, bare hands, no chest plate): weak opponent far below our rank. |
 | `potions.rs` | Potions: target set main + CON + Eternal Life/Luck, drink from the backpack, shop steps (bought in shops.rs). |
 | `roster.rs` | Character challenge report into `roster/` (local only): notes from progress messages, 23:50 daily report, card, leaderboard. |
+| `app.rs` | The app window: tao event loop + wry WebView2 showing `roster/app.html` (tiles, per-character on/off, Charts tab). |
+| `control.rs` | Starting/stopping individual characters (abort handle per character), status for the app window/tray icon. |
 | `ctx.rs` | Several characters: task-local `CHARACTER`, `PerChar<T>` (per-character state with the `Mutex::lock` API), per-character log paths, the manual end-of-day request. |
 | `guard.rs` | City Guard: `StartWork`/`FinishWork`, length so it ends 00:00–00:59. |
 | `daily.rs` | Daily login bonus (`CollectCalendar`) and the free Wheel of Fortune spin. |

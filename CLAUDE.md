@@ -28,6 +28,10 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Several characters run in one process, each in its own tokio task (`ctx::CHARACTER`); state kept between calls must be
   `ctx::PerChar<T>` (per character), never a plain static. Logs: combined `logs/progress.log` ([character] prefix) +
   `logs/<character>/` (progress.log, arena.jsonl, expeditions.jsonl).
+- The bot is a desktop app (`app.rs`: tao window + wry/WebView2, loading `roster/app.html`), not just a tray icon.
+  `control.rs` starts/stops individual characters (abort handle per character); `tray.rs` only builds the icon+menu,
+  `app.rs` owns the single Win32 message loop (via tao) that pumps both the window and the tray icon's events.
+  Details and the dev-only `STFU_NO_LOGIN=1` flag: `docs/controls.md`.
 
 ## Rules
 - All docs are mainly for Claude: update them whenever anything new is learned (from runs, from the user, from the FAQ). Record verified facts in the "Verification status" tables, rewrite `docs/status.md` after bigger changes.
