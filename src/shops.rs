@@ -200,7 +200,9 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         return Outcome::Done;
     }
     with_day(|d| d.done = true);
+    crate::roster::set_shopping(true);
     let outcome = shop(session).await;
+    crate::roster::set_shopping(false);
     if let Some(gs) = session.game_state() {
         report!("[shops] Done, gold left {}", crate::report::gold(gs.character.silver));
     }

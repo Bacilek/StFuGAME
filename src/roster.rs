@@ -30,6 +30,23 @@ const REPORT_HOUR: u32 = 23;
 const REPORT_MINUTE: u32 = 50;
 
 static NICK: Mutex<Option<String>> = Mutex::new(None);
+/// While the shops are being bought out / spun, sales give back the purchase price: not income.
+static SHOPPING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_shopping(on: bool) {
+    SHOPPING.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Gold (silver) and mushrooms gained by one command. Spending is not counted; sales during shopping neither.
+pub fn ledger(silver: u64, mushrooms: u32, is_sale: bool) {
+    let shopping_sale = is_sale && SHOPPING.load(std::sync::atomic::Ordering::Relaxed);
+    if silver > 0 && !shopping_sale {
+        note("GOLD", 0, &silver.to_string());
+    }
+    if mushrooms > 0 {
+        note("MUSH", 0, &mushrooms.to_string());
+    }
+}
 
 /// Sets the character whose folder the notes go to (after login).
 pub fn set_character(name: &str) {
@@ -154,12 +171,16 @@ struct Snapshot {
     hourglasses: u32,
     arena_wins: u8,
     guild: String,
+    /// Gold / mushrooms gained today (income only)
+    gold_gained: f64,
+    mushrooms_gained: u64,
 }
 
-const CSV_HEADER: &str = "date,level,rank,honor,strength,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild";
+const CSV_HEADER: &str =
+    "date,level,rank,honor,strength,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,gold_gained,mushrooms_gained";
 
 impl Snapshot {
-    fn of(gs: &GameState) -> Self {
+    fn of(gs: &GameState, gold_gained: f64, mushrooms_gained: u64) -> Self {
         let c = &gs.character;
         Snapshot {
             date: Local::now().date_naive(),
@@ -175,12 +196,14 @@ impl Snapshot {
             hourglasses: gs.tavern.quicksand_glasses,
             arena_wins: gs.arena.fights_for_xp,
             guild: gs.guild.as_ref().map_or_else(|| "-".to_string(), |g| g.name.replace(',', " ")),
+            gold_gained,
+            mushrooms_gained,
         }
     }
 
     fn csv(&self) -> String {
         format!(
-            "{},{},{},{},{:.0},{:.2},{},{},{},{},{}",
+            "{},{},{},{},{:.0},{:.2},{},{},{},{},{},{:.2},{}",
             self.date,
             self.level,
             self.rank,
@@ -191,26 +214,51 @@ impl Snapshot {
             self.lucky_coins,
             self.hourglasses,
             self.arena_wins,
-            self.guild
+            self.guild,
+            self.gold_gained,
+            self.mushrooms_gained
         )
     }
 }
 
-/// Last line of a history.csv before today: (level, rank).
-fn previous(history: &Path, today: NaiveDate) -> Option<(u16, u32)> {
-    let text = fs::read_to_string(history).ok()?;
-    let line = text.lines().skip(1).filter(|l| !l.starts_with(&today.to_string())).last()?;
-    let f: Vec<&str> = line.split(',').collect();
-    Some((f.get(1)?.parse().ok()?, f.get(2)?.parse().ok()?))
+/// What the earlier days in history.csv say.
+#[derive(Default)]
+struct Past {
+    /// Yesterday's (last earlier line) level and rank
+    last: Option<(u16, u32)>,
+    /// Best (lowest) Hall of Fame rank so far
+    best_rank: Option<u32>,
+    /// Gold / mushrooms gained over all earlier days
+    gold_total: f64,
+    mushrooms_total: u64,
+}
+
+fn past(history: &Path, today: NaiveDate) -> Past {
+    let text = fs::read_to_string(history).unwrap_or_default();
+    let mut p = Past::default();
+    for line in text.lines().skip(1).filter(|l| !l.starts_with(&today.to_string())) {
+        let f: Vec<&str> = line.split(',').collect();
+        let num = |i: usize| f.get(i).and_then(|v| v.parse::<f64>().ok());
+        if let (Some(l), Some(r)) = (num(1), num(2)) {
+            p.last = Some((l as u16, r as u32));
+            if r > 0.0 {
+                p.best_rank = Some(p.best_rank.map_or(r as u32, |b| b.min(r as u32)));
+            }
+        }
+        p.gold_total += num(11).unwrap_or(0.0);
+        p.mushrooms_total += num(12).unwrap_or(0.0) as u64;
+    }
+    p
 }
 
 /// Writes today's report for the logged-in character and refreshes the shared files. Returns a summary line.
 pub fn write_day(gs: &GameState) -> String {
     let Some(d) = dir() else { return "no character set".to_string() };
-    let s = Snapshot::of(gs);
     let notes = take_notes();
+    let sum = |kind: &str| notes.iter().filter(|n| n.1 == kind).filter_map(|n| n.3.parse::<u64>().ok()).sum::<u64>();
+    let s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"));
     let history = d.join("history.csv");
-    let prev = previous(&history, s.date);
+    let past = past(&history, s.date);
 
     let best = notes.iter().filter(|n| n.1 == "WIN").max_by_key(|n| n.2).map(|n| n.3.clone());
     let wins: Vec<String> = notes.iter().filter(|n| n.1 == "WIN").map(|n| format!("{} {}", &n.0[11..16], n.3)).collect();
@@ -224,7 +272,7 @@ pub fn write_day(gs: &GameState) -> String {
         .map(|(m, (c, t))| if *c > 1 { format!("{t} {m} ({c}×)") } else { format!("{t} {m}") })
         .collect();
 
-    let html = page(gs, &s, prev, best.as_deref(), &wins, &issue_lines);
+    let html = page(gs, &s, &past, best.as_deref(), &wins, &issue_lines);
     if let Some(f) = day_file(s.date) {
         let _ = fs::create_dir_all(f.parent().unwrap_or(Path::new(ROOT)));
         let _ = fs::write(&f, &html);
@@ -366,21 +414,29 @@ fn list(items: &[String], empty: &str) -> String {
 fn page(
     gs: &GameState,
     s: &Snapshot,
-    prev: Option<(u16, u32)>,
+    past: &Past,
     best: Option<&str>,
     wins: &[String],
     issues: &[String],
 ) -> String {
     let c = &gs.character;
-    let level_delta = prev.map_or(String::new(), |(l, _)| match i32::from(s.level) - i32::from(l) {
+    let level_delta = past.last.map_or(String::new(), |(l, _)| match i32::from(s.level) - i32::from(l) {
         0 => String::new(),
         d => format!(r#" <span class="up">{d:+}</span>"#),
     });
-    let rank_delta = prev.map_or(String::new(), |(_, r)| match i64::from(s.rank) - i64::from(r) {
-        0 => String::new(),
-        d if d < 0 => format!(r#" <span class="up">▲ {}</span>"#, -d),
-        d => format!(r#" <span class="down">▼ {d}</span>"#),
+    // Arrow before the rank: green up / red down, a little bigger for a bigger move
+    let rank_arrow = past.last.map_or(String::new(), |(_, r)| {
+        let d = i64::from(r) - i64::from(s.rank); // positive = better
+        if d == 0 {
+            return String::new();
+        }
+        let size = 14.0 + ((d.unsigned_abs() as f64).log10() * 4.0).min(12.0);
+        let (class, arrow) = if d > 0 { ("up", "▲") } else { ("down", "▼") };
+        format!(r#"<span class="{class}" style="font-size:{size:.0}px" title="{d:+}">{arrow}</span> "#)
     });
+    let best_rank = past.best_rank.map_or(s.rank, |b| b.min(s.rank));
+    let gold_total = past.gold_total + s.gold_gained;
+    let mushrooms_total = past.mushrooms_total + s.mushrooms_gained;
     let attrs: String = ATTRS
         .iter()
         .map(|a| {
@@ -420,9 +476,6 @@ fn page(
             format!("{:?} {:.0} % until {until}", p.typ, p.size.effect() * 100.0)
         })
         .collect();
-    let mount = c.mount.map_or("none".to_string(), |m| {
-        format!("{m:?} until {}", c.mount_end.map_or("?".to_string(), |e| e.format("%d.%m.").to_string()))
-    });
     let dungeons: Vec<String> = gs
         .dungeons
         .light
@@ -444,7 +497,7 @@ fn page(
 .wrap{{max-width:900px;margin:auto}} .card{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}}
 h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:16px;color:var(--accent)}} .muted,.sub{{color:var(--muted)}}
 .stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}}
-.k{{color:var(--muted);font-size:12px}} .v{{font-size:20px;font-weight:700}} .up{{color:var(--up);font-size:14px}} .down{{color:var(--down);font-size:14px}}
+.k{{color:var(--muted);font-size:12px}} .small{{font-size:13px;font-weight:400;color:var(--muted)}} .v{{font-size:20px;font-weight:700}} .up{{color:var(--up);font-size:14px}} .down{{color:var(--down);font-size:14px}}
 .bar{{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}} .bar>i{{display:block;height:100%;background:var(--accent)}}
 .best{{font-size:16px;font-weight:600}} table{{border-collapse:collapse}} td{{padding:3px 12px 3px 0}} tr.main td{{color:var(--accent);font-weight:600}}
 .items{{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}}
@@ -455,14 +508,14 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
 .score{{color:var(--muted);font-size:12px;margin-top:4px}} ul{{margin:0;padding-left:18px}} li{{margin:2px 0}}
 .cols{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}}
 </style></head><body><div class="wrap">
-<div class="card"><h1>{name}</h1><div class="sub">{class} · level {level} · {date} 23:50</div>
+<div class="card"><h1>{name}</h1><div class="sub">{class} · level {level} · {date}</div>
 <div class="stats">
 <div><div class="k">Level</div><div class="v">{level}{level_delta}</div><div class="bar"><i style="width:{xp_pct:.0}%"></i></div><div class="k">XP {xp} / {next}</div></div>
-<div><div class="k">Hall of Fame</div><div class="v">#{rank}{rank_delta}</div></div>
+<div><div class="k">Hall of Fame</div><div class="v">{rank_arrow}#{rank} <span class="small">(best #{best_rank})</span></div></div>
 <div><div class="k">Honor</div><div class="v">{honor}</div></div>
 <div><div class="k">Strength</div><div class="v">{strength:.0}</div></div>
-<div><div class="k">Gold</div><div class="v">{gold:.2}</div></div>
-<div><div class="k">Mushrooms</div><div class="v">{mushrooms}</div></div>
+<div><div class="k">Gold gained today (all days)</div><div class="v">+{gold_gained:.0} <span class="small">({gold_total:.0})</span></div></div>
+<div><div class="k">Mushrooms gained today (all days)</div><div class="v">+{mushrooms_gained} <span class="small">({mushrooms_total})</span></div></div>
 </div></div>
 <div class="card"><h2>Biggest success of the day</h2><div class="best">{best}</div></div>
 <div class="cols">
@@ -472,9 +525,9 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
 <div class="cols">
 <div class="card"><h2>Attributes</h2><table><tr class="k"><td></td><td>base</td><td>bonus</td><td>total</td></tr>{attrs}</table></div>
 <div class="card"><h2>Other</h2><table>
-<tr><td class="k">Guild</td><td>{guild}</td></tr><tr><td class="k">Mount</td><td>{mount}</td></tr>
+<tr><td class="k">Guild</td><td>{guild}</td></tr>
 <tr><td class="k">Arena wins (XP)</td><td>{arena}/10</td></tr><tr><td class="k">Lucky coins</td><td>{coins}</td></tr>
-<tr><td class="k">Hourglasses</td><td>{glasses}</td></tr><tr><td class="k">Potions</td><td>{potions}</td></tr>
+<tr><td class="k">Potions</td><td>{potions}</td></tr>
 <tr><td class="k">Dungeons</td><td>{dungeons}</td></tr></table></div>
 </div>
 <div class="card"><h2>Equipment</h2><div class="items">{equip}</div></div>
@@ -486,18 +539,16 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
         rank = s.rank,
         honor = s.honor,
         strength = s.strength,
-        gold = s.gold,
-        mushrooms = s.mushrooms,
+        gold_gained = s.gold_gained,
+        mushrooms_gained = s.mushrooms_gained,
         xp = c.experience,
         next = c.next_level_xp,
         best = esc(best.unwrap_or("–")),
         wins = list(wins, "–"),
         issues = list(issues, "nothing, a quiet day"),
         guild = esc(&s.guild),
-        mount = esc(&mount),
         arena = s.arena_wins,
         coins = s.lucky_coins,
-        glasses = s.hourglasses,
         potions = if potions.is_empty() { "–".to_string() } else { esc(&potions.join(", ")) },
         dungeons = if dungeons.is_empty() { "–".to_string() } else { esc(&dungeons.join(", ")) },
     )
@@ -550,6 +601,14 @@ mod tests {
                 observe(msg);
             }
         }
+        // An earlier day in the history, so the changes and totals show
+        if let Some(d) = dir() {
+            let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
+            append(&d.join("history.csv"), CSV_HEADER);
+            append(&d.join("history.csv"), &format!("{yesterday},12,10230,90,120,98.10,29,50,7,10,-,184.00,2"));
+        }
+        ledger(7_150, 2, false);
+        ledger(900, 0, true); // a sale outside shopping counts
         win(5, "Level up: 12 → 13 (demo)");
         observe("[dungeons] Win: xp +578, gold +3.00 g, item no (demo)");
         observe("[inventory] equipping Weapon (epic) (value 99.0 > 59.7 of Weapon) (demo)");
