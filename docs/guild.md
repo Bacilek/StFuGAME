@@ -26,7 +26,23 @@
 - `GroupJoin` response (captured): the full own-guild data (`owngroupsave`, `owngroupname`, `owngroupmember`,
   `owngrouppotion`, `owngroupknights`, `groupskillprice`, …) + `ownplayersavecharacter`, `charactergroup`.
   sf-api parses these keys → after a successful join `gs.guild` is `Some` with the guild name (use it as the success check).
-- Missing: the Response body of `GroupJoinList` (to parse Instructor/Treasure/…).
+- `GroupJoinList:0` response (captured 2026-10-07): key `joinablegrouplist.r`, ~50 guilds, 14 fields each separated by `/`
+  (text fields use the sf string escapes `$s` space, `$b` newline, `$c` …). Example:
+  `108/504/Artušova Garda/48/3/106/106/0/<emblem hex>/10/33/17/<description>/xx`
+  | # | Value | Meaning |
+  |---|---|---|
+  | 0 | 108 | Hall of Fame rank (= `owngrouprank` after joining) ✅ |
+  | 1 | 504 | guild id (= first value of `owngroupsave`) ✅ |
+  | 2 | Artušova Garda | name ✅ |
+  | 3 | 48 | members (49 after we joined) ✅ |
+  | 4 | 3 | Hall of Knights or raids ❓ |
+  | 5 | 106 | Treasure or Instructor ❓ |
+  | 6 | 106 | Instructor or Treasure ❓ |
+  | 7 | 0 | raids or Hall of Knights ❓ (mostly 0) |
+  | 8 | hex | emblem |
+  | 9–11 | 10/33/17 | min / max / average member level (max 33, min 10 matches the member levels) ✅ |
+  | 12 | text | description |
+  | 13 | xx | language (xx, cs, pl, de, fr, en, …) |
 
 ## Verification status
 | What | Status |
