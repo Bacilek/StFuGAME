@@ -142,6 +142,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
     loop {
         if let Some(gs) = session.game_state() {
             roster::track_level(gs);
+            roster::write_now(gs);
         }
         if let tavern::Outcome::SessionLost = daily::run(session).await {
             return tavern::Outcome::SessionLost;

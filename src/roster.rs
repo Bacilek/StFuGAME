@@ -334,6 +334,80 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
     })
 }
 
+/// The character's current state for the dashboard card (user 2026-10-08).
+fn card_data(gs: &GameState) -> serde_json::Value {
+    let c = &gs.character;
+    let attrs: serde_json::Map<String, serde_json::Value> = ATTRS
+        .iter()
+        .map(|(a, n)| {
+            let (b, add) = (c.attribute_basis[*a], c.attribute_additions[*a]);
+            ((*n).to_string(), serde_json::json!({ "base": b, "bonus": add, "total": b + add }))
+        })
+        .collect();
+    let potions: Vec<serde_json::Value> = c
+        .active_potions
+        .iter()
+        .flatten()
+        .map(|p| {
+            serde_json::json!({
+                "t": format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0),
+                "until": p.expires.map(|e| e.format("%d.%m. %H:%M").to_string()),
+            })
+        })
+        .collect();
+    let dungeons: Vec<serde_json::Value> = gs
+        .dungeons
+        .light
+        .iter()
+        .map(|(d, p)| (format!("{d:?}"), p))
+        .chain(gs.dungeons.shadow.iter().map(|(d, p)| (format!("Shadow {d:?}"), p)))
+        .filter_map(|(name, p)| match p {
+            DungeonProgress::Open { finished } => Some(serde_json::json!({ "name": name, "done": finished, "finished": false })),
+            DungeonProgress::Finished => Some(serde_json::json!({ "name": name, "done": 10, "finished": true })),
+            DungeonProgress::Locked => None,
+        })
+        .collect();
+    let scrapbook = c.scrapbook.as_ref().map(|s| s.items.len() + s.monster.len());
+    let ach = &gs.achievements;
+    serde_json::json!({
+        "name": c.name,
+        "class": format!("{:?}", c.class),
+        "level": c.level,
+        "xp": c.experience,
+        "next_xp": c.next_level_xp,
+        "rank": c.rank,
+        "honor": c.honor,
+        "gold": c.silver as f64 / 100.0,
+        "mushrooms": c.mushrooms,
+        "lucky_coins": gs.specials.wheel.lucky_coins,
+        "strength": (crate::hunt::own_strength(gs)).round(),
+        "attrs": attrs,
+        "potions": potions,
+        "scrapbook": scrapbook,
+        "achievements": { "owned": ach.owned(), "total": ach.0.len() },
+        "dungeons": dungeons,
+        "guild": gs.guild.as_ref().map(|g| g.name.clone()),
+        "equip": snapshot(gs)["equip"].clone(),
+        "updated": Local::now().format("%d.%m. %H:%M").to_string(),
+    })
+}
+
+/// Writes the character's current state (`now.json`) and rebuilds the dashboard, at most every `NOW_EVERY`.
+pub fn write_now(gs: &GameState) {
+    const NOW_EVERY: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+    static LAST: crate::ctx::PerChar<Option<std::time::Instant>> = crate::ctx::PerChar::new();
+    let Ok(mut last) = LAST.lock() else { return };
+    if last.is_some_and(|t| t.elapsed() < NOW_EVERY) {
+        return;
+    }
+    *last = Some(std::time::Instant::now());
+    drop(last);
+    let Some(d) = dir() else { return };
+    let _ = fs::create_dir_all(&d);
+    let _ = fs::write(d.join("now.json"), card_data(gs).to_string());
+    write_dashboard(false);
+}
+
 /// Human-readable changes between two snapshots (the reasons a win rate could jump).
 fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
     let mut out = Vec::new();
@@ -463,7 +537,7 @@ fn write_dashboard(demo: bool) {
     let win_rates = crate::tournament::daily_win_rates(demo);
     for e in dirs {
         let rows = read_history(&e.path().join("history.csv"));
-        if rows.is_empty() {
+        if rows.is_empty() && !e.path().join("now.json").exists() {
             continue;
         }
         let num = |r: &BTreeMap<String, String>, k: &str| r.get(k).and_then(|v| v.parse::<f64>().ok());
@@ -491,7 +565,16 @@ fn write_dashboard(demo: bool) {
                 }),
             );
         }
-        chars.push(serde_json::json!({ "nick": nick, "cls": class, "rows": by_date }));
+        let now: serde_json::Value = fs::read_to_string(e.path().join("now.json"))
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or(serde_json::Value::Null);
+        if class.is_empty()
+            && let Some(c) = now["class"].as_str()
+        {
+            class = c.to_string();
+        }
+        chars.push(serde_json::json!({ "nick": nick, "cls": class, "rows": by_date, "now": now }));
     }
     let data = serde_json::json!({
         "generated": Local::now().format("%Y-%m-%d %H:%M").to_string(),
@@ -627,6 +710,19 @@ mod tests {
                 }
                 let _ = fs::write(d.join("days").join(format!("{date}.json")), snap.to_string());
             }
+            // Current state for the character card
+            let now = serde_json::json!({
+                "name": nick, "class": class, "level": level, "xp": 4100, "next_xp": 6900, "rank": rank, "honor": 300 + i * 40,
+                "gold": 157.29 + i as f64 * 11.0, "mushrooms": 31 + i, "lucky_coins": 50, "strength": strength.round(),
+                "attrs": {"STR": {"base": 28, "bonus": 41, "total": 69}, "DEX": {"base": 10, "bonus": 6, "total": 16},
+                          "INT": {"base": 9, "bonus": 3, "total": 12}, "CON": {"base": 29, "bonus": 37, "total": 66},
+                          "LCK": {"base": 14, "bonus": 12, "total": 26}},
+                "potions": [{"t": "Strength 25 %", "until": "10.10. 21:40"}, {"t": "Constitution 15 %", "until": "09.10. 08:10"}],
+                "scrapbook": 85 + i * 7, "achievements": {"owned": 12 + i, "total": 284},
+                "dungeons": [{"name": "TrainingCamp", "done": 10, "finished": true}, {"name": "DesecratedCatacombs", "done": 4, "finished": false}],
+                "guild": "Artušova Garda", "equip": snap["equip"].clone(), "updated": "08.10. 00:20",
+            });
+            let _ = fs::write(d.join("now.json"), now.to_string());
         }
         write_dashboard(true);
         println!("demo dashboard: roster/dashboard.html");
