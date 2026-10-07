@@ -394,6 +394,7 @@ fn write_dashboard(demo: bool) {
         "generated": Local::now().format("%Y-%m-%d %H:%M").to_string(),
         "dates": dates.into_iter().collect::<Vec<_>>(),
         "chars": chars,
+        "h2h": crate::tournament::head_to_head(demo),
     });
     let template = include_str!("dashboard.html");
     let start = "/*DATA*/";

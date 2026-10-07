@@ -79,6 +79,18 @@ pub fn daily_win_rates(demo: bool) -> std::collections::BTreeMap<String, std::co
     out
 }
 
+/// Head-to-head of every daily round for the dashboard: date → {players, win}.
+pub fn head_to_head(demo: bool) -> serde_json::Map<String, serde_json::Value> {
+    rounds(demo)
+        .into_iter()
+        .filter_map(|r| {
+            let date = r["date"].as_str()?.to_string();
+            let players: Vec<serde_json::Value> = r["players"].as_array()?.iter().map(|p| p["nick"].clone()).collect();
+            Some((date, serde_json::json!({ "players": players, "win": r["win"].clone() })))
+        })
+        .collect()
+}
+
 /// All saved rounds, sorted by day. Demo rounds (`_demo-*`) only for a demo.
 fn rounds(demo: bool) -> Vec<serde_json::Value> {
     let dir = Path::new(ROOT).join("tournament");
