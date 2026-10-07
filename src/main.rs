@@ -1,3 +1,6 @@
+mod safe;
+mod tavern;
+
 use std::process::ExitCode;
 
 use sf_api::{SimpleSession, command::Command, error::SFError, gamestate::tavern::CurrentAction};
@@ -76,7 +79,7 @@ async fn main() -> ExitCode {
 
     println!("Načítám postavu {character} na {}...", session.server_url().host_str().unwrap_or("?"));
     // Po přihlášení přes účet ještě nemáme stav hry - Update ho stáhne
-    if let Err(e) = session.send_command(Command::Update).await {
+    if let Err(e) = safe::send(&mut session, Command::Update).await {
         eprintln!("Načtení postavy selhalo: {}", describe_login_error(&e));
         return ExitCode::FAILURE;
     }
@@ -105,6 +108,8 @@ async fn main() -> ExitCode {
         CurrentAction::Unknown(_) => "neznámá činnost".to_string(),
     };
     println!("  Stav:   {action}");
+
+    tavern::run(&mut session).await;
 
     ExitCode::SUCCESS
 }

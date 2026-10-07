@@ -14,7 +14,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 
 ## Pravidla
 - Mezi akcemi náhodné prodlevy (simulace člověka), žádné spamování serveru.
-- ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. Všechny příkazy posílat přes jednu centrální funkci, která tyto příkazy odmítne:
+- ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. Všechny příkazy posílat přes `safe::send` (src/safe.rs), který pustí jen příkazy z whitelistu `is_allowed`. Nový příkaz přidat do whitelistu jen po ověření, že neutrácí houby. Nikdy nepovolit:
   - `BuyBeer` (pivo stojí houby), `TimeSkip::Mushroom` (v `FinishQuest { skip }` i `ExpeditionSkipWait`),
   - `GambleMushrooms`, `GuildLoadMushrooms`, cokoli s `Mushrooms` v názvu (např. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
   - a každý další příkaz, u kterého není jisté, že houby neutratí (radši odmítnout).
@@ -27,4 +27,9 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
+- Strategie (src/tavern.rs):
+  - expedice: přednostně se speciální odměnou (vejce, denní úkol), jinak nejlevnější v ALU,
+  - setkání: cílový předmět (dokud úkol není splněný) > nejvyšší hrdinství (plakát „wanted“ = +10 k budoucímu hledanému) ; při splněném úkolu a hrdinství ≥ 40 klíč/truhla,
+  - odměny: houby > zlato > přesýpací hodiny,
+  - přesýpací hodiny NEPOUŽÍVAT (ani pivo, ani skip houbami).
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.
