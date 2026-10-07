@@ -141,7 +141,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
             return tavern::Outcome::SessionLost;
         }
-        if let tavern::Outcome::SessionLost = potions::drink_from_bag(session).await {
+        if let tavern::Outcome::SessionLost = potions::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = guild::run(session).await {

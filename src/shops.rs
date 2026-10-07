@@ -68,12 +68,22 @@ fn gold_hourglass(item: &Item) -> bool {
     item.mushroom_price == 0 && item.price > 0 && item.price != u32::MAX && item.typ == ItemType::QuickSandGlass
 }
 
-/// Gold items that can be used to spin the shop: equipment (sold right away) and hourglasses (kept).
+/// Gold items that can be used to spin the shop: equipment (sold right away), hourglasses (kept) and potions
+/// while the potion stock has room (kept, user 2026-10-07: cheap, spin the shop, can be sold any time).
 fn spin_offers(gs: &GameState) -> Vec<(ShopPosition, &Item)> {
+    let potions = crate::potions::stock_has_room(gs);
     gs.shops
         .values()
         .flat_map(|s| s.iter())
-        .filter(|(_, i)| gold_only(i) || gold_hourglass(i))
+        .filter(|(_, i)| {
+            gold_only(i)
+                || gold_hourglass(i)
+                || (potions
+                    && crate::potions::potion(i).is_some()
+                    && i.mushroom_price == 0
+                    && i.price > 0
+                    && i.price != u32::MAX)
+        })
         .collect()
 }
 
@@ -235,6 +245,9 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
                 return Outcome::SessionLost;
             }
             if let Outcome::SessionLost = crate::potions::drink_from_bag(session).await {
+                return Outcome::SessionLost;
+            }
+            if let Outcome::SessionLost = crate::potions::trim_stock(session).await {
                 return Outcome::SessionLost;
             }
             continue;
