@@ -13,6 +13,14 @@
 - NOT supported: the quick-join list and the join command itself. Needs a capture from the browser
   (DevTools → Network → `cmd.php`): opening the Guild tab without a guild + clicking join, with the Response bodies.
 
+## Captured commands (the user, 2026-10-07, browser DevTools)
+| Request | params (base64 → text) | Meaning |
+|---|---|---|
+| `GroupRemoveMember` | `MjY0NDg=` → `26448` | leaving the guild (own player id); never needed by the bot |
+| `GroupJoinList` | `MA==` → `0` | the quick-join list (0 = probably page/offset) |
+| `GroupJoin` | `QXJ0dcWhb3ZhIEdhcmRhL2ludA==` → `Artušova Garda/int` | joining the guild by name; `/int` meaning unknown (constant?) |
+- Missing: the Response bodies of `GroupJoinList` (to parse Instructor/Treasure/…) and `GroupJoin`.
+
 ## Verification status
 | What | Status |
 |---|---|
