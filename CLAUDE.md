@@ -59,3 +59,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 ## Hlídka
 - Popis a stav ověření: `docs/hlidka.md`.
 - Po dojetí hospody hlídka: min(10 h, hodiny do půlnoci zaokrouhlené nahoru) → konec 00:00–00:59. Aréna i podzemí během hlídky běží dál.
+
+## Denní odměny
+- Popis a stav ověření: `docs/odmeny.md`.
+- Jen odměna za přihlášení (kalendář) a 1× denně volné točení kolem štěstí. Nikdy za houby ani šťastné mince.

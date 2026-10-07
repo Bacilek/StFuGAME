@@ -4,7 +4,12 @@
 use std::{sync::Mutex, time::Duration};
 
 use chrono::{DateTime, Local};
-use sf_api::{SimpleSession, command::Command, error::SFError, gamestate::GameState};
+use sf_api::{
+    SimpleSession,
+    command::{Command, FortunePayment},
+    error::SFError,
+    gamestate::GameState,
+};
 
 /// Rezerva po konci cooldownu (aréna, podzemí), než smíme bojovat (hodiny serveru a naše se můžou lišit).
 pub const ARENA_SAFETY_SEC: i64 = 30;
@@ -12,7 +17,8 @@ pub const ARENA_SAFETY_SEC: i64 = 30;
 /// Příkazy, které bot smí poslat. Vše ostatní je zakázané (whitelist),
 /// takže nový příkaz se k serveru nedostane, dokud ho sem vědomě nepřidáme.
 /// Žádný z nich neutrácí houby (`Fight`/`FightDungeon` jen mimo cooldown, viz `cooldown_free`;
-/// `SellShop` houby nebere, `Equip` jen přesouvá předmět z batohu na postavu).
+/// `SellShop` houby nebere, `Equip` jen přesouvá předmět z batohu na postavu,
+/// kolo štěstí jen `FreeTurn` a jen když je volné točení).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -30,6 +36,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::Equip { .. }
             | Command::StartWork { .. }
             | Command::FinishWork
+            | Command::CollectCalendar
+            | Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }
     )
 }
 
@@ -38,6 +46,8 @@ fn is_allowed(cmd: &Command) -> bool {
 pub enum Cooldown {
     Arena,
     Dungeon,
+    /// Volné točení kolem štěstí (jinak by stálo houby/mince)
+    Wheel,
 }
 
 /// Kdy jsme naposledy bojovali (za tohoto běhu bota).
@@ -69,6 +79,7 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
     match cmd {
         Command::Fight { .. } => Some(Cooldown::Arena),
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
+        Command::SpinWheelOfFortune { .. } => Some(Cooldown::Wheel),
         _ => None,
     }
 }
@@ -77,6 +88,11 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
 /// (server příznak `use_mushroom` ignoruje a bojuje vždy).
 pub fn arena_is_free(gs: &GameState) -> bool {
     cooldown_free(Cooldown::Arena, gs.arena.next_free_fight)
+}
+
+/// Je volné točení kolem štěstí? Bez známého času (None) netočíme.
+pub fn wheel_is_free(gs: &GameState) -> bool {
+    gs.specials.wheel.next_free_spin.is_some() && cooldown_free(Cooldown::Wheel, gs.specials.wheel.next_free_spin)
 }
 
 /// Je podzemí volné? Platí jen pro stav čerstvě po `UpdateDungeons`.
@@ -101,6 +117,9 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
         }
         Some(Cooldown::Dungeon) if !session.game_state().is_some_and(dungeon_is_free) => {
             return Err(SFError::InvalidRequest("podzemí je na cooldownu, boj by stál houbu"));
+        }
+        Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
+            return Err(SFError::InvalidRequest("kolo štěstí nemá volné točení"));
         }
         _ => {}
     }

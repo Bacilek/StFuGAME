@@ -1,6 +1,7 @@
 #[macro_use]
 mod report;
 mod arena;
+mod daily;
 mod dungeons;
 mod guard;
 mod inventory;
@@ -117,6 +118,9 @@ fn print_status(session: &SimpleSession) {
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
     loop {
+        if let tavern::Outcome::SessionLost = daily::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
             return tavern::Outcome::SessionLost;
         }
@@ -168,7 +172,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let guard_done = gs.and_then(|gs| guard::secs_until_done(gs.tavern.current_action)).unwrap_or(30 * 60);
         // O půlnoci se resetuje ALU: probudit se a začít nový den
         let midnight = guard::secs_until_midnight(now);
-        let wait = arena.min(dungeon).min(guard_done).min(midnight) + fastrand::u64(30..120);
+        let daily = gs.and_then(daily::secs_until_ready).unwrap_or(30 * 60);
+        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Není co dělat, další kontrola za {} min {} s", wait / 60, wait % 60);
         tokio::time::sleep(std::time::Duration::from_secs(wait)).await;

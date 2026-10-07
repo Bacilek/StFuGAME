@@ -19,3 +19,4 @@ Při podobné situaci se pak řídí tímhle seznamem. Nejnovější dole.
 | 2026-10-07 | Prohry v aréně | V pořádku, vzorec neladit: protočí se soupeři, klesne věhlas, příště slabší soupeři. |
 | 2026-10-07 | Hlídka | Po dojetí hospody; max 10 h, konec v 00:00–00:59 (hodiny do půlnoci zaokrouhlit nahoru), ať se nečeká na nové ALU. |
 | 2026-10-07 | Aréna/podzemí během hlídky | Jde, ničemu nevadí. |
+| 2026-10-07 | Kolo štěstí, denní odměny | Jen 1× denně volné točení (nikdy houby/šťastné mince) a odměna za přihlášení. Nic víc. |
