@@ -26,8 +26,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Plan of further features: `docs/todo.md` (add new ideas, tick off finished ones). Whenever a big game TODO comes to mind, add it to the "Návrhy od Clauda" section.
 - Whenever unsure about any decision (strategy, data, what the bot may do), ask the user and record the answer in `docs/precedents.md`. Follow the precedents in similar situations.
 - Random delays between actions (human-like), never spam the server.
-- NEVER spend mushrooms under any circumstances until the user explicitly changes this rule. The ONLY exception (user, 2026-10-07): renting a mount in the Stable – griffin/dragon for 25 mushrooms, or a tiger for 10 g + 1 mushroom when there are not enough mushrooms; only when the character has no mount and is heading to the Tavern (see `docs/stable.md`). The mushroom watchdog allows a decrease only for this command and exactly by its price. Send all commands through `safe::send` (src/safe.rs), which only lets whitelisted commands (`is_allowed`) through. Add a command to the whitelist only after verifying it does not spend mushrooms. Never allow:
-  - `BuyBeer` (beer costs mushrooms), `TimeSkip::Mushroom` (in `FinishQuest { skip }` and `ExpeditionSkipWait`),
+- NEVER spend mushrooms under any circumstances until the user explicitly changes this rule. The ONLY exceptions (user, 2026-10-07): (1) renting a mount in the Stable – griffin/dragon for 25 mushrooms, or a tiger for 10 g + 1 mushroom when there are not enough mushrooms; only when the character has no mount and is heading to the Tavern (see `docs/stable.md`); (2) one beer (`BuyBeer`, 1 mushroom) only when "Drink beer" is the last missing Goblin Gleeman/event task for a chest with more mushrooms than the beer costs, after everything else for the day (`tasks::beer_justified`, see `docs/tasks.md`; during future events beer may be allowed more). The mushroom watchdog allows a decrease only for these commands and exactly by their price. Send all commands through `safe::send` (src/safe.rs), which only lets whitelisted commands (`is_allowed`) through. Add a command to the whitelist only after verifying it does not spend mushrooms. Never allow:
+  - `BuyBeer` except the task exception above, `TimeSkip::Mushroom` (in `FinishQuest { skip }` and `ExpeditionSkipWait`),
   - `GambleMushrooms`, `GuildLoadMushrooms`, anything with `Mushrooms` in its name (e.g. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
   - and any other command that is not certain to spend no mushrooms (rather refuse).
 - Add every new feature separately and let the user test it.
@@ -45,7 +45,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Strategy (src/tavern.rs): secure 40 heroism (including bonuses/penalties at the end), then only keys and chests and never drop below 40.
   Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
 - Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.
-- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses, beer or mushroom skips.
+- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses or mushroom skips; beer only per the task exception.
+- Gleeman/event task "travel to <location>": an expedition through that location wins even when longer (user 2026-10-07).
 - Timestamped progress: `logs/progress.log` (output via the `report!` macro, keeps the last 100 messages). Money is always shown in gold (`report::gold`).
 - Mission data may be wrong (from the user and from the FAQ): the bot verifies it during runs (`checks` in the journal, `[check] MISMATCH`); after runs update the "Verification status" table in docs/expeditions.md and fix `src/missions.rs`.
 - Journal `logs/expeditions.jsonl`: evaluate after runs (below 40 / far above 40) and tune the strategy.
@@ -84,6 +85,10 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Claim task chests (daily + event); do tasks that cost only gold or nothing (attributes, guild skill – the cheaper one,
   Instructor on a tie –, shop purchases, Training Camp). Never beer, paid wheel spins, hourglasses, skips.
 - Shell game only with minimal bets, after the Tavern and shops, and only when its points reach a chest.
+- Attributes and guild skill for tasks only after the Tavern and shops and never below the shop reserve (better equipment first).
+- Fight tasks (win against <class>, bare hands, no chest plate): in the Arena prefer a weaker opponent of that class; otherwise a
+  Hall of Fame hunt (rank + 1500…, low honor, clearly weaker) once the 10 XP wins are done or after 21:00 – Hall of Fame
+  fights do not count towards the XP wins. Bare hands: weapon off, fight, weapon back on (src/hunt.rs).
 
 ## City Guard
 - Description and verification status: `docs/city-guard.md`.

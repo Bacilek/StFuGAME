@@ -28,6 +28,9 @@ No time, no opponent strength, no `fights_for_xp`.
   after 10 wins 30 min.
 - The bot runs until it is stopped.
 
+- Fights started from the Hall of Fame (`Fight` by name) do not count towards `fights_for_xp` (user 2026-10-07).
+  Used only for Gleeman fight tasks (`src/hunt.rs`).
+
 ## Verification status
 | What | Status |
 |---|---|

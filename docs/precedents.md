@@ -36,3 +36,7 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Goblin Gleeman + event tasks | Do what costs only gold or nothing, claim the chests; never mushrooms. Event tasks under the same rules. Day 1 of a new character matters most (10 mushrooms). |
 | 2026-10-07 | Guild skill upgrade (task) | The cheaper of Treasure/Instructor; Instructor on equal price. Gold only. |
 | 2026-10-07 | Shell game (3 shells, ~33 %) | Allowed, but not an income: smallest bets, when gold is low (after shopping / before the Thirst for Adventure), only when the points are needed for a chest; the top chest does not need every task. Playable from 5 gold, bet ≤ 1/10 of the gold. |
+| 2026-10-07 | Attributes for tasks | Yes, but never so that better equipment cannot be bought (after the shops, keep the shop reserve). |
+| 2026-10-07 | Beer (mushroom exception 2) | Default: only when "Drink beer" is the last missing task for the max reward (10 mushrooms) and nothing else can be completed; 1 mushroom for 10 is worth it. Events may allow more later. |
+| 2026-10-07 | Expedition location/type tasks | Prefer the expedition with the task location (or type), even when longer / more Thirst for Adventure. |
+| 2026-10-07 | "Win against <class>" / bare hands tasks | If not done through the XP fights or it is late: Hall of Fame far below our rank, weak low-honor player (of that class); bare hands = weapon off, fight, weapon back. Hall of Fame fights do not count towards the XP wins. |

@@ -46,6 +46,12 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     guard.as_mut().map(f)
 }
 
+/// Today's reserve in silver: the most expensive gold item for our class seen today. Other gold spending
+/// (attributes, guild skill for tasks) keeps this much so a better item can still be bought (user 2026-10-07).
+pub fn reserve() -> u64 {
+    with_day(|d| u64::from(d.reserve)).unwrap_or(0)
+}
+
 /// Can be bought for gold only (no mushrooms) and is a real equipment item.
 fn gold_only(item: &Item) -> bool {
     item.mushroom_price == 0

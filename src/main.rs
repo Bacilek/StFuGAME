@@ -8,6 +8,7 @@ mod daily;
 mod dungeons;
 mod guard;
 mod guild;
+mod hunt;
 mod inventory;
 mod journal;
 mod missions;
@@ -146,6 +147,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = arena::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Gleeman fight tasks (class, bare hands) via the Hall of Fame, after the XP wins or late
+        if let tavern::Outcome::SessionLost = hunt::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         let dungeon_due = session.game_state().is_some_and(|gs| dungeons::secs_until_ready(gs) == 0);

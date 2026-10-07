@@ -7,7 +7,12 @@ use chrono::{DateTime, Local};
 use sf_api::{
     command::{Command, FortunePayment},
     error::SFError,
-    gamestate::{GameState, ShopPosition, character::Mount, guild::GuildSkill, items::ItemCommandIdent},
+    gamestate::{
+        GameState, ShopPosition,
+        character::Mount,
+        guild::GuildSkill,
+        items::{ItemCommandIdent, PlayerItemPlace, PlayerItemPosition},
+    },
 };
 
 use crate::session::SimpleSession;
@@ -45,6 +50,15 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::UpgradeSkill { .. }
             | Command::GuildIncreaseSkill { skill: GuildSkill::Treasure | GuildSkill::Instructor, .. }
             | Command::GambleSilver { .. }
+            // Beer only for the last missing Gleeman task to a chest with mushrooms (user 2026-10-07)
+            | Command::BuyBeer
+            | Command::HallOfFamePage { .. }
+            // Taking an item off (equipment → backpack) for "bare hands"/"no chest plate" tasks, see hunt.rs
+            | Command::PlayerItemMove {
+                from: PlayerItemPosition { place: PlayerItemPlace::Equipment, .. },
+                to: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
+                ..
+            }
             | Command::GuildJoinAttack
             | Command::GuildJoinDefense
             | Command::StartWork { .. }
@@ -191,6 +205,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("guild upgrade costs mushrooms or is not affordable"));
     }
+    if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(crate::tasks::beer_justified) {
+        return Err(SFError::InvalidRequest("beer costs a mushroom and is not justified by a task chest"));
+    }
     if let Command::GambleSilver { amount } = &cmd
         && !session.game_state().is_some_and(|gs| gamble_ok(gs, *amount))
     {
@@ -202,6 +219,7 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     // How many mushrooms this command may spend (only renting a mount, exactly its price)
     let allowed_spend = match &cmd {
         Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
+        Command::BuyBeer => crate::tasks::BEER_MUSHROOMS,
         _ => 0,
     };
 

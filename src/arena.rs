@@ -9,7 +9,7 @@ use chrono::Local;
 use serde_json::json;
 use sf_api::{
     command::{AttributeType, Command},
-    gamestate::{GameState, character::Class, social::OtherPlayer},
+    gamestate::{GameState, character::Class, rewards::TaskType, social::OtherPlayer},
 };
 
 use crate::session::SimpleSession;
@@ -17,7 +17,7 @@ use crate::session::SimpleSession;
 use crate::{safe, tavern::Outcome};
 
 /// Opponent's total attribute (base + equipment and bonuses + pets).
-fn total(p: &OtherPlayer, a: AttributeType) -> f64 {
+pub fn total(p: &OtherPlayer, a: AttributeType) -> f64 {
     f64::from(p.attribute_basis[a] + p.attribute_additions[a] + p.attribute_pet_bonus[a])
 }
 
@@ -33,7 +33,7 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 }
 
 /// After this many wins per day the Arena gives no rewards.
-const MAX_WINS_PER_DAY: usize = 10;
+pub const MAX_WINS_PER_DAY: usize = 10;
 const LOG: &str = "logs/arena.jsonl";
 
 /// Number of Arena fights logged today (for the "fight of the day" number in the log).
@@ -87,6 +87,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
 
+    // A Gleeman/event task "win fights against <class>": an opponent of that class weaker than us wins
+    let want_class = crate::tasks::open_tasks(gs).find_map(|t| match t.typ {
+        TaskType::WinFightsAgainst(c) => Some(c),
+        _ => None,
+    });
+    let ours = crate::hunt::own_strength(gs);
     let mut ids = gs.arena.enemy_ids;
     if ids.iter().all(|&id| id == 0) {
         match safe::send(session, Command::CheckArena).await {
@@ -94,6 +100,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             Err(e) => return fail(&e),
         }
     }
+
+    let mut task_pick: Option<(f64, String)> = None;
 
     // Load the opponents' stats
     let mut best: Option<(f64, String)> = None;
@@ -111,6 +119,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if best.as_ref().is_none_or(|(b, _)| s < *b) {
             best = Some((s, p.name.clone()));
         }
+        if want_class == Some(p.class) && s < ours && task_pick.as_ref().is_none_or(|(b, _)| s < *b) {
+            task_pick = Some((s, p.name.clone()));
+        }
+    }
+    if let Some(pick) = task_pick {
+        report!("[arena] Task: win against {:?}, choosing {}", want_class.unwrap_or_default(), pick.1);
+        best = Some(pick);
     }
     let Some((s, name)) = best else {
         report!("[arena] No opponent available");
@@ -123,7 +138,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[arena] Arena is no longer free, cancelling the fight");
         return Outcome::Done;
     }
-    report!("[arena] Challenging the weakest: {name} (strength {s:.0})");
+    report!("[arena] Challenging: {name} (strength {s:.0})");
     let fight_of_day = fights_today() + 1;
     let opponent = name.clone();
     let gs = match safe::send(session, Command::Fight { name, use_mushroom: false }).await {

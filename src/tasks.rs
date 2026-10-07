@@ -13,7 +13,7 @@ use sf_api::{
     gamestate::{
         GameState,
         guild::GuildSkill,
-        rewards::{RewardChest, Task, TaskType},
+        rewards::{RewardChest, RewardType, Task, TaskType},
     },
 };
 
@@ -73,7 +73,10 @@ pub fn guild_skill_to_upgrade(gs: &GameState) -> Option<(GuildSkill, u16)> {
     let g = gs.guild.as_ref()?;
     [(GuildSkill::Instructor, g.own_instructor_skill), (GuildSkill::Treasure, g.own_treasure_skill)]
         .into_iter()
-        .filter(|(s, _)| g.upgrade_price[*s].mushrooms == 0 && g.upgrade_price[*s].silver <= gs.character.silver)
+        .filter(|(s, _)| {
+            g.upgrade_price[*s].mushrooms == 0
+                && g.upgrade_price[*s].silver + crate::shops::reserve() <= gs.character.silver
+        })
         .min_by_key(|(s, _)| g.upgrade_price[*s].silver)
 }
 
@@ -102,9 +105,20 @@ fn attribute_for_task(gs: &GameState) -> Option<AttributeType> {
 }
 
 async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
+    // The price of the next point is not known in advance: estimate it by the last one paid
+    let mut last_price = 0;
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let Some(attribute) = attribute_for_task(gs) else { return Outcome::Done };
+        let reserve = crate::shops::reserve();
+        if gs.character.silver <= reserve + last_price {
+            report!(
+                "[tasks] Not buying {attribute:?}: gold {} would drop below the shop reserve {}",
+                crate::report::gold(gs.character.silver),
+                crate::report::gold(reserve)
+            );
+            return Outcome::Done;
+        }
         let current = gs.character.attribute_basis[attribute];
         let silver = gs.character.silver;
         report!("[tasks] Buying {attribute:?} {current} → {} for a task", current + 1);
@@ -114,7 +128,8 @@ async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
             report!("[tasks] The attribute did not increase (not enough gold?), stopping");
             return Outcome::Done;
         }
-        report!("[tasks] Paid {}", crate::report::gold(silver.saturating_sub(gs.character.silver)));
+        last_price = silver.saturating_sub(gs.character.silver);
+        report!("[tasks] Paid {}", crate::report::gold(last_price));
     }
     Outcome::Done
 }
@@ -149,6 +164,50 @@ pub fn gamble_needed(tasks: &[Task], chests: &[RewardChest]) -> bool {
     chests
         .iter()
         .any(|c| !c.opened && c.required_points > expected && c.required_points <= expected + gamble.point_reward)
+}
+
+/// One beer costs one mushroom.
+pub const BEER_MUSHROOMS: u32 = 1;
+
+/// Mushrooms in a chest's rewards.
+fn chest_mushrooms(c: &RewardChest) -> u64 {
+    c.rewards.iter().filter(|r| r.typ == RewardType::Mushrooms).map(|r| r.amount).sum()
+}
+
+/// Beer for a task (exception to the mushroom rule, user 2026-10-07): only when drinking is the last missing step
+/// to a chest with more mushrooms than the beer costs, i.e. earned + "natural" points (Arena, Dungeons, City Guard)
+/// do not reach that chest and the beer's points do. Called only after everything else for the day was done.
+fn beer_opens_chest(tasks: &[Task], chests: &[RewardChest]) -> bool {
+    let Some(beer) = tasks.iter().find(|t| t.typ == TaskType::DrinkBeer && !t.is_completed()) else {
+        return false;
+    };
+    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+    let expected = earned + natural_points(tasks);
+    chests.iter().any(|c| {
+        !c.opened
+            && c.required_points > expected
+            && c.required_points <= expected + beer.point_reward
+            && chest_mushrooms(c) > u64::from(BEER_MUSHROOMS)
+    })
+}
+
+/// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
+pub fn beer_justified(gs: &GameState) -> bool {
+    let t = &gs.specials.tasks;
+    gs.tavern.beer_drunk < gs.tavern.beer_max
+        && (beer_opens_chest(&t.daily.tasks, &t.daily.rewards) || beer_opens_chest(&t.event.tasks, &t.event.rewards))
+}
+
+async fn drink_beer(session: &mut SimpleSession) -> Outcome {
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    if !beer_justified(gs) {
+        return Outcome::Done;
+    }
+    report!(
+        "[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom): it is the last missing task for a chest with mushrooms"
+    );
+    send_or_return!(session, Command::BuyBeer);
+    claim_chests(session).await
 }
 
 async fn gamble(session: &mut SimpleSession) -> Outcome {
@@ -198,7 +257,8 @@ fn log_tasks(gs: &GameState) {
     }
 }
 
-/// Every pass of the main loop: chests, guild skill, attributes; the shell game only after the Tavern and the shops.
+/// Every pass of the main loop: chests. After the Tavern and the shops (the best equipment is bought first and
+/// the shop reserve is kept): guild skill, attributes, shell game, beer as the last resort.
 pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if let Some(gs) = session.game_state() {
         log_tasks(gs);
@@ -206,18 +266,22 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if let Outcome::SessionLost = claim_chests(session).await {
         return Outcome::SessionLost;
     }
-    if let Outcome::SessionLost = upgrade_guild(session).await {
-        return Outcome::SessionLost;
-    }
-    if let Outcome::SessionLost = buy_attributes(session).await {
-        return Outcome::SessionLost;
-    }
     if tavern_done {
+        if let Outcome::SessionLost = upgrade_guild(session).await {
+            return Outcome::SessionLost;
+        }
+        if let Outcome::SessionLost = buy_attributes(session).await {
+            return Outcome::SessionLost;
+        }
         if let Outcome::SessionLost = gamble(session).await {
             return Outcome::SessionLost;
         }
         // Points from the shell game may open a chest right away
-        return claim_chests(session).await;
+        if let Outcome::SessionLost = claim_chests(session).await {
+            return Outcome::SessionLost;
+        }
+        // Beer only as the very last resort (gives Thirst for Adventure too, the Tavern continues)
+        return drink_beer(session).await;
     }
     Outcome::Done
 }
@@ -232,6 +296,40 @@ mod tests {
 
     fn chest(required_points: u32) -> RewardChest {
         RewardChest { opened: false, required_points, rewards: Vec::new() }
+    }
+
+    fn chest_with(required_points: u32, mushrooms: u64) -> RewardChest {
+        RewardChest {
+            opened: false,
+            required_points,
+            rewards: vec![sf_api::gamestate::rewards::Reward { typ: RewardType::Mushrooms, amount: mushrooms }],
+        }
+    }
+
+    #[test]
+    fn beer_only_as_the_last_step_to_mushrooms() {
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 10)];
+        // earned 9 + Arena 1 = 10, beer +2 → 12 with 10 mushrooms → yes
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 9),
+            task(TaskType::WinFightsInArena, 5, 10, 1),
+            task(TaskType::DrinkBeer, 0, 1, 2),
+        ];
+        assert!(beer_opens_chest(&tasks, &chests));
+        // the Arena alone will get there → no beer
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 9),
+            task(TaskType::WinFightsInArena, 5, 10, 3),
+            task(TaskType::DrinkBeer, 0, 1, 2),
+        ];
+        assert!(!beer_opens_chest(&tasks, &chests));
+        // even the beer is not enough → no
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 6), task(TaskType::DrinkBeer, 0, 1, 2)];
+        assert!(!beer_opens_chest(&tasks, &chests));
+        // a chest without mushrooms is not worth a mushroom
+        let chests = [chest_with(4, 0), chest_with(8, 0), chest_with(12, 0)];
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::DrinkBeer, 0, 1, 2)];
+        assert!(!beer_opens_chest(&tasks, &chests));
     }
 
     #[test]

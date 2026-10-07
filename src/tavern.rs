@@ -8,10 +8,10 @@ use sf_api::{
     command::Command,
     error::SFError,
     gamestate::{
-        rewards::{Reward, RewardType},
+        rewards::{Reward, RewardType, TaskType},
         tavern::{
             AvailableExpedition, AvailableTasks, CurrentAction, Expedition, ExpeditionEncounter, ExpeditionStage,
-            ExpeditionThing,
+            ExpeditionThing, Location,
         },
     },
 };
@@ -43,7 +43,10 @@ const MAX_STEPS: u32 = 300;
 
 /// Picks an expedition: the shortest (cheapest in Thirst for Adventure). At equal length the one where
 /// 40 heroism is easiest; an unknown mission (or one with an unverified bonus) wins ties so we can map it.
-fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize> {
+/// A Gleeman/event task "travel to <location>" comes first (user 2026-10-07): an expedition through a wanted
+/// location wins even when it is longer.
+fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
+    let visits = |e: &AvailableExpedition| wanted.contains(&e.location_1) || wanted.contains(&e.location_2);
     // Unknown mission or unverified bonus = we want to map it, it wins ties
     let ease = |e: &AvailableExpedition| match missions::for_target(e.target) {
         Some(m) if m.bonus_known => m.ease(),
@@ -55,8 +58,11 @@ fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize>
             None => true,
             Some(b) => {
                 let b = &list[b];
-                e.thirst_for_adventure_sec < b.thirst_for_adventure_sec
-                    || (e.thirst_for_adventure_sec == b.thirst_for_adventure_sec && ease(e) > ease(b))
+                (visits(e) && !visits(b))
+                    || (visits(e) == visits(b) && e.thirst_for_adventure_sec < b.thirst_for_adventure_sec)
+                    || (visits(e) == visits(b)
+                        && e.thirst_for_adventure_sec == b.thirst_for_adventure_sec
+                        && ease(e) > ease(b))
             }
         };
         if better {
@@ -653,7 +659,18 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             report!("[tavern] Unmapped mission on offer with target {:?}", e.target);
                         }
                         let thirst = tavern.thirst_for_adventure_sec;
-                        let Some(pos) = choose_expedition(list, thirst) else {
+                        let wanted: Vec<Location> = session
+                            .game_state()
+                            .map(|gs| {
+                                crate::tasks::open_tasks(gs)
+                                    .filter_map(|t| match t.typ {
+                                        TaskType::TravelTo(l) => Some(l),
+                                        _ => None,
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        let Some(pos) = choose_expedition(list, thirst, &wanted) else {
                             report!(
                                 "[tavern] No expedition affordable with the Thirst for Adventure ({} min), done",
                                 thirst / 60
@@ -662,11 +679,16 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         };
                         let e = &list[pos];
                         report!(
-                            "[tavern] Starting expedition: {}, {} min Thirst for Adventure, special {:?}",
+                            "[tavern] Starting expedition: {}, {} min Thirst for Adventure, special {:?}, {:?} → {:?}",
                             mission_name(e.target),
                             e.thirst_for_adventure_sec / 60,
-                            e.special
+                            e.special,
+                            e.location_1,
+                            e.location_2
                         );
+                        if !wanted.is_empty() {
+                            report!("[tavern] Task wants locations {wanted:?}");
+                        }
                         unknown_in_row = 0;
                         played = true;
                         reduced_expedition = e.thirst_for_adventure_sec <= REDUCED_EXPEDITION_SEC;
@@ -814,15 +836,26 @@ mod tests {
     #[test]
     fn expedition_shortest_then_easiest() {
         // shorter wins even over easier
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(BurntCampfire, 15)], 6000), Some(1));
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(BurntCampfire, 15)], 6000, &[]), Some(1));
         // same length: suckling pig (8/round) is easier than the fire (4/round)
-        assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000), Some(1));
+        assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000, &[]), Some(1));
         // same length: an unmapped mission wins
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Barkeeper, 20)], 6000), Some(1));
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Barkeeper, 20)], 6000, &[]), Some(1));
         // same length: a mission with an unverified bonus also wins
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000, &[]), Some(1));
         // not enough Thirst for Adventure for the longer one
-        assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
+        assert_eq!(choose_expedition(&[avail(Cake, 20)], 600, &[]), None);
+    }
+
+    #[test]
+    fn task_location_beats_shorter() {
+        let mut far = avail(Cake, 20);
+        far.location_2 = Location::SkullIsland;
+        let list = [avail(Cake, 15), far];
+        assert_eq!(choose_expedition(&list, 6000, &[Location::SkullIsland]), Some(1));
+        assert_eq!(choose_expedition(&list, 6000, &[]), Some(0));
+        // the wanted one must still be affordable
+        assert_eq!(choose_expedition(&list, 900, &[Location::SkullIsland]), Some(0));
     }
 
     #[test]
