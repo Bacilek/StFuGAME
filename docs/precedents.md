@@ -49,3 +49,5 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Potion stock | Keep up to 4 potions in the backpack (buy whenever for gold, not only when one runs out). Full backpack → drink/sell from the least important. Replacing a smaller active potion only with a full backpack, otherwise store the bigger one. |
 | 2026-10-07 | Potion stock (update) | Non-target potions may be kept too (better some than none), they go first when there is no room. Buying gold potions is also good for spinning the shop. With a full backpack remove a non-target active potion and drink a better one ("never remove" was wrong). Potions sell in either shop. Same type stacks by its full duration. |
 | 2026-10-07 | Friends' roster | `roster/roster.md` (classes, nicks, friends' names) stays local only – `roster/` is in .gitignore (the repo is public). |
+| 2026-10-07 | Shell game bet | Keep the minimal bet (1 silver); 10 losses in a row is just bad luck, no need to worry. |
+| 2026-10-07 | The user's own character | The user plays their own character on another account while the bot runs – fine, the bot must not log in to that account. |
