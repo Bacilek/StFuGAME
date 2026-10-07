@@ -315,6 +315,34 @@ fn write_shared(date: NaiveDate) {
     let _ = fs::write(Path::new(ROOT).join("leaderboard.md"), lb);
 }
 
+/// Minimal base64 (for embedding the portrait into the HTML, so it works from any folder).
+fn base64(data: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for c in data.chunks(3) {
+        let n = (u32::from(c[0]) << 16) | (u32::from(*c.get(1).unwrap_or(&0)) << 8) | u32::from(*c.get(2).unwrap_or(&0));
+        for i in 0..4 {
+            if i <= c.len() {
+                out.push(T[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// A portrait made by hand (the game renders it in a WebGL canvas, the bot cannot): `roster/<nick>/portrait.png|jpg`.
+fn portrait_html() -> String {
+    let Some(d) = dir() else { return String::new() };
+    for (file, mime) in [("portrait.png", "image/png"), ("portrait.jpg", "image/jpeg"), ("portrait.jpeg", "image/jpeg")] {
+        if let Ok(data) = fs::read(d.join(file)) {
+            return format!(r#"<img class="portrait" src="data:{mime};base64,{}" alt="portrait">"#, base64(&data));
+        }
+    }
+    String::new()
+}
+
 fn esc(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
@@ -498,9 +526,10 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
 .slot{{font-weight:700;margin-bottom:4px}} .badge{{font-size:11px;color:var(--epic);text-transform:uppercase}} .legendary .badge{{color:var(--leg)}}
 .attr{{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:2px 2px 0 0;font-size:12px}}
 .score{{color:var(--muted);font-size:12px;margin-top:4px}} ul{{margin:0;padding-left:18px}} li{{margin:2px 0}}
+.portrait{{float:right;max-height:160px;max-width:40%;border-radius:10px;margin-left:12px;border:1px solid var(--line)}}
 .cols{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}}
 </style></head><body><div class="wrap">
-<div class="card"><h1>{name}</h1><div class="sub">{class} · level {level} · {date}</div>
+<div class="card">{portrait}<h1>{name}</h1><div class="sub">{class} · level {level} · {date}</div>
 <div class="stats">
 <div><div class="k">Level</div><div class="v">{level}{level_delta}</div><div class="bar"><i style="width:{xp_pct:.0}%"></i></div><div class="k">XP {xp} / {next}</div></div>
 <div><div class="k">Hall of Fame</div><div class="v">{rank_arrow}#{rank} <span class="small">(#{best_rank})</span></div></div>
@@ -524,6 +553,7 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
 </div>
 <div class="card"><h2>Equipment</h2><div class="items">{equip}</div></div>
 </div></body></html>"#,
+        portrait = portrait_html(),
         name = esc(&s.name),
         class = s.class,
         level = s.level,
@@ -669,5 +699,13 @@ mod tests {
         let summary = write_day(&gs);
         println!("demo report written: {summary}");
     }
-}
 
+    #[test]
+    fn base64_matches_the_standard() {
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+    }
+}
