@@ -28,3 +28,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Progress log | Keep only the last 100 messages in `logs/progress.log`. |
 | 2026-10-07 | Arena log | Only date, fight of the day, opponent, won, honor, gold, xp (no time, strength, `fights_for_xp`). |
 | 2026-10-07 | Old Czech log, README | Translate everything to English (old log translated into `progress.log`), write an English README. |
+| 2026-10-07 | Multi-character challenge (idea, not implemented yet) | ~10 characters, each a different class, all on the same world, probably 10 accounts with one character each; run ~14 days, then compare strength. Attribute split (`UpgradeSkill`): one fixed key for all classes; the class's primary attribute is read from the character (the user will look it up if the API does not say). All classes are unlocked, no conditions. |
