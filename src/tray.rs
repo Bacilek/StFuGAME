@@ -89,8 +89,10 @@ where
     let start = MenuItem::new("Start bot", false, None);
     let stop = MenuItem::new("Stop bot", true, None);
     let log = MenuItem::new("Open log", true, None);
+    let eod = MenuItem::new("Run end of day now (preview)", true, None);
+    let dash = MenuItem::new("Open dashboard", true, None);
     let quit = MenuItem::new("Exit", true, None);
-    let _ = menu.append_items(&[&start, &stop, &PredefinedMenuItem::separator(), &log, &PredefinedMenuItem::separator(), &quit]);
+    let _ = menu.append_items(&[&start, &stop, &PredefinedMenuItem::separator(), &log, &dash, &eod, &PredefinedMenuItem::separator(), &quit]);
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
@@ -128,6 +130,11 @@ where
                 report!("[control] Bot stopped");
                 state = State::Stopped;
                 set_state(&tray, &start, &stop, state);
+            } else if event.id == eod.id() {
+                report!("[control] End of day requested (preview)");
+                crate::ctx::request_end_of_day();
+            } else if event.id == dash.id() {
+                let _ = std::process::Command::new("explorer").arg("roster\\dashboard.html").spawn();
             } else if event.id == log.id() {
                 let _ = std::process::Command::new("explorer").arg("logs\\progress.log").spawn();
             } else if event.id == quit.id() {

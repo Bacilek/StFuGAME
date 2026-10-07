@@ -4,7 +4,6 @@
 //! sf-api does not know these commands, they are sent as `Command::Custom` (captured from the browser, docs/guild.md).
 //! `battles`: signs up for every planned guild attack/defense (free, user 2026-10-07).
 
-use std::sync::Mutex;
 
 use chrono::{DateTime, Local, NaiveDate};
 use sf_api::{
@@ -99,7 +98,7 @@ fn describe(o: &Offer) -> String {
     )
 }
 
-static LAST_CHECK: Mutex<Option<NaiveDate>> = Mutex::new(None);
+static LAST_CHECK: crate::ctx::PerChar<Option<NaiveDate>> = crate::ctx::PerChar::new();
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
     report!("[guild] Error: {e}");
@@ -176,9 +175,9 @@ enum Battle {
 }
 
 /// Battles we already signed up for (kind + time of the battle), so we never send the same sign-up twice.
-static SIGNED_UP: Mutex<Vec<(Battle, DateTime<Local>)>> = Mutex::new(Vec::new());
+static SIGNED_UP: crate::ctx::PerChar<Vec<(Battle, DateTime<Local>)>> = crate::ctx::PerChar::new();
 /// Last failed sign-up per kind (e.g. ~12 h after joining a guild): retry at most once an hour.
-static LAST_FAIL: Mutex<Vec<(Battle, std::time::Instant)>> = Mutex::new(Vec::new());
+static LAST_FAIL: crate::ctx::PerChar<Vec<(Battle, std::time::Instant)>> = crate::ctx::PerChar::new();
 const RETRY_SEC: u64 = 3600;
 
 /// Has our character already joined this kind of battle (per the guild member data)?

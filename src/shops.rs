@@ -6,7 +6,6 @@
 //!    Only while the gold after the purchase stays at or above the reserve = the most expensive gold item for our class
 //!    seen today, so an upgrade that shows up after a spin can always be bought. Ends when no gold items are left.
 
-use std::sync::Mutex;
 
 use chrono::{Local, NaiveDate};
 use sf_api::{
@@ -36,7 +35,7 @@ struct Day {
     done: bool,
 }
 
-static DAY: Mutex<Option<Day>> = Mutex::new(None);
+static DAY: crate::ctx::PerChar<Option<Day>> = crate::ctx::PerChar::new();
 
 /// Runs `f` on today's state (a new day starts with a zero reserve).
 fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {

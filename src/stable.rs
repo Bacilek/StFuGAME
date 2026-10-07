@@ -5,10 +5,7 @@
 //! The ONLY allowed exception to the "never spend mushrooms" rule (user, 2026-10-07):
 //! griffin/dragon (tier 4) for 25 mushrooms for 14 days; without enough mushrooms tiger/raptor (tier 3) for 10 g + 1 mushroom.
 
-use std::{
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use chrono::Local;
 use sf_api::{
@@ -22,7 +19,7 @@ use crate::{safe, tavern::Outcome};
 
 /// Retry a failed purchase at the earliest after this long.
 const RETRY: Duration = Duration::from_secs(30 * 60);
-static LAST_TRY: Mutex<Option<Instant>> = Mutex::new(None);
+static LAST_TRY: crate::ctx::PerChar<Option<Instant>> = crate::ctx::PerChar::new();
 
 /// Is the character without a mount (none, or expired)?
 pub fn needs_mount(gs: &GameState) -> bool {

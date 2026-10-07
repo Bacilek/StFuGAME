@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use chrono::Local;
 
 const PATH: &str = "logs/progress.log";
-/// How many latest messages the progress log keeps.
+/// How many latest messages a character's progress log keeps (the combined log keeps 3×).
 const MAX_LINES: usize = 100;
 /// Serialises writes (the icon thread and the bot both log).
 static LOCK: Mutex<()> = Mutex::new(());
@@ -20,18 +20,30 @@ macro_rules! report {
 pub fn write(msg: &str) {
     // Successes and issues of the day for the character challenge report (roster/)
     crate::roster::observe(msg);
-    let line = format!("{} {msg}", Local::now().format("%Y-%m-%d %H:%M:%S"));
-    println!("{line}");
+    let time = Local::now().format("%Y-%m-%d %H:%M:%S");
+    let who = crate::ctx::name();
+    // Combined log of all characters (the character in brackets) + the character's own log
+    let combined = if who.is_empty() { format!("{time} {msg}") } else { format!("{time} [{who}] {msg}") };
+    println!("{combined}");
     let _guard = LOCK.lock();
-    let res = std::fs::create_dir_all("logs").and_then(|()| {
-        let old = std::fs::read_to_string(PATH).unwrap_or_default();
+    append_keep(PATH, &combined, MAX_LINES * 3);
+    if !who.is_empty() {
+        append_keep(&crate::ctx::log_path("progress.log"), &format!("{time} {msg}"), MAX_LINES);
+    }
+}
+
+/// Appends a line and keeps only the last `max` lines of the file.
+fn append_keep(path: &str, line: &str, max: usize) {
+    let dir = std::path::Path::new(path).parent().unwrap_or(std::path::Path::new("logs"));
+    let res = std::fs::create_dir_all(dir).and_then(|()| {
+        let old = std::fs::read_to_string(path).unwrap_or_default();
         let mut lines: Vec<&str> = old.lines().collect();
-        lines.push(&line);
-        let keep = &lines[lines.len().saturating_sub(MAX_LINES)..];
-        std::fs::write(PATH, keep.join("\n") + "\n")
+        lines.push(line);
+        let keep = &lines[lines.len().saturating_sub(max)..];
+        std::fs::write(path, keep.join("\n") + "\n")
     });
     if let Err(err) = res {
-        eprintln!("Writing to {PATH} failed: {err}");
+        eprintln!("Writing to {path} failed: {err}");
     }
 }
 

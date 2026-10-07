@@ -1,5 +1,9 @@
 # Controlling the bot
 
+## Menu (2026-10-08)
+- Start / Stop bot, Open log (combined log of all characters), Open dashboard (`roster\dashboard.html`),
+  Run end of day now (preview): duels + report + dashboard right away; the 23:20 / 23:50 runs replace it, notes are kept.
+
 ## For the user
 - **Start:** double click the **"StFuGAME bot"** shortcut on the desktop. A round icon appears next to the clock and the bot starts right away.
   (If you cannot see the icon, it may be hidden under the ^ arrow in the notification area.)

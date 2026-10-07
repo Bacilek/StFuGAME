@@ -1,7 +1,7 @@
 //! The only place commands are sent to the server through.
 //! Makes sure the bot never spends mushrooms and adds random pauses between actions.
 
-use std::{sync::Mutex, time::Duration};
+use std::time::Duration;
 
 use chrono::{DateTime, Local};
 use sf_api::{
@@ -85,7 +85,7 @@ pub enum Cooldown {
 }
 
 /// When we last used each cooldown action (during this run of the bot).
-static LAST_FIGHT: Mutex<Vec<(Cooldown, DateTime<Local>)>> = Mutex::new(Vec::new());
+static LAST_FIGHT: crate::ctx::PerChar<Vec<(Cooldown, DateTime<Local>)>> = crate::ctx::PerChar::new();
 
 fn last_fight(kind: Cooldown) -> Option<DateTime<Local>> {
     LAST_FIGHT.lock().ok()?.iter().find(|(k, _)| *k == kind).map(|(_, t)| *t)

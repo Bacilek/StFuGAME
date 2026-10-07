@@ -49,7 +49,9 @@ pub fn set_character(name: &str) {
 }
 
 fn dir() -> Option<PathBuf> {
-    let nick = NICK.lock().ok()?.clone()?;
+    // The character of the current task; `set_character` only for demos/tests outside of a character task
+    let ctx = crate::ctx::name();
+    let nick = if ctx.is_empty() { NICK.lock().ok()?.clone()? } else { ctx };
     Some(Path::new(ROOT).join(nick))
 }
 
@@ -111,7 +113,7 @@ fn report_time(date: NaiveDate) -> chrono::DateTime<Local> {
 }
 
 fn day_file(date: NaiveDate) -> Option<PathBuf> {
-    Some(dir()?.join("days").join(format!("{date}.issues")))
+    Some(dir()?.join("days").join(format!("{date}.final")))
 }
 
 /// Is today's report due (after 23:50 and not written yet)?
@@ -127,12 +129,14 @@ pub fn secs_until_due() -> Option<u64> {
     (now < at).then(|| u64::try_from((at - now).num_seconds()).unwrap_or(0) + 5)
 }
 
-/// Notes since the last report (and empties the notes file).
-fn take_notes() -> Vec<(String, String, u8, String)> {
+/// Notes since the last final report; the final report also empties the notes file (a preview keeps them).
+fn take_notes(empty: bool) -> Vec<(String, String, u8, String)> {
     let Some(d) = dir() else { return Vec::new() };
     let path = d.join("notes.log");
     let text = fs::read_to_string(&path).unwrap_or_default();
-    let _ = fs::write(&path, "");
+    if empty {
+        let _ = fs::write(&path, "");
+    }
     text.lines()
         .filter_map(|l| {
             let mut p = l.splitn(4, '\t');
@@ -224,9 +228,12 @@ impl Snapshot {
 
 /// Writes today's report for the logged-in character and refreshes the shared files. Returns a summary line.
 /// (user 2026-10-07: only the dashboard is wanted – no character card / daily HTML pages.)
-pub fn write_day(gs: &GameState) -> String {
+///
+/// `fin` = the real end-of-day report (23:50). A manual one from the icon menu is a preview: it writes the same files
+/// (today's history line is replaced, not added) but keeps the notes and does not count as the day's report.
+pub fn write_day(gs: &GameState, fin: bool) -> String {
     let Some(d) = dir() else { return "no character set".to_string() };
-    let notes = take_notes();
+    let notes = take_notes(fin);
     let sum = |kind: &str| notes.iter().filter(|n| n.1 == kind).filter_map(|n| n.3.parse::<u64>().ok()).sum::<u64>();
     let s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
     let history = d.join("history.csv");
@@ -239,14 +246,18 @@ pub fn write_day(gs: &GameState) -> String {
     }
     let mut lines: Vec<String> = best.map(|b| format!("Biggest success: {b}")).into_iter().collect();
     lines.extend(issues.iter().map(|(m, (c, t))| if *c > 1 { format!("{t} {m} ({c}×)") } else { format!("{t} {m}") }));
-    if let Some(f) = day_file(s.date) {
-        let _ = fs::create_dir_all(f.parent().unwrap_or(Path::new(ROOT)));
-        let _ = fs::write(&f, lines.join("\n"));
+    let days = d.join("days");
+    let _ = fs::create_dir_all(&days);
+    let _ = fs::write(days.join(format!("{}.issues", s.date)), lines.join("\n"));
+    if fin && let Some(f) = day_file(s.date) {
+        let _ = fs::write(f, "");
     }
-    if !history.exists() {
-        append(&history, CSV_HEADER);
-    }
-    append(&history, &s.csv());
+    // One line per date: a preview from earlier today is replaced
+    let old = fs::read_to_string(&history).unwrap_or_default();
+    let mut rows: Vec<&str> = old.lines().skip(1).filter(|l| !l.starts_with(&s.date.to_string())).collect();
+    let line = s.csv();
+    rows.push(&line);
+    let _ = fs::write(&history, format!("{CSV_HEADER}\n{}\n", rows.join("\n")));
     // Snapshot of the character for "what changed" on the dashboard (Win rate tab)
     let _ = fs::write(d.join("days").join(format!("{}.json", s.date)), snapshot(gs).to_string());
     write_shared(s.date);
@@ -500,7 +511,7 @@ fn write_dashboard(demo: bool) {
 
 /// Level-up detection for the "biggest success" (called every pass of the main loop).
 pub fn track_level(gs: &GameState) {
-    static LAST: Mutex<Option<u16>> = Mutex::new(None);
+    static LAST: crate::ctx::PerChar<Option<u16>> = crate::ctx::PerChar::new();
     let Ok(mut last) = LAST.lock() else { return };
     let level = gs.character.level;
     if let Some(prev) = *last

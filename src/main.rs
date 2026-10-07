@@ -4,6 +4,7 @@
 #[macro_use]
 mod report;
 mod arena;
+mod ctx;
 mod daily;
 mod dungeons;
 mod guard;
@@ -51,6 +52,7 @@ fn describe_login_error(err: &SFError) -> String {
     }
 }
 
+#[derive(Clone)]
 struct Credentials {
     user: String,
     pass: String,
@@ -213,11 +215,21 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         {
             return tavern::Outcome::SessionLost;
         }
-        if roster::due() {
+        // "Run end of day now" from the icon menu: duels + report as a preview (the 23:20/23:50 runs replace it)
+        let manual = ctx::take_end_of_day_request();
+        if manual {
+            report!("[roster] Manual end of day (preview)");
+            tournament::unlock_today();
+            if let tavern::Outcome::SessionLost = tournament::run(session, tournament::today()).await {
+                return tavern::Outcome::SessionLost;
+            }
+        }
+        if roster::due() || manual {
+            let fin = roster::due();
             match safe::send(session, Command::Update).await {
                 Ok(gs) => {
-                    let summary = roster::write_day(gs);
-                    report!("[roster] Daily report written: {summary}");
+                    let summary = roster::write_day(gs, fin);
+                    report!("[roster] {} written: {summary}", if fin { "Daily report" } else { "Preview report" });
                 }
                 Err(e) => report!("[roster] Update before the daily report failed: {e}"),
             }
@@ -240,7 +252,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Nothing to do, next check in {} min {} s", wait / 60, wait % 60);
-        tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+        // A manual "end of day now" from the icon wakes the loop up early
+        tokio::select! {
+            () = tokio::time::sleep(std::time::Duration::from_secs(wait)) => {}
+            () = ctx::EOD_WAKE.notified() => {}
+        }
     }
 }
 
@@ -284,21 +300,71 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// The whole bot: login and main loop. The icon starts and stops it.
+/// All accounts from the environment (.env): `SF_USER`/`SF_PASS`/`SF_CHARACTER` (optional, one account) and
+/// `SF_ACCOUNTS` = `login|password|character;login|password|character;…` (the challenge characters).
+/// `SF_SERVER` applies to all. Never logs the values.
+fn accounts() -> Result<Vec<Credentials>, String> {
+    let server = env_var("SF_SERVER").ok();
+    let mut out = Vec::new();
+    if let (Ok(user), Ok(pass), Ok(character)) = (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
+        out.push(Credentials { user, pass, character, server: server.clone() });
+    }
+    if let Ok(list) = env_var("SF_ACCOUNTS") {
+        for (i, entry) in list.split(';').map(str::trim).filter(|e| !e.is_empty()).enumerate() {
+            let parts: Vec<&str> = entry.split('|').map(str::trim).collect();
+            let [user, pass, character] = parts[..] else {
+                return Err(format!("SF_ACCOUNTS: entry {} must be login|password|character", i + 1));
+            };
+            if out.iter().any(|c: &Credentials| c.character.eq_ignore_ascii_case(character)) {
+                continue;
+            }
+            out.push(Credentials {
+                user: user.to_string(),
+                pass: pass.to_string(),
+                character: character.to_string(),
+                server: server.clone(),
+            });
+        }
+    }
+    if out.is_empty() {
+        return Err("No account: set SF_USER, SF_PASS, SF_CHARACTER and/or SF_ACCOUNTS in the .env file".to_string());
+    }
+    Ok(out)
+}
+
+/// The whole bot: every character in its own task (`ctx::CHARACTER`), started a little apart.
+/// The icon starts and stops it; stopping drops the JoinSet, which stops all characters.
 async fn run_bot() -> ExitCode {
     // .env is optional - the variables can also be set in the system
     let _ = dotenvy::dotenv();
-
-    let creds = match (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
-        (Ok(user), Ok(pass), Ok(character)) => Credentials { user, pass, character, server: env_var("SF_SERVER").ok() },
-        (u, p, c) => {
-            for e in [u.err(), p.err(), c.err()].into_iter().flatten() {
-                report!("{e}");
-            }
+    let accounts = match accounts() {
+        Ok(a) => a,
+        Err(e) => {
+            report!("{e}");
             return ExitCode::FAILURE;
         }
     };
+    let names: Vec<&str> = accounts.iter().map(|c| c.character.as_str()).collect();
+    report!("Characters: {} ({})", accounts.len(), names.join(", "));
+    let mut set = tokio::task::JoinSet::new();
+    for (i, creds) in accounts.into_iter().enumerate() {
+        // Do not log in all at once (human-like, server-friendly)
+        let delay = if i == 0 { 0 } else { i as u64 * 20 + fastrand::u64(0..20) };
+        let name = creds.character.clone();
+        set.spawn(ctx::CHARACTER.scope(name, async move {
+            tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
+            run_character(creds).await
+        }));
+    }
+    let mut ok = true;
+    while let Some(res) = set.join_next().await {
+        ok &= matches!(res, Ok(code) if code == ExitCode::SUCCESS);
+    }
+    if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
 
+/// One character: login and main loop, logging in again after a lost session.
+async fn run_character(creds: Credentials) -> ExitCode {
     let mut journal = journal::Journal::default();
     // Only consecutive session losses count; when a session lasts, the counter resets
     let mut attempt = 0;

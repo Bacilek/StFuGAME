@@ -23,7 +23,11 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 ## Technology
 - Rust, the `sf-api` crate (crates.io), async via `tokio`, `.env` via `dotenvy`.
 - Reference implementation: github.com/tjira/rsfb (do not copy, only as an example of API usage).
-- Credentials from `.env` (SF_USER, SF_PASS = S&F account; SF_CHARACTER = character name; SF_SERVER optional); never hardcode them or print them to logs. Never read the `.env` file.
+- Credentials from `.env` (SF_USER, SF_PASS = S&F account; SF_CHARACTER = character name; SF_SERVER optional; more characters in
+  `SF_ACCOUNTS=login|password|character;…`); never hardcode them or print them to logs. Never read the `.env` file.
+- Several characters run in one process, each in its own tokio task (`ctx::CHARACTER`); state kept between calls must be
+  `ctx::PerChar<T>` (per character), never a plain static. Logs: combined `logs/progress.log` ([character] prefix) +
+  `logs/<character>/` (progress.log, arena.jsonl, expeditions.jsonl).
 
 ## Rules
 - All docs are mainly for Claude: update them whenever anything new is learned (from runs, from the user, from the FAQ). Record verified facts in the "Verification status" tables, rewrite `docs/status.md` after bigger changes.

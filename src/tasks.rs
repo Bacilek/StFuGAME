@@ -378,8 +378,8 @@ async fn gamble(session: &mut SimpleSession) -> Outcome {
 
 /// Logs the open tasks once a day (to see what the Gleeman wants).
 fn log_tasks(gs: &GameState) {
-    use std::sync::Mutex;
-    static LOGGED: Mutex<Option<chrono::NaiveDate>> = Mutex::new(None);
+    
+    static LOGGED: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
     let today = chrono::Local::now().date_naive();
     let Ok(mut last) = LOGGED.lock() else { return };
     if *last == Some(today) {

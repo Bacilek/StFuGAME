@@ -1,10 +1,7 @@
 //! Daily rewards: the daily login bonus (calendar) and one free Wheel of Fortune spin per day.
 //! Nothing else (user rule). The wheel never for mushrooms or lucky coins.
 
-use std::{
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use chrono::Local;
 use sf_api::{
@@ -18,7 +15,7 @@ use crate::{safe, tavern::Outcome};
 /// When an action fails (state unchanged), retry it at the earliest after this long.
 const RETRY: Duration = Duration::from_secs(30 * 60);
 
-static TRIED: Mutex<Vec<(&'static str, Instant)>> = Mutex::new(Vec::new());
+static TRIED: crate::ctx::PerChar<Vec<(&'static str, Instant)>> = crate::ctx::PerChar::new();
 
 /// May the action be tried? Records the attempt (for retrying after a failure).
 fn may_try(what: &'static str) -> bool {

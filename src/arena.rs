@@ -34,12 +34,15 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 
 /// After this many wins per day the Arena gives no rewards.
 pub const MAX_WINS_PER_DAY: usize = 10;
-const LOG: &str = "logs/arena.jsonl";
+/// The Arena journal of the current character (`logs/<character>/arena.jsonl`).
+fn log_file() -> String {
+    crate::ctx::log_path("arena.jsonl")
+}
 
 /// Number of Arena fights logged today (for the "fight of the day" number in the log).
 pub fn fights_today() -> usize {
     let today = Local::now().format("%Y-%m-%d").to_string();
-    std::fs::read_to_string(LOG)
+    std::fs::read_to_string(log_file())
         .unwrap_or_default()
         .lines()
         .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
@@ -62,12 +65,14 @@ pub fn ready(gs: &GameState) -> bool {
 }
 
 fn log_fight(line: &serde_json::Value) {
-    let res = std::fs::create_dir_all("logs").and_then(|()| {
-        let mut f = OpenOptions::new().create(true).append(true).open(LOG)?;
+    let path = log_file();
+    let dir = std::path::Path::new(&path).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+    let res = std::fs::create_dir_all(dir).and_then(|()| {
+        let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
         writeln!(f, "{line}")
     });
     if let Err(err) = res {
-        report!("[arena] Writing to {LOG} failed: {err}");
+        report!("[arena] Writing to {path} failed: {err}");
     }
 }
 

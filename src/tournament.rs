@@ -54,7 +54,7 @@ pub fn due_today() -> Option<i64> {
     let now = Local::now();
     let today = now.date_naive();
     let day = (today - start_date().unwrap_or(today)).num_days() + 1;
-    let done = Path::new(ROOT).join("tournament").join(format!("{today}.json")).exists();
+    let done = Path::new(ROOT).join("tournament").join(format!("{today}.final")).exists();
     (now >= run_time(today) && !done).then_some(day)
 }
 
@@ -125,7 +125,29 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 }
 
 /// Loads every participant and simulates all pairs. Writes the round and the tournament page.
+/// Today's challenge day (for a manual run).
+pub fn today() -> i64 {
+    let today = Local::now().date_naive();
+    (today - start_date().unwrap_or(today)).num_days() + 1
+}
+
+/// Allows the duels to run again today (manual "end of day now"; the 23:20 run then replaces the round).
+pub fn unlock_today() {
+    let dir = Path::new(ROOT).join("tournament");
+    let date = Local::now().date_naive();
+    let _ = fs::remove_file(dir.join(format!("{date}.lock")));
+    let _ = fs::remove_file(dir.join(format!("{date}.json")));
+}
+
 pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
+    // With several characters in one process only the first one to get here runs the duels (lock file)
+    let dir = Path::new(ROOT).join("tournament");
+    let _ = fs::create_dir_all(&dir);
+    let lock = dir.join(format!("{}.lock", Local::now().date_naive()));
+    if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
+        return Outcome::Done;
+    }
+    let preview = Local::now() < run_time(Local::now().date_naive());
     let players = participants();
     report!("[tournament] Day {day}: {} characters, {ITERATIONS} simulated fights per pair", players.len());
     let own = session.game_state().map(|gs| gs.character.name.clone()).unwrap_or_default();
@@ -179,10 +201,17 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
         "win": win,
         "missing": missing,
     });
-    let dir = Path::new(ROOT).join("tournament");
-    let _ = fs::create_dir_all(&dir);
-    let _ = fs::write(dir.join(format!("{}.json", Local::now().date_naive())), round.to_string());
-    report!("[tournament] Day {day} done ({n} characters, {} missing)", missing.len());
+    let date = Local::now().date_naive();
+    let _ = fs::write(dir.join(format!("{date}.json")), round.to_string());
+    // After 23:20 this is the day's real round (a manual run earlier is only a preview)
+    if Local::now() >= run_time(date) {
+        let _ = fs::write(dir.join(format!("{date}.final")), "");
+    }
+    report!("[tournament] Day {day} done ({n} characters, {} missing){}", missing.len(), if preview { ", preview" } else { "" });
+    if preview {
+        // the real 23:20 run must still be able to take the lock
+        let _ = fs::remove_file(&lock);
+    }
     Outcome::Done
 }
 

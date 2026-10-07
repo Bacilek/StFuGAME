@@ -6,7 +6,7 @@ use std::{fs::OpenOptions, io::Write};
 use chrono::Local;
 use serde_json::json;
 
-const PATH: &str = "logs/expeditions.jsonl";
+
 /// How far above 40 still counts as a success. More (together with a declined key/chest) means
 /// we chased heroism instead of chests.
 pub const OVERSHOOT_TOLERANCE: i32 = 5;
@@ -81,12 +81,15 @@ impl Journal {
             "checks": e.checks,
             "declined_resources": e.declined_resources,
         });
-        let res = std::fs::create_dir_all("logs").and_then(|()| {
-            let mut f = OpenOptions::new().create(true).append(true).open(PATH)?;
+        // logs/<character>/expeditions.jsonl
+        let path = crate::ctx::log_path("expeditions.jsonl");
+        let dir = std::path::Path::new(&path).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        let res = std::fs::create_dir_all(dir).and_then(|()| {
+            let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
             writeln!(f, "{line}")
         });
         if let Err(err) = res {
-            report!("[journal] Writing to {PATH} failed: {err}");
+            report!("[journal] Writing to {path} failed: {err}");
         }
     }
 }
