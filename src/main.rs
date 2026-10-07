@@ -207,13 +207,13 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
 
         // Daily report for the character challenge at ~23:50 (roster/, local only)
+        // Simulated duels of all challenge characters at 23:20 (win rate for the dashboard)
+        if let Some(day) = tournament::due_today()
+            && let tavern::Outcome::SessionLost = tournament::run(session, day).await
+        {
+            return tavern::Outcome::SessionLost;
+        }
         if roster::due() {
-            // Round-robin tournament at the end of day 1, 3, 7 and 14 of the challenge
-            if let Some(day) = tournament::due_today()
-                && let tavern::Outcome::SessionLost = tournament::run(session, day).await
-            {
-                return tavern::Outcome::SessionLost;
-            }
             match safe::send(session, Command::Update).await {
                 Ok(gs) => {
                     let summary = roster::write_day(gs);
@@ -236,7 +236,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // The Thirst for Adventure resets at midnight: wake up and start a new day
         let midnight = guard::secs_until_midnight(now);
         let daily = gs.and_then(daily::secs_until_ready).unwrap_or(30 * 60);
-        let roster_due = roster::secs_until_due().unwrap_or(30 * 60);
+        let roster_due = roster::secs_until_due().unwrap_or(30 * 60).min(tournament::secs_until_due().unwrap_or(30 * 60));
         let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Nothing to do, next check in {} min {} s", wait / 60, wait % 60);

@@ -49,11 +49,25 @@ pub fn start_date() -> Option<NaiveDate> {
 }
 
 /// Today's challenge day if today's round has not been simulated yet (every day).
+/// The daily duels run at 23:20 (user 2026-10-07), before the 23:50 report.
 pub fn due_today() -> Option<i64> {
-    let today = Local::now().date_naive();
+    let now = Local::now();
+    let today = now.date_naive();
     let day = (today - start_date().unwrap_or(today)).num_days() + 1;
     let done = Path::new(ROOT).join("tournament").join(format!("{today}.json")).exists();
-    (!done).then_some(day)
+    (now >= run_time(today) && !done).then_some(day)
+}
+
+fn run_time(date: NaiveDate) -> chrono::DateTime<Local> {
+    let t = chrono::NaiveTime::from_hms_opt(23, 20, 0).unwrap_or_default();
+    date.and_time(t).and_local_timezone(Local).earliest().unwrap_or_else(Local::now)
+}
+
+/// Seconds until today's duels (for the main loop's wait); None when the time has passed.
+pub fn secs_until_due() -> Option<u64> {
+    let now = Local::now();
+    let at = run_time(now.date_naive());
+    (now < at).then(|| u64::try_from((at - now).num_seconds()).unwrap_or(0) + 5)
 }
 
 /// Average win rate of every character in every daily round: date → nick → win rate (0–1).

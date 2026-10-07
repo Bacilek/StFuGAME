@@ -56,3 +56,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Daily win rate | The round robin is simulated every day; the average win rate is a dashboard metric "Win rate [%]" and in the table under the chart (always visible). |
 | 2026-10-07 | Challenge pages | Only the dashboard (`roster/dashboard.html`) – the character card, daily HTML pages and the separate tournament page are not needed. |
 | 2026-10-07 | Win rate jumps | On the Win rate tab a panel on the right explains big jumps (new epic weapon, level, attributes, potions, guild) from daily character snapshots. |
+| 2026-10-07 | Daily duels time | The simulated duels run at 23:20, the report at 23:50. |
