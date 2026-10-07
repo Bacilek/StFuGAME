@@ -25,3 +25,4 @@
   Response: `{"success":true,"completed":true,"id":29472,"orderId":"FREE_2087052_…"}` + `resources`, `achievement`, …
 - This is the real-money shop: the bot may only ever check out an item the catalog shows as free (price 0).
   Needed before implementing: the exact `ShopCheckout` params and the `ShopCatalog` response.
+  TestChar1 already claimed it, so capture it on the next new character when the deal shows up.
