@@ -33,5 +33,6 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
 - Odměny: houby > zlato > přesýpací hodiny. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
 - Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`, bot lze pustit na pozadí a log sledovat).
+- Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.

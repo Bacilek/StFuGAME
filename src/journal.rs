@@ -24,6 +24,8 @@ pub struct Entry {
     pub rewards: Vec<String>,
     /// Setkání, která ještě nemáme v docs/expedice.md
     pub unmapped: Vec<String>,
+    /// Výsledky ověření dat misí (OK / NESEDÍ)
+    pub checks: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -55,6 +57,8 @@ impl Journal {
             "[deník] {}: hrdinství {} (odhad na konci {}), úkol {}/{}, klíče {}, truhly {} → {verdict}",
             e.mission, e.heroism, e.projected, e.target_current, e.target_amount, e.keys, e.chests
         );
+        let bad = e.checks.iter().filter(|c| c.starts_with("NESEDÍ")).count();
+        report!("[deník] Kontroly dat: {} OK, {bad} nesedí", e.checks.len() - bad);
         if !e.unmapped.is_empty() {
             report!("[deník] Nezmapovaná setkání: {}", e.unmapped.join(", "));
         }
@@ -71,6 +75,7 @@ impl Journal {
             "picks": e.picks,
             "rewards": e.rewards,
             "unmapped": e.unmapped,
+            "checks": e.checks,
         });
         let res = std::fs::create_dir_all("logs").and_then(|()| {
             let mut f = OpenOptions::new().create(true).append(true).open(PATH)?;

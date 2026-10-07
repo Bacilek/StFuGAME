@@ -43,10 +43,26 @@ Ověřeno z běhu:
 | Toxic Fountain Cure | 1×, trvalý konec | vílí fontána (8) → znečištěná fontána (−4) | `Prince` → `RoyalFrog` | ? |
 | Build A Friend | 1× | ruka (−5) → nohy (−5) → tělo (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
-⚠ Sanitary: FAQ píše „na konci +5, pokud máš 3 papíry, jinak −5“. Uživatel uvádí +20 / −5. Bot zatím počítá s +20.
+Sanitary: FAQ píše „na konci +5, pokud máš 3 papíry, jinak −5“. Uživatel si je jistý +20 / −5, platí jeho verze (zatím neověřeno během běhu).
+
+Bonusy za úkol z FAQ nejdou ověřit (FAQ je neuvádí), stojí na údajích uživatele. Ověřují se během běhu.
 
 Plakáty existují jen pro: kostlivce, draka, uhasený oheň, jednorožce, stupně vítězů, pár, zlomený meč, čarodějný lektvar,
 znečištěnou fontánu a Klause. Objeví se jen ty, jejichž cíl je v aktuální expedici.
+
+## Stav ověření (z běhu bota)
+Bot ověřuje za běhu: body setkání vs. tabulka, změnu hrdinství po každém výběru a změnu po posledním bossovi.
+Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESEDÍ`. Po bězích sem přepsat, co se potvrdilo.
+
+| Co | Stav | Důkaz |
+|---|---|---|
+| Plakát +10 k hledanému | ✅ | 2026-10-07: kostlivec s plakátem 25 → 37 |
+| Unicorn Whisperer +10 hned při splnění | ✅ | 2026-10-07: jednorožec 8 → 25 |
+| Osel +3 (uživatel psal +2) | ✅ FAQ | server ukázal `Donkey(+3)` |
+| Kuřecí stehno +3, další rozcestí jen 2 možnosti | ✅ | 2026-10-07: 37 → 40, další kolo 2 možnosti |
+| Dragon Taming +5 / kus na konci | ✅ | 2026-10-07: 36 → 46 za 2 draky |
+| Truhla se objeví po klíči | ✅ | 2026-10-07: Barkeeper kolo 1 klíč, kolo 2 truhla |
+| Ostatní bonusy za úkol, Sanitary +20 / −5 | ⏳ | čeká na ověření |
 
 ## Nezmapované
 - Mise z sf-api, které FAQ nezná: hostinský (`Mugs` → `DraftBeer` → `Barkeeper`), mořský muž (`FishingRod` → `FishingBait` → `Merman`),

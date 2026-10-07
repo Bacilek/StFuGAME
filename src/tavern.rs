@@ -198,6 +198,63 @@ fn unknown_chain_value(exp: &Expedition, t: ExpeditionThing, floors: u8) -> f64 
     feasibility(steps, floors) * payoff.max(0.0)
 }
 
+/// O kolik hrdinství má vzrůst hned po výběru: body setkání + plakát + jednorázový bonus při splnění.
+/// (Bonusy „za kus“ přijdou až na konci, sem nepatří.)
+fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
+    let mut g = enc.heroism;
+    if let Some(poster) = enc.typ.required_bounty()
+        && has(exp, poster)
+    {
+        g += BOUNTY_BONUS;
+    }
+    if enc.typ == exp.target_thing
+        && let Some(m) = missions::for_target(exp.target_thing)
+        && let Bonus::OnComplete(b) = m.bonus
+        && !target_done(exp)
+        && exp.target_current + 1 >= exp.target_amount
+    {
+        g += b;
+    }
+    g
+}
+
+/// O kolik se má hrdinství změnit po posledním bossovi: bonusy „za kus“, nebo trest za nesplněný úkol.
+fn expected_end_change(exp: &Expedition) -> i32 {
+    let Some(m) = missions::for_target(exp.target_thing) else { return 0 };
+    let mut d = 0;
+    if let Bonus::PerItem(b) = m.bonus {
+        d += b * i32::from(exp.target_current);
+    }
+    if !target_done(exp) {
+        d -= m.fail_penalty;
+    }
+    d
+}
+
+/// Popis možnosti pro výpis: body ze serveru, celkový zisk (je-li jiný) a budoucí hodnota (je-li nějaká).
+fn describe_option(exp: &Expedition, e: &ExpeditionEncounter) -> String {
+    let gain = immediate_gain(exp, e);
+    let future = future_value(exp, e);
+    let mut s = format!("{:?}({:+}", e.typ, e.heroism);
+    if gain != e.heroism {
+        s += &format!(" ⇒ {gain:+}");
+    }
+    if future > 0.0 {
+        s += &format!(", budoucí {future:.1}");
+    }
+    s + ")"
+}
+
+/// Zapíše výsledek ověření dat misí. Nesoulad se hned vypíše.
+fn check(entry: &mut crate::journal::Entry, ok: bool, what: &str) {
+    if ok {
+        entry.checks.push(format!("OK {what}"));
+    } else {
+        report!("[kontrola] NESEDÍ: {what}");
+        entry.checks.push(format!("NESEDÍ {what}"));
+    }
+}
+
 /// Vybere setkání na rozcestí.
 ///
 /// Když je 40 zajištěno (i po započtení bonusů a trestů na konci): bere jen to, co nás
@@ -294,6 +351,10 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
     let mut refresh_pending = true;
     let mut last_offer: Option<Vec<String>> = None;
     let mut stale_tries = 0;
+    // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
+    let mut pending_check: Option<(i32, String)> = None;
+    // Před posledním bossem: (hrdinství, očekávaná změna na konci, popis)
+    let mut end_check: Option<(i32, i32, String)> = None;
 
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
@@ -319,6 +380,9 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
                 }
                 continue;
+            }
+            if let Some((expected, what)) = pending_check.take() {
+                check(entry, expected == exp.heroism, &format!("{what}: čekal jsem {expected}, server má {}", exp.heroism));
             }
             match stage {
                 ExpeditionStage::Encounters(_) if is_after_wait(exp) => {
@@ -352,12 +416,15 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         }
                     }
                     let pos = choose_encounter(exp, &encs);
-                    let opts: Vec<String> = encs
-                        .iter()
-                        .map(|e| {
-                            format!("{:?}({:+}, budoucí {:.1})", e.typ, immediate_gain(exp, e), future_value(exp, e))
-                        })
-                        .collect();
+                    for e in &encs {
+                        if let Some((m, idx)) = missions::chain_position(e.typ) {
+                            let table = m.chain[idx].1;
+                            if table != e.heroism {
+                                check(entry, false, &format!("{:?} má v tabulce {table:+}, server ukazuje {:+}", e.typ, e.heroism));
+                            }
+                        }
+                    }
+                    let opts: Vec<String> = encs.iter().map(|e| describe_option(exp, e)).collect();
                     let picked = encs[pos].typ;
                     report!(
                         "[hospoda] Kolo {}/{LAST_FLOOR}, hrdinství {} (odhad konce {}), {} {}/{} | {} → beru {picked:?}",
@@ -376,10 +443,21 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         _ => {}
                     }
                     last_offer = Some(offer);
+                    pending_check = Some((
+                        exp.heroism + expected_now(exp, &encs[pos]),
+                        format!("hrdinství po výběru {picked:?} v kole {}", exp.current_floor),
+                    ));
                     Command::ExpeditionPickEncounter { pos }
                 }
                 ExpeditionStage::Boss(_) => {
                     unknown_in_row = 0;
+                    if exp.current_floor >= LAST_FLOOR {
+                        end_check = Some((
+                            exp.heroism,
+                            expected_end_change(exp),
+                            format!("změna hrdinství na konci ({}, úkol {}/{})", mission_name(exp.target_thing), exp.target_current, exp.target_amount),
+                        ));
+                    }
                     report!("[hospoda] Boss, bojuji");
                     Command::ExpeditionContinue
                 }
@@ -414,6 +492,16 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 }
             }
         } else {
+            if let Some((before, delta, what)) = end_check.take() {
+                let raw = serde_json::to_value(&tavern.expeditions).ok();
+                let after = raw.as_ref().and_then(|v| v.get("active")?.get("heroism")?.as_i64());
+                if let (Some(after), Some(entry)) = (after, journal.current.as_mut()) {
+                    let after = i32::try_from(after).unwrap_or(i32::MIN);
+                    check(entry, after - before == delta, &format!("{what}: čekal jsem {delta:+}, server {:+}", after - before));
+                    entry.heroism = after;
+                    entry.projected = after;
+                }
+            }
             journal.finish();
             match tavern.current_action {
                 // Poslední časovač doběhl, expedici je potřeba uzavřít
@@ -616,6 +704,22 @@ mod tests {
         assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Mugs, 0)]), 1);
         // jiná skupina nic nedostane
         assert_eq!(future_value(&e, &enc(FishingRod, 0)), 0.0);
+    }
+
+    /// Čísla ověřená v běhu 2026-10-07.
+    #[test]
+    fn expectations_match_observed_runs() {
+        // jednorožec: 8 → 25 (7 + bonus 10 hned při splnění)
+        let e = with(exp(Unicorn, 0, 1, 8, 6), &[UnicornHorn, Donkey, Rainbow]);
+        assert_eq!(e.heroism + expected_now(&e, &enc(Unicorn, 7)), 25);
+        // kostlivec s plakátem: 25 → 37
+        let e = with(exp(Unicorn, 1, 1, 25, 7), &[DummyBounty]);
+        assert_eq!(e.heroism + expected_now(&e, &enc(Dummy2, 2)), 37);
+        // draci: na konci +5 × 2
+        assert_eq!(expected_end_change(&exp(Dragon, 2, 2, 36, 10)), 10);
+        // nesplněný papír: −5 na konci, splnění +20 hned
+        assert_eq!(expected_end_change(&exp(ToiletPaper, 2, 3, 30, 10)), -5);
+        assert_eq!(expected_now(&exp(ToiletPaper, 2, 3, 30, 8), &enc(ToiletPaper, 0)), 20);
     }
 
     #[test]
