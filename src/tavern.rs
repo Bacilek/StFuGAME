@@ -239,7 +239,7 @@ pub async fn run(session: &mut SimpleSession) {
 
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
-            println!("[hospoda] Chybí stav hry, končím");
+            report!("[hospoda] Chybí stav hry, končím");
             return;
         };
         let tavern = &gs.tavern;
@@ -256,7 +256,7 @@ pub async fn run(session: &mut SimpleSession) {
                     unknown_in_row = 0;
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
                         let note = format!("{:?}({:+})", u.typ, u.heroism);
-                        println!("[hospoda] Nezmapované setkání: {note}");
+                        report!("[hospoda] Nezmapované setkání: {note}");
                         if !entry.unmapped.contains(&note) {
                             entry.unmapped.push(note);
                         }
@@ -269,7 +269,7 @@ pub async fn run(session: &mut SimpleSession) {
                         })
                         .collect();
                     let picked = encs[pos].typ;
-                    println!(
+                    report!(
                         "[hospoda] Kolo {}/{LAST_FLOOR}, hrdinství {} (odhad konce {}), {} {}/{} | {} → beru {picked:?}",
                         exp.current_floor,
                         exp.heroism,
@@ -289,14 +289,14 @@ pub async fn run(session: &mut SimpleSession) {
                 }
                 ExpeditionStage::Boss(_) => {
                     unknown_in_row = 0;
-                    println!("[hospoda] Boss, bojuji");
+                    report!("[hospoda] Boss, bojuji");
                     Command::ExpeditionContinue
                 }
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
                     let pos = choose_reward(&rewards);
                     let opts: Vec<String> = rewards.iter().map(|r| format!("{:?} x{}", r.typ, r.amount)).collect();
-                    println!("[hospoda] Odměny: {} → beru {:?}", opts.join(", "), rewards[pos].typ);
+                    report!("[hospoda] Odměny: {} → beru {:?}", opts.join(", "), rewards[pos].typ);
                     entry.rewards.push(format!("{:?} x{}", rewards[pos].typ, rewards[pos].amount));
                     Command::ExpeditionPickReward { pos }
                 }
@@ -304,7 +304,7 @@ pub async fn run(session: &mut SimpleSession) {
                     unknown_in_row = 0;
                     let secs = u64::try_from((busy_until - Local::now()).num_seconds()).unwrap_or(0);
                     let extra = fastrand::u64(5..30);
-                    println!(
+                    report!(
                         "[hospoda] Čekám do {} ({} min {} s)",
                         busy_until.format("%H:%M:%S"),
                         secs / 60,
@@ -316,7 +316,7 @@ pub async fn run(session: &mut SimpleSession) {
                 _ => {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
-                        println!("[hospoda] Neznámý stav expedice, končím");
+                        report!("[hospoda] Neznámý stav expedice, končím");
                         return;
                     }
                     Command::Update
@@ -329,27 +329,27 @@ pub async fn run(session: &mut SimpleSession) {
                 CurrentAction::Expedition => {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
-                        println!("[hospoda] Expedici se nedaří uzavřít, končím");
+                        report!("[hospoda] Expedici se nedaří uzavřít, končím");
                         return;
                     }
-                    println!("[hospoda] Uzavírám dokončenou expedici");
+                    report!("[hospoda] Uzavírám dokončenou expedici");
                     Command::ExpeditionContinue
                 }
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
                         for e in list.iter().filter(|e| missions::for_target(e.target).is_none()) {
-                            println!("[hospoda] Nabízí se nezmapovaná mise s cílem {:?}", e.target);
+                            report!("[hospoda] Nabízí se nezmapovaná mise s cílem {:?}", e.target);
                         }
                         let thirst = tavern.thirst_for_adventure_sec;
                         let Some(pos) = choose_expedition(list, thirst) else {
-                            println!(
+                            report!(
                                 "[hospoda] Žádná expedice, na kterou by stačilo ALU ({} min), hotovo",
                                 thirst / 60
                             );
                             return;
                         };
                         let e = &list[pos];
-                        println!(
+                        report!(
                             "[hospoda] Startuji expedici: {}, {} min ALU, speciál {:?}",
                             mission_name(e.target),
                             e.thirst_for_adventure_sec / 60,
@@ -359,23 +359,23 @@ pub async fn run(session: &mut SimpleSession) {
                         Command::ExpeditionStart { pos }
                     }
                     AvailableTasks::Quests(_) => {
-                        println!("[hospoda] Expedice nejsou dostupné (jen klasické questy), zatím nepodporuji");
+                        report!("[hospoda] Expedice nejsou dostupné (jen klasické questy), zatím nepodporuji");
                         return;
                     }
                 },
                 other => {
-                    println!("[hospoda] Postava je zaneprázdněná ({other:?}), hospodu přeskakuji");
+                    report!("[hospoda] Postava je zaneprázdněná ({other:?}), hospodu přeskakuji");
                     return;
                 }
             }
         };
 
         if let Err(e) = safe::send(session, cmd).await {
-            println!("[hospoda] Chyba: {e}");
+            report!("[hospoda] Chyba: {e}");
             return;
         }
     }
-    println!("[hospoda] Dosažen limit kroků, končím");
+    report!("[hospoda] Dosažen limit kroků, končím");
 }
 
 #[cfg(test)]

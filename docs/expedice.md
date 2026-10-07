@@ -3,7 +3,8 @@
 Zdroj: zkušenosti uživatele z testovací postavy. Strojová podoba je v `src/missions.rs`, při změně upravit obojí.
 
 ## Pravidla hry
-- Expedice má vždy **10 kol** (rozcestí). Po 5. a 10. kole je boss a výběr odměny.
+- Průběh: klik na zadavatele → výběr ze 2 expedic → 5 kol (rozcestí, bez čekání) → boss → výběr odměny → čekání/doprava
+  → 5 kol → boss → výběr odměny → čekání/doprava. Celkem tedy vždy **10 kol**.
 - **40 hrdinství = maximální odměna.** Víc nic nepřidá. Cíl: zajistit si 40 a pak farmit klíče a truhly.
 - Plakát „wanted“ (`*Bounty`) dá 0, ale hledanému dá +10 (např. kostlivec +2 → +12).
 - Formát bonusu: `+5/` = za každý cílový předmět, připíše se až na konci; `+10` = jednorázově při splnění.

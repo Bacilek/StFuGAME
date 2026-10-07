@@ -51,12 +51,12 @@ impl Journal {
         } else {
             "úspěch"
         };
-        println!(
+        report!(
             "[deník] {}: hrdinství {} (odhad na konci {}), úkol {}/{}, klíče {}, truhly {} → {verdict}",
             e.mission, e.heroism, e.projected, e.target_current, e.target_amount, e.keys, e.chests
         );
         if !e.unmapped.is_empty() {
-            println!("[deník] Nezmapovaná setkání: {}", e.unmapped.join(", "));
+            report!("[deník] Nezmapovaná setkání: {}", e.unmapped.join(", "));
         }
         let line = json!({
             "started": e.started,
@@ -77,7 +77,7 @@ impl Journal {
             writeln!(f, "{line}")
         });
         if let Err(err) = res {
-            println!("[deník] Zápis do {PATH} selhal: {err}");
+            report!("[deník] Zápis do {PATH} selhal: {err}");
         }
     }
 }

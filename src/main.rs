@@ -1,3 +1,5 @@
+#[macro_use]
+mod report;
 mod journal;
 mod missions;
 mod safe;
@@ -38,7 +40,7 @@ async fn main() -> ExitCode {
         (Ok(u), Ok(p), Ok(c)) => (u, p, c),
         (u, p, c) => {
             for e in [u.err(), p.err(), c.err()].into_iter().flatten() {
-                eprintln!("{e}");
+                report!("{e}");
             }
             return ExitCode::FAILURE;
         }
@@ -46,11 +48,11 @@ async fn main() -> ExitCode {
     // Volitelné: jen pokud máš postavu stejného jména na více serverech
     let server = env_var("SF_SERVER").ok();
 
-    println!("Přihlašuji se k S&F účtu...");
+    report!("Přihlašuji se k S&F účtu...");
     let sessions = match SimpleSession::login_sf_account(&user, &pass).await {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Přihlášení k účtu selhalo: {}", describe_login_error(&e));
+            report!("Přihlášení k účtu selhalo: {}", describe_login_error(&e));
             return ExitCode::FAILURE;
         }
     };
@@ -67,27 +69,27 @@ async fn main() -> ExitCode {
     let mut session = match matching.len() {
         1 => matching.remove(0),
         0 => {
-            eprintln!("Postava {character} nebyla pod tímto účtem nalezena (zkontroluj SF_CHARACTER / SF_SERVER)");
+            report!("Postava {character} nebyla pod tímto účtem nalezena (zkontroluj SF_CHARACTER / SF_SERVER)");
             return ExitCode::FAILURE;
         }
         _ => {
-            eprintln!("Postav se jménem {character} je víc, upřesni server v SF_SERVER:");
+            report!("Postav se jménem {character} je víc, upřesni server v SF_SERVER:");
             for s in &matching {
-                eprintln!("  {}", s.server_url().host_str().unwrap_or("?"));
+                report!("  {}", s.server_url().host_str().unwrap_or("?"));
             }
             return ExitCode::FAILURE;
         }
     };
 
-    println!("Načítám postavu {character} na {}...", session.server_url().host_str().unwrap_or("?"));
+    report!("Načítám postavu {character} na {}...", session.server_url().host_str().unwrap_or("?"));
     // Po přihlášení přes účet ještě nemáme stav hry - Update ho stáhne
     if let Err(e) = safe::send(&mut session, Command::Update).await {
-        eprintln!("Načtení postavy selhalo: {}", describe_login_error(&e));
+        report!("Načtení postavy selhalo: {}", describe_login_error(&e));
         return ExitCode::FAILURE;
     }
 
     let Some(gs) = session.game_state() else {
-        eprintln!("Přihlášení proběhlo, ale server nevrátil stav hry");
+        report!("Přihlášení proběhlo, ale server nevrátil stav hry");
         return ExitCode::FAILURE;
     };
 
@@ -95,13 +97,13 @@ async fn main() -> ExitCode {
     let tavern = &gs.tavern;
     let alu = tavern.thirst_for_adventure_sec;
 
-    println!("Postava:  {}", ch.name);
-    println!("Level:    {}", ch.level);
-    println!("Zlato:    {} g {} s", ch.silver / 100, ch.silver % 100);
-    println!("Houby:    {}", ch.mushrooms);
-    println!("Hospoda:");
-    println!("  ALU:    {} min {} s", alu / 60, alu % 60);
-    println!("  Piva:   {}/{}", tavern.beer_drunk, tavern.beer_max);
+    report!("Postava:  {}", ch.name);
+    report!("Level:    {}", ch.level);
+    report!("Zlato:    {} g {} s", ch.silver / 100, ch.silver % 100);
+    report!("Houby:    {}", ch.mushrooms);
+    report!("Hospoda:");
+    report!("  ALU:    {} min {} s", alu / 60, alu % 60);
+    report!("  Piva:   {}/{}", tavern.beer_drunk, tavern.beer_max);
     let action = match &tavern.current_action {
         CurrentAction::Idle => "nic nedělá".to_string(),
         CurrentAction::Quest { busy_until, .. } => format!("na výpravě do {}", busy_until.format("%H:%M:%S")),
@@ -109,7 +111,7 @@ async fn main() -> ExitCode {
         CurrentAction::Expedition => "na expedici".to_string(),
         CurrentAction::Unknown(_) => "neznámá činnost".to_string(),
     };
-    println!("  Stav:   {action}");
+    report!("  Stav:   {action}");
 
     tavern::run(&mut session).await;
 

@@ -32,5 +32,6 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
 - Odměny: houby > zlato > přesýpací hodiny. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
+- Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`, bot lze pustit na pozadí a log sledovat).
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.
