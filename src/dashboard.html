@@ -70,7 +70,7 @@ const METRICS = [
   {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
   {key:"strength", label:"Strength", fmt:v=>Math.round(v).toLocaleString()},
 ];
-// Colour = class (user 2026-10-07), plus a marker shape per class as the second cue (some class colours are close).
+// Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
 // A second character of the same class gets a dashed line and a hollow marker.
 const CLASSES = ["Warrior","Scout","Mage","Assassin","BattleMage","Berserker","Druid","DemonHunter","Bard","Necromancer","Paladin","PlagueDoctor"];
 const SHAPES = ["square","circle","star","diamond","triangle","cross","leaf","triangleDown","pentagon","hexagon","shield","plus"];
@@ -87,7 +87,7 @@ const pretty = cls => (cls||"?").replace(/([a-z])([A-Z])/g, "$1 $2");
 const style = i => {
   const cls = DATA.chars[i].cls, k = CLASSES.indexOf(cls);
   const dup = DATA.chars.slice(0, i).some(c => c.cls === cls);
-  return {color: css(k >= 0 ? "--" + cls : "--Other"), shape: k >= 0 ? SHAPES[k] : "circle", dashed: dup || k < 0};
+  return {color: css(k >= 0 ? "--" + cls : "--Other"), shape: "circle", dashed: dup || k < 0};
 };
 // Marker of a given shape centred on (cx, cy)
 function marker(parent, shape, cx, cy, r, fill, stroke){
