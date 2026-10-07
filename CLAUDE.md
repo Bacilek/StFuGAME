@@ -1,80 +1,83 @@
 # StFuGAME
 
-Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, aréna, podzemí, …).
+A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dungeons, …).
 
-## Začni tady (nová session)
-1. `docs/stav.md` – kde jsme, co čeká na ověření, otevřené otázky.
-2. `docs/architektura.md` – moduly, záludnosti sf-api/serveru, pracovní postup (build, restart bota, push).
-3. `docs/precedenty.md` – rozhodnutí uživatele (řídit se jimi), `docs/todo.md` – plán.
-4. Dokumenty k funkcím: `docs/expedice.md`, `arena.md`, `podzemi.md`, `inventar.md`, `hlidka.md`, `odmeny.md`, `staj.md`, `ovladani.md`.
-5. Bot nejspíš právě běží u uživatele (ikona u hodin). Co dělal: `logs/prubeh.log`, deníky `logs/expedice.jsonl`, `logs/arena.jsonl`.
+## Start here (new session)
+1. `docs/status.md` – where we are, what is waiting for verification, open questions.
+2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
+3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
+4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
+5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: `logs/progress.log`, journals `logs/expeditions.jsonl`, `logs/arena.jsonl`.
 
-## Kontext
-- Uživatel Rust neumí. Kód píše Claude, uživateli vysvětluje jen to nutné.
-- Uživatel umí C#, vysvětlení ve srovnání s C# jsou vítána.
-- Komunikace česky.
+## Context
+- The user does not know Rust. Claude writes the code and explains only what is necessary.
+- The user knows C#, comparisons with C# are welcome.
+- **Communicate with the user in Czech.** The repository itself (code, logs, docs, commit messages) is in English,
+  except `docs/todo.md`, which stays Czech. Game terms as in the English game client (Tavern, City Guard, Arena, Dungeons,
+  Thirst for Adventure, Wheel of Fortune, …).
 
-## Technologie
-- Rust, knihovna `sf-api` (crates.io), async přes `tokio`, `.env` přes `dotenvy`.
-- Reference implementace: github.com/tjira/rsfb (nekopírovat, jen jako vzor volání API).
-- Přihlašovací údaje z `.env` (SF_USER, SF_PASS = S&F účet; SF_CHARACTER = jméno postavy; SF_SERVER volitelně), nikdy je nehardcodovat a nevypisovat do logů. Soubor `.env` nečíst.
+## Technology
+- Rust, the `sf-api` crate (crates.io), async via `tokio`, `.env` via `dotenvy`.
+- Reference implementation: github.com/tjira/rsfb (do not copy, only as an example of API usage).
+- Credentials from `.env` (SF_USER, SF_PASS = S&F account; SF_CHARACTER = character name; SF_SERVER optional); never hardcode them or print them to logs. Never read the `.env` file.
 
-## Pravidla
-- Všechny docs jsou hlavně pro Clauda: aktualizovat je pokaždé, když se zjistí cokoli nového (z běhu, od uživatele, z FAQ). Ověřená fakta zapisovat do tabulek „Stav ověření“, `docs/stav.md` přepsat při větším posunu.
-- Plán dalších funkcí: `docs/todo.md` (nové nápady připisovat, hotové odškrtnout). Kdykoli mě napadne velké herní TODO, připsat ho do sekce „Návrhy od Clauda“.
-- Kdykoli si nejsem jistý jakýmkoli rozhodnutím (strategie, data, co bot smí), zeptat se uživatele a odpověď zapsat do `docs/precedenty.md`. Při podobné situaci se řídit precedenty.
-- Mezi akcemi náhodné prodlevy (simulace člověka), žádné spamování serveru.
-- ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. JEDINÁ výjimka (uživatel 2026-10-07): pronájem zvířete ve stáji – gryf/drak za 25 hub, když hub není dost, tygr za 10 g + 1 houbu; jen když postava zvíře nemá a jde do hospody (viz `docs/staj.md`). Hlídač hub povolí úbytek jen u tohoto příkazu a přesně o jeho cenu. Všechny příkazy posílat přes `safe::send` (src/safe.rs), který pustí jen příkazy z whitelistu `is_allowed`. Nový příkaz přidat do whitelistu jen po ověření, že neutrácí houby. Nikdy nepovolit:
-  - `BuyBeer` (pivo stojí houby), `TimeSkip::Mushroom` (v `FinishQuest { skip }` i `ExpeditionSkipWait`),
-  - `GambleMushrooms`, `GuildLoadMushrooms`, cokoli s `Mushrooms` v názvu (např. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
-  - a každý další příkaz, u kterého není jisté, že houby neutratí (radši odmítnout).
-- Každou novou funkci přidávat zvlášť a nechat uživatele ji otestovat.
-- Testuje se na vedlejším účtu.
-- Po každé změně udělat git commit (česká commit zpráva) a push na origin (GitHub). `.env` nikdy necommitovat.
+## Rules
+- All docs are mainly for Claude: update them whenever anything new is learned (from runs, from the user, from the FAQ). Record verified facts in the "Verification status" tables, rewrite `docs/status.md` after bigger changes.
+- Plan of further features: `docs/todo.md` (add new ideas, tick off finished ones). Whenever a big game TODO comes to mind, add it to the "Návrhy od Clauda" section.
+- Whenever unsure about any decision (strategy, data, what the bot may do), ask the user and record the answer in `docs/precedents.md`. Follow the precedents in similar situations.
+- Random delays between actions (human-like), never spam the server.
+- NEVER spend mushrooms under any circumstances until the user explicitly changes this rule. The ONLY exception (user, 2026-10-07): renting a mount in the Stable – griffin/dragon for 25 mushrooms, or a tiger for 10 g + 1 mushroom when there are not enough mushrooms; only when the character has no mount and is heading to the Tavern (see `docs/stable.md`). The mushroom watchdog allows a decrease only for this command and exactly by its price. Send all commands through `safe::send` (src/safe.rs), which only lets whitelisted commands (`is_allowed`) through. Add a command to the whitelist only after verifying it does not spend mushrooms. Never allow:
+  - `BuyBeer` (beer costs mushrooms), `TimeSkip::Mushroom` (in `FinishQuest { skip }` and `ExpeditionSkipWait`),
+  - `GambleMushrooms`, `GuildLoadMushrooms`, anything with `Mushrooms` in its name (e.g. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
+  - and any other command that is not certain to spend no mushrooms (rather refuse).
+- Add every new feature separately and let the user test it.
+- Testing happens on a secondary account.
+- After every change: git commit (English message) and push to origin (GitHub). Never commit `.env`.
+- The user starts the bot themselves (desktop shortcut); do not start it for them unless asked.
 
-## Hospoda
-- Hospoda už nefunguje jako klasické výpravy (questy) „vyber jednu ze 3 a počkej“. Jsou v ní expedice, kde se během cesty vybírá z možností:
-  - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
+## Tavern
+- The Tavern no longer works with classic quests ("pick one of 3 and wait"). It has expeditions with choices along the way:
+  - `ExpeditionStart { pos }` (one of 2 expeditions) → repeatedly `ExpeditionStage` from `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
-    - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
-- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
-- Výběr expedice: nejkratší, při shodě nezmapovaná, jinak nejsnazší na 40 (`Mission::ease`).
-- Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
-  Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
-- Předměty cizích cyklů (ne hlavní mise) brát jen kvůli okamžitému hrdinství, ne kvůli budoucím krokům.
-- Odměny: houby > zlato > přesýpací hodiny; u zbytkové expedice (ALU ≤ 3 min) houby > hodiny > zlato. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
-- Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`).
-- Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
-- Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
-- Klasické questy (`StartQuest`/`FinishQuest`) bot neumí; když `tavern.available_tasks()` vrátí `Quests`, hospodu přeskočí.
+    - `Waiting` → wait until `busy_until` and send `Update` (never skip with mushrooms), `Finished` → end.
+- Missions, rules and open questions: `docs/expeditions.md` (machine-readable in `src/missions.rs`). Unknown missions/encounters do not stop the bot; they are logged to the journal (`unmapped`), then ask the user and fill them in.
+- Choosing an expedition: the shortest, ties go to an unmapped one, otherwise the easiest to reach 40 (`Mission::ease`).
+- Strategy (src/tavern.rs): secure 40 heroism (including bonuses/penalties at the end), then only keys and chests and never drop below 40.
+  Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
+- Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.
+- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses, beer or mushroom skips.
+- Timestamped progress: `logs/progress.log` (output via the `report!` macro).
+- Mission data may be wrong (from the user and from the FAQ): the bot verifies it during runs (`checks` in the journal, `[check] MISMATCH`); after runs update the "Verification status" table in docs/expeditions.md and fix `src/missions.rs`.
+- Journal `logs/expeditions.jsonl`: evaluate after runs (below 40 / far above 40) and tune the strategy.
+- The bot cannot do classic quests (`StartQuest`/`FinishQuest`); when `tavern.available_tasks()` returns `Quests`, it skips the Tavern.
 
-## Aréna
-- Popis a stav ověření: `docs/arena.md` (aktualizovat při každém novém zjištění).
-- Bojovat JEN mimo cooldown (jinak to stojí houbu, server příznak use_mushroom ignoruje), kdykoli, i během expedice.
-- Nejvýš 10 výher denně (pak nejsou odměny), řídí se `arena.fights_for_xp` ze serveru.
-- Vyzvat nejslabšího ze 3: síla = 100 % hlavní atribut + 80 % CON + 40 % LCK + 10 % vedlejší atributy.
+## Arena
+- Description and verification status: `docs/arena.md` (update with every new finding).
+- Fight ONLY off cooldown (otherwise it costs a mushroom, the server ignores use_mushroom), any time, even during an expedition.
+- At most 10 wins per day (no rewards after that), driven by `arena.fights_for_xp` from the server. Losses are fine.
+- Challenge the weakest of 3: strength = 100 % main attribute + 80 % CON + 40 % LCK + 10 % secondary attributes.
 
-## Podzemí
-- Popis a stav ověření: `docs/podzemi.md`.
-- Jeden boj kdykoli mimo cooldown (NIKDY za houby), i během expedice. S plným inventářem ne.
-- Výběr: nejnižší level protivníka, při podobném levelu slabší staty.
-- Cooldown hlídá `safe.rs`: po boji další až s novým časem ze serveru (`UpdateDungeons`).
+## Dungeons
+- Description and verification status: `docs/dungeons.md`.
+- One fight whenever off cooldown (NEVER for mushrooms), even during an expedition. Not with a full inventory.
+- Choice: lowest enemy level, at a similar level weaker stats.
+- The cooldown is guarded by `safe.rs`: after a fight the next one only with a new time from the server (`UpdateDungeons`).
 
-## Inventář
-- Popis a stav ověření: `docs/inventar.md`.
-- Předmět na nasazení: lepší (vzorec z arény na atributy předmětu) nasadit, horší prodat. Epické NIKDY neprodávat.
+## Inventory
+- Description and verification status: `docs/inventory.md`.
+- Equippable item: better (Arena formula on the item's attributes; weapons by damage) → equip, worse → sell. NEVER sell epic items.
 
-## Hlídka
-- Popis a stav ověření: `docs/hlidka.md`.
-- Po dojetí hospody hlídka: min(10 h, hodiny do půlnoci zaokrouhlené nahoru) → konec 00:00–00:59. Aréna i podzemí během hlídky běží dál.
+## City Guard
+- Description and verification status: `docs/city-guard.md`.
+- After the Tavern is done: min(10 h, hours until midnight rounded up) → ends 00:00–00:59. Arena and Dungeons keep running during the shift.
 
-## Denní odměny
-- Popis a stav ověření: `docs/odmeny.md`.
-- Jen odměna za přihlášení (kalendář) a 1× denně volné točení kolem štěstí. Nikdy za houby ani šťastné mince.
+## Daily rewards
+- Description and verification status: `docs/daily-rewards.md`.
+- Only the daily login bonus (calendar) and one free Wheel of Fortune spin a day. Never for mushrooms or lucky coins.
 
-## Stáj
-- Popis: `docs/staj.md`. Zvíře kupovat až těsně před expedicí, když postava žádné nemá (ne hned po vypršení).
+## Stable
+- Description: `docs/stable.md`. Buy a mount only right before an expedition when the character has none (not right after it expires).
 
-## Ovládání
-- Bot se ovládá ikonou u hodin (src/tray.rs), zástupce „StFuGAME bot“ na ploše spouští `target/release/stfugame.exe`. Podrobnosti `docs/ovladani.md`.
-- Před release buildem musí být bot ukončen (zamčené exe). Nespouštět `cargo run`, když běží bot z ikony (jedna instance).
+## Controls
+- The bot is controlled with the icon next to the clock (src/tray.rs); the "StFuGAME bot" desktop shortcut runs `target/release/stfugame.exe`. Details in `docs/controls.md`.
+- The bot must be exited before a release build (locked exe). Do not run `cargo run` while the bot from the icon is running (single instance).
