@@ -38,6 +38,11 @@ table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}
 th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--ink2);font-weight:600}
+.main{display:flex;gap:14px;align-items:flex-start} .chartcard{flex:1;min-width:0}
+.side{width:300px;flex:none;max-height:640px;overflow-y:auto} .side[hidden]{display:none}
+.jump{margin-bottom:12px} .jump .who{font-weight:600} .jump .up{color:var(--good);font-weight:600;margin-left:6px}
+.jump ul{margin:4px 0 0;padding-left:18px;color:var(--ink2)} .jump li{margin:2px 0}
+@media (max-width:820px){.main{flex-direction:column}.side{width:100%}}
 .tablecard{margin-top:14px;overflow-x:auto} .tablecard table{margin-top:0}
 .h2{font-size:15px;margin:0 0 8px} .h2 span{color:var(--muted);font-weight:400}
 .mx{width:auto} .mx td{text-align:center;min-width:52px} .mx td:first-child{text-align:left} .mx th.rot{writing-mode:vertical-rl;transform:rotate(180deg);text-align:left;height:110px;vertical-align:bottom}
@@ -58,9 +63,12 @@ th{color:var(--ink2);font-weight:600}
     <button id="next" aria-label="One day more">&#9654;</button>
   </div>
 </div>
-<div class="card">
+<div class="main">
+<div class="card chartcard">
   <svg id="chart" viewBox="0 0 1000 420" role="img" aria-labelledby="sub"></svg>
   <ul class="legend" id="legend"></ul>
+</div>
+<aside class="card side" id="side" hidden><h2 class="h2" id="sidetitle"></h2><div id="sidebody"></div></aside>
 </div>
 <div class="card tablecard" id="tablecard"><div id="table"></div></div>
 <div class="card tablecard" id="h2hcard" hidden><h2 class="h2" id="h2htitle"></h2><div id="h2h"></div></div>
@@ -188,6 +196,36 @@ function render(){
   hit.addEventListener("pointerleave", ()=>{ tip.style.display="none"; cross.setAttribute("visibility","hidden"); });
   renderTable(m, days);
   renderH2H(m, days);
+  renderSide(m, days);
+}
+
+// Win rate tab: who jumped since the previous shown day and what changed (user 2026-10-07)
+const JUMP = 3; // percentage points
+function renderSide(m, days){
+  const side = $("side");
+  side.hidden = m.key !== "winrate";
+  if (side.hidden) return;
+  const j = days.length - 1, day = days[j], prev = days[j-1];
+  const body = $("sidebody"); body.replaceChildren();
+  if (!prev){ $("sidetitle").textContent = "Day 1"; body.appendChild(Object.assign(document.createElement("p"),{className:"muted",textContent:"Starting point – changes show from day 2 on."})); return; }
+  $("sidetitle").textContent = `Why up? Day ${j} → ${j+1}`;
+  let movers = DATA.chars.map((c,i)=>({c,i,d:(c.rows[day]?.winrate ?? NaN) - (c.rows[prev]?.winrate ?? NaN)}))
+    .filter(o=>!isNaN(o.d) && !hidden.has(o.i)).sort((a,b)=>b.d-a.d);
+  let big = movers.filter(o=>o.d >= JUMP);
+  if (!big.length){
+    body.appendChild(Object.assign(document.createElement("p"),{className:"muted",textContent:`No jump of ${JUMP}+ points. Biggest move:`}));
+    big = movers.slice(0,1).filter(o=>o.d>0);
+  }
+  big.forEach(o=>{
+    const box = document.createElement("div"); box.className = "jump";
+    const head = document.createElement("div"), dot = document.createElement("span");
+    dot.className="dot"; dot.style.background = style(o.i).color;
+    head.append(dot, Object.assign(document.createElement("span"),{className:"who",textContent:o.c.nick}),
+      Object.assign(document.createElement("span"),{className:"up",textContent:`+${o.d.toFixed(1)} pts`}));
+    const ul = document.createElement("ul"), ch = o.c.rows[day]?.changes || [];
+    (ch.length ? ch : ["No recorded upgrade – others got weaker relatively, or a change not tracked"]).forEach(t=>ul.appendChild(Object.assign(document.createElement("li"),{textContent:t})));
+    box.append(head, ul); body.appendChild(box);
+  });
 }
 
 // Who beats whom (simulated win rate of the row against the column) on the last shown day – Win rate tab only

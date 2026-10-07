@@ -13,7 +13,14 @@ use std::{
 };
 
 use chrono::{Local, NaiveDate, NaiveTime};
-use sf_api::gamestate::{GameState, dungeons::DungeonProgress};
+use sf_api::{
+    command::AttributeType,
+    gamestate::{
+        GameState,
+        dungeons::DungeonProgress,
+        items::{EquipmentSlot, Item, ItemType},
+    },
+};
 
 const ROOT: &str = "roster";
 /// The daily report is written at this time.
@@ -240,8 +247,147 @@ pub fn write_day(gs: &GameState) -> String {
         append(&history, CSV_HEADER);
     }
     append(&history, &s.csv());
+    // Snapshot of the character for "what changed" on the dashboard (Win rate tab)
+    let _ = fs::write(d.join("days").join(format!("{}.json", s.date)), snapshot(gs).to_string());
     write_shared(s.date);
     format!("level {}, Hall of Fame rank {}", s.level, s.rank)
+}
+
+const ATTRS: [(AttributeType, &str); 5] = [
+    (AttributeType::Strength, "STR"),
+    (AttributeType::Dexterity, "DEX"),
+    (AttributeType::Intelligence, "INT"),
+    (AttributeType::Constitution, "CON"),
+    (AttributeType::Luck, "LCK"),
+];
+
+const SLOTS: [(EquipmentSlot, &str); 10] = [
+    (EquipmentSlot::Weapon, "Weapon"),
+    (EquipmentSlot::Shield, "Shield"),
+    (EquipmentSlot::Hat, "Helmet"),
+    (EquipmentSlot::BreastPlate, "Chest plate"),
+    (EquipmentSlot::Gloves, "Gloves"),
+    (EquipmentSlot::FootWear, "Boots"),
+    (EquipmentSlot::Amulet, "Amulet"),
+    (EquipmentSlot::Belt, "Belt"),
+    (EquipmentSlot::Ring, "Ring"),
+    (EquipmentSlot::Talisman, "Talisman"),
+];
+
+/// Short item description: "15–41 dmg, STR +9".
+fn item_desc(i: &Item) -> String {
+    let mut parts = Vec::new();
+    if let ItemType::Weapon { min_dmg, max_dmg } = i.typ {
+        parts.push(format!("{min_dmg}–{max_dmg} dmg"));
+    }
+    for (a, n) in ATTRS {
+        if i.attributes[a] > 0 {
+            parts.push(format!("{n} +{}", i.attributes[a]));
+        }
+    }
+    parts.join(", ")
+}
+
+/// What the dashboard compares day to day: level, bought attributes, equipment, potions, guild.
+fn snapshot(gs: &GameState) -> serde_json::Value {
+    let c = &gs.character;
+    let attrs: serde_json::Map<String, serde_json::Value> =
+        ATTRS.iter().map(|(a, n)| ((*n).to_string(), c.attribute_basis[*a].into())).collect();
+    let equip: serde_json::Map<String, serde_json::Value> = SLOTS
+        .iter()
+        .filter_map(|(slot, n)| {
+            let i = c.equipment.0[*slot].as_ref()?;
+            Some((
+                (*n).to_string(),
+                serde_json::json!({
+                    "d": item_desc(i),
+                    "v": (crate::inventory::value(gs, i) * 10.0).round() / 10.0,
+                    "epic": i.is_epic(),
+                    "legendary": i.is_legendary(),
+                }),
+            ))
+        })
+        .collect();
+    let potions: Vec<String> = c
+        .active_potions
+        .iter()
+        .flatten()
+        .map(|p| format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0))
+        .collect();
+    serde_json::json!({
+        "level": c.level,
+        "attrs": attrs,
+        "equip": equip,
+        "potions": potions,
+        "guild": gs.guild.as_ref().map(|g| g.name.clone()),
+    })
+}
+
+/// Human-readable changes between two snapshots (the reasons a win rate could jump).
+fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
+    let mut out = Vec::new();
+    let (l0, l1) = (prev["level"].as_u64().unwrap_or(0), cur["level"].as_u64().unwrap_or(0));
+    if l1 > l0 {
+        out.push(format!("Level {l0} → {l1}"));
+    }
+    let bought: Vec<String> = ATTRS
+        .iter()
+        .filter_map(|(_, n)| {
+            let d = cur["attrs"][*n].as_i64().unwrap_or(0) - prev["attrs"][*n].as_i64().unwrap_or(0);
+            (d > 0).then(|| format!("{n} +{d}"))
+        })
+        .collect();
+    if !bought.is_empty() {
+        out.push(format!("Attributes bought: {}", bought.join(", ")));
+    }
+    for (_, slot) in SLOTS {
+        let (a, b) = (&prev["equip"][slot], &cur["equip"][slot]);
+        if b.is_null() || a["d"] == b["d"] {
+            continue;
+        }
+        let rarity = if b["legendary"].as_bool() == Some(true) {
+            "legendary "
+        } else if b["epic"].as_bool() == Some(true) {
+            "epic "
+        } else {
+            ""
+        };
+        let value = match (a["v"].as_f64(), b["v"].as_f64()) {
+            (Some(x), Some(y)) => format!(" (value {x} → {y})"),
+            (None, Some(y)) => format!(" (value {y})"),
+            _ => String::new(),
+        };
+        out.push(format!("New {rarity}{}: {}{value}", slot.to_lowercase(), b["d"].as_str().unwrap_or("?")));
+    }
+    let had: Vec<&str> = prev["potions"].as_array().map_or_else(Vec::new, |v| v.iter().filter_map(|p| p.as_str()).collect());
+    for p in cur["potions"].as_array().into_iter().flatten().filter_map(|p| p.as_str()) {
+        if !had.contains(&p) {
+            out.push(format!("Potion {p}"));
+        }
+    }
+    if cur["guild"] != prev["guild"]
+        && let Some(g) = cur["guild"].as_str()
+    {
+        out.push(format!("Joined the guild {g}"));
+    }
+    out
+}
+
+/// Changes per date for one character, from its daily snapshots (`days/<date>.json`).
+fn daily_changes(char_dir: &Path) -> BTreeMap<String, Vec<String>> {
+    let mut snaps: Vec<(String, serde_json::Value)> = fs::read_dir(char_dir.join("days"))
+        .map(|it| {
+            it.flatten()
+                .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
+                .filter_map(|e| {
+                    let date = e.path().file_stem()?.to_string_lossy().to_string();
+                    Some((date, serde_json::from_str(&fs::read_to_string(e.path()).ok()?).ok()?))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    snaps.sort_by(|a, b| a.0.cmp(&b.0));
+    snaps.windows(2).map(|w| (w[1].0.clone(), changes(&w[0].1, &w[1].1))).collect()
 }
 
 /// `roster/issues.txt` and `roster/leaderboard.md` from all characters' folders.
@@ -314,6 +460,7 @@ fn write_dashboard(demo: bool) {
         let mut by_date = serde_json::Map::new();
         let mut class = String::new();
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
+        let changes = daily_changes(&e.path());
         for r in &rows {
             let Some(date) = r.get("date") else { continue };
             gold += num(r, "gold_gained").unwrap_or(0.0);
@@ -329,6 +476,7 @@ fn write_dashboard(demo: bool) {
                     "gold": gold, "xp": xp, "mushrooms": mush,
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
+                    "changes": changes.get(date).cloned().unwrap_or_default(),
                 }),
             );
         }
@@ -366,6 +514,28 @@ pub fn track_level(gs: &GameState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn changes_between_snapshots() {
+        let prev = serde_json::json!({"level": 12, "attrs": {"STR": 28, "CON": 29},
+            "equip": {"Weapon": {"d": "14–22 dmg", "v": 59.7, "epic": false}}, "potions": [], "guild": null});
+        let cur = serde_json::json!({"level": 13, "attrs": {"STR": 33, "CON": 29},
+            "equip": {"Weapon": {"d": "15–41 dmg, STR +9", "v": 99.0, "epic": true},
+                      "Gloves": {"d": "STR +6", "v": 12.0, "epic": false}},
+            "potions": ["Strength 25 %"], "guild": "Artušova Garda"});
+        assert_eq!(
+            changes(&prev, &cur),
+            [
+                "Level 12 → 13",
+                "Attributes bought: STR +5",
+                "New epic weapon: 15–41 dmg, STR +9 (value 59.7 → 99)",
+                "New gloves: STR +6 (value 12)",
+                "Potion Strength 25 %",
+                "Joined the guild Artušova Garda",
+            ]
+        );
+        assert!(changes(&cur, &cur).is_empty());
+    }
 
     #[test]
     fn classifies_progress_messages() {
@@ -421,6 +591,31 @@ mod tests {
                 );
             }
             let _ = fs::write(d.join("history.csv"), text);
+            // Daily snapshots with a few made-up upgrades
+            let _ = fs::create_dir_all(d.join("days"));
+            let mut weapon = (8u32, 14u32, 4u32);
+            let mut snap = serde_json::json!({"level": 1, "attrs": {"STR": 10, "DEX": 10, "INT": 10, "CON": 10, "LCK": 10},
+                "equip": {"Weapon": {"d": "8–14 dmg, STR +4", "v": 30.0, "epic": false, "legendary": false}},
+                "potions": [], "guild": null});
+            for day in 0..7 {
+                let date = start + chrono::Duration::days(day);
+                snap["level"] = (snap["level"].as_u64().unwrap_or(1) + 2 + rng.u64(0..3)).into();
+                for a in ["STR", "CON"] {
+                    let v = snap["attrs"][a].as_u64().unwrap_or(0) + rng.u64(0..6);
+                    snap["attrs"][a] = v.into();
+                }
+                if rng.u8(0..3) == 0 {
+                    weapon = (weapon.0 + 5, weapon.1 + 12, weapon.2 + 4);
+                    let epic = rng.u8(0..4) == 0;
+                    snap["equip"]["Weapon"] = serde_json::json!({"d": format!("{}–{} dmg, STR +{}", weapon.0, weapon.1, weapon.2),
+                        "v": f64::from(weapon.0 + weapon.1) * 2.0, "epic": epic, "legendary": false});
+                }
+                if day == 2 {
+                    snap["potions"] = serde_json::json!(["Strength 25 %"]);
+                    snap["guild"] = "Artušova Garda".into();
+                }
+                let _ = fs::write(d.join("days").join(format!("{date}.json")), snap.to_string());
+            }
         }
         write_dashboard(true);
         println!("demo dashboard: roster/dashboard.html");

@@ -55,3 +55,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Challenge tournament | Every character against every other at the end of day 1, 3, 7, 14 → table of the best. Done as a simulation (sf-api fight simulator, 1000 fights per pair), not real Arena fights. |
 | 2026-10-07 | Daily win rate | The round robin is simulated every day; the average win rate is a dashboard metric "Win rate [%]" and in the table under the chart (always visible). |
 | 2026-10-07 | Challenge pages | Only the dashboard (`roster/dashboard.html`) – the character card, daily HTML pages and the separate tournament page are not needed. |
+| 2026-10-07 | Win rate jumps | On the Win rate tab a panel on the right explains big jumps (new epic weapon, level, attributes, potions, guild) from daily character snapshots. |
