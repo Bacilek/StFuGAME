@@ -4,7 +4,6 @@
 //! weapons by expected damage (see `weapon_value`).
 
 use sf_api::{
-    SimpleSession,
     command::{AttributeType, Command},
     gamestate::{
         GameState,
@@ -12,6 +11,8 @@ use sf_api::{
         items::{BagPosition, EquipmentSlot, Item, ItemType},
     },
 };
+
+use crate::session::SimpleSession;
 
 use crate::{arena::strength, safe, tavern::Outcome};
 

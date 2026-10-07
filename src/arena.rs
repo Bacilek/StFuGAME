@@ -8,10 +8,11 @@ use std::{fs::OpenOptions, io::Write};
 use chrono::Local;
 use serde_json::json;
 use sf_api::{
-    SimpleSession,
     command::{AttributeType, Command},
     gamestate::{GameState, character::Class, social::OtherPlayer},
 };
+
+use crate::session::SimpleSession;
 
 use crate::{safe, tavern::Outcome};
 

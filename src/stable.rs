@@ -12,10 +12,11 @@ use std::{
 
 use chrono::Local;
 use sf_api::{
-    SimpleSession,
     command::Command,
     gamestate::{GameState, character::Mount},
 };
+
+use crate::session::SimpleSession;
 
 use crate::{safe, tavern::Outcome};
 

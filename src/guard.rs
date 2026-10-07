@@ -4,7 +4,9 @@
 //! Collect the pay when the shift ends.
 
 use chrono::{DateTime, Duration, Local, Timelike};
-use sf_api::{SimpleSession, command::Command, gamestate::tavern::CurrentAction};
+use sf_api::{command::Command, gamestate::tavern::CurrentAction};
+
+use crate::session::SimpleSession;
 
 use crate::{safe, tavern::Outcome};
 

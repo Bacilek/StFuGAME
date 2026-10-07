@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use chrono::Local;
 use sf_api::{
-    SimpleSession,
     command::Command,
     error::SFError,
     gamestate::{
@@ -16,6 +15,8 @@ use sf_api::{
         },
     },
 };
+
+use crate::session::SimpleSession;
 
 use crate::{
     journal::Journal,

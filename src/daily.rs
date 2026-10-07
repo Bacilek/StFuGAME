@@ -8,9 +8,10 @@ use std::{
 
 use chrono::Local;
 use sf_api::{
-    SimpleSession,
     command::{Command, FortunePayment},
 };
+
+use crate::session::SimpleSession;
 
 use crate::{safe, tavern::Outcome};
 

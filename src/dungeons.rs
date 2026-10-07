@@ -3,13 +3,14 @@
 //! Never for mushrooms, never with a full inventory.
 
 use sf_api::{
-    SimpleSession,
     command::{AttributeType, Command},
     gamestate::{
         GameState,
         dungeons::{Dungeon, DungeonProgress, LightDungeon},
     },
 };
+
+use crate::session::SimpleSession;
 
 use crate::{arena::strength, safe, tavern::Outcome};
 

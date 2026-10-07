@@ -73,6 +73,11 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Better item (even slightly) → buy and equip. Spare gold above the reserve (most expensive gold item seen today) → spin
   (buy the cheapest, sell it right away) until all items cost mushrooms. Never buy or sell epic items when spinning.
 
+## Guild
+- Description and verification status: `docs/guild.md`.
+- Once a day the quick-join list: no guild → join the best (Instructor > Treasure > strength); in a guild → switch only
+  when another one has Instructor ≥ ours + 10. Commands via `Command::Custom`, allowed one by one in `safe.rs`.
+
 ## City Guard
 - Description and verification status: `docs/city-guard.md`.
 - After the Tavern is done: min(10 h, hours until midnight rounded up) → ends 00:00–00:59. Arena and Dungeons keep running during the shift.

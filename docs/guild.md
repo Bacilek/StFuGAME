@@ -35,17 +35,31 @@
   | 1 | 504 | guild id (= first value of `owngroupsave`) ✅ |
   | 2 | Artušova Garda | name ✅ |
   | 3 | 48 | members (49 after we joined) ✅ |
-  | 4 | 3 | Hall of Knights or raids ❓ |
-  | 5 | 106 | Treasure or Instructor ❓ |
-  | 6 | 106 | Instructor or Treasure ❓ |
-  | 7 | 0 | raids or Hall of Knights ❓ (mostly 0) |
+  | 4 | 3 | Hall of Knights ✅ (user: same order as in the game) |
+  | 5 | 106 | Treasure ✅ |
+  | 6 | 106 | Instructor ✅ |
+  | 7 | 0 | raids ✅ |
   | 8 | hex | emblem |
   | 9–11 | 10/33/17 | min / max / average member level (max 33, min 10 matches the member levels) ✅ |
   | 12 | text | description |
   | 13 | xx | language (xx, cs, pl, de, fr, en, …) |
 
+## Implementation (src/guild.rs)
+- Once a day (first pass of the main loop that day): `GroupJoinList:0` → `parse_list` (14 fields per guild).
+- Candidates: not full (< 50 members); sorted by Instructor, then Treasure, then strength = members × average level.
+- No guild → join the best. In a guild → only if another one has Instructor ≥ ours + 10 (ours = `gs.guild.total_instructor_skill`):
+  leave (`GroupRemoveMember:<own player id>`) and join. Up to 3 candidates are tried when joining fails.
+  Success = `gs.guild` has the new name after `GroupJoin`.
+- Commands are `Command::Custom`; `safe.rs` (`custom_allowed`) lets through only `GroupJoinList:<number>`,
+  `GroupJoin:<name>/int` and `GroupRemoveMember:<own player id>` (never kicks anyone else).
+- The raw response comes from our own `src/session.rs` (copy of sf-api's `SimpleSession` with `send_raw`).
+- Guild fights (`GuildJoinAttack`/`GuildJoinDefense`) are not done yet (in the TODO).
+
 ## Verification status
 | What | Status |
 |---|---|
-| Quick-join list request + response | ⏳ waiting for the user's capture |
-| Join command + response | ⏳ waiting for the user's capture |
+| Quick-join list request + response | ✅ captured 2026-10-07, parsing covered by tests |
+| Join command + response | ✅ captured 2026-10-07 |
+| Bot: list loads, decision logged (`[guild]`) | ⏳ not verified |
+| `gs.guild.total_instructor_skill` = Instructor from the list (106 for Artušova Garda) | ⏳ not verified |
+| Leaving + joining by the bot | ⏳ not verified (only when a clearly better guild appears) |

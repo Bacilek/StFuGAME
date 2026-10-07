@@ -5,7 +5,7 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
 ## Where we are
 - The bot runs on the user's machine from the icon next to the clock (release exe, independent of Claude Code), character **TestChar1** on **s31.sfgame.eu**
   (secondary test account, login via the S&F account / SSO).
-- Finished features: Tavern (expeditions), Arena, Dungeons, inventory, shops (release build 2026-10-07 20:53, not verified yet), City Guard, daily rewards + Wheel of Fortune, Stable, icon controls.
+- Finished features: Tavern (expeditions), Arena, Dungeons, inventory, shops (release build 2026-10-07 20:53, not verified yet), guild (written 2026-10-07, not in the release build yet), City Guard, daily rewards + Wheel of Fortune, Stable, icon controls.
   Plan: `docs/todo.md`. The user's decisions: `docs/precedents.md`. Internals and pitfalls: `docs/architecture.md`.
 - Character state on the evening of 2026-10-07: level ~10, griffin until 21.10. 13:30, City Guard until 23:06 (then 1 h until 00:06), Arena 3/10 wins,
   Thirst for Adventure used up for today, the full inventory was solved by selling.
@@ -20,6 +20,7 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
 |---|---|---|
 | Shops: gold-only purchase, mushrooms unchanged, shop slot refreshes, spin cost (`[shops]` in the log) | first day after the Tavern with the new build | `docs/shops.md` |
 | Shop ad reroll: the user captures the Weapon Shop + Response bodies (DevTools) | after midnight 2026-10-08 | `docs/shops.md` |
+| Guild: list loads, decision in the log (`[guild]`), Instructor of the own guild | first start of the new build | `docs/guild.md` |
 | City Guard pay via `FinishWork` | 2026-10-07 23:06 | `docs/city-guard.md` |
 | Second 1 h shift (23:06 → 00:06) per the 00:00–00:59 rule | 23:06 | `docs/city-guard.md` |
 | Thirst for Adventure reset at midnight, Tavern starts after the shift | 2026-10-08 00:06 | `docs/city-guard.md` |

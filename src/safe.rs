@@ -5,11 +5,12 @@ use std::{sync::Mutex, time::Duration};
 
 use chrono::{DateTime, Local};
 use sf_api::{
-    SimpleSession,
     command::{Command, FortunePayment},
     error::SFError,
     gamestate::{GameState, ShopPosition, character::Mount, items::ItemCommandIdent},
 };
+
+use crate::session::SimpleSession;
 
 /// Margin after a cooldown ends before we may act (Arena, Dungeons) – server and local clocks can differ.
 pub const COOLDOWN_SAFETY_SEC: i64 = 30;
@@ -118,8 +119,29 @@ pub async fn human_pause() {
 }
 
 /// Sends the command if it is allowed, then waits a moment.
-pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'a mut GameState, SFError> {
-    if !is_allowed(&cmd) {
+pub async fn send(session: &mut SimpleSession, cmd: Command) -> Result<&mut GameState, SFError> {
+    send_raw(session, cmd).await?;
+    session.game_state_mut().ok_or(SFError::EmptyResponse)
+}
+
+/// Guild commands sf-api does not know (`Command::Custom`, captured from the browser, docs/guild.md).
+/// None of them spends mushrooms; leaving the guild only with our own player id (never kicking anyone else).
+fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) -> bool {
+    match (cmd_name, arguments) {
+        ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
+        ("GroupJoin", [_, suffix]) => suffix == "int",
+        ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
+        _ => false,
+    }
+}
+
+/// Like `send`, but returns the raw server response (for keys sf-api ignores).
+pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<String, SFError> {
+    let custom_ok = match &cmd {
+        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), cmd_name, arguments),
+        _ => false,
+    };
+    if !is_allowed(&cmd) && !custom_ok {
         return Err(SFError::InvalidRequest("command is not whitelisted (mushroom protection)"));
     }
     let kind = fight_kind(&cmd);
@@ -150,7 +172,7 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
     };
 
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
-    let res = session.send_command(cmd).await.map(|_| ());
+    let res = session.send_raw(cmd).await;
     if let Some(kind) = kind {
         // Even on error: the server may have performed the action, next one only after a new server time
         remember_fight(kind);
@@ -166,6 +188,5 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
     }
 
     human_pause().await;
-    res?;
-    session.game_state_mut().ok_or(SFError::EmptyResponse)
+    res
 }

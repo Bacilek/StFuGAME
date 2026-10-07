@@ -10,10 +10,11 @@ use std::sync::Mutex;
 
 use chrono::{Local, NaiveDate};
 use sf_api::{
-    SimpleSession,
     command::Command,
     gamestate::{GameState, ShopPosition, items::Item},
 };
+
+use crate::session::SimpleSession;
 
 use crate::{inventory, safe, tavern::Outcome};
 

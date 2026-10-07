@@ -7,10 +7,12 @@ mod arena;
 mod daily;
 mod dungeons;
 mod guard;
+mod guild;
 mod inventory;
 mod journal;
 mod missions;
 mod safe;
+mod session;
 mod shops;
 mod stable;
 mod tavern;
@@ -18,7 +20,9 @@ mod tray;
 
 use std::process::ExitCode;
 
-use sf_api::{SimpleSession, command::Command, error::SFError, gamestate::tavern::CurrentAction};
+use sf_api::{command::Command, error::SFError, gamestate::tavern::CurrentAction};
+
+use crate::session::SimpleSession;
 
 /// Reads a required environment variable (.env). Never prints the value.
 fn env_var(name: &str) -> Result<String, String> {
@@ -61,7 +65,7 @@ async fn login(c: &Credentials) -> Result<SimpleSession, String> {
         .into_iter()
         .filter(|s| s.username().eq_ignore_ascii_case(&c.character))
         .filter(|s| match &c.server {
-            Some(srv) => s.server_url().host_str().is_some_and(|h| h.eq_ignore_ascii_case(srv)),
+            Some(srv) => s.server_host().is_some_and(|h| h.eq_ignore_ascii_case(srv)),
             None => true,
         })
         .collect();
@@ -75,7 +79,7 @@ async fn login(c: &Credentials) -> Result<SimpleSession, String> {
             ));
         }
         _ => {
-            let servers: Vec<&str> = matching.iter().map(|s| s.server_url().host_str().unwrap_or("?")).collect();
+            let servers: Vec<&str> = matching.iter().map(|s| s.server_host().unwrap_or("?")).collect();
             return Err(format!(
                 "There are several characters named {}, specify the server in SF_SERVER: {}",
                 c.character,
@@ -84,7 +88,7 @@ async fn login(c: &Credentials) -> Result<SimpleSession, String> {
         }
     };
 
-    report!("Loading character {} on {}...", c.character, session.server_url().host_str().unwrap_or("?"));
+    report!("Loading character {} on {}...", c.character, session.server_host().unwrap_or("?"));
     // After an account login we have no game state yet - Update downloads it
     safe::send(&mut session, Command::Update)
         .await
@@ -132,6 +136,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        if let tavern::Outcome::SessionLost = guild::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = arena::run(session).await {

@@ -3,7 +3,7 @@
 ## Modules (src/)
 | File | What it does |
 |---|---|
-| `main.rs` | Startup: finds the folder with `.env`, single-instance guard, tokio runtime, icon. `run_bot` = login + the `play` loop, re-login after a lost session. `play`: rewards → inventory → Arena → Dungeons → Tavern (1 expedition) → Shops → City Guard → wait. |
+| `main.rs` | Startup: finds the folder with `.env`, single-instance guard, tokio runtime, icon. `run_bot` = login + the `play` loop, re-login after a lost session. `play`: rewards → inventory → Guild → Arena → Dungeons → Tavern (1 expedition) → Shops → City Guard → wait. |
 | `tray.rs` | Icon next to the clock (tray-icon + Win32 message loop), menu Start/Stop/Open log/Exit, single-instance mutex, MessageBox. The only `unsafe` in the project. |
 | `safe.rs` | **The only path to the server.** Command whitelist, cooldown guards (Arena, Dungeons, wheel), mushroom watchdog (decrease → dialog + `exit(2)`), random pauses 2.5–7 s. |
 | `tavern.rs` | Expeditions: choosing the expedition, encounters, rewards, waiting, data checks (`checks`), journal. During an expedition it also calls inventory/Arena/Dungeons/Stable. Returns `Outcome` after every finished expedition. |
@@ -13,6 +13,8 @@
 | `dungeons.rs` | Dungeons: `UpdateDungeons`, enemies via `Dungeons::current_enemy` (sf-api data), choice, fight. |
 | `inventory.rs` | Inventory: equip better / sell worse, keep epics. Weapons by damage. |
 | `shops.rs` | Weapon Shop + Magic Shop once a day after the Tavern: gold-only upgrades, spinning above the daily reserve. |
+| `guild.rs` | Guild: once a day the quick-join list, join the best / switch to a clearly better one (Custom commands). |
+| `session.rs` | Our copy of sf-api's `SimpleSession` with `send_raw` (raw response for keys sf-api ignores). |
 | `guard.rs` | City Guard: `StartWork`/`FinishWork`, length so it ends 00:00–00:59. |
 | `daily.rs` | Daily login bonus (`CollectCalendar`) and the free Wheel of Fortune spin. |
 | `stable.rs` | Renting a mount before an expedition (the only exception to the mushroom rule). |
