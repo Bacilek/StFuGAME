@@ -382,6 +382,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
     let mut played = false;
     // Aréna během expedice: zkoušet nejvýš jednou za minutu (kdyby boj z nějakého důvodu neproběhl)
     let mut last_arena_try: Option<std::time::Instant> = None;
+    let mut last_dungeon_try: Option<std::time::Instant> = None;
     // Expedice spuštěná za zbytek ALU (po restartu bota neznámé, pak se bere jako plná)
     let mut reduced_expedition = false;
     // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
@@ -399,6 +400,16 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
         if crate::arena::ready(gs) && last_arena_try.is_none_or(|t| t.elapsed().as_secs() >= 60) {
             last_arena_try = Some(std::time::Instant::now());
             if let Outcome::SessionLost = crate::arena::run(session).await {
+                return Outcome::SessionLost;
+            }
+            refresh_pending = true;
+            continue;
+        }
+        if crate::dungeons::secs_until_ready(gs) == 0
+            && last_dungeon_try.is_none_or(|t| t.elapsed().as_secs() >= crate::dungeons::RETRY_SEC)
+        {
+            last_dungeon_try = Some(std::time::Instant::now());
+            if let Outcome::SessionLost = crate::dungeons::run(session).await {
                 return Outcome::SessionLost;
             }
             refresh_pending = true;
@@ -544,6 +555,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     {
                         sleep = arena + fastrand::u64(5..20);
                         report!("[hospoda] Během čekání se uvolní aréna, vzbudím se za {sleep} s");
+                    }
+                    let dungeon = crate::dungeons::secs_until_ready(gs);
+                    if dungeon + 5 < sleep {
+                        sleep = dungeon + fastrand::u64(5..20);
+                        report!("[hospoda] Během čekání se uvolní podzemí, vzbudím se za {sleep} s");
                     }
                     tokio::time::sleep(Duration::from_secs(sleep)).await;
                     Command::Update

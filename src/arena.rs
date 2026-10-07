@@ -1,5 +1,6 @@
 //! Aréna: kdykoli je mimo cooldown (i během expedice), vyzve nejslabšího ze 3 soupeřů.
-//! Nejvýš 10 výher denně, pak už nejsou odměny.
+//! Nejvýš 10 výher denně, pak už nejsou odměny. Řídí se počítadlem serveru `fights_for_xp`
+//! (počet dnešních výher za xp, 0–10), takže den resetuje server.
 //! Síla = 100 % hlavní atribut + 80 % odolnost + 40 % štěstí + 10 % každý vedlejší atribut.
 
 use std::{fs::OpenOptions, io::Write};
@@ -34,7 +35,7 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 const MAX_WINS_PER_DAY: usize = 10;
 const LOG: &str = "logs/arena.jsonl";
 
-/// Počet dnešních výher podle logu arény (přežije restart bota).
+/// Počet dnešních výher podle logu arény (jen pro kontrolu proti `fights_for_xp`).
 pub fn wins_today() -> usize {
     let today = Local::now().format("%Y-%m-%d").to_string();
     std::fs::read_to_string(LOG)
@@ -47,7 +48,7 @@ pub fn wins_today() -> usize {
 
 /// Za kolik sekund bude aréna volná (s rezervou), pokud ještě má smysl (méně než 10 výher).
 pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
-    if wins_today() >= MAX_WINS_PER_DAY {
+    if usize::from(gs.arena.fights_for_xp) >= MAX_WINS_PER_DAY {
         return None;
     }
     let free_at = gs.arena.next_free_fight.map_or_else(Local::now, |t| t + chrono::Duration::seconds(safe::ARENA_SAFETY_SEC));
@@ -56,7 +57,7 @@ pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
 
 /// Má smysl jít do arény? Mimo cooldown a ještě ne 10 výher dnes.
 pub fn ready(gs: &GameState) -> bool {
-    safe::arena_is_free(gs) && wins_today() < MAX_WINS_PER_DAY
+    safe::arena_is_free(gs) && usize::from(gs.arena.fights_for_xp) < MAX_WINS_PER_DAY
 }
 
 fn log_fight(line: &serde_json::Value) {
@@ -150,11 +151,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
         None => report!("[aréna] Boj proběhl, výsledek server neposlal"),
     }
-    let wins = wins_today();
+    let wins = usize::from(fights_for_xp);
     if wins >= MAX_WINS_PER_DAY {
-        report!("[aréna] Dnes {wins} výher, aréna do zítřka stojí");
+        report!("[aréna] Dnes {wins} výher za xp, aréna do zítřka stojí");
     } else {
-        report!("[aréna] Dnes výher: {wins}/{MAX_WINS_PER_DAY}");
+        report!("[aréna] Dnes výher za xp: {wins}/{MAX_WINS_PER_DAY} (podle mého logu {})", wins_today());
     }
     if let Some(next) = gs.arena.next_free_fight {
         report!("[aréna] Další volný boj v {}", next.format("%H:%M:%S"));

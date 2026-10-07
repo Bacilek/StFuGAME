@@ -1,6 +1,7 @@
 #[macro_use]
 mod report;
 mod arena;
+mod dungeons;
 mod journal;
 mod missions;
 mod safe;
@@ -108,12 +109,21 @@ fn print_status(session: &SimpleSession) {
     report!("  Stav:   {action}");
 }
 
-/// Hlavní smyčka: aréna (když je volná, max 10 výher denně), hospoda (jedna expedice),
-/// a když není co dělat, čekání na konec cooldownu arény. Běží, dokud ji nezastavíme.
+/// Hlavní smyčka: aréna (když je volná, max 10 výher denně), podzemí (když je volné), hospoda (jedna expedice),
+/// a když není co dělat, čekání na konec nejbližšího cooldownu. Běží, dokud ji nezastavíme.
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
+    let mut last_dungeon_try: Option<std::time::Instant> = None;
     loop {
         if let tavern::Outcome::SessionLost = arena::run(session).await {
             return tavern::Outcome::SessionLost;
+        }
+        let dungeon_due = session.game_state().is_some_and(|gs| dungeons::secs_until_ready(gs) == 0);
+        let retry_ok = last_dungeon_try.is_none_or(|t: std::time::Instant| t.elapsed().as_secs() >= dungeons::RETRY_SEC);
+        if dungeon_due && retry_ok {
+            last_dungeon_try = Some(std::time::Instant::now());
+            if let tavern::Outcome::SessionLost = dungeons::run(session).await {
+                return tavern::Outcome::SessionLost;
+            }
         }
 
         let Some(gs) = session.game_state() else { return tavern::Outcome::SessionLost };
@@ -132,11 +142,15 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             }
         }
 
-        // Není co dělat: počkat na konec cooldownu arény (+ náhodná rezerva), po 10 výhrách 30 min
-        let wait = session
-            .game_state()
-            .and_then(arena::secs_until_ready)
-            .map_or(30 * 60, |s| s + fastrand::u64(30..120));
+        // Není co dělat: počkat, až se uvolní aréna nebo podzemí (+ náhodná rezerva), nejvýš 30 min
+        let gs = session.game_state();
+        let arena = gs.and_then(arena::secs_until_ready).unwrap_or(30 * 60);
+        let mut dungeon = gs.map_or(30 * 60, dungeons::secs_until_ready);
+        if dungeon == 0 {
+            // Podzemí „volné“, ale boj neproběhl (plný inventář apod.): další pokus až za RETRY_SEC
+            dungeon = dungeons::RETRY_SEC;
+        }
+        let wait = arena.min(dungeon) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Není co dělat, další kontrola za {} min {} s", wait / 60, wait % 60);
         tokio::time::sleep(std::time::Duration::from_secs(wait)).await;

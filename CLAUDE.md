@@ -41,5 +41,11 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 ## Aréna
 - Popis a stav ověření: `docs/arena.md` (aktualizovat při každém novém zjištění).
 - Bojovat JEN mimo cooldown (jinak to stojí houbu, server příznak use_mushroom ignoruje), kdykoli, i během expedice.
-- Nejvýš 10 výher denně (pak nejsou odměny), počítá se z `logs/arena.jsonl`.
+- Nejvýš 10 výher denně (pak nejsou odměny), řídí se `arena.fights_for_xp` ze serveru.
 - Vyzvat nejslabšího ze 3: síla = 100 % hlavní atribut + 80 % CON + 40 % LCK + 10 % vedlejší atributy.
+
+## Podzemí
+- Popis a stav ověření: `docs/podzemi.md`.
+- Jeden boj kdykoli mimo cooldown (NIKDY za houby), i během expedice. S plným inventářem ne.
+- Výběr: nejnižší level protivníka, při podobném levelu slabší staty.
+- Cooldown hlídá `safe.rs`: po boji další až s novým časem ze serveru (`UpdateDungeons`).
