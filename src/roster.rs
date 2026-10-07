@@ -30,17 +30,9 @@ const REPORT_HOUR: u32 = 23;
 const REPORT_MINUTE: u32 = 50;
 
 static NICK: Mutex<Option<String>> = Mutex::new(None);
-/// While the shops are being bought out / spun, sales give back the purchase price: not income.
-static SHOPPING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-pub fn set_shopping(on: bool) {
-    SHOPPING.store(on, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Gold (silver) and mushrooms gained by one command. Spending is not counted; sales during shopping neither.
-pub fn ledger(silver: u64, mushrooms: u32, is_sale: bool) {
-    let shopping_sale = is_sale && SHOPPING.load(std::sync::atomic::Ordering::Relaxed);
-    if silver > 0 && !shopping_sale {
+/// Gold (silver) and mushrooms gained by one command (all income incl. sales; spending is not counted).
+pub fn ledger(silver: u64, mushrooms: u32) {
+    if silver > 0 {
         note("GOLD", 0, &silver.to_string());
     }
     if mushrooms > 0 {
@@ -511,11 +503,11 @@ h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:
 <div class="card"><h1>{name}</h1><div class="sub">{class} · level {level} · {date}</div>
 <div class="stats">
 <div><div class="k">Level</div><div class="v">{level}{level_delta}</div><div class="bar"><i style="width:{xp_pct:.0}%"></i></div><div class="k">XP {xp} / {next}</div></div>
-<div><div class="k">Hall of Fame</div><div class="v">{rank_arrow}#{rank} <span class="small">(best #{best_rank})</span></div></div>
+<div><div class="k">Hall of Fame</div><div class="v">{rank_arrow}#{rank} <span class="small">(#{best_rank})</span></div></div>
 <div><div class="k">Honor</div><div class="v">{honor}</div></div>
 <div><div class="k">Strength</div><div class="v">{strength:.0}</div></div>
-<div><div class="k">Gold gained today (all days)</div><div class="v">+{gold_gained:.0} <span class="small">({gold_total:.0})</span></div></div>
-<div><div class="k">Mushrooms gained today (all days)</div><div class="v">+{mushrooms_gained} <span class="small">({mushrooms_total})</span></div></div>
+<div><div class="k">Gold</div><div class="v">+{gold_gained:.0} <span class="small">({gold_total:.0})</span></div></div>
+<div><div class="k">Mushrooms</div><div class="v">+{mushrooms_gained} <span class="small">({mushrooms_total})</span></div></div>
 </div></div>
 <div class="card"><h2>Biggest success of the day</h2><div class="best">{best}</div></div>
 <div class="cols">
@@ -607,8 +599,8 @@ mod tests {
             append(&d.join("history.csv"), CSV_HEADER);
             append(&d.join("history.csv"), &format!("{yesterday},12,10230,90,120,98.10,29,50,7,10,-,184.00,2"));
         }
-        ledger(7_150, 2, false);
-        ledger(900, 0, true); // a sale outside shopping counts
+        ledger(7_150, 2);
+        ledger(900, 0);
         win(5, "Level up: 12 → 13 (demo)");
         observe("[dungeons] Win: xp +578, gold +3.00 g, item no (demo)");
         observe("[inventory] equipping Weapon (epic) (value 99.0 > 59.7 of Weapon) (demo)");

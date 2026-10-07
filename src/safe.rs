@@ -250,11 +250,10 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
 
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
     let silver_before = session.game_state().map(|gs| gs.character.silver);
-    let is_sale = matches!(cmd, Command::SellShop { .. });
     let res = session.send_raw(cmd).await;
     // Gold and mushrooms gained (for the daily report of the character challenge)
     if let (Some(s0), Some(m0), Some(gs)) = (silver_before, mushrooms_before, session.game_state()) {
-        crate::roster::ledger(gs.character.silver.saturating_sub(s0), gs.character.mushrooms.saturating_sub(m0), is_sale);
+        crate::roster::ledger(gs.character.silver.saturating_sub(s0), gs.character.mushrooms.saturating_sub(m0));
     }
     if let Some(kind) = kind {
         // Even on error: the server may have performed the action, next one only after a new server time
