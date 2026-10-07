@@ -249,7 +249,7 @@ fn mission_name(t: ExpeditionThing) -> String {
 /// Odehraje expedice, dokud je ALU. Čekání vždy vyčká, nikdy nepřeskakuje.
 pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome {
     let mut unknown_in_row = 0;
-    // sf-api obnoví nabídku rozcestí, jen když ji server pošle. Po výběru proto vždy
+    // sf-api obnoví stav expedice, jen když ho server pošle. Po každém herním příkazu proto
     // stáhneme čerstvý stav a nikdy nevybíráme dvakrát ze stejné (zastaralé) nabídky.
     let mut refresh_pending = true;
     let mut last_offer: Option<Vec<String>> = None;
@@ -269,26 +269,32 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             entry.target_current = exp.target_current;
             entry.target_amount = exp.target_amount;
 
-            match exp.current_stage() {
+            let stage = exp.current_stage();
+            // Po každém herním příkazu nejdřív čerstvý stav, ať nerozhodujeme podle starých dat
+            // (např. „pokračovat“ u bosse je pro server výběr odměny č. 1)
+            if refresh_pending && !matches!(stage, ExpeditionStage::Waiting { .. }) {
+                refresh_pending = false;
+                if let Err(e) = safe::send(session, Command::Update).await {
+                    report!("[hospoda] Chyba: {e}");
+                    return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+                }
+                continue;
+            }
+            match stage {
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
                     unknown_in_row = 0;
                     let offer: Vec<String> = encs.iter().map(|e| format!("{:?}{}", e.typ, e.heroism)).collect();
-                    let same_as_last = last_offer.as_ref() == Some(&offer);
-                    if refresh_pending || same_as_last {
-                        refresh_pending = false;
+                    if last_offer.as_ref() == Some(&offer) && stale_tries < 2 {
                         stale_tries += 1;
-                        if stale_tries > 3 {
-                            report!("[hospoda] Nabídka rozcestí se neobnovuje, končím (nechci vybírat naslepo)");
-                            return Outcome::Done;
-                        }
-                        if stale_tries > 1 {
-                            report!("[hospoda] Nabídka je stejná jako minule, obnovuji stav ({stale_tries}. pokus)");
-                        }
+                        report!("[hospoda] Nabídka je stejná jako minule, obnovuji stav ({stale_tries}. pokus)");
                         if let Err(e) = safe::send(session, Command::Update).await {
                             report!("[hospoda] Chyba: {e}");
                             return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
                         }
                         continue;
+                    }
+                    if stale_tries >= 2 {
+                        report!("[hospoda] Nabídka zůstala stejná i po obnovení, beru ji jako skutečnou");
                     }
                     stale_tries = 0;
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
@@ -323,7 +329,6 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         _ => {}
                     }
                     last_offer = Some(offer);
-                    refresh_pending = true;
                     Command::ExpeditionPickEncounter { pos }
                 }
                 ExpeditionStage::Boss(_) => {
@@ -409,6 +414,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             }
         };
 
+        refresh_pending = !matches!(cmd, Command::Update);
         if let Err(e) = safe::send(session, cmd).await {
             report!("[hospoda] Chyba: {e}");
             return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
