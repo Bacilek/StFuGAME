@@ -34,38 +34,79 @@ fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize>
         .map(|(i, _)| i)
 }
 
-/// Hodnota setkání v hrdinství, včetně bonusu za plakát a hodnoty plakátu samotného.
-fn encounter_value(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
-    let have = |t: ExpeditionThing| exp.items.iter().flatten().any(|i| *i == t);
-    if enc.typ.is_bounty_for().is_some() {
-        // Plakát dává 0, ale budoucímu „hledanému“ přidá +10
-        return if have(enc.typ) { 0 } else { BOUNTY_BONUS };
+/// Poslední kolo expedice. V něm nemá smysl brát „přípravné“ věci.
+const LAST_FLOOR: u8 = 10;
+/// Bonus na konci expedice za každý kus rozbitého meče, když je cílem.
+const BROKEN_SWORD_END_BONUS: i32 = 8;
+
+fn has(exp: &Expedition, t: ExpeditionThing) -> bool {
+    exp.items.iter().flatten().any(|i| *i == t)
+}
+
+/// Přípravná věc: sama nic nedá (nebo ubere), ale odemkne bonus později.
+/// Plakát (+10 k hledanému), klíč (k truhle), princezna (`Bait`, odemkne draka +10).
+fn is_setup(t: ExpeditionThing) -> bool {
+    t.is_bounty_for().is_some() || matches!(t, ExpeditionThing::Key | ExpeditionThing::Bait)
+}
+
+/// Budoucí hodnota přípravné věci (0, pokud ji už máme nebo je poslední kolo).
+fn future_value(exp: &Expedition, t: ExpeditionThing) -> i32 {
+    if exp.current_floor >= LAST_FLOOR || has(exp, t) {
+        return 0;
     }
+    if t.is_bounty_for().is_some() || t == ExpeditionThing::Bait {
+        BOUNTY_BONUS
+    } else {
+        0
+    }
+}
+
+/// Hodnota setkání v hrdinství: základ + bonus za plakát + budoucí hodnota přípravné věci.
+fn encounter_value(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     let bonus = match enc.typ.required_bounty() {
-        Some(poster) if have(poster) => BOUNTY_BONUS,
+        Some(poster) if has(exp, poster) => BOUNTY_BONUS,
         _ => 0,
     };
-    enc.heroism + bonus
+    enc.heroism + bonus + future_value(exp, enc.typ)
+}
+
+/// Hrdinství, které budeme mít na konci, včetně bonusů připsaných až na konci.
+fn projected_heroism(exp: &Expedition) -> i32 {
+    let end_bonus = match exp.target_thing {
+        ExpeditionThing::BrokenSword => BROKEN_SWORD_END_BONUS * i32::from(exp.target_current),
+        _ => 0,
+    };
+    exp.heroism + end_bonus
 }
 
 /// Vybere setkání na rozcestí:
+/// 0. v posledním kole se neberou přípravné věci (plakát, klíč, princezna), pokud je jiná možnost,
 /// 1. cílový předmět expedice, dokud není úkol splněný,
-/// 2. když je úkol splněný a máme 40+ hrdinství: klíč nebo truhla,
-/// 3. jinak nejvyšší hrdinství (plakát se počítá jako +10).
+/// 2. když je úkol splněný a hrdinství (vč. bonusů na konci) je 40+: klíč nebo truhla,
+/// 3. jinak nejvyšší hodnota (plakát/princezna se počítají jako +10 do budoucna).
 fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
-    let target_done = exp.target_current >= exp.target_amount;
+    let last = exp.current_floor >= LAST_FLOOR;
+    let allowed = |e: &ExpeditionEncounter| !(last && is_setup(e.typ));
+    let any_allowed = encs.iter().any(allowed);
+    let ok = |e: &ExpeditionEncounter| !any_allowed || allowed(e);
 
-    if !target_done && let Some(i) = encs.iter().position(|e| e.typ == exp.target_thing) {
+    let find = |pred: &dyn Fn(&ExpeditionEncounter) -> bool| encs.iter().position(|e| ok(e) && pred(e));
+
+    let target_done = exp.target_current >= exp.target_amount;
+    if !target_done && let Some(i) = find(&|e| e.typ == exp.target_thing) {
         return i;
     }
-    if target_done
-        && exp.heroism >= MAX_HEROISM
-        && let Some(i) = encs.iter().position(|e| matches!(e.typ, ExpeditionThing::Key | ExpeditionThing::Suitcase))
-    {
-        return i;
+    if target_done && projected_heroism(exp) >= MAX_HEROISM {
+        let need_key = !has(exp, ExpeditionThing::Key);
+        let key_or_chest =
+            |e: &ExpeditionEncounter| (need_key && e.typ == ExpeditionThing::Key) || e.typ == ExpeditionThing::Suitcase;
+        if let Some(i) = find(&key_or_chest) {
+            return i;
+        }
     }
     encs.iter()
         .enumerate()
+        .filter(|(_, e)| ok(e))
         .max_by_key(|(i, e)| (encounter_value(exp, e), std::cmp::Reverse(*i)))
         .map_or(0, |(i, _)| i)
 }
@@ -204,6 +245,7 @@ mod tests {
 
     fn exp(target: ExpeditionThing, cur: u8, amount: u8, heroism: i32, items: [Option<ExpeditionThing>; 4]) -> Expedition {
         let mut e = Expedition::default();
+        e.current_floor = 3;
         e.target_thing = target;
         e.target_current = cur;
         e.target_amount = amount;
@@ -248,6 +290,38 @@ mod tests {
         // úkol nesplněný → klíč nemá přednost
         let e = exp(Socks, 1, 2, 40, [None; 4]);
         assert_eq!(choose_encounter(&e, &[enc(Dragon, 20), enc(Suitcase, 0)]), 0);
+    }
+
+    #[test]
+    fn no_setup_on_last_floor() {
+        let mut e = exp(Socks, 2, 2, 10, [None; 4]);
+        e.current_floor = 10;
+        assert_eq!(choose_encounter(&e, &[enc(UnicornBounty, 0), enc(Dragon, 3)]), 1);
+        assert_eq!(choose_encounter(&e, &[enc(Bait, -2), enc(Socks, 1)]), 1);
+        // po dosažení 40 v posledním kole: truhla ano, klíč ne
+        e.heroism = 40;
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dragon, 3), enc(Suitcase, 0)]), 2);
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dragon, 3)]), 1);
+        // když jsou všechny možnosti přípravné, vezme se aspoň něco
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(UnicornBounty, 0)]), 0);
+    }
+
+    #[test]
+    fn princess_counts_for_dragon() {
+        let e = exp(Socks, 2, 2, 0, [None; 4]);
+        assert_eq!(choose_encounter(&e, &[enc(Unicorn, 5), enc(Bait, -2)]), 1);
+        // princeznu už máme → jen -2
+        let e = exp(Socks, 2, 2, 0, [Some(Bait), None, None, None]);
+        assert_eq!(choose_encounter(&e, &[enc(Unicorn, 5), enc(Bait, -2)]), 0);
+    }
+
+    #[test]
+    fn broken_sword_end_bonus_counts_to_cap() {
+        // 24 + 2 meče × 8 = 40 → klíč/truhla
+        let e = exp(BrokenSword, 2, 2, 24, [None; 4]);
+        assert_eq!(choose_encounter(&e, &[enc(Dragon, 10), enc(Key, 0)]), 1);
+        let e = exp(Socks, 2, 2, 24, [None; 4]);
+        assert_eq!(choose_encounter(&e, &[enc(Dragon, 10), enc(Key, 0)]), 0);
     }
 
     #[test]

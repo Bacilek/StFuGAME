@@ -30,6 +30,9 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Strategie (src/tavern.rs):
   - expedice: přednostně se speciální odměnou (vejce, denní úkol), jinak nejlevnější v ALU,
   - setkání: cílový předmět (dokud úkol není splněný) > nejvyšší hrdinství (plakát „wanted“ = +10 k budoucímu hledanému) ; při splněném úkolu a hrdinství ≥ 40 klíč/truhla,
+  - expedice má vždy 10 kol; v 10. kole nebrat přípravné věci (plakát, klíč, princezna = `Bait`),
+  - princezna: -2, ale odemkne draka +10 → počítat jako +10 do budoucna,
+  - speciální pravidla cíle: rozbitý meč (`BrokenSword`) dá při sebrání -4, ale na konci +8 za kus → počítá se do limitu 40,
   - odměny: houby > zlato > přesýpací hodiny,
   - přesýpací hodiny NEPOUŽÍVAT (ani pivo, ani skip houbami).
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.
