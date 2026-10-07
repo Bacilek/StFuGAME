@@ -74,6 +74,12 @@ fn target_done(exp: &Expedition) -> bool {
 /// Odhad hrdinství na konci expedice, pokud už nic dalšího nesebereme:
 /// aktuální + bonusy „za kus“ (připíšou se na konci) - trest za nesplněný úkol.
 fn projected_heroism(exp: &Expedition) -> i32 {
+    // Po posledním bossovi už server bonusy i tresty připsal
+    if exp.current_floor >= LAST_FLOOR
+        && matches!(exp.current_stage(), ExpeditionStage::Waiting { .. } | ExpeditionStage::Finished)
+    {
+        return exp.heroism;
+    }
     let mut p = exp.heroism;
     if let Some(m) = missions::for_target(exp.target_thing) {
         if let Bonus::PerItem(b) = m.bonus {
