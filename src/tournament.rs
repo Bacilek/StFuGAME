@@ -1,8 +1,8 @@
-//! Round-robin tournament of the challenge characters (user 2026-10-07): every day at 23:50 every character "fights"
-//! every other one (the daily win rate goes to the dashboard); the rounds of day 1, 3, 7 and 14 make the tournament page. Simulated with sf-api's fight simulator (the server's rules) `ITERATIONS` times
+//! Round-robin of the challenge characters (user 2026-10-07): every day at 23:50 every character "fights" every other one;
+//! the average win rate and the head-to-head go to the dashboard (no separate tournament page any more). Simulated with sf-api's fight simulator (the server's rules) `ITERATIONS` times
 //! per pair, so the result is a fair win rate instead of one random fight – no Arena cooldown, no honor lost.
 //! Participants = the characters in `roster/roster.md`, loaded via `ViewPlayer` (the bot's own character from its
-//! own state). Output: `roster/tournament/<date>.json` (every day) + `roster/tournament.html` (rounds of DAYS).
+//! own state). Output: `roster/tournament/<date>.json` (every day).
 
 use std::{fs, path::Path};
 
@@ -15,8 +15,6 @@ use sf_api::{
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 const ROOT: &str = "roster";
-/// The days of the challenge after which the tournament runs.
-pub const DAYS: [i64; 4] = [1, 3, 7, 14];
 /// Simulated fights per pair.
 const ITERATIONS: u32 = 1000;
 
@@ -170,20 +168,8 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     let dir = Path::new(ROOT).join("tournament");
     let _ = fs::create_dir_all(&dir);
     let _ = fs::write(dir.join(format!("{}.json", Local::now().date_naive())), round.to_string());
-    write_page(false);
     report!("[tournament] Day {day} done ({n} characters, {} missing)", missing.len());
     Outcome::Done
-}
-
-/// `roster/tournament.html` from the rounds of day 1, 3, 7 and 14 (template src/tournament.html).
-pub fn write_page(demo: bool) {
-    let rounds: Vec<serde_json::Value> =
-        rounds(demo).into_iter().filter(|r| DAYS.contains(&r["day"].as_i64().unwrap_or(0))).collect();
-    let template = include_str!("tournament.html");
-    let (Some(a), Some(b)) = (template.find("/*DATA*/"), template.find("/*END*/")) else { return };
-    let json = serde_json::Value::Array(rounds).to_string().replace("</", "<\\/");
-    let html = format!("{}/*DATA*/{json}{}", &template[..a], &template[b..]);
-    let _ = fs::write(Path::new(ROOT).join("tournament.html"), html);
 }
 
 #[cfg(test)]
@@ -222,11 +208,5 @@ mod tests {
             });
             let _ = fs::write(dir.join(format!("_demo-{date}.json")), round.to_string());
         }
-        write_page(true);
-    }
-
-    #[test]
-    fn days_are_the_agreed_ones() {
-        assert_eq!(DAYS, [1, 3, 7, 14]);
     }
 }

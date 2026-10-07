@@ -12,7 +12,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 ## Context
 - Friends' character challenge: everything about it lives in `roster/` (local only, gitignored – never commit it):
   `roster/README.md` (files, how the daily 23:50 report works), `roster/plan.md` (plan/TODO, Czech), `roster/roster.md`.
-  The code is `src/roster.rs` + `src/tournament.rs`, page templates `src/dashboard.html`, `src/tournament.html` (→ `roster/`).
+  The code is `src/roster.rs` + `src/tournament.rs`, the page template `src/dashboard.html` (→ `roster/dashboard.html`,
+  the only page the user wants).
 - The user does not know Rust. Claude writes the code and explains only what is necessary.
 - The user knows C#, comparisons with C# are welcome.
 - **Communicate with the user in Czech.** The repository itself (code, logs, docs, commit messages) is in English,
