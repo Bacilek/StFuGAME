@@ -250,10 +250,16 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
 
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
     let silver_before = session.game_state().map(|gs| gs.character.silver);
+    let xp_before = session.game_state().map(|gs| (gs.character.level, gs.character.experience, gs.character.next_level_xp));
     let res = session.send_raw(cmd).await;
     // Gold and mushrooms gained (for the daily report of the character challenge)
-    if let (Some(s0), Some(m0), Some(gs)) = (silver_before, mushrooms_before, session.game_state()) {
-        crate::roster::ledger(gs.character.silver.saturating_sub(s0), gs.character.mushrooms.saturating_sub(m0));
+    if let (Some(s0), Some(m0), Some((l0, x0, next0)), Some(gs)) =
+        (silver_before, mushrooms_before, xp_before, session.game_state())
+    {
+        let c = &gs.character;
+        // XP: within a level the difference; after a level-up the rest of the old level + the new progress
+        let xp = if c.level > l0 { next0.saturating_sub(x0) + c.experience } else { c.experience.saturating_sub(x0) };
+        crate::roster::ledger(c.silver.saturating_sub(s0), c.mushrooms.saturating_sub(m0), xp);
     }
     if let Some(kind) = kind {
         // Even on error: the server may have performed the action, next one only after a new server time

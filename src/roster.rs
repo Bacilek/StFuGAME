@@ -31,7 +31,10 @@ const REPORT_MINUTE: u32 = 50;
 
 static NICK: Mutex<Option<String>> = Mutex::new(None);
 /// Gold (silver) and mushrooms gained by one command (all income incl. sales; spending is not counted).
-pub fn ledger(silver: u64, mushrooms: u32) {
+pub fn ledger(silver: u64, mushrooms: u32, xp: u64) {
+    if xp > 0 {
+        note("XP", 0, &xp.to_string());
+    }
     if silver > 0 {
         note("GOLD", 0, &silver.to_string());
     }
@@ -166,13 +169,26 @@ struct Snapshot {
     /// Gold / mushrooms gained today (income only)
     gold_gained: f64,
     mushrooms_gained: u64,
+    xp_gained: u64,
+    /// Dungeon enemies defeated so far (all dungeons)
+    dungeons: u32,
 }
 
-const CSV_HEADER: &str =
-    "date,level,rank,honor,strength,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,gold_gained,mushrooms_gained";
+const CSV_HEADER: &str = "date,level,rank,honor,strength,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,\
+gold_gained,mushrooms_gained,xp_gained,dungeons,class";
+
+/// Dungeon enemies defeated so far (a finished dungeon counts as 10).
+fn dungeons_defeated(gs: &GameState) -> u32 {
+    let count = |p: &DungeonProgress| match p {
+        DungeonProgress::Open { finished } => u32::from(*finished),
+        DungeonProgress::Finished => 10,
+        DungeonProgress::Locked => 0,
+    };
+    gs.dungeons.light.values().map(count).sum::<u32>() + gs.dungeons.shadow.values().map(count).sum::<u32>()
+}
 
 impl Snapshot {
-    fn of(gs: &GameState, gold_gained: f64, mushrooms_gained: u64) -> Self {
+    fn of(gs: &GameState, gold_gained: f64, mushrooms_gained: u64, xp_gained: u64) -> Self {
         let c = &gs.character;
         Snapshot {
             date: Local::now().date_naive(),
@@ -190,12 +206,14 @@ impl Snapshot {
             guild: gs.guild.as_ref().map_or_else(|| "-".to_string(), |g| g.name.replace(',', " ")),
             gold_gained,
             mushrooms_gained,
+            xp_gained,
+            dungeons: dungeons_defeated(gs),
         }
     }
 
     fn csv(&self) -> String {
         format!(
-            "{},{},{},{},{:.0},{:.2},{},{},{},{},{},{:.2},{}",
+            "{},{},{},{},{:.0},{:.2},{},{},{},{},{},{:.2},{},{},{},{}",
             self.date,
             self.level,
             self.rank,
@@ -208,7 +226,10 @@ impl Snapshot {
             self.arena_wins,
             self.guild,
             self.gold_gained,
-            self.mushrooms_gained
+            self.mushrooms_gained,
+            self.xp_gained,
+            self.dungeons,
+            self.class
         )
     }
 }
@@ -248,7 +269,7 @@ pub fn write_day(gs: &GameState) -> String {
     let Some(d) = dir() else { return "no character set".to_string() };
     let notes = take_notes();
     let sum = |kind: &str| notes.iter().filter(|n| n.1 == kind).filter_map(|n| n.3.parse::<u64>().ok()).sum::<u64>();
-    let s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"));
+    let s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
     let history = d.join("history.csv");
     let past = past(&history, s.date);
 
@@ -313,6 +334,71 @@ fn write_shared(date: NaiveDate) {
         lb += &format!("| {} | {nick} | {} | {} | {} | {} | {} | {} |\n", i + 1, g(0), g(1), g(2), g(3), g(4), g(5));
     }
     let _ = fs::write(Path::new(ROOT).join("leaderboard.md"), lb);
+    write_dashboard(demo);
+}
+
+/// One character's history: date → column → value.
+fn read_history(path: &Path) -> Vec<BTreeMap<String, String>> {
+    let text = fs::read_to_string(path).unwrap_or_default();
+    let mut lines = text.lines();
+    let Some(header) = lines.next() else { return Vec::new() };
+    let cols: Vec<&str> = header.split(',').collect();
+    lines
+        .map(|l| cols.iter().zip(l.split(',')).map(|(c, v)| ((*c).to_string(), v.to_string())).collect())
+        .collect()
+}
+
+/// `roster/dashboard.html`: all characters in one chart, metric tabs, day stepper (src/dashboard.html + data).
+fn write_dashboard(demo: bool) {
+    let Ok(entries) = fs::read_dir(ROOT) else { return };
+    let mut dates = std::collections::BTreeSet::new();
+    let mut chars = Vec::new();
+    let mut dirs: Vec<_> = entries
+        .flatten()
+        .filter(|e| e.path().is_dir() && (demo || !e.file_name().to_string_lossy().starts_with('_')))
+        .collect();
+    dirs.sort_by_key(|e| e.file_name());
+    for e in dirs {
+        let rows = read_history(&e.path().join("history.csv"));
+        if rows.is_empty() {
+            continue;
+        }
+        let num = |r: &BTreeMap<String, String>, k: &str| r.get(k).and_then(|v| v.parse::<f64>().ok());
+        let (mut gold, mut xp, mut mush) = (0.0, 0.0, 0.0);
+        let mut by_date = serde_json::Map::new();
+        let mut class = String::new();
+        for r in &rows {
+            let Some(date) = r.get("date") else { continue };
+            gold += num(r, "gold_gained").unwrap_or(0.0);
+            xp += num(r, "xp_gained").unwrap_or(0.0);
+            mush += num(r, "mushrooms_gained").unwrap_or(0.0);
+            if let Some(c) = r.get("class") {
+                class.clone_from(c);
+            }
+            dates.insert(date.clone());
+            by_date.insert(
+                date.clone(),
+                serde_json::json!({
+                    "gold": gold, "xp": xp, "mushrooms": mush,
+                    "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
+                }),
+            );
+        }
+        chars.push(serde_json::json!({ "nick": e.file_name().to_string_lossy().trim_start_matches("_demo_"), "cls": class, "rows": by_date }));
+    }
+    let data = serde_json::json!({
+        "generated": Local::now().format("%Y-%m-%d %H:%M").to_string(),
+        "dates": dates.into_iter().collect::<Vec<_>>(),
+        "chars": chars,
+    });
+    let template = include_str!("dashboard.html");
+    let start = "/*DATA*/";
+    let end = "/*END*/";
+    let (Some(a), Some(b)) = (template.find(start), template.find(end)) else { return };
+    // `</` inside the data must not end the script tag
+    let json = data.to_string().replace("</", "<\\/");
+    let html = format!("{}{start}{json}{}", &template[..a], &template[b..]);
+    let _ = fs::write(Path::new(ROOT).join("dashboard.html"), html);
 }
 
 /// Minimal base64 (for embedding the portrait into the HTML, so it works from any folder).
@@ -629,8 +715,8 @@ mod tests {
             append(&d.join("history.csv"), CSV_HEADER);
             append(&d.join("history.csv"), &format!("{yesterday},12,10230,90,120,98.10,29,50,7,10,-,184.00,2"));
         }
-        ledger(7_150, 2);
-        ledger(900, 0);
+        ledger(7_150, 2, 1_800);
+        ledger(900, 0, 0);
         win(5, "Level up: 12 → 13 (demo)");
         observe("[dungeons] Win: xp +578, gold +3.00 g, item no (demo)");
         observe("[inventory] equipping Weapon (epic) (value 99.0 > 59.7 of Weapon) (demo)");
@@ -708,4 +794,50 @@ mod tests {
         assert_eq!(base64(b"foo"), "Zm9v");
         assert_eq!(base64(b"foobar"), "Zm9vYmFy");
     }
+
+    /// Demo of the dashboard with made-up data for the roster (user 2026-10-07): `cargo test demo_dashboard -- --ignored`.
+    #[test]
+    #[ignore]
+    fn demo_dashboard() {
+        let roster = [
+            ("Filminy", "Scout"),
+            ("Mrožik", "Mage"),
+            ("Sanek", "Assassin"),
+            ("Wecros", "Berserker"),
+            ("Květoš", "DemonHunter"),
+            ("PajaRizz", "Bard"),
+            ("Pjotr", "Necromancer"),
+            ("MimiMimi11", "Paladin"),
+            ("TestChar1", "Warrior"),
+            ("Radek", "Druid"),
+        ];
+        let start = Local::now().date_naive() - chrono::Duration::days(6);
+        let mut rng = fastrand::Rng::with_seed(7);
+        for (i, (nick, class)) in roster.iter().enumerate() {
+            let d = Path::new(ROOT).join(format!("_demo_{nick}"));
+            let _ = fs::remove_dir_all(&d);
+            let _ = fs::create_dir_all(&d);
+            let mut text = format!("{CSV_HEADER}
+");
+            let (mut level, mut rank, mut strength, mut dungeons) = (1u32, 60_000u32 - i as u32 * 900, 20.0, 0u32);
+            for day in 0..7 {
+                let date = start + chrono::Duration::days(day);
+                level += 2 + rng.u32(0..4);
+                rank = rank.saturating_sub(4_000 + rng.u32(0..6_000));
+                strength += 25.0 + rng.f64() * 30.0;
+                dungeons += rng.u32(10..25);
+                let gold = 40.0 + rng.f64() * 120.0;
+                let xp = 2_000 + rng.u64(0..6_000) * (day as u64 + 1);
+                let mush = rng.u64(0..4);
+                text += &format!(
+                    "{date},{level},{rank},0,{strength:.0},0,0,0,0,10,-,{gold:.2},{mush},{xp},{dungeons},{class}
+"
+                );
+            }
+            let _ = fs::write(d.join("history.csv"), text);
+        }
+        write_dashboard(true);
+        println!("demo dashboard: roster/dashboard.html");
+    }
 }
+
