@@ -24,8 +24,13 @@
 ## Shop refresh for an ad (idea, not implemented)
 - The user: once a day each shop can be rerolled for watching an ad. Wanted: do it after everything costs mushrooms.
 - sf-api 0.4.4 has no command for it (only `RefreshShop` = 1 mushroom, forbidden). The server sends a `skipvideo` key, sf-api ignores it.
-- To implement we would need the exact server command the client sends after the ad (`Command::Custom`), e.g. captured
-  from the browser DevTools (Network tab) when the user watches the ad. Until then not possible.
+- Captured by the user 2026-10-07 (browser, DevTools), one shop (probably the Magic Shop):
+  1. `AdvertisementsCompleted:5` (params base64 `NQ==`), response 71 B,
+  2. `PlayerNewWares:2/2` (params `Mi8y`), response 520 B (the new offer).
+  sf-api's `RefreshShop` sends `PlayerNewWares:<shop − 2>` (Weapon = 1, Magic = 2) without the second argument = the mushroom
+  refresh. The second argument `2` is most likely "paid by ad"; `5` in `AdvertisementsCompleted` is probably the ad type for this shop.
+- Unknown: the Weapon Shop ad id, the response bodies, how to tell that today's ad is still available, and whether
+  `PlayerNewWares:x/2` without a completed ad would charge a mushroom (must be known before implementing).
 
 ## Verification status
 | What | Status |
