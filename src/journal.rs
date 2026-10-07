@@ -22,6 +22,8 @@ pub struct Entry {
     pub chests: u32,
     pub picks: Vec<String>,
     pub rewards: Vec<String>,
+    /// Setkání, která ještě nemáme v docs/expedice.md
+    pub unmapped: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -53,6 +55,9 @@ impl Journal {
             "[deník] {}: hrdinství {} (odhad na konci {}), úkol {}/{}, klíče {}, truhly {} → {verdict}",
             e.mission, e.heroism, e.projected, e.target_current, e.target_amount, e.keys, e.chests
         );
+        if !e.unmapped.is_empty() {
+            println!("[deník] Nezmapovaná setkání: {}", e.unmapped.join(", "));
+        }
         let line = json!({
             "started": e.started,
             "finished": Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -65,6 +70,7 @@ impl Journal {
             "verdict": verdict,
             "picks": e.picks,
             "rewards": e.rewards,
+            "unmapped": e.unmapped,
         });
         let res = std::fs::create_dir_all("logs").and_then(|()| {
             let mut f = OpenOptions::new().create(true).append(true).open(PATH)?;

@@ -31,17 +31,30 @@ const LAST_FLOOR: u8 = 10;
 /// Kolik hrdinství v průměru dá jedno kolo. Kolo strávené na přípravě (krok řetězu)
 /// tedy „stojí“ tolik, kolik bychom jinak sebrali. Ladit podle deníku.
 const OPPORTUNITY_COST: f64 = 4.0;
+/// Odhad bonusu za cílový předmět neznámé mise (než ji zmapujeme).
+const UNKNOWN_TARGET_GUESS: i32 = 5;
 /// Pojistka proti nekonečné smyčce.
 const MAX_STEPS: u32 = 300;
 
-/// Vybere expedici: jen se známou misí, přednostně se speciální odměnou (vejce, denní úkol),
-/// jinak nejlevnější v ALU. Vrací jen expedice, na které máme dost ALU.
+/// Vybere expedici: nejkratší (nejlevnější v ALU). Při stejné délce ta, kde je nejsnazší
+/// získat 40 hrdinství; neznámá mise má při shodě přednost, abychom ji zmapovali.
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize> {
-    list.iter()
-        .enumerate()
-        .filter(|(_, e)| e.thirst_for_adventure_sec <= thirst && missions::for_target(e.target).is_some())
-        .min_by_key(|(_, e)| (e.special.is_none(), e.thirst_for_adventure_sec))
-        .map(|(i, _)| i)
+    let ease = |e: &AvailableExpedition| missions::for_target(e.target).map_or(f64::INFINITY, |m| m.ease());
+    let mut best: Option<usize> = None;
+    for (i, e) in list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec <= thirst) {
+        let better = match best {
+            None => true,
+            Some(b) => {
+                let b = &list[b];
+                e.thirst_for_adventure_sec < b.thirst_for_adventure_sec
+                    || (e.thirst_for_adventure_sec == b.thirst_for_adventure_sec && ease(e) > ease(b))
+            }
+        };
+        if better {
+            best = Some(i);
+        }
+    }
+    best
 }
 
 fn has(exp: &Expedition, t: ExpeditionThing) -> bool {
@@ -79,6 +92,9 @@ fn immediate_gain(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
         && has(exp, poster)
     {
         g += BOUNTY_BONUS;
+    }
+    if enc.typ == exp.target_thing && missions::for_target(exp.target_thing).is_none() {
+        g += UNKNOWN_TARGET_GUESS;
     }
     if enc.typ == exp.target_thing
         && let Some(m) = missions::for_target(exp.target_thing)
@@ -238,13 +254,12 @@ pub async fn run(session: &mut SimpleSession) {
             match exp.current_stage() {
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
                     unknown_in_row = 0;
-                    if let Some(unknown) = encs.iter().find(|e| !missions::is_known(e.typ)) {
-                        println!(
-                            "[hospoda] STOP: neznámé setkání {:?} (hrdinství {}). Popiš mi ho prosím, \
-                             expedice počká na rozcestí.",
-                            unknown.typ, unknown.heroism
-                        );
-                        return;
+                    for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
+                        let note = format!("{:?}({:+})", u.typ, u.heroism);
+                        println!("[hospoda] Nezmapované setkání: {note}");
+                        if !entry.unmapped.contains(&note) {
+                            entry.unmapped.push(note);
+                        }
                     }
                     let pos = choose_encounter(exp, &encs);
                     let opts: Vec<String> = encs
@@ -323,12 +338,12 @@ pub async fn run(session: &mut SimpleSession) {
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
                         for e in list.iter().filter(|e| missions::for_target(e.target).is_none()) {
-                            println!("[hospoda] Nabízí se neznámá mise s cílem {:?}, popiš mi ji prosím", e.target);
+                            println!("[hospoda] Nabízí se nezmapovaná mise s cílem {:?}", e.target);
                         }
                         let thirst = tavern.thirst_for_adventure_sec;
                         let Some(pos) = choose_expedition(list, thirst) else {
                             println!(
-                                "[hospoda] Žádná známá expedice, na kterou by stačilo ALU ({} min), hotovo",
+                                "[hospoda] Žádná expedice, na kterou by stačilo ALU ({} min), hotovo",
                                 thirst / 60
                             );
                             return;
@@ -465,6 +480,28 @@ mod tests {
         assert_eq!(projected_heroism(&e), 37);
         // třetí papír splní úkol: 0 + 20 + 5
         assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(ToiletPaper, 0)]), 1);
+    }
+
+    fn avail(target: ExpeditionThing, min: u32) -> AvailableExpedition {
+        AvailableExpedition {
+            target,
+            thirst_for_adventure_sec: min * 60,
+            location_1: Default::default(),
+            location_2: Default::default(),
+            special: None,
+        }
+    }
+
+    #[test]
+    fn expedition_shortest_then_easiest() {
+        // kratší vyhrává i nad snazší
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(BurntCampfire, 15)], 6000), Some(1));
+        // stejná délka: sele (8/kolo) je snazší než oheň (4/kolo)
+        assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000), Some(1));
+        // stejná délka: nezmapovaná mise má přednost
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
+        // na delší nestačí ALU
+        assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
     }
 
     #[test]

@@ -27,7 +27,8 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
-- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Na neznámou misi/setkání se bot zastaví, pak se zeptat uživatele a doplnit.
+- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
+- Výběr expedice: nejkratší, při shodě nezmapovaná, jinak nejsnazší na 40 (`Mission::ease`).
 - Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
 - Odměny: houby > zlato > přesýpací hodiny. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
