@@ -399,6 +399,16 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         report!("[hospoda] Expedici se nedaří uzavřít, končím");
                         return Outcome::Done;
                     }
+                    // Diagnostika: co server o expedici ví (hlavně jestli nečeká výběr odměny)
+                    let raw = serde_json::to_value(&tavern.expeditions).ok();
+                    let active = raw.as_ref().and_then(|v| v.get("active"));
+                    let field = |k: &str| active.and_then(|a| a.get(k)).map(ToString::to_string).unwrap_or_default();
+                    report!(
+                        "[hospoda] Stav před uzavřením: floor_stage {}, kolo {}, odměny {}",
+                        field("floor_stage"),
+                        field("current_floor"),
+                        field("rewards")
+                    );
                     report!("[hospoda] Uzavírám dokončenou expedici");
                     Command::ExpeditionContinue
                 }
