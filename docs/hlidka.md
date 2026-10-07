@@ -14,6 +14,6 @@
 ## Stav ověření
 | Co | Stav |
 |---|---|
-| Hlídka se spustí a skončí v očekávaný čas | ⏳ neověřeno |
+| Hlídka se spustí a skončí v očekávaný čas | ✅ 2026-10-07: start 17:06 na 6 h, konec 23:06 (mzda 208 s/h) |
 | Výplata přes `FinishWork` | ⏳ neověřeno |
 | Reset ALU o půlnoci místního času | ⏳ neověřeno |
