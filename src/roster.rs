@@ -65,15 +65,8 @@ pub fn win(prio: u8, msg: &str) {
 }
 
 /// Successes worth noting, recognised in the progress messages (prio, pattern).
-const WINS: &[(u8, &str)] = &[
-    (4, "(epic)"),
-    (3, "[tasks] Claiming"),
-    (3, "[guild] Joined"),
-    (2, "[dungeons] Win"),
-    (2, "[hunt] Win"),
-    (2, "[shops] Buying an upgrade"),
-    (1, "[potions] Drinking"),
-];
+/// Purchases, chest claims and potions are routine, not successes (user 2026-10-07).
+const WINS: &[(u8, &str)] = &[(4, "(epic)"), (3, "[guild] Joined"), (2, "[dungeons] Win"), (2, "[hunt] Win")];
 
 /// Issues and questions for the user, recognised in the progress messages.
 const ISSUES: &[&str] = &[
@@ -108,7 +101,7 @@ fn report_time(date: NaiveDate) -> chrono::DateTime<Local> {
 }
 
 fn day_file(date: NaiveDate) -> Option<PathBuf> {
-    Some(dir()?.join("days").join(format!("{date}.md")))
+    Some(dir()?.join("days").join(format!("{date}.html")))
 }
 
 /// Is today's report due (after 23:50 and not written yet)?
@@ -138,10 +131,6 @@ fn take_notes() -> Vec<(String, String, u8, String)> {
         .collect()
 }
 
-fn total(gs: &GameState, a: AttributeType) -> u32 {
-    gs.character.attribute_basis[a] + gs.character.attribute_additions[a]
-}
-
 const ATTRS: [AttributeType; 5] = [
     AttributeType::Strength,
     AttributeType::Dexterity,
@@ -149,19 +138,6 @@ const ATTRS: [AttributeType; 5] = [
     AttributeType::Constitution,
     AttributeType::Luck,
 ];
-
-fn item_line(item: &Item) -> String {
-    let attrs: Vec<String> = ATTRS
-        .iter()
-        .filter(|a| item.attributes[**a] > 0)
-        .map(|a| format!("{:?} +{}", a, item.attributes[*a]))
-        .collect();
-    let dmg = match item.typ {
-        ItemType::Weapon { min_dmg, max_dmg } => format!("{min_dmg}–{max_dmg} dmg, "),
-        _ => String::new(),
-    };
-    format!("{dmg}{}{}", attrs.join(", "), if item.is_epic() { " (epic)" } else { "" })
-}
 
 /// Today's numbers (also one line of history.csv).
 struct Snapshot {
@@ -236,47 +212,29 @@ pub fn write_day(gs: &GameState) -> String {
     let history = d.join("history.csv");
     let prev = previous(&history, s.date);
 
-    // Biggest success: highest priority, the latest of them
     let best = notes.iter().filter(|n| n.1 == "WIN").max_by_key(|n| n.2).map(|n| n.3.clone());
-    // Issues grouped by message (with a count)
-    let mut issues: BTreeMap<String, usize> = BTreeMap::new();
+    let wins: Vec<String> = notes.iter().filter(|n| n.1 == "WIN").map(|n| format!("{} {}", &n.0[11..16], n.3)).collect();
+    // Issues grouped by message (with a count and the first time)
+    let mut issues: BTreeMap<String, (usize, String)> = BTreeMap::new();
     for n in notes.iter().filter(|n| n.1 == "ISSUE") {
-        *issues.entry(n.3.clone()).or_default() += 1;
+        issues.entry(n.3.clone()).or_insert((0, n.0[11..16].to_string())).0 += 1;
     }
-    let wins: Vec<&String> = notes.iter().filter(|n| n.1 == "WIN" && n.2 >= 2).map(|n| &n.3).collect();
+    let issue_lines: Vec<String> = issues
+        .iter()
+        .map(|(m, (c, t))| if *c > 1 { format!("{t} {m} ({c}×)") } else { format!("{t} {m}") })
+        .collect();
 
-    let mut md = format!("# {} – {} ({})\n\n", s.name, s.date, s.class);
-    md += "## End of day\n";
-    md += &format!("- Level: **{}**{}\n", s.level, prev.map_or(String::new(), |(l, _)| format!(" ({:+})", i32::from(s.level) - i32::from(l))));
-    md += &format!(
-        "- Hall of Fame rank: **{}**{}\n",
-        s.rank,
-        prev.map_or(String::new(), |(_, r)| format!(" ({:+}, minus = better)", i64::from(s.rank) - i64::from(r)))
-    );
-    md += &format!("- Honor {}, strength {:.0} (Arena formula), Arena wins for XP today {}/10\n", s.honor, s.strength, s.arena_wins);
-    md += &format!(
-        "- Gold {:.2} g, mushrooms {}, lucky coins {}, hourglasses {}, guild {}\n\n",
-        s.gold, s.mushrooms, s.lucky_coins, s.hourglasses, s.guild
-    );
-    md += &format!("## Biggest success\n{}\n\n", best.as_deref().unwrap_or("–"));
-    md += "## Other successes\n";
-    md += &if wins.is_empty() { "–\n".to_string() } else { wins.iter().map(|w| format!("- {w}\n")).collect::<String>() };
-    md += "\n## Issues / questions\n";
-    md += &if issues.is_empty() {
-        "–\n".to_string()
-    } else {
-        issues.iter().map(|(m, c)| if *c > 1 { format!("- {m} ({c}×)\n") } else { format!("- {m}\n") }).collect::<String>()
-    };
-
+    let html = page(gs, &s, prev, best.as_deref(), &wins, &issue_lines);
     if let Some(f) = day_file(s.date) {
         let _ = fs::create_dir_all(f.parent().unwrap_or(Path::new(ROOT)));
-        let _ = fs::write(&f, &md);
+        let _ = fs::write(&f, &html);
+        let _ = fs::write(f.with_extension("issues"), issue_lines.join("\n"));
     }
+    let _ = fs::write(d.join("card.html"), &html);
     if !history.exists() {
         append(&history, CSV_HEADER);
     }
     append(&history, &s.csv());
-    let _ = fs::write(d.join("card.html"), card(gs, &s));
     write_shared(s.date);
     format!("level {}, Hall of Fame rank {}", s.level, s.rank)
 }
@@ -293,11 +251,9 @@ fn write_shared(date: NaiveDate) {
         .filter(|e| e.path().is_dir() && (demo || !e.file_name().to_string_lossy().starts_with('_')))
     {
         let nick = e.file_name().to_string_lossy().to_string();
-        if let Ok(day) = fs::read_to_string(e.path().join("days").join(format!("{date}.md")))
-            && let Some(i) = day.find("## Issues / questions")
-        {
-            issues += &format!("== {nick} ==\n{}\n", day[i + "## Issues / questions".len()..].trim());
-            issues += "\n";
+        if let Ok(text) = fs::read_to_string(e.path().join("days").join(format!("{date}.issues"))) {
+            let body = if text.trim().is_empty() { "–".to_string() } else { text.trim().to_string() };
+            issues += &format!("== {nick} ==\n{body}\n\n");
         }
         if let Ok(h) = fs::read_to_string(e.path().join("history.csv"))
             && let Some(last) = h.lines().skip(1).last()
@@ -323,90 +279,205 @@ fn esc(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
-/// Character card (HTML) – what the character screen shows, instead of a screenshot.
-fn card(gs: &GameState, s: &Snapshot) -> String {
+fn slot_name(slot: EquipmentSlot) -> &'static str {
+    match slot {
+        EquipmentSlot::Hat => "Helmet",
+        EquipmentSlot::BreastPlate => "Chest plate",
+        EquipmentSlot::Gloves => "Gloves",
+        EquipmentSlot::FootWear => "Boots",
+        EquipmentSlot::Amulet => "Amulet",
+        EquipmentSlot::Belt => "Belt",
+        EquipmentSlot::Ring => "Ring",
+        EquipmentSlot::Talisman => "Talisman",
+        EquipmentSlot::Weapon => "Weapon",
+        EquipmentSlot::Shield => "Shield",
+    }
+}
+
+fn attr_short(a: AttributeType) -> &'static str {
+    match a {
+        AttributeType::Strength => "STR",
+        AttributeType::Dexterity => "DEX",
+        AttributeType::Intelligence => "INT",
+        AttributeType::Constitution => "CON",
+        AttributeType::Luck => "LCK",
+    }
+}
+
+/// One equipment slot as an "item tooltip" box.
+fn item_box(gs: &GameState, slot: EquipmentSlot, item: Option<&Item>) -> String {
+    let Some(i) = item else {
+        return format!(r#"<div class="item empty"><div class="slot">{}</div><div class="none">empty</div></div>"#, slot_name(slot));
+    };
+    let rarity = if i.is_legendary() {
+        "legendary"
+    } else if i.is_epic() {
+        "epic"
+    } else {
+        "normal"
+    };
+    let mut lines = Vec::new();
+    if let ItemType::Weapon { min_dmg, max_dmg } = i.typ {
+        lines.push(format!("<b>{min_dmg}–{max_dmg}</b> damage"));
+    }
+    if i.armor() > 0 {
+        lines.push(format!("<b>{}</b> armor", i.armor()));
+    }
+    let attrs: Vec<String> = ATTRS
+        .iter()
+        .filter(|a| i.attributes[**a] > 0)
+        .map(|a| format!(r#"<span class="attr">{} +{}</span>"#, attr_short(*a), i.attributes[*a]))
+        .collect();
+    if !attrs.is_empty() {
+        lines.push(attrs.join(" "));
+    }
+    if let Some(e) = i.enchantment {
+        lines.push(format!("Enchantment: {e:?}"));
+    }
+    match &i.gem_slot {
+        Some(sf_api::gamestate::items::GemSlot::Filled(g)) => lines.push(format!("Gem: {:?} {}", g.typ, g.value)),
+        Some(sf_api::gamestate::items::GemSlot::Empty) => lines.push("Empty gem socket".to_string()),
+        None => {}
+    }
+    if let Some(r) = &i.rune {
+        lines.push(format!("Rune: {:?} {}", r.typ, r.value));
+    }
+    if i.upgrade_count > 0 {
+        lines.push(format!("Upgraded ×{}", i.upgrade_count));
+    }
+    format!(
+        r#"<div class="item {rarity}"><div class="slot">{}{}</div>{}<div class="score">value {:.1}</div></div>"#,
+        slot_name(slot),
+        if rarity == "normal" { String::new() } else { format!(r#" <span class="badge">{rarity}</span>"#) },
+        lines.iter().map(|l| format!("<div>{l}</div>")).collect::<String>(),
+        crate::inventory::value(gs, i)
+    )
+}
+
+fn list(items: &[String], empty: &str) -> String {
+    if items.is_empty() {
+        format!(r#"<p class="muted">{empty}</p>"#)
+    } else {
+        format!("<ul>{}</ul>", items.iter().map(|i| format!("<li>{}</li>", esc(i))).collect::<String>())
+    }
+}
+
+/// The whole daily report as one HTML page (also `card.html` = the latest one).
+fn page(
+    gs: &GameState,
+    s: &Snapshot,
+    prev: Option<(u16, u32)>,
+    best: Option<&str>,
+    wins: &[String],
+    issues: &[String],
+) -> String {
     let c = &gs.character;
+    let level_delta = prev.map_or(String::new(), |(l, _)| match i32::from(s.level) - i32::from(l) {
+        0 => String::new(),
+        d => format!(r#" <span class="up">{d:+}</span>"#),
+    });
+    let rank_delta = prev.map_or(String::new(), |(_, r)| match i64::from(s.rank) - i64::from(r) {
+        0 => String::new(),
+        d if d < 0 => format!(r#" <span class="up">▲ {}</span>"#, -d),
+        d => format!(r#" <span class="down">▼ {d}</span>"#),
+    });
     let attrs: String = ATTRS
         .iter()
         .map(|a| {
+            let (b, add) = (c.attribute_basis[*a], c.attribute_additions[*a]);
+            let main = *a == c.class.main_attribute();
             format!(
-                "<tr><td>{:?}</td><td>{}</td><td>+{}</td><td><b>{}</b></td></tr>",
-                a,
-                c.attribute_basis[*a],
-                c.attribute_additions[*a],
-                total(gs, *a)
+                r#"<tr{}><td>{}</td><td>{b}</td><td>+{add}</td><td><b>{}</b></td></tr>"#,
+                if main { r#" class="main""# } else { "" },
+                attr_short(*a),
+                b + add
             )
         })
         .collect();
     let slots = [
         EquipmentSlot::Hat,
+        EquipmentSlot::Amulet,
         EquipmentSlot::BreastPlate,
         EquipmentSlot::Gloves,
-        EquipmentSlot::FootWear,
-        EquipmentSlot::Amulet,
         EquipmentSlot::Belt,
         EquipmentSlot::Ring,
+        EquipmentSlot::FootWear,
         EquipmentSlot::Talisman,
         EquipmentSlot::Weapon,
         EquipmentSlot::Shield,
     ];
     let equip: String = slots
         .iter()
-        .map(|slot| {
-            let v = c.equipment.0[*slot].as_ref().map_or("–".to_string(), item_line);
-            format!("<tr><td>{slot:?}</td><td>{}</td></tr>", esc(&v))
-        })
+        .filter(|slot| **slot != EquipmentSlot::Shield || c.equipment.0[EquipmentSlot::Shield].is_some())
+        .map(|slot| item_box(gs, *slot, c.equipment.0[*slot].as_ref()))
         .collect();
-    let potions: String = c
+    let potions: Vec<String> = c
         .active_potions
         .iter()
         .flatten()
         .map(|p| {
             let until = p.expires.map_or("?".to_string(), |e| e.format("%d.%m. %H:%M").to_string());
-            format!("<li>{:?} {:.0} % until {until}</li>", p.typ, p.size.effect() * 100.0)
+            format!("{:?} {:.0} % until {until}", p.typ, p.size.effect() * 100.0)
         })
         .collect();
-    let mount = format!(
-        "{:?} until {}",
-        c.mount,
-        c.mount_end.map_or("–".to_string(), |e| e.format("%d.%m. %H:%M").to_string())
-    );
-    let dungeons: String = gs
+    let mount = c.mount.map_or("none".to_string(), |m| {
+        format!("{m:?} until {}", c.mount_end.map_or("?".to_string(), |e| e.format("%d.%m.").to_string()))
+    });
+    let dungeons: Vec<String> = gs
         .dungeons
         .light
         .iter()
         .filter_map(|(d, p)| match p {
             DungeonProgress::Open { finished } => Some(format!("{d:?} {finished}/10")),
-            DungeonProgress::Finished => Some(format!("{d:?} done")),
+            DungeonProgress::Finished => Some(format!("{d:?} ✓")),
             DungeonProgress::Locked => None,
         })
-        .collect::<Vec<_>>()
-        .join(", ");
+        .collect();
+    let xp_pct = if c.next_level_xp > 0 { c.experience as f64 * 100.0 / c.next_level_xp as f64 } else { 0.0 };
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><title>{name}</title>
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{name} – {date}</title>
 <style>
-:root{{--bg:#f6f4ef;--fg:#222;--card:#fff;--muted:#777;--accent:#8a5a00}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#1b1a17;--fg:#eee;--card:#262420;--muted:#aaa;--accent:#e0b050}}}}
-body{{background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif;margin:16px}}
-.card{{background:var(--card);border-radius:10px;padding:16px;max-width:720px;margin:auto;box-shadow:0 1px 4px #0003}}
-h1{{margin:0;color:var(--accent)}} .sub{{color:var(--muted)}} table{{border-collapse:collapse;width:100%;margin:8px 0}}
-td{{padding:3px 6px;border-bottom:1px solid #8883}} .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}}
-.k{{color:var(--muted);font-size:12px}} .v{{font-size:18px;font-weight:600}}
-</style></head><body><div class="card">
-<h1>{name}</h1><div class="sub">{class}, level {level} · {date} 23:50</div>
-<div class="grid">
-<div><div class="k">Hall of Fame</div><div class="v">#{rank}</div></div>
+:root{{--bg:#efe7d8;--fg:#2a2118;--card:#fbf6ec;--muted:#7d705f;--accent:#8a4b12;--line:#d9ccb5;--epic:#7b3fc4;--leg:#c46a00;--up:#2e7d32;--down:#c62828}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#16130f;--fg:#efe6d6;--card:#221d17;--muted:#a99a84;--accent:#e2a44f;--line:#3a3128;--epic:#b48cf0;--leg:#ffae42;--up:#81c784;--down:#ef9a9a}}}}
+*{{box-sizing:border-box}} body{{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif;margin:0;padding:16px}}
+.wrap{{max-width:900px;margin:auto}} .card{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}}
+h1{{margin:0;color:var(--accent);font-size:26px}} h2{{margin:0 0 10px;font-size:16px;color:var(--accent)}} .muted,.sub{{color:var(--muted)}}
+.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}}
+.k{{color:var(--muted);font-size:12px}} .v{{font-size:20px;font-weight:700}} .up{{color:var(--up);font-size:14px}} .down{{color:var(--down);font-size:14px}}
+.bar{{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}} .bar>i{{display:block;height:100%;background:var(--accent)}}
+.best{{font-size:16px;font-weight:600}} table{{border-collapse:collapse}} td{{padding:3px 12px 3px 0}} tr.main td{{color:var(--accent);font-weight:600}}
+.items{{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}}
+.item{{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:8px;padding:8px 10px;background:var(--bg)}}
+.item.epic{{border-left-color:var(--epic)}} .item.legendary{{border-left-color:var(--leg)}} .item.empty{{opacity:.5}}
+.slot{{font-weight:700;margin-bottom:4px}} .badge{{font-size:11px;color:var(--epic);text-transform:uppercase}} .legendary .badge{{color:var(--leg)}}
+.attr{{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:2px 2px 0 0;font-size:12px}}
+.score{{color:var(--muted);font-size:12px;margin-top:4px}} ul{{margin:0;padding-left:18px}} li{{margin:2px 0}}
+.cols{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}}
+</style></head><body><div class="wrap">
+<div class="card"><h1>{name}</h1><div class="sub">{class} · level {level} · {date} 23:50</div>
+<div class="stats">
+<div><div class="k">Level</div><div class="v">{level}{level_delta}</div><div class="bar"><i style="width:{xp_pct:.0}%"></i></div><div class="k">XP {xp} / {next}</div></div>
+<div><div class="k">Hall of Fame</div><div class="v">#{rank}{rank_delta}</div></div>
 <div><div class="k">Honor</div><div class="v">{honor}</div></div>
 <div><div class="k">Strength</div><div class="v">{strength:.0}</div></div>
-<div><div class="k">Gold</div><div class="v">{gold:.2} g</div></div>
+<div><div class="k">Gold</div><div class="v">{gold:.2}</div></div>
 <div><div class="k">Mushrooms</div><div class="v">{mushrooms}</div></div>
-<div><div class="k">XP</div><div class="v">{xp} / {next}</div></div>
+</div></div>
+<div class="card"><h2>Biggest success of the day</h2><div class="best">{best}</div></div>
+<div class="cols">
+<div class="card"><h2>Successes</h2>{wins}</div>
+<div class="card"><h2>Issues / questions</h2>{issues}</div>
 </div>
-<h3>Attributes</h3><table><tr class="k"><td></td><td>base</td><td>bonus</td><td>total</td></tr>{attrs}</table>
-<h3>Equipment</h3><table>{equip}</table>
-<h3>Potions</h3><ul>{potions}</ul>
-<p><span class="k">Mount</span> {mount} · <span class="k">Guild</span> {guild} · <span class="k">Lucky coins</span> {coins} · <span class="k">Hourglasses</span> {glasses}</p>
-<p><span class="k">Dungeons</span> {dungeons}</p>
+<div class="cols">
+<div class="card"><h2>Attributes</h2><table><tr class="k"><td></td><td>base</td><td>bonus</td><td>total</td></tr>{attrs}</table></div>
+<div class="card"><h2>Other</h2><table>
+<tr><td class="k">Guild</td><td>{guild}</td></tr><tr><td class="k">Mount</td><td>{mount}</td></tr>
+<tr><td class="k">Arena wins (XP)</td><td>{arena}/10</td></tr><tr><td class="k">Lucky coins</td><td>{coins}</td></tr>
+<tr><td class="k">Hourglasses</td><td>{glasses}</td></tr><tr><td class="k">Potions</td><td>{potions}</td></tr>
+<tr><td class="k">Dungeons</td><td>{dungeons}</td></tr></table></div>
+</div>
+<div class="card"><h2>Equipment</h2><div class="items">{equip}</div></div>
 </div></body></html>"#,
         name = esc(&s.name),
         class = s.class,
@@ -419,14 +490,16 @@ td{{padding:3px 6px;border-bottom:1px solid #8883}} .grid{{display:grid;grid-tem
         mushrooms = s.mushrooms,
         xp = c.experience,
         next = c.next_level_xp,
-        attrs = attrs,
-        equip = equip,
-        potions = if potions.is_empty() { "<li>–</li>".to_string() } else { potions },
-        mount = esc(&mount),
+        best = esc(best.unwrap_or("–")),
+        wins = list(wins, "–"),
+        issues = list(issues, "nothing, a quiet day"),
         guild = esc(&s.guild),
+        mount = esc(&mount),
+        arena = s.arena_wins,
         coins = s.lucky_coins,
         glasses = s.hourglasses,
-        dungeons = esc(&dungeons),
+        potions = if potions.is_empty() { "–".to_string() } else { esc(&potions.join(", ")) },
+        dungeons = if dungeons.is_empty() { "–".to_string() } else { esc(&dungeons.join(", ")) },
     )
 }
 
@@ -449,7 +522,8 @@ mod tests {
 
     #[test]
     fn classifies_progress_messages() {
-        assert_eq!(classify("[tasks] Claiming the daily chest 3 (12 points)"), Some(("WIN", 3)));
+        assert_eq!(classify("[tasks] Claiming the daily chest 3 (12 points)"), None);
+        assert_eq!(classify("[shops] Buying an upgrade: Belt …"), None);
         assert_eq!(classify("[inventory] equipping Weapon (epic) (value 50.0 > 30.0 of Weapon)"), Some(("WIN", 4)));
         assert_eq!(classify("[inventory] selling Hat (epic) …"), None);
         assert_eq!(classify("[arena] Error: server error"), Some(("ISSUE", 0)));
@@ -477,6 +551,8 @@ mod tests {
             }
         }
         win(5, "Level up: 12 → 13 (demo)");
+        observe("[dungeons] Win: xp +578, gold +3.00 g, item no (demo)");
+        observe("[inventory] equipping Weapon (epic) (value 99.0 > 59.7 of Weapon) (demo)");
 
         let mut gs = GameState::default();
         let c = &mut gs.character;
@@ -519,6 +595,9 @@ mod tests {
             };
             for (a, v) in attrs {
                 i.attributes[*a] = *v;
+            }
+            if !matches!(i.typ, ItemType::Weapon { .. }) {
+                i.type_specific_val = 12;
             }
             i
         };
