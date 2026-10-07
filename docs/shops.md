@@ -31,6 +31,10 @@
   refresh. The second argument `2` is most likely "paid by ad"; `5` in `AdvertisementsCompleted` is probably the ad type for this shop.
 - Unknown: the Weapon Shop ad id, the response bodies, how to tell that today's ad is still available, and whether
   `PlayerNewWares:x/2` without a completed ad would charge a mushroom (must be known before implementing).
+- The user 2026-10-07: in the client, an ad that is still available shows a TV icon; after it is used the icon is gone.
+  The "New Goods" button for a mushroom is always there. So the server tells the client about availability somewhere
+  (field not known yet, sf-api ignores it) – find it from the response bodies before implementing.
+- Waiting for the user: Weapon Shop capture + Response bodies of `AdvertisementsCompleted` and `PlayerNewWares` (after midnight / new character).
 
 ## Verification status
 | What | Status |

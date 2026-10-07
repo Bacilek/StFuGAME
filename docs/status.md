@@ -19,6 +19,7 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
 | What | When | Record in |
 |---|---|---|
 | Shops: gold-only purchase, mushrooms unchanged, shop slot refreshes, spin cost (`[shops]` in the log) | first day after the Tavern with the new build | `docs/shops.md` |
+| Shop ad reroll: the user captures the Weapon Shop + Response bodies (DevTools) | after midnight 2026-10-08 | `docs/shops.md` |
 | City Guard pay via `FinishWork` | 2026-10-07 23:06 | `docs/city-guard.md` |
 | Second 1 h shift (23:06 → 00:06) per the 00:00–00:59 rule | 23:06 | `docs/city-guard.md` |
 | Thirst for Adventure reset at midnight, Tavern starts after the shift | 2026-10-08 00:06 | `docs/city-guard.md` |
