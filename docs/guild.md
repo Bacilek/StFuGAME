@@ -23,7 +23,10 @@
 | `GroupJoin` | `QXJ0dcWhb3ZhIEdhcmRhL2ludA==` → `Artušova Garda/int` | joining the guild by name; `/int` meaning unknown (constant?) |
 - Leaving and joining again works right away (the user, 2026-10-07). After joining there is a cooldown of about 12 h
   before the character can take part in guild fights.
-- Missing: the Response bodies of `GroupJoinList` (to parse Instructor/Treasure/…) and `GroupJoin`.
+- `GroupJoin` response (captured): the full own-guild data (`owngroupsave`, `owngroupname`, `owngroupmember`,
+  `owngrouppotion`, `owngroupknights`, `groupskillprice`, …) + `ownplayersavecharacter`, `charactergroup`.
+  sf-api parses these keys → after a successful join `gs.guild` is `Some` with the guild name (use it as the success check).
+- Missing: the Response body of `GroupJoinList` (to parse Instructor/Treasure/…).
 
 ## Verification status
 | What | Status |
