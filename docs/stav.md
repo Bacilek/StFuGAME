@@ -26,8 +26,6 @@ Aktualizováno: 2026-10-07 ~18:20. Při každém větším posunu přepsat.
 | Kalibrace strategie expedic z deníku (`logs/expedice.jsonl`) | po víc bězích | `docs/expedice.md` |
 
 ## Otevřené otázky na uživatele
-- Mají být logy (`logs/*.jsonl`, jména hráčů, server) v (možná veřejném) GitHub repu? Zatím commitované, `logs/prubeh.log` je v .gitignore.
-- Rovnice zbraní ignoruje CON/LCK/vedlejší atributy zbraně – zatím takhle (uživatel brnění nechtěl, o atributech nerozhodl).
 - Epické předměty se nikdy neprodávají → batoh se časem zaplní a podzemí stojí (v TODO).
 - Nezmapované mise: hostinský (Mugs → DraftBeer → Barkeeper), mořský muž, jízda na tygrovi (Chicken → Tiger → RidingStan), zamilovaní.
 

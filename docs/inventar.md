@@ -6,7 +6,9 @@
 - Zbraně (zadání uživatele: brnění nebrat v potaz, pro zbraně vlastní rovnice):
   hodnota = průměrné poškození × (1 + M / 20), M = celkový hlavní atribut postavy s touto zbraní.
   Odvozeno ze simulace boje v sf-api (`simulate/damage.rs`): úder = zbraň × (1 + A / 10), A = max(M / 2, M − M_soupeře / 2),
-  proti stejně silnému soupeři A = M / 2. Ostatní atributy zbraně (CON, LCK, vedlejší) tato rovnice nebere.
+  proti stejně silnému soupeři A = M / 2.
+  K tomu se přičtou ostatní staty zbraně ve stejných procentech jako všude: 80 % CON + 40 % LCK + 10 % vedlejší
+  (hlavní atribut zbraně je už v poškození přes M, nepočítá se podruhé). Uživatel 2026-10-07: „všechny jejich staty, procentuelně“.
 - Lepší → nasadit. Horší (nový i ten sundaný) → prodat. **Epické předměty nikdy neprodávat**, necháváme si je na později.
 
 ## Implementace (src/inventory.rs)
@@ -20,7 +22,6 @@
 - Epický = `Item::is_epic()` (model_id ≥ 50, zahrnuje i legendární).
 
 ## Otevřené
-- Rovnice zbraní ignoruje CON/LCK/vedlejší atributy zbraně. Případně doplnit po domluvě s uživatelem.
 
 ## Stav ověření
 | Co | Stav |

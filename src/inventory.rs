@@ -31,7 +31,8 @@ pub fn weapon_value(avg_damage: f64, main_attr_with_weapon: f64) -> f64 {
     avg_damage * (1.0 + main_attr_with_weapon / 20.0)
 }
 
-/// Hodnota předmětu pro naši postavu: zbraně podle poškození, ostatní podle atributů.
+/// Hodnota předmětu pro naši postavu: ostatní podle atributů; zbraně podle poškození
+/// + jejich ostatní staty (80 % CON, 40 % LCK, 10 % vedlejší; hlavní je už v poškození).
 fn value(gs: &GameState, item: &Item) -> f64 {
     let ch = &gs.character;
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
@@ -41,7 +42,9 @@ fn value(gs: &GameState, item: &Item) -> f64 {
     let total = f64::from(ch.attribute_basis[main] + ch.attribute_additions[main]);
     let equipped = ch.equipment.0[EquipmentSlot::Weapon].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
     let with_this = total - equipped + f64::from(item.attributes[main]);
-    weapon_value(f64::from(min_dmg + max_dmg) / 2.0, with_this)
+    // Ostatní staty zbraně ve stejných procentech jako všude jinde; hlavní atribut už je v poškození přes M
+    let others = score(ch.class, item) - f64::from(item.attributes[main]);
+    weapon_value(f64::from(min_dmg + max_dmg) / 2.0, with_this) + others
 }
 
 #[derive(Debug)]

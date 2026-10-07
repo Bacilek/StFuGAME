@@ -14,10 +14,11 @@ Při podobné situaci se pak řídí tímhle seznamem. Nejnovější dole.
 | 2026-10-07 | Aréna | Kdykoli mimo cooldown (i během expedice), nejslabší ze 3, max 10 výher denně (`fights_for_xp`). |
 | 2026-10-07 | Podzemí | Kdykoli mimo cooldown, nikdy za houby, ne s plným inventářem; nejnižší level, při podobném slabší staty. |
 | 2026-10-07 | Inventář | Lepší nasadit, horší prodat, epické nikdy neprodávat. |
-| 2026-10-07 | Hodnota zbraně | Podle poškození (průměr × (1 + M/20)), brnění nebrat v potaz. |
+| 2026-10-07 | Hodnota zbraně | Poškození (průměr × (1 + M/20)) + ostatní staty zbraně 80 % CON / 40 % LCK / 10 % vedlejší. Brnění nebrat v potaz. |
 | 2026-10-07 | Git | Po každé změně commit a push. |
 | 2026-10-07 | Prohry v aréně | V pořádku, vzorec neladit: protočí se soupeři, klesne věhlas, příště slabší soupeři. |
 | 2026-10-07 | Hlídka | Po dojetí hospody; max 10 h, konec v 00:00–00:59 (hodiny do půlnoci zaokrouhlit nahoru), ať se nečeká na nové ALU. |
 | 2026-10-07 | Aréna/podzemí během hlídky | Jde, ničemu nevadí. |
 | 2026-10-07 | Kolo štěstí, denní odměny | Jen 1× denně volné točení (nikdy houby/šťastné mince) a odměna za přihlášení. Nic víc. |
 | 2026-10-07 | Stáj (výjimka z hub) | Gryf za 25 hub na 14 dní, jen když postava zvíře nemá a jde do hospody (kupovat až když je potřeba). Bez 25 hub tygr za 10 g + 1 houbu. |
+| 2026-10-07 | Logy v GitHub repu | Klidně ano (repo případně uživatel udělá privátní). |
