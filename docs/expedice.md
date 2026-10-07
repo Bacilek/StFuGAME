@@ -32,7 +32,7 @@ Ověřeno z běhu:
 | Kostlivci (Dummy) | – | Dummy 1.0 (1), 2.0 (2), 3.0 (3) | `Dummy1..3` | – |
 | Klíč a truhla | 2× | klíč (0) → truhla (0, zlato / suroviny podle eventu) | `Key` → `Suitcase` | – |
 | Hot Carnal Craving | – | kuřecí stehno (3, další rozcestí jen 2 možnosti), sele (5, další rozcestí jen 1 možnost) | `CupCake`, `Cake` | +3 / kus (sele) |
-| Plakáty (Bounty) | 3× na typ | plakát (0), vybraný hledaný pak dá +10 | `*Bounty` | – |
+| Plakáty (Bounty) | 3× na typ | plakát (0), hledaný pak dá jednou +10 (plakát se spotřebuje) | `*Bounty` | – |
 | Dragon Taming | 2× | návnada/princezna (−2) → drak (10) | `Bait` → `Dragon` | +5 / kus |
 | Sanitary Emergency | 3× | toaletní papír (0), jen když ho chce zadavatel; potřeba 3× | `ToiletPaper` | +20, neúspěch −5 ⚠ |
 | Extinguished Fire | 1×, trvalý konec | táborák (3) → fénix (5) → uhasený oheň (0) | `CampFire` → `Phoenix` → `BurntCampfire` | +4 / kus |
