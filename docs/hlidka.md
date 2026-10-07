@@ -2,8 +2,10 @@
 
 ## Pravidla (od uživatele)
 - Když je hospoda dojetá (ALU vyčerpané, žádná rozjetá expedice), automaticky jít na hlídku.
-- Délka: maximum 10 h, ale hlídka musí skončit nejpozději o půlnoci, protože pak se resetuje ALU
-  a začínají znovu všechny úkoly (hospoda, nakupování, …). Tedy min(10, celé hodiny do půlnoci); méně než 1 h → bez hlídky.
+- Délka: maximum 10 h, ale hlídka má skončit v poslední hodině po půlnoci (00:00–00:59), protože o půlnoci
+  se resetuje ALU a začínají znovu všechny úkoly (hospoda, nakupování, …), a bot nemá zbytečně čekat
+  bez hlídky. Tedy min(10, hodiny do půlnoci zaokrouhlené nahoru).
+  (Původně „skončit nejpozději o půlnoci“, změněno uživatelem 2026-10-07.)
 - Během hlídky jde normálně aréna i podzemí.
 
 ## Implementace (src/guard.rs, smyčka v src/main.rs)

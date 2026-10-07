@@ -1,5 +1,6 @@
 //! Hlídka (městská stráž): když je hospoda dojetá, jít na hlídku. Nejvýš 10 h, ale tak,
-//! aby skončila nejpozději o půlnoci (pak se resetuje ALU a začíná nový den úkolů).
+//! aby skončila v poslední hodině po půlnoci (00:00–00:59): pak se resetuje ALU a začíná
+//! nový den úkolů, a bot zbytečně nečeká na nové ALU s prázdnou postavou.
 //! Po skončení hlídky vyzvednout výplatu.
 
 use chrono::{DateTime, Duration, Local, Timelike};
@@ -9,11 +10,12 @@ use crate::{safe, tavern::Outcome};
 
 const MAX_HOURS: i64 = 10;
 
-/// Kolik celých hodin hlídky se vejde do půlnoci (nejvýš 10).
-pub fn hours_until_midnight(now: DateTime<Local>) -> u8 {
+/// Délka hlídky: do půlnoci zaokrouhleno nahoru (konec 00:00–00:59), nejvýš 10 h.
+pub fn guard_hours(now: DateTime<Local>) -> u8 {
     let since_midnight = i64::from(now.num_seconds_from_midnight());
     let left = 24 * 3600 - since_midnight;
-    u8::try_from((left / 3600).min(MAX_HOURS)).unwrap_or(0)
+    let hours = (left + 3599) / 3600;
+    u8::try_from(hours.clamp(1, MAX_HOURS)).unwrap_or(1)
 }
 
 /// Za kolik sekund je půlnoc.
@@ -59,10 +61,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if !tavern_done || gs.tavern.current_action != CurrentAction::Idle {
         return Outcome::Done;
     }
-    let hours = hours_until_midnight(Local::now());
-    if hours == 0 {
-        return Outcome::Done;
-    }
+    let hours = guard_hours(Local::now());
     report!(
         "[hlídka] Hospoda dojetá, jdu na hlídku na {hours} h (mzda {} s/h)",
         gs.tavern.guard_wage
@@ -87,12 +86,14 @@ mod tests {
         Local.with_ymd_and_hms(2026, 10, 7, h, m, 0).unwrap()
     }
 
+    /// Konec hlídky v 00:00–00:59 (pravidlo uživatele), nejvýš 10 h.
     #[test]
-    fn guard_ends_before_midnight() {
-        assert_eq!(hours_until_midnight(at(8, 0)), 10);
-        assert_eq!(hours_until_midnight(at(14, 0)), 10);
-        assert_eq!(hours_until_midnight(at(17, 5)), 6); // 6 h 55 min do půlnoci → 6 h
-        assert_eq!(hours_until_midnight(at(22, 59)), 1);
-        assert_eq!(hours_until_midnight(at(23, 30)), 0);
+    fn guard_ends_in_first_hour_after_midnight() {
+        assert_eq!(guard_hours(at(8, 0)), 10);
+        assert_eq!(guard_hours(at(14, 0)), 10);
+        assert_eq!(guard_hours(at(17, 5)), 7); // konec 00:05
+        assert_eq!(guard_hours(at(17, 0)), 7); // přesně na půlnoc
+        assert_eq!(guard_hours(at(22, 59)), 2); // konec 00:59
+        assert_eq!(guard_hours(at(23, 30)), 1); // konec 00:30
     }
 }

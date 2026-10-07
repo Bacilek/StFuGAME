@@ -57,4 +57,4 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 
 ## Hlídka
 - Popis a stav ověření: `docs/hlidka.md`.
-- Po dojetí hospody hlídka: min(10 h, celé hodiny do půlnoci). Aréna i podzemí během hlídky běží dál.
+- Po dojetí hospody hlídka: min(10 h, hodiny do půlnoci zaokrouhlené nahoru) → konec 00:00–00:59. Aréna i podzemí během hlídky běží dál.

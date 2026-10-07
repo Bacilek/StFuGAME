@@ -17,5 +17,5 @@ Při podobné situaci se pak řídí tímhle seznamem. Nejnovější dole.
 | 2026-10-07 | Hodnota zbraně | Podle poškození (průměr × (1 + M/20)), brnění nebrat v potaz. |
 | 2026-10-07 | Git | Po každé změně commit a push. |
 | 2026-10-07 | Prohry v aréně | V pořádku, vzorec neladit: protočí se soupeři, klesne věhlas, příště slabší soupeři. |
-| 2026-10-07 | Hlídka | Po dojetí hospody; max 10 h, ale skončit nejpozději o půlnoci (reset ALU). |
+| 2026-10-07 | Hlídka | Po dojetí hospody; max 10 h, konec v 00:00–00:59 (hodiny do půlnoci zaokrouhlit nahoru), ať se nečeká na nové ALU. |
 | 2026-10-07 | Aréna/podzemí během hlídky | Jde, ničemu nevadí. |
