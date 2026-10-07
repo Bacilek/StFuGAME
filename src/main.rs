@@ -31,36 +31,25 @@ fn describe_login_error(err: &SFError) -> String {
     }
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
-    // .env je volitelný - proměnné mohou být nastavené i v systému
-    let _ = dotenvy::dotenv();
+struct Credentials {
+    user: String,
+    pass: String,
+    character: String,
+    /// Volitelné: jen pokud máš postavu stejného jména na více serverech
+    server: Option<String>,
+}
 
-    let (user, pass, character) = match (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
-        (Ok(u), Ok(p), Ok(c)) => (u, p, c),
-        (u, p, c) => {
-            for e in [u.err(), p.err(), c.err()].into_iter().flatten() {
-                report!("{e}");
-            }
-            return ExitCode::FAILURE;
-        }
-    };
-    // Volitelné: jen pokud máš postavu stejného jména na více serverech
-    let server = env_var("SF_SERVER").ok();
-
+/// Přihlásí se přes S&F účet, najde postavu a stáhne její stav.
+async fn login(c: &Credentials) -> Result<SimpleSession, String> {
     report!("Přihlašuji se k S&F účtu...");
-    let sessions = match SimpleSession::login_sf_account(&user, &pass).await {
-        Ok(s) => s,
-        Err(e) => {
-            report!("Přihlášení k účtu selhalo: {}", describe_login_error(&e));
-            return ExitCode::FAILURE;
-        }
-    };
+    let sessions = SimpleSession::login_sf_account(&c.user, &c.pass)
+        .await
+        .map_err(|e| format!("Přihlášení k účtu selhalo: {}", describe_login_error(&e)))?;
 
     let mut matching: Vec<SimpleSession> = sessions
         .into_iter()
-        .filter(|s| s.username().eq_ignore_ascii_case(&character))
-        .filter(|s| match &server {
+        .filter(|s| s.username().eq_ignore_ascii_case(&c.character))
+        .filter(|s| match &c.server {
             Some(srv) => s.server_url().host_str().is_some_and(|h| h.eq_ignore_ascii_case(srv)),
             None => true,
         })
@@ -69,30 +58,34 @@ async fn main() -> ExitCode {
     let mut session = match matching.len() {
         1 => matching.remove(0),
         0 => {
-            report!("Postava {character} nebyla pod tímto účtem nalezena (zkontroluj SF_CHARACTER / SF_SERVER)");
-            return ExitCode::FAILURE;
+            return Err(format!(
+                "Postava {} nebyla pod tímto účtem nalezena (zkontroluj SF_CHARACTER / SF_SERVER)",
+                c.character
+            ));
         }
         _ => {
-            report!("Postav se jménem {character} je víc, upřesni server v SF_SERVER:");
-            for s in &matching {
-                report!("  {}", s.server_url().host_str().unwrap_or("?"));
-            }
-            return ExitCode::FAILURE;
+            let servers: Vec<&str> = matching.iter().map(|s| s.server_url().host_str().unwrap_or("?")).collect();
+            return Err(format!(
+                "Postav se jménem {} je víc, upřesni server v SF_SERVER: {}",
+                c.character,
+                servers.join(", ")
+            ));
         }
     };
 
-    report!("Načítám postavu {character} na {}...", session.server_url().host_str().unwrap_or("?"));
+    report!("Načítám postavu {} na {}...", c.character, session.server_url().host_str().unwrap_or("?"));
     // Po přihlášení přes účet ještě nemáme stav hry - Update ho stáhne
-    if let Err(e) = safe::send(&mut session, Command::Update).await {
-        report!("Načtení postavy selhalo: {}", describe_login_error(&e));
-        return ExitCode::FAILURE;
-    }
+    safe::send(&mut session, Command::Update)
+        .await
+        .map_err(|e| format!("Načtení postavy selhalo: {}", describe_login_error(&e)))?;
+    Ok(session)
+}
 
+fn print_status(session: &SimpleSession) {
     let Some(gs) = session.game_state() else {
-        report!("Přihlášení proběhlo, ale server nevrátil stav hry");
-        return ExitCode::FAILURE;
+        report!("Server nevrátil stav hry");
+        return;
     };
-
     let ch = &gs.character;
     let tavern = &gs.tavern;
     let alu = tavern.thirst_for_adventure_sec;
@@ -112,8 +105,48 @@ async fn main() -> ExitCode {
         CurrentAction::Unknown(_) => "neznámá činnost".to_string(),
     };
     report!("  Stav:   {action}");
+}
 
-    tavern::run(&mut session).await;
+/// Kolikrát se za jeden běh smíme znovu přihlásit po ztrátě session.
+const MAX_RELOGINS: u32 = 3;
 
-    ExitCode::SUCCESS
+#[tokio::main]
+async fn main() -> ExitCode {
+    // .env je volitelný - proměnné mohou být nastavené i v systému
+    let _ = dotenvy::dotenv();
+
+    let creds = match (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
+        (Ok(user), Ok(pass), Ok(character)) => Credentials { user, pass, character, server: env_var("SF_SERVER").ok() },
+        (u, p, c) => {
+            for e in [u.err(), p.err(), c.err()].into_iter().flatten() {
+                report!("{e}");
+            }
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let mut journal = journal::Journal::default();
+    for attempt in 0..=MAX_RELOGINS {
+        if attempt > 0 {
+            let wait = fastrand::u64(20..60);
+            report!("Session vypršela (třeba kvůli přihlášení na účet jinde), za {wait} s se přihlásím znovu ({attempt}/{MAX_RELOGINS})");
+            tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+        }
+        let mut session = match login(&creds).await {
+            Ok(s) => s,
+            Err(msg) => {
+                report!("{msg}");
+                return ExitCode::FAILURE;
+            }
+        };
+        if attempt == 0 {
+            print_status(&session);
+        }
+        match tavern::run(&mut session, &mut journal).await {
+            tavern::Outcome::Done => return ExitCode::SUCCESS,
+            tavern::Outcome::SessionLost => {}
+        }
+    }
+    report!("Session se ztratila příliš často, končím");
+    ExitCode::FAILURE
 }

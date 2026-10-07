@@ -7,6 +7,7 @@ use chrono::Local;
 use sf_api::{
     SimpleSession,
     command::Command,
+    error::SFError,
     gamestate::{
         rewards::{Reward, RewardType},
         tavern::{
@@ -228,14 +229,26 @@ fn choose_reward(rewards: &[Reward]) -> usize {
         .map_or(0, |(i, _)| i)
 }
 
+/// Jak skončil běh hospody.
+pub enum Outcome {
+    /// Hotovo nebo chyba, kterou opakování nevyřeší.
+    Done,
+    /// Server zneplatnil session, je potřeba se znovu přihlásit přes účet.
+    SessionLost,
+}
+
+/// Server zneplatnil session (sf-api se při dalším příkazu přihlásí znovu).
+fn is_session_error(e: &SFError) -> bool {
+    matches!(e, SFError::ServerError(msg) if msg.contains("sessionid"))
+}
+
 fn mission_name(t: ExpeditionThing) -> String {
     missions::for_target(t).map_or_else(|| format!("{t:?} (neznámá mise)"), |m| m.name.to_string())
 }
 
 /// Odehraje expedice, dokud je ALU. Čekání vždy vyčká, nikdy nepřeskakuje.
-pub async fn run(session: &mut SimpleSession) {
+pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome {
     let mut unknown_in_row = 0;
-    let mut journal = Journal::default();
     // sf-api obnoví nabídku rozcestí, jen když ji server pošle. Po výběru proto vždy
     // stáhneme čerstvý stav a nikdy nevybíráme dvakrát ze stejné (zastaralé) nabídky.
     let mut refresh_pending = true;
@@ -245,7 +258,7 @@ pub async fn run(session: &mut SimpleSession) {
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
             report!("[hospoda] Chybí stav hry, končím");
-            return;
+            return Outcome::Done;
         };
         let tavern = &gs.tavern;
 
@@ -266,14 +279,14 @@ pub async fn run(session: &mut SimpleSession) {
                         stale_tries += 1;
                         if stale_tries > 3 {
                             report!("[hospoda] Nabídka rozcestí se neobnovuje, končím (nechci vybírat naslepo)");
-                            return;
+                            return Outcome::Done;
                         }
                         if stale_tries > 1 {
                             report!("[hospoda] Nabídka je stejná jako minule, obnovuji stav ({stale_tries}. pokus)");
                         }
                         if let Err(e) = safe::send(session, Command::Update).await {
                             report!("[hospoda] Chyba: {e}");
-                            return;
+                            return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
                         }
                         continue;
                     }
@@ -343,7 +356,7 @@ pub async fn run(session: &mut SimpleSession) {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
                         report!("[hospoda] Neznámý stav expedice, končím");
-                        return;
+                        return Outcome::Done;
                     }
                     Command::Update
                 }
@@ -356,7 +369,7 @@ pub async fn run(session: &mut SimpleSession) {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
                         report!("[hospoda] Expedici se nedaří uzavřít, končím");
-                        return;
+                        return Outcome::Done;
                     }
                     report!("[hospoda] Uzavírám dokončenou expedici");
                     Command::ExpeditionContinue
@@ -372,7 +385,7 @@ pub async fn run(session: &mut SimpleSession) {
                                 "[hospoda] Žádná expedice, na kterou by stačilo ALU ({} min), hotovo",
                                 thirst / 60
                             );
-                            return;
+                            return Outcome::Done;
                         };
                         let e = &list[pos];
                         report!(
@@ -386,22 +399,23 @@ pub async fn run(session: &mut SimpleSession) {
                     }
                     AvailableTasks::Quests(_) => {
                         report!("[hospoda] Expedice nejsou dostupné (jen klasické questy), zatím nepodporuji");
-                        return;
+                        return Outcome::Done;
                     }
                 },
                 other => {
                     report!("[hospoda] Postava je zaneprázdněná ({other:?}), hospodu přeskakuji");
-                    return;
+                    return Outcome::Done;
                 }
             }
         };
 
         if let Err(e) = safe::send(session, cmd).await {
             report!("[hospoda] Chyba: {e}");
-            return;
+            return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
         }
     }
     report!("[hospoda] Dosažen limit kroků, končím");
+    Outcome::Done
 }
 
 #[cfg(test)]
