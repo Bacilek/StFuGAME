@@ -205,8 +205,8 @@ impl Means {
 
 /// One beer costs one mushroom.
 pub const BEER_MUSHROOMS: u32 = 1;
-/// One Wheel of Fortune spin costs one lucky coin (verify).
-const LUCKY_COINS_PER_SPIN: u64 = 1;
+/// One Wheel of Fortune spin costs 10 lucky coins (user 2026-10-07; an ad at Dr. Abawuwu gives 3).
+const LUCKY_COINS_PER_SPIN: u64 = 10;
 
 /// Amount of one reward type in a chest.
 fn chest_amount(c: &RewardChest, typ: RewardType) -> u64 {
@@ -513,9 +513,9 @@ mod tests {
         assert!(plan(&tasks, &chests, Means { wheel_spins: 3, ..RICH }).is_empty());
         assert_eq!(plan(&tasks, &chests, Means { wheel_spins: 4, ..RICH }), [Extra::Wheel]);
         // a chest with neither mushrooms nor enough lucky coins back is not worth 4 coins
-        let chests = [chest(4), chest(8), chest_coins(12, 2)];
+        let chests = [chest(4), chest(8), chest_coins(12, 30)];
         assert!(plan(&tasks, &chests, RICH).is_empty());
-        let chests = [chest(4), chest(8), chest_coins(12, 5)];
+        let chests = [chest(4), chest(8), chest_coins(12, 40)];
         assert_eq!(plan(&tasks, &chests, RICH), [Extra::Wheel]);
     }
 }

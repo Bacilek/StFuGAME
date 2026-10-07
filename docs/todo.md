@@ -13,6 +13,9 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Stáj (`docs/stable.md`)
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
+## Ověřit po nasazení
+- [ ] Truhly u Goblin Gleemana: porovnat řádky `[tasks] daily/event chest …` v logu (body + odměny) s tím, co ukazuje hra (`docs/tasks.md`)
+
 ## Návrhy od Clauda
 Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
 

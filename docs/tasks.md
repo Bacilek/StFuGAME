@@ -45,7 +45,7 @@
   points (Arena, Dungeons, City Guard tasks). Of all combinations that we can afford (≥ 5 g; enough lucky coins for all
   remaining spins incl. the free one; enough beers left today) take the one reaching the highest unopened chest above
   "expected", and the cheapest for it (weights per unit: shell game 1, lucky coin 10, beer 100). A chest counts only if it
-  is worth it (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins.
+  is worth it (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins as spent (10 per spin).
   Run after the Tavern and the shops: shell game (bet 1 silver, `GAMBLE_BET`, verify the minimum; stop below 5 g),
   then lucky-coin spins, then one beer per pass (beer gives Thirst for Adventure, the Tavern runs before the next one).
   `safe.rs` re-checks: `gamble_ok` (bet ≤ 1/10 gold, ≥ 5 g), `lucky_spin_justified`, `beer_justified`; the watchdog allows
@@ -75,7 +75,8 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | Shop task purchase counts for `BuyWeaponInWeaponsShop` / `BuyFromShop` | ⏳ not verified |
 | `SpendGoldOnUpgrades` unit (silver or gold?) and whether attributes count | ⏳ not verified |
 | Beer for a task: 1 mushroom each, chest opens | ⏳ not verified (only when it happens) |
-| Lucky-coin wheel spin: 1 coin per spin? counts for the task | ⏳ not verified |
+| Lucky-coin wheel spin costs 10 lucky coins | ✅ 2026-10-07 per the user (an ad at Dr. Abawuwu gives 3 lucky coins) |
+| Lucky-coin wheel spin counts for the task | ⏳ not verified |
 | Chest rewards parsed correctly (`dailytaskrewardpreview`) | ⏳ check the `[tasks] … chest` log lines against the game |
 | Expedition through a task location counts for `TravelTo` | ⏳ not verified |
 | Hall of Fame page around a rank (`HallOfFamePage`), fight by name, Arena cooldown after it | ⏳ not verified |
