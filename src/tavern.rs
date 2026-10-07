@@ -34,6 +34,9 @@ const LAST_FLOOR: u8 = 10;
 const OPPORTUNITY_COST: f64 = 4.0;
 /// Odhad bonusu za cílový předmět neznámé mise (než ji zmapujeme).
 const UNKNOWN_TARGET_GUESS: i32 = 5;
+/// Nejvíc hrdinství, které se dá realisticky získat za jedno kolo (plakát + kostlivec ~13,
+/// stupně vítězů 15). Když ani s tím 40 nedosáhneme, nemá smysl body honit.
+const MAX_GAIN_PER_FLOOR: i32 = 12;
 /// Pojistka proti nekonečné smyčce.
 const MAX_STEPS: u32 = 300;
 
@@ -285,6 +288,21 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
         return (0..encs.len())
             .max_by_key(|&i| (immediate_gain(exp, &encs[i]), std::cmp::Reverse(i)))
             .unwrap_or(0);
+    }
+
+    // 40 už nestihneme: body nepomůžou, ber aspoň truhlu/klíč
+    let floors_incl_this = i32::from(floors_after(exp)) + 1;
+    if projected + floors_incl_this * MAX_GAIN_PER_FLOOR < MAX_HEROISM {
+        if has(exp, ExpeditionThing::Key)
+            && let Some(i) = encs.iter().position(|e| e.typ == ExpeditionThing::Suitcase)
+        {
+            return i;
+        }
+        if floors_after(exp) > 0
+            && let Some(i) = encs.iter().position(|e| e.typ == ExpeditionThing::Key)
+        {
+            return i;
+        }
     }
 
     let score = |e: &ExpeditionEncounter| f64::from(immediate_gain(exp, e)) + future_value(exp, e);
@@ -720,6 +738,16 @@ mod tests {
         // nesplněný papír: −5 na konci, splnění +20 hned
         assert_eq!(expected_end_change(&exp(ToiletPaper, 2, 3, 30, 10)), -5);
         assert_eq!(expected_now(&exp(ToiletPaper, 2, 3, 30, 8), &enc(ToiletPaper, 0)), 20);
+    }
+
+    /// Barkeeper 2026-10-07, kolo 9: hrdinství 13, máme klíč, nabídka truhla / kostlivec +3.
+    #[test]
+    fn chest_when_40_unreachable() {
+        let e = with(exp(Barkeeper, 0, 1, 13, 9), &[Key]);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy3, 3), enc(Suitcase, 0), enc(Dummy1, 1)]), 1);
+        // na začátku expedice ještě body honíme
+        let e = with(exp(Barkeeper, 0, 1, 13, 4), &[Key]);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy3, 3), enc(Suitcase, 0)]), 0);
     }
 
     #[test]
