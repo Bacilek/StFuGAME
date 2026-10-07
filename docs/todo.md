@@ -9,7 +9,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [ ] Reklamy – protočení obchodu za reklamu 1× denně v každém obchodě, až je vše za houbičky (`docs/shops.md`). Příkazy známe (`AdvertisementsCompleted:5`, `PlayerNewWares:2/2` pro Magic Shop), čeká se na záchyt z Weapon Shopu + odpovědi serveru (kde server říká, že je reklama dostupná). Bez toho nespouštět (riziko houbičky).
 - [ ] Questy (gamba, síň slávy, povolání, bare hands, …)
 - [ ] Event game loop (piva?)
-- [ ] Cech
+- [ ] Cech – automatický vstup do nejlepšího cechu ze seznamu rychlého vstupu (Instructor > Treasure > síla), `docs/guild.md`. Čeká na záchyt z prohlížeče.
 - [x] Stáj (`docs/stable.md`)
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
