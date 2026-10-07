@@ -15,7 +15,8 @@ Klik na zadavatele → výběr ze 2 expedic → 5 kol (rozcestí, bez čekání)
 Ověřeno z běhu:
 - Po čekání server čeká na „pokračovat“ (`ExpeditionContinue`). Teprve potom pošle novou nabídku rozcestí.
 - Po 2. bossovi bot žádnou nabídku odměny neviděl (`rewards` prázdné). Uživatel uvádí výběr odměny po obou bossech, zatím neověřeno.
-- Bonusy „za kus“ (`+5/`) připíše server po posledním bossovi (Dragon Taming: 36 → 46 za 2 draky).
+- Bonusy „za kus“ (`+5/`) připíše server hned po výběru v 10. kole, ještě před bossem
+  (Sword Trial: 19 → 15 za meč −4, pak +4 × 8 = 47).
 
 ## Pravidla
 - Každé setkání přidá své hrdinství hned při výběru. Každé patří do nějakého cyklu (řetězu).
@@ -67,6 +68,9 @@ Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESED
 | Hot Carnal Craving: sele → další rozcestí 1 možnost, stehno → 2 | ✅ | 2026-10-07: Barkeeper kola 6 a 7 |
 | Sword Trial: 6 / 3 / −4 (FAQ 5 / 2 / −5, uživatel −4 u zlomeného) | ✅ server | 2026-10-07: nabídka i připsané hrdinství |
 | Revealing Lady: pár +12 | ❌ nesedí | 2026-10-07: server ukázal +12, hrdinství 16 → 23 (+7). Příčina neznámá, sledovat |
+| Sword Trial +8 / kus (uživatel) | ✅ | 2026-10-07: 4 zlomené meče, +32 po výběru v 10. kole |
+| Plakát platí jen jednou (spotřebuje se) | ✅ | 2026-10-07: druhý zlomený meč už bez +10 |
+| Bewitched Stew: čarodějnice −5, lektvar +15 | ✅ | 2026-10-07: Sword Trial kola 6–7 |
 | Ostatní bonusy za úkol, Sanitary +20 / −5 | ⏳ | čeká na ověření |
 
 ## Nezmapované

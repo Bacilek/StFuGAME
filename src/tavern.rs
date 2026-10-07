@@ -81,10 +81,8 @@ fn target_done(exp: &Expedition) -> bool {
 /// Odhad hrdinství na konci expedice, pokud už nic dalšího nesebereme:
 /// aktuální + bonusy „za kus“ (připíšou se na konci) - trest za nesplněný úkol.
 fn projected_heroism(exp: &Expedition) -> i32 {
-    // Po posledním bossovi už server bonusy i tresty připsal
-    if exp.current_floor >= LAST_FLOOR
-        && matches!(exp.current_stage(), ExpeditionStage::Waiting { .. } | ExpeditionStage::Finished)
-    {
+    // Po výběru v posledním kole už server bonusy i tresty připsal (ověřeno 2026-10-07)
+    if exp.current_floor >= LAST_FLOOR && !matches!(exp.current_stage(), ExpeditionStage::Encounters(_)) {
         return exp.heroism;
     }
     let mut p = exp.heroism;
@@ -221,7 +219,8 @@ fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     g
 }
 
-/// O kolik se má hrdinství změnit po posledním bossovi: bonusy „za kus“, nebo trest za nesplněný úkol.
+/// O kolik se má hrdinství změnit na konci (hned po výběru v 10. kole): bonusy „za kus“,
+/// nebo trest za nesplněný úkol.
 fn expected_end_change(exp: &Expedition) -> i32 {
     let Some(m) = missions::for_target(exp.target_thing) else { return 0 };
     let mut d = 0;
@@ -463,8 +462,17 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         _ => {}
                     }
                     last_offer = Some(offer);
+                    let end_change = if exp.current_floor >= LAST_FLOOR {
+                        let mut after = exp.clone();
+                        if picked == exp.target_thing {
+                            after.target_current += 1;
+                        }
+                        expected_end_change(&after)
+                    } else {
+                        0
+                    };
                     pending_check = Some((
-                        exp.heroism + expected_now(exp, &encs[pos]),
+                        exp.heroism + expected_now(exp, &encs[pos]) + end_change,
                         format!("hrdinství po výběru {picked:?} v kole {}", exp.current_floor),
                     ));
                     Command::ExpeditionPickEncounter { pos }
@@ -472,10 +480,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 ExpeditionStage::Boss(_) => {
                     unknown_in_row = 0;
                     if exp.current_floor >= LAST_FLOOR {
+                        // Bonusy za kus/trest už server připsal po výběru v 10. kole, po bossovi se nic měnit nemá
                         end_check = Some((
                             exp.heroism,
-                            expected_end_change(exp),
-                            format!("změna hrdinství na konci ({}, úkol {}/{})", mission_name(exp.target_thing), exp.target_current, exp.target_amount),
+                            0,
+                            format!("změna hrdinství po posledním bossovi ({})", mission_name(exp.target_thing)),
                         ));
                     }
                     report!("[hospoda] Boss, bojuji");
