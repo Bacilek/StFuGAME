@@ -68,5 +68,6 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Popis: `docs/staj.md`. Zvíře kupovat až těsně před expedicí, když postava žádné nemá (ne hned po vypršení).
 
 ## Ovládání
-- Bot se ovládá ikonou u hodin (src/tray.rs), zástupce „StFuGAME bot“ na ploše spouští `targetelease\stfugame.exe`. Podrobnosti `docs/ovladani.md`.
+- Bot se ovládá ikonou u hodin (src/tray.rs), zástupce „StFuGAME bot“ na ploše spouští `target
+elease\stfugame.exe`. Podrobnosti `docs/ovladani.md`.
 - Před release buildem musí být bot ukončen (zamčené exe). Nespouštět `cargo run`, když běží bot z ikony (jedna instance).
