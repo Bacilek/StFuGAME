@@ -5,6 +5,8 @@
   and joins it automatically.
 - The list shows: name, rank, number of members, Hall of Knights points, Treasure, Instructor, raids.
 - Priority: Instructor first, then Treasure, then the overall strength of the guild (members, their levels, …).
+- Once a day check the list and switch only to a clearly better guild (proposal: Instructor at least 10 higher).
+  Leaving = `GroupRemoveMember:<own player id>` (to verify that it is the own id).
 
 ## What sf-api 0.4.4 can do
 - `ViewGuild { guild_ident }` → `hall_of_fames.other_guilds`: per member level, treasure/instructor level, pet level,
