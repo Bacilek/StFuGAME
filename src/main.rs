@@ -208,7 +208,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // Daily report for the character challenge at ~23:50 (roster/, local only)
         if roster::due() {
             match safe::send(session, Command::Update).await {
-                Ok(gs) => roster::write_day(gs),
+                Ok(gs) => {
+                    let summary = roster::write_day(gs);
+                    report!("[roster] Daily report written: {summary}");
+                }
                 Err(e) => report!("[roster] Update before the daily report failed: {e}"),
             }
         }

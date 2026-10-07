@@ -76,7 +76,7 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | Chest claim (`DailyTaskClaim`) | ⏳ not verified |
 | `UpgradeSkill` buys an attribute for gold, task counter rises | ⏳ not verified |
 | `GuildIncreaseSkill` for gold, task counter rises | ⏳ not verified |
-| Shell game: minimal bet 1 silver accepted? result in `gamble_result` | ⏳ not verified |
+| Shell game: minimal bet 1 silver accepted? result in `gamble_result` | ✅ 2026-10-07: accepted, `SilverChange(-1)` on a loss. But 10 losses in a row (0.67^10 ≈ 2 %) – does a 1-silver bet ever win / count? Watch. |
 | Shop task purchase counts for `BuyWeaponInWeaponsShop` / `BuyFromShop` | ⏳ not verified |
 | `SpendGoldOnUpgrades` unit (silver or gold?) and whether attributes count | ⏳ not verified |
 | Beer for a task: 1 mushroom each, chest opens | ⏳ not verified (only when it happens) |

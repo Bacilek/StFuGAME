@@ -228,9 +228,9 @@ fn previous(history: &Path, today: NaiveDate) -> Option<(u16, u32)> {
     Some((f.get(1)?.parse().ok()?, f.get(2)?.parse().ok()?))
 }
 
-/// Writes today's report for the logged-in character and refreshes the shared files.
-pub fn write_day(gs: &GameState) {
-    let Some(d) = dir() else { return };
+/// Writes today's report for the logged-in character and refreshes the shared files. Returns a summary line.
+pub fn write_day(gs: &GameState) -> String {
+    let Some(d) = dir() else { return "no character set".to_string() };
     let s = Snapshot::of(gs);
     let notes = take_notes();
     let history = d.join("history.csv");
@@ -278,7 +278,7 @@ pub fn write_day(gs: &GameState) {
     append(&history, &s.csv());
     let _ = fs::write(d.join("card.html"), card(gs, &s));
     write_shared(s.date);
-    report!("[roster] Daily report written: level {}, Hall of Fame rank {}", s.level, s.rank);
+    format!("level {}, Hall of Fame rank {}", s.level, s.rank)
 }
 
 /// `roster/issues.txt` and `roster/leaderboard.md` from all characters' folders.
@@ -286,7 +286,12 @@ fn write_shared(date: NaiveDate) {
     let Ok(entries) = fs::read_dir(ROOT) else { return };
     let mut issues = format!("Issues and questions – {date}\n\n");
     let mut rows = Vec::new();
-    for e in entries.flatten().filter(|e| e.path().is_dir()) {
+    // Folders starting with '_' are demos/tests: only included in a demo report
+    let demo = dir().is_some_and(|d| d.file_name().is_some_and(|n| n.to_string_lossy().starts_with('_')));
+    for e in entries
+        .flatten()
+        .filter(|e| e.path().is_dir() && (demo || !e.file_name().to_string_lossy().starts_with('_')))
+    {
         let nick = e.file_name().to_string_lossy().to_string();
         if let Ok(day) = fs::read_to_string(e.path().join("days").join(format!("{date}.md")))
             && let Some(i) = day.find("## Issues / questions")
@@ -452,4 +457,87 @@ mod tests {
         assert_eq!(classify("[arena] Next free fight at 20:57:18"), None);
         assert_eq!(classify("[control] Bot started"), None);
     }
+
+    /// Demo of one daily report (user 2026-10-07): `cargo test demo_day -- --ignored`.
+    /// Notes come from the real `logs/progress.log`, the character values are illustrative (no server access).
+    #[test]
+    #[ignore]
+    fn demo_day() {
+        use sf_api::gamestate::{
+            character::Class,
+            items::{Potion, PotionSize, PotionType},
+        };
+        set_character("_demo_TestChar1");
+        if let Some(d) = dir() {
+            let _ = fs::remove_dir_all(&d);
+        }
+        for line in fs::read_to_string("logs/progress.log").unwrap_or_default().lines() {
+            if let Some((_, msg)) = line.split_at_checked(20) {
+                observe(msg);
+            }
+        }
+        win(5, "Level up: 12 → 13 (demo)");
+
+        let mut gs = GameState::default();
+        let c = &mut gs.character;
+        c.name = "TestChar1".into();
+        c.class = Class::Warrior;
+        c.level = 13;
+        c.experience = 4100;
+        c.next_level_xp = 6900;
+        c.rank = 9480;
+        c.honor = 112;
+        c.silver = 15_729;
+        c.mushrooms = 31;
+        for (a, base, bonus) in [
+            (AttributeType::Strength, 28, 41),
+            (AttributeType::Dexterity, 10, 6),
+            (AttributeType::Intelligence, 9, 3),
+            (AttributeType::Constitution, 29, 37),
+            (AttributeType::Luck, 14, 12),
+        ] {
+            c.attribute_basis[a] = base;
+            c.attribute_additions[a] = bonus;
+        }
+        let item = |typ: ItemType, attrs: &[(AttributeType, u32)]| {
+            let mut i = Item {
+                typ,
+                price: 0,
+                mushroom_price: 0,
+                full_model_id: 0,
+                model_id: 1,
+                class: None,
+                type_specific_val: 0,
+                attributes: Default::default(),
+                gem_slot: None,
+                rune: None,
+                enchantment: None,
+                color: 0,
+                upgrade_count: 0,
+                item_quality: 0,
+                is_washed: false,
+            };
+            for (a, v) in attrs {
+                i.attributes[*a] = *v;
+            }
+            i
+        };
+        use AttributeType::*;
+        c.equipment.0[EquipmentSlot::Weapon] = Some(item(ItemType::Weapon { min_dmg: 15, max_dmg: 41 }, &[(Strength, 9)]));
+        c.equipment.0[EquipmentSlot::Gloves] = Some(item(ItemType::Gloves, &[(Strength, 6), (Constitution, 8)]));
+        c.equipment.0[EquipmentSlot::Belt] = Some(item(ItemType::Belt, &[(Constitution, 5), (Luck, 2)]));
+        c.equipment.0[EquipmentSlot::Amulet] = Some(item(ItemType::Amulet, &[(Strength, 7), (Constitution, 6)]));
+        c.equipment.0[EquipmentSlot::Hat] = Some(item(ItemType::Hat, &[(Constitution, 4)]));
+        c.active_potions[0] = Some(Potion {
+            typ: PotionType::Strength,
+            size: PotionSize::Medium,
+            expires: Some(Local::now() + chrono::Duration::days(2)),
+        });
+        gs.specials.wheel.lucky_coins = 50;
+        gs.tavern.quicksand_glasses = 7;
+        gs.arena.fights_for_xp = 5;
+        let summary = write_day(&gs);
+        println!("demo report written: {summary}");
+    }
 }
+

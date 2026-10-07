@@ -21,8 +21,8 @@
 | `GroupRemoveMember` | `MjY0NDg=` → `26448` | leaving the guild (own player id); never needed by the bot |
 | `GroupJoinList` | `MA==` → `0` | the quick-join list (0 = probably page/offset) |
 | `GroupJoin` | `QXJ0dcWhb3ZhIEdhcmRhL2ludA==` → `Artušova Garda/int` | joining the guild by name; `/int` meaning unknown (constant?) |
-- Leaving and joining again works right away (the user, 2026-10-07). After joining there is a cooldown of about 12 h
-  before the character can take part in guild fights.
+- Leaving and joining again works right away (the user, 2026-10-07). After joining the character cannot sign up for
+  guild fights for 24 h: the server answers `not 24 hours member` (seen 2026-10-07 22:08; the user guessed ~12 h).
 - `GroupJoin` response (captured): the full own-guild data (`owngroupsave`, `owngroupname`, `owngroupmember`,
   `owngrouppotion`, `owngroupknights`, `groupskillprice`, …) + `ownplayersavecharacter`, `charactergroup`.
   sf-api parses these keys → after a successful join `gs.guild` is `Some` with the guild name (use it as the success check).
