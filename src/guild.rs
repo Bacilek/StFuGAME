@@ -2,11 +2,16 @@
 //! Best = highest Instructor, then Treasure, then strength (members × average level) – user 2026-10-07.
 //! Already in a guild → switch only to a clearly better one (Instructor at least `SWITCH_MARGIN` higher).
 //! sf-api does not know these commands, they are sent as `Command::Custom` (captured from the browser, docs/guild.md).
+//! `battles`: signs up for every planned guild attack/defense (free, user 2026-10-07).
 
 use std::sync::Mutex;
 
-use chrono::{Local, NaiveDate};
-use sf_api::{command::Command, misc::from_sf_string};
+use chrono::{DateTime, Local, NaiveDate};
+use sf_api::{
+    command::Command,
+    gamestate::guild::{BattlesJoined, Guild},
+    misc::from_sf_string,
+};
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
@@ -161,6 +166,72 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
     report!("[guild] Could not join any guild today");
+    Outcome::Done
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Battle {
+    Attack,
+    Defense,
+}
+
+/// Battles we already signed up for (kind + time of the battle), so we never send the same sign-up twice.
+static SIGNED_UP: Mutex<Vec<(Battle, DateTime<Local>)>> = Mutex::new(Vec::new());
+/// Last failed sign-up per kind (e.g. ~12 h after joining a guild): retry at most once an hour.
+static LAST_FAIL: Mutex<Vec<(Battle, std::time::Instant)>> = Mutex::new(Vec::new());
+const RETRY_SEC: u64 = 3600;
+
+/// Has our character already joined this kind of battle (per the guild member data)?
+fn already_joined(guild: &Guild, me: &str, kind: Battle) -> bool {
+    let joined = guild.members.iter().find(|m| m.name == me).and_then(|m| m.battles_joined);
+    matches!(
+        (kind, joined),
+        (Battle::Attack, Some(BattlesJoined::Attack | BattlesJoined::Both))
+            | (Battle::Defense, Some(BattlesJoined::Defense | BattlesJoined::Both))
+    )
+}
+
+/// Signs up for every planned guild attack (incl. raids) and defense we have not joined yet.
+pub async fn battles(session: &mut SimpleSession) -> Outcome {
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    let Some(guild) = &gs.guild else { return Outcome::Done };
+    let now = Local::now();
+    let me = gs.character.name.clone();
+    let mut todo = Vec::new();
+    for (kind, planned) in [(Battle::Attack, &guild.attacking), (Battle::Defense, &guild.defending)] {
+        let Some(b) = planned else { continue };
+        let signed = SIGNED_UP.lock().is_ok_and(|v| v.contains(&(kind, b.date)));
+        let failed_recently = LAST_FAIL
+            .lock()
+            .is_ok_and(|v| v.iter().any(|(k, t)| *k == kind && t.elapsed().as_secs() < RETRY_SEC));
+        if b.date > now && !signed && !failed_recently && !already_joined(guild, &me, kind) {
+            let what = if b.is_raid() { "raid".to_string() } else { format!("{kind:?}").to_lowercase() };
+            todo.push((kind, b.date, what));
+        }
+    }
+
+    for (kind, date, what) in todo {
+        report!("[guild] Signing up for the guild {what} at {}", date.format("%d.%m. %H:%M"));
+        let cmd = match kind {
+            Battle::Attack => Command::GuildJoinAttack,
+            Battle::Defense => Command::GuildJoinDefense,
+        };
+        match safe::send(session, cmd).await {
+            Ok(_) => {
+                if let Ok(mut v) = SIGNED_UP.lock() {
+                    v.push((kind, date));
+                }
+            }
+            Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
+            Err(e) => {
+                report!("[guild] Sign-up failed: {e} (retry in an hour)");
+                if let Ok(mut v) = LAST_FAIL.lock() {
+                    v.retain(|(k, _)| *k != kind);
+                    v.push((kind, std::time::Instant::now()));
+                }
+            }
+        }
+    }
     Outcome::Done
 }
 

@@ -53,7 +53,13 @@
 - Commands are `Command::Custom`; `safe.rs` (`custom_allowed`) lets through only `GroupJoinList:<number>`,
   `GroupJoin:<name>/int` and `GroupRemoveMember:<own player id>` (never kicks anyone else).
 - The raw response comes from our own `src/session.rs` (copy of sf-api's `SimpleSession` with `send_raw`).
-- Guild fights (`GuildJoinAttack`/`GuildJoinDefense`) are not done yet (in the TODO).
+- Guild fights (user 2026-10-07: sign up automatically): `guild::battles` in every pass of the main loop.
+  When `gs.guild.attacking` / `defending` holds a future battle (attacks incl. raids, `is_raid`) and our member entry
+  does not show it as joined (`battles_joined`), send `GuildJoinAttack` / `GuildJoinDefense` (free, whitelisted).
+  Each battle (kind + time) is signed up for only once per run (in case the command toggles); a failure
+  (e.g. ~12 h after joining a guild) is retried after an hour.
+- sf-api reads `battles_joined` as value % 100; the raw values look like `010` / `100` / `000` (3 digits, the hundreds digit
+  is probably the raid) → a raid sign-up may not be visible in `battles_joined`, hence the local memory.
 
 ## Verification status
 | What | Status |
@@ -62,4 +68,5 @@
 | Join command + response | ✅ captured 2026-10-07 |
 | Bot: list loads, decision logged (`[guild]`) | ⏳ not verified |
 | `gs.guild.total_instructor_skill` = Instructor from the list (106 for Artušova Garda) | ⏳ not verified |
+| Sign-up for attack/defense (`[guild] Signing up`), whether `Poll` refreshes planned battles | ⏳ not verified |
 | Leaving + joining by the bot | ⏳ not verified (only when a clearly better guild appears) |

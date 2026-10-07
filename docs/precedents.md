@@ -32,3 +32,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Weapon Shop, Magic Shop | Never for mushrooms, only gold. After the whole Thirst for Adventure. Buy any upgrade (even 1 stat point) and equip it; epic items never sold. Spare gold → spin (buy, sell right away) until all items cost mushrooms. Reserve = the most expensive gold item seen that day (upgrades may use all gold). |
 | 2026-10-07 | Choosing a guild | From the quick-join list in the Guild tab: Instructor first, then Treasure, then the overall guild strength. |
 | 2026-10-07 | Changing the guild | Once a day check the quick-join list and switch only to a clearly better guild (proposal: Instructor at least 10 higher), not for small differences. Joining again works right away, only ~12 h without guild fights. |
+| 2026-10-07 | Guild attacks and defenses | Sign up automatically for every planned guild attack (incl. raids) and defense. |

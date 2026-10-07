@@ -77,6 +77,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Description and verification status: `docs/guild.md`.
 - Once a day the quick-join list: no guild → join the best (Instructor > Treasure > strength); in a guild → switch only
   when another one has Instructor ≥ ours + 10. Commands via `Command::Custom`, allowed one by one in `safe.rs`.
+- Signs up for every planned guild attack/raid and defense (`GuildJoinAttack`/`GuildJoinDefense`, free).
 
 ## City Guard
 - Description and verification status: `docs/city-guard.md`.

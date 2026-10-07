@@ -20,7 +20,8 @@ pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 /// None of them spends mushrooms (`Fight`/`FightDungeon` only off cooldown, see `cooldown_free`;
 /// `SellShop` costs nothing, `Equip` only moves an item from the backpack onto the character,
 /// Wheel of Fortune only `FreeTurn` and only when a free spin is available,
-/// `BuyShop` only for an item with no mushroom price, see `shop_buy_ok`).
+/// `BuyShop` only for an item with no mushroom price, see `shop_buy_ok`;
+/// `GuildJoinAttack`/`GuildJoinDefense` only sign up for a planned guild battle, free).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -37,6 +38,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::SellShop { .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
+            | Command::GuildJoinAttack
+            | Command::GuildJoinDefense
             | Command::StartWork { .. }
             | Command::FinishWork
             | Command::CollectCalendar

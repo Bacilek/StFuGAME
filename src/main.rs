@@ -141,6 +141,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = guild::run(session).await {
             return tavern::Outcome::SessionLost;
         }
+        if let tavern::Outcome::SessionLost = guild::battles(session).await {
+            return tavern::Outcome::SessionLost;
+        }
         if let tavern::Outcome::SessionLost = arena::run(session).await {
             return tavern::Outcome::SessionLost;
         }
