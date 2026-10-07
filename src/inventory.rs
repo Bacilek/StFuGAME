@@ -1,7 +1,7 @@
-//! Správa inventáře: každý předmět na nasazení v batohu porovná s tím, co má postava na sobě.
-//! Lepší nasadí, horší prodá. Epické předměty se nikdy neprodávají (necháváme si je na později).
-//! „Lepší“ = vyšší hodnota podle vzorce z arény (100 % hlavní + 80 % CON + 40 % LCK + 10 % vedlejší),
-//! u zbraní podle očekávaného poškození (viz `weapon_value`).
+//! Inventory management: compares every equippable item in the backpack with what the character wears.
+//! Better ones get equipped, worse ones sold. Epic items are never sold (kept for later).
+//! "Better" = higher value by the Arena formula (100 % main + 80 % CON + 40 % LCK + 10 % secondary),
+//! weapons by expected damage (see `weapon_value`).
 
 use sf_api::{
     SimpleSession,
@@ -15,24 +15,24 @@ use sf_api::{
 
 use crate::{arena::strength, safe, tavern::Outcome};
 
-/// Pojistka proti nekonečné smyčce v jednom průchodu.
+/// Safety limit against an endless loop in one pass.
 const MAX_ACTIONS: usize = 30;
 
-/// Hodnota předmětu pro naši třídu.
+/// Item value for our class.
 pub fn score(class: Class, item: &Item) -> f64 {
     strength(class, |a: AttributeType| f64::from(item.attributes[a]))
 }
 
-/// Hodnota zbraně = průměrné poškození × (1 + M / 20).
-/// Ze simulace boje v sf-api (simulate/damage.rs): poškození úderu = zbraň × (1 + A / 10),
-/// kde A = max(M / 2, M − M_soupeře / 2); proti stejně silnému soupeři A = M / 2.
-/// M = celkový hlavní atribut postavy, když má nasazenou právě tuhle zbraň.
+/// Weapon value = average damage × (1 + M / 20).
+/// From the sf-api fight simulation (simulate/damage.rs): hit damage = weapon × (1 + A / 10),
+/// where A = max(M / 2, M − M_enemy / 2); against an equally strong enemy A = M / 2.
+/// M = the character's total main attribute with exactly this weapon equipped.
 pub fn weapon_value(avg_damage: f64, main_attr_with_weapon: f64) -> f64 {
     avg_damage * (1.0 + main_attr_with_weapon / 20.0)
 }
 
-/// Hodnota předmětu pro naši postavu: ostatní podle atributů; zbraně podle poškození
-/// + jejich ostatní staty (80 % CON, 40 % LCK, 10 % vedlejší; hlavní je už v poškození).
+/// Item value for our character: non-weapons by attributes; weapons by damage
+/// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage).
 fn value(gs: &GameState, item: &Item) -> f64 {
     let ch = &gs.character;
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
@@ -42,7 +42,7 @@ fn value(gs: &GameState, item: &Item) -> f64 {
     let total = f64::from(ch.attribute_basis[main] + ch.attribute_additions[main]);
     let equipped = ch.equipment.0[EquipmentSlot::Weapon].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
     let with_this = total - equipped + f64::from(item.attributes[main]);
-    // Ostatní staty zbraně ve stejných procentech jako všude jinde; hlavní atribut už je v poškození přes M
+    // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
     let others = score(ch.class, item) - f64::from(item.attributes[main]);
     weapon_value(f64::from(min_dmg + max_dmg) / 2.0, with_this) + others
 }
@@ -54,10 +54,10 @@ enum Action {
 }
 
 fn describe(item: &Item) -> String {
-    format!("{:?}{}", item.typ, if item.is_epic() { " (epický)" } else { "" })
+    format!("{:?}{}", item.typ, if item.is_epic() { " (epic)" } else { "" })
 }
 
-/// Další krok správy inventáře, nebo None, když není co dělat.
+/// Next inventory management step, or None when there is nothing to do.
 fn next_action(gs: &GameState) -> Option<(Action, String)> {
     let class = gs.character.class;
     for (pos, item) in gs.character.inventory.iter() {
@@ -69,7 +69,7 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         let new = value(gs, item);
         if !item.can_be_equipped_by(class) {
             if !item.is_epic() {
-                return Some((Action::Sell { pos }, format!("prodávám {} (pro jinou třídu)", describe(item))));
+                return Some((Action::Sell { pos }, format!("selling {} (for another class)", describe(item))));
             }
             continue;
         }
@@ -77,27 +77,27 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         let cur = current.map_or(-1.0, |i| value(gs, i));
         if new > cur {
             let what = match current {
-                Some(c) => format!("nasazuji {} (hodnota {new:.1} > {cur:.1} u {})", describe(item), describe(c)),
-                None => format!("nasazuji {} do prázdného slotu {slot:?} (hodnota {new:.1})", describe(item)),
+                Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
+                None => format!("equipping {} into the empty {slot:?} slot (value {new:.1})", describe(item)),
             };
             return Some((Action::Equip { pos, slot }, what));
         }
         if !item.is_epic() {
             return Some((
                 Action::Sell { pos },
-                format!("prodávám {} (hodnota {new:.1} ≤ {cur:.1} nasazeného)", describe(item)),
+                format!("selling {} (value {new:.1} ≤ {cur:.1} of the equipped one)", describe(item)),
             ));
         }
     }
     None
 }
 
-fn chyba(e: &sf_api::error::SFError) -> Outcome {
-    report!("[inventář] Chyba: {e}");
+fn fail(e: &sf_api::error::SFError) -> Outcome {
+    report!("[inventory] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
-/// Projde inventář a provede všechna nasazení/prodeje. Když není co dělat, nic neposílá.
+/// Goes through the inventory and does all equips/sales. Sends nothing when there is nothing to do.
 pub async fn manage(session: &mut SimpleSession) -> Outcome {
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -109,24 +109,24 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         let item_ident = item.command_ident();
         let price = item.price;
 
-        report!("[inventář] {what}");
+        report!("[inventory] {what}");
         let cmd = match action {
             Action::Equip { pos, slot } => Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident },
             Action::Sell { pos } => Command::SellShop { item_pos: pos.into(), item_ident },
         };
         let selling = matches!(cmd, Command::SellShop { .. });
         if let Err(e) = safe::send(session, cmd).await {
-            return chyba(&e);
+            return fail(&e);
         }
         if selling {
-            report!("[inventář] Prodáno za {} g {} s", price / 100, price % 100);
+            report!("[inventory] Sold for {} g {} s", price / 100, price % 100);
         }
-        // Rozhodovat vždy podle čerstvého stavu
+        // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {
-            return chyba(&e);
+            return fail(&e);
         }
     }
-    report!("[inventář] Dosažen limit akcí v jednom průchodu");
+    report!("[inventory] Action limit for one pass reached");
     Outcome::Done
 }
 
@@ -134,14 +134,14 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
 mod tests {
     use super::*;
 
-    /// 2026-10-07: zbraň 13–15 vs 9–15. Vyšší poškození vyhraje, pokud nová nepřidá hodně hlavního atributu.
+    /// 2026-10-07: weapon 13–15 vs 9–15. Higher damage wins unless the new one adds a lot of main attribute.
     #[test]
     fn weapon_damage_matters() {
-        // stejný hlavní atribut postavy: 14 × 3,5 > 12 × 3,5
+        // same main attribute of the character: 14 × 3.5 > 12 × 3.5
         assert!(weapon_value(14.0, 50.0) > weapon_value(12.0, 50.0));
-        // nová přidá +6 hlavního atributu: 12 × (1 + 56/20) = 45,6 < 14 × (1 + 50/20) = 49
+        // the new one adds +6 main attribute: 12 × (1 + 56/20) = 45.6 < 14 × (1 + 50/20) = 49
         assert!(weapon_value(14.0, 50.0) > weapon_value(12.0, 56.0));
-        // při malém atributu postavy rozhoduje víc atribut: 12 × (1 + 16/20) = 21,6 > 14 × (1 + 10/20) = 21
+        // with a small character attribute the attribute matters more: 12 × (1 + 16/20) = 21.6 > 14 × (1 + 10/20) = 21
         assert!(weapon_value(12.0, 16.0) > weapon_value(14.0, 10.0));
     }
 }

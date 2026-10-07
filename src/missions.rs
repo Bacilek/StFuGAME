@@ -1,37 +1,37 @@
-//! Známé mise (úkoly) a cykly setkání v expedicích. Popis a zdroje dat: docs/expedice.md.
-//! Hrdinství kroků je z oficiálního FAQ, bonusy za úkol od uživatele.
+//! Known expedition missions (tasks) and encounter cycles. Description and data sources: docs/expeditions.md.
+//! Step heroism comes from the official FAQ, task bonuses from the user.
 
 use sf_api::gamestate::tavern::ExpeditionThing::{self, *};
 
-/// Body za úkol expedice.
+/// Points for the expedition task.
 #[derive(Debug, Clone, Copy)]
 pub enum Bonus {
-    /// Za každý sebraný cílový předmět, připíše se až na konci expedice („+5/“).
+    /// Per collected target item, credited at the end of the expedition ("+5/").
     PerItem(i32),
-    /// Jednorázově v moment splnění úkolu („+10“).
+    /// Once, the moment the task is completed ("+10").
     OnComplete(i32),
 }
 
-/// Odhad bonusu za úkol, který ještě nemáme zmapovaný.
+/// Estimated bonus for a task we have not mapped yet.
 const UNKNOWN_BONUS: Bonus = Bonus::OnComplete(5);
 
 #[derive(Debug)]
 pub struct Mission {
     pub name: &'static str,
-    /// Řetěz kroků (předmět, hrdinství při sebrání). Poslední krok je cílový předmět.
+    /// Chain of steps (item, heroism when collected). The last step is the target item.
     pub chain: &'static [(ExpeditionThing, i32)],
     pub bonus: Bonus,
-    /// Je bonus ověřený uživatelem? (jinak jen odhad)
+    /// Is the bonus confirmed by the user? (otherwise just an estimate)
     pub bonus_known: bool,
-    /// Kolik hrdinství se strhne, když úkol na konci není splněný (kladné číslo).
+    /// Heroism deducted when the task is not completed at the end (positive number).
     pub fail_penalty: i32,
-    /// Kolik cílových předmětů je potřeba ke splnění (u řetězů 1).
+    /// Number of target items needed to complete the task (1 for chains).
     pub count: u8,
-    /// Kolikrát se cyklus může během expedice zopakovat (FAQ „Limit“). Zatím jen informativní.
+    /// How many times the cycle can repeat during an expedition (FAQ "Limit"). Informational only for now.
     #[allow(dead_code)]
     pub limit: u8,
-    /// Poslední krok zůstává v nabídce i po dokončení (FAQ „last encounter remains permanently“).
-    /// Zatím jen informativní.
+    /// The last step stays on offer even after completion (FAQ "last encounter remains permanently").
+    /// Informational only for now.
     #[allow(dead_code)]
     pub final_repeats: bool,
 }
@@ -41,8 +41,8 @@ impl Mission {
         self.chain.last().map_or(Unknown, |(t, _)| *t)
     }
 
-    /// Jak snadno mise dává hrdinství: průměr na jedno kolo, když ji splníme
-    /// (hrdinství kroků + bonus + odvrácený trest) / počet potřebných kol. Víc = snazší 40.
+    /// How easily the mission yields heroism: average per round when completed
+    /// (step heroism + bonus + avoided penalty) / rounds needed. Higher = easier 40.
     pub fn ease(&self) -> f64 {
         let steps: i32 = self.chain.iter().map(|(_, h)| h).sum();
         let per_round = steps + match self.bonus {
@@ -59,12 +59,12 @@ impl Mission {
     }
 }
 
-/// Mise se známým bonusem. Ostatní pole jsou společná pro většinu misí.
+/// Mission with a known bonus. The other fields are shared by most missions.
 const fn known(name: &'static str, chain: &'static [(ExpeditionThing, i32)], bonus: Bonus, limit: u8) -> Mission {
     Mission { name, chain, bonus, bonus_known: true, fail_penalty: 0, count: 1, limit, final_repeats: false }
 }
 
-/// Mise, jejíž bonus za úkol zatím neznáme (odhad UNKNOWN_BONUS).
+/// Mission whose task bonus is not known yet (estimate UNKNOWN_BONUS).
 const fn unknown(name: &'static str, chain: &'static [(ExpeditionThing, i32)], limit: u8) -> Mission {
     Mission { name, chain, bonus: UNKNOWN_BONUS, bonus_known: false, fail_penalty: 0, count: 1, limit, final_repeats: false }
 }
@@ -74,7 +74,7 @@ const fn repeats(mut m: Mission) -> Mission {
     m
 }
 
-// Hodnoty ověřené na serveru mají přednost před FAQ (viz docs/expedice.md, „Stav ověření“).
+// Values verified on the server take precedence over the FAQ (see docs/expeditions.md, "Verification status").
 pub const MISSIONS: &[Mission] = &[
     known("Dragon Taming", &[(Bait, -2), (Dragon, 10)], Bonus::PerItem(5), 2),
     repeats(known(
@@ -83,7 +83,7 @@ pub const MISSIONS: &[Mission] = &[
         Bonus::PerItem(4),
         1,
     )),
-    // Kuřecí stehno (CupCake) a sele (Cake) zúží další rozcestí na 2, resp. 1 možnost
+    // Chicken drumstick (CupCake) and suckling pig (Cake) narrow the next crossroads to 2 and 1 options
     known("Hot Carnal Craving", &[(Cake, 5)], Bonus::PerItem(3), u8::MAX),
     known(
         "Unicorn Whisperer",
@@ -110,24 +110,24 @@ pub const MISSIONS: &[Mission] = &[
         1,
     )),
     unknown("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], 1),
-    // sf-api: Well = kotel, Girl = čarodějnice, Balloons = čarodějný lektvar
+    // sf-api: Well = cauldron, Girl = witch, Balloons = witch's brew
     unknown("Bewitched Stew", &[(Well, 2), (Girl, -5), (Balloons, 15)], 1),
-    // sf-api: Prince = vílí fontána, RoyalFrog = znečištěná fontána
+    // sf-api: Prince = fairy fountain, RoyalFrog = polluted fairy fountain
     repeats(unknown("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], 1)),
     unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),
 ];
 
-/// Mise, jejímž cílem je daný předmět.
+/// Mission whose target is the given item.
 pub fn for_target(t: ExpeditionThing) -> Option<&'static Mission> {
     MISSIONS.iter().find(|m| m.target() == t)
 }
 
-/// Mise a pozice kroku v jejím řetězu.
+/// Mission and the step's position in its chain.
 pub fn chain_position(t: ExpeditionThing) -> Option<(&'static Mission, usize)> {
     MISSIONS.iter().find_map(|m| m.chain.iter().position(|(c, _)| *c == t).map(|i| (m, i)))
 }
 
-/// Věci, které umíme vyhodnotit. Ostatní se zapisují do deníku jako „nezmapované“.
+/// Things we can evaluate. Everything else is logged to the journal as "unmapped".
 pub fn is_known(t: ExpeditionThing) -> bool {
     chain_position(t).is_some()
         || t.is_bounty_for().is_some()

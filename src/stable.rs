@@ -1,9 +1,9 @@
-//! Stáj: před expedicí zajistit zvíře, ať nikdy nejdeme na misi bez něj.
-//! Kupuje se až když je opravdu potřeba (postava je bez zvířete a jde do hospody), ne hned
-//! po vypršení – ušetří se houby za dny, kdy by zvíře stejně nevyužila.
+//! Stable: make sure we have a mount before an expedition, so we never go on a mission without one.
+//! It is bought only when really needed (no mount and heading to the Tavern), not right after
+//! it expires – this saves mushrooms on days when the mount would not be used anyway.
 //!
-//! JEDINÁ povolená výjimka z pravidla „nikdy neutrácet houby“ (uživatel 2026-10-07):
-//! gryf/drak (tier 4) za 25 hub na 14 dní; když hub není dost, tygr/raptor (tier 3) za 10 g + 1 houbu.
+//! The ONLY allowed exception to the "never spend mushrooms" rule (user, 2026-10-07):
+//! griffin/dragon (tier 4) for 25 mushrooms for 14 days; without enough mushrooms tiger/raptor (tier 3) for 10 g + 1 mushroom.
 
 use std::{
     sync::Mutex,
@@ -19,16 +19,16 @@ use sf_api::{
 
 use crate::{safe, tavern::Outcome};
 
-/// Nepovedený nákup zkusit znovu nejdřív za tuto dobu.
+/// Retry a failed purchase at the earliest after this long.
 const RETRY: Duration = Duration::from_secs(30 * 60);
 static LAST_TRY: Mutex<Option<Instant>> = Mutex::new(None);
 
-/// Nemá postava zvíře (žádné, nebo vypršelo)?
+/// Is the character without a mount (none, or expired)?
 pub fn needs_mount(gs: &GameState) -> bool {
     gs.character.mount.is_none() || gs.character.mount_end.is_none_or(|end| end <= Local::now())
 }
 
-/// Které zvíře koupit: gryf, když je dost hub, jinak tygr. None = nemáme ani na tygra.
+/// Which mount to buy: griffin if there are enough mushrooms, otherwise tiger. None = cannot afford even the tiger.
 pub fn choose(gs: &GameState) -> Option<Mount> {
     let can_afford = |m: Mount| {
         let c = m.cost();
@@ -46,7 +46,7 @@ fn may_try() -> bool {
     true
 }
 
-/// Před expedicí: když postava nemá zvíře, pronajmout ho. Vrací SessionLost při ztrátě session.
+/// Before an expedition: rent a mount if the character has none. Returns SessionLost when the session is lost.
 pub async fn ensure_mount(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     if !needs_mount(gs) || !may_try() {
@@ -54,7 +54,7 @@ pub async fn ensure_mount(session: &mut SimpleSession) -> Outcome {
     }
     let Some(mount) = choose(gs) else {
         report!(
-            "[stáj] POZOR: na zvíře nemáme (houby {}, zlato {} g), jdu na expedici bez něj",
+            "[stable] WARNING: cannot afford a mount (mushrooms {}, gold {} g), going on the expedition without one",
             gs.character.mushrooms,
             gs.character.silver / 100
         );
@@ -62,20 +62,20 @@ pub async fn ensure_mount(session: &mut SimpleSession) -> Outcome {
     };
     let cost = mount.cost();
     report!(
-        "[stáj] Postava je bez zvířete, pronajímám {mount:?} na 14 dní ({} hub, {} g)",
+        "[stable] Character has no mount, renting {mount:?} for 14 days ({} mushrooms, {} g)",
         cost.mushrooms,
         cost.silver / 100
     );
     match safe::send(session, Command::BuyMount { mount }).await {
         Ok(gs) => {
             match (gs.character.mount, gs.character.mount_end) {
-                (Some(m), Some(end)) => report!("[stáj] Zvíře {m:?} do {}", end.format("%d.%m. %H:%M")),
-                _ => report!("[stáj] Nákup proběhl, ale server zvíře neukazuje"),
+                (Some(m), Some(end)) => report!("[stable] Mount {m:?} until {}", end.format("%d.%m. %H:%M")),
+                _ => report!("[stable] Purchase went through, but the server shows no mount"),
             }
             Outcome::Done
         }
         Err(e) => {
-            report!("[stáj] Chyba: {e}");
+            report!("[stable] Error: {e}");
             if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done }
         }
     }

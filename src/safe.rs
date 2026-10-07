@@ -1,5 +1,5 @@
-//! Jediné místo, přes které se posílají příkazy na server.
-//! Hlídá, aby bot nikdy neutratil houby, a mezi akcemi dělá náhodné pauzy.
+//! The only place commands are sent to the server through.
+//! Makes sure the bot never spends mushrooms and adds random pauses between actions.
 
 use std::{sync::Mutex, time::Duration};
 
@@ -11,14 +11,14 @@ use sf_api::{
     gamestate::{GameState, character::Mount},
 };
 
-/// Rezerva po konci cooldownu (aréna, podzemí), než smíme bojovat (hodiny serveru a naše se můžou lišit).
-pub const ARENA_SAFETY_SEC: i64 = 30;
+/// Margin after a cooldown ends before we may act (Arena, Dungeons) – server and local clocks can differ.
+pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 
-/// Příkazy, které bot smí poslat. Vše ostatní je zakázané (whitelist),
-/// takže nový příkaz se k serveru nedostane, dokud ho sem vědomě nepřidáme.
-/// Žádný z nich neutrácí houby (`Fight`/`FightDungeon` jen mimo cooldown, viz `cooldown_free`;
-/// `SellShop` houby nebere, `Equip` jen přesouvá předmět z batohu na postavu,
-/// kolo štěstí jen `FreeTurn` a jen když je volné točení).
+/// Commands the bot may send. Everything else is forbidden (whitelist),
+/// so a new command never reaches the server until it is deliberately added here.
+/// None of them spends mushrooms (`Fight`/`FightDungeon` only off cooldown, see `cooldown_free`;
+/// `SellShop` costs nothing, `Equip` only moves an item from the backpack onto the character,
+/// Wheel of Fortune only `FreeTurn` and only when a free spin is available).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -38,21 +38,21 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FinishWork
             | Command::CollectCalendar
             | Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }
-            // Jediná povolená výjimka z pravidla o houbách (uživatel 2026-10-07), jen bez zvířete
+            // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )
 }
 
-/// Druh boje s cooldownem. Na cooldownu by boj stál houbu (server příznak `use_mushroom` ignoruje).
+/// Kind of action with a cooldown. On cooldown it would cost mushrooms (the server ignores `use_mushroom`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Cooldown {
     Arena,
     Dungeon,
-    /// Volné točení kolem štěstí (jinak by stálo houby/mince)
+    /// Free Wheel of Fortune spin (otherwise it would cost mushrooms/lucky coins)
     Wheel,
 }
 
-/// Kdy jsme naposledy bojovali (za tohoto běhu bota).
+/// When we last used each cooldown action (during this run of the bot).
 static LAST_FIGHT: Mutex<Vec<(Cooldown, DateTime<Local>)>> = Mutex::new(Vec::new());
 
 fn last_fight(kind: Cooldown) -> Option<DateTime<Local>> {
@@ -66,14 +66,14 @@ fn remember_fight(kind: Cooldown) {
     }
 }
 
-/// Je boj volný? Konec cooldownu (+ rezerva) musí být za námi, a pokud jsme už bojovali,
-/// musí server mezitím poslat NOVÝ konec cooldownu (pozdější než náš boj). Jinak by mohl být
-/// stav zastaralý (např. u podzemí se čas obnoví jen přes UpdateDungeons) a boj by stál houbu.
+/// Is the action free? The cooldown end (+ margin) must be in the past and, if we already acted,
+/// the server must have sent a NEW cooldown end since then (later than our action). Otherwise the
+/// state could be stale (e.g. the Dungeons timer is only refreshed by UpdateDungeons) and it would cost mushrooms.
 pub fn cooldown_free(kind: Cooldown, next_free: Option<DateTime<Local>>) -> bool {
     let last = last_fight(kind);
     match next_free {
         None => last.is_none(),
-        Some(t) => Local::now() >= t + chrono::Duration::seconds(ARENA_SAFETY_SEC) && last.is_none_or(|l| t > l),
+        Some(t) => Local::now() >= t + chrono::Duration::seconds(COOLDOWN_SAFETY_SEC) && last.is_none_or(|l| t > l),
     }
 }
 
@@ -86,49 +86,49 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
     }
 }
 
-/// Je aréna podle stavu hry volná i s rezervou? Na cooldownu by boj stál houbu
-/// (server příznak `use_mushroom` ignoruje a bojuje vždy).
+/// Is the Arena free (including the margin)? On cooldown a fight would cost a mushroom
+/// (the server ignores `use_mushroom` and always fights).
 pub fn arena_is_free(gs: &GameState) -> bool {
     cooldown_free(Cooldown::Arena, gs.arena.next_free_fight)
 }
 
-/// Je volné točení kolem štěstí? Bez známého času (None) netočíme.
+/// Is a free Wheel of Fortune spin available? Without a known time (None) we do not spin.
 pub fn wheel_is_free(gs: &GameState) -> bool {
     gs.specials.wheel.next_free_spin.is_some() && cooldown_free(Cooldown::Wheel, gs.specials.wheel.next_free_spin)
 }
 
-/// Je podzemí volné? Platí jen pro stav čerstvě po `UpdateDungeons`.
+/// Are the Dungeons free? Only valid for a state fresh after `UpdateDungeons`.
 pub fn dungeon_is_free(gs: &GameState) -> bool {
     cooldown_free(Cooldown::Dungeon, gs.dungeons.next_free_fight)
 }
 
-/// Náhodná pauza mezi akcemi (simulace člověka).
+/// Random pause between actions (human-like behaviour).
 pub async fn human_pause() {
     tokio::time::sleep(Duration::from_millis(fastrand::u64(2500..7000))).await;
 }
 
-/// Pošle příkaz, pokud je povolený, a pak chvíli počká.
+/// Sends the command if it is allowed, then waits a moment.
 pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'a mut GameState, SFError> {
     if !is_allowed(&cmd) {
-        return Err(SFError::InvalidRequest("příkaz není na seznamu povolených (ochrana hub)"));
+        return Err(SFError::InvalidRequest("command is not whitelisted (mushroom protection)"));
     }
     let kind = fight_kind(&cmd);
     match kind {
         Some(Cooldown::Arena) if !session.game_state().is_some_and(arena_is_free) => {
-            return Err(SFError::InvalidRequest("aréna je na cooldownu, boj by stál houbu"));
+            return Err(SFError::InvalidRequest("Arena is on cooldown, a fight would cost a mushroom"));
         }
         Some(Cooldown::Dungeon) if !session.game_state().is_some_and(dungeon_is_free) => {
-            return Err(SFError::InvalidRequest("podzemí je na cooldownu, boj by stál houbu"));
+            return Err(SFError::InvalidRequest("Dungeons are on cooldown, a fight would cost a mushroom"));
         }
         Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
-            return Err(SFError::InvalidRequest("kolo štěstí nemá volné točení"));
+            return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
         }
         _ => {}
     }
     if matches!(cmd, Command::BuyMount { .. }) && !session.game_state().is_some_and(crate::stable::needs_mount) {
-        return Err(SFError::InvalidRequest("postava zvíře má, nákup by zbytečně stál houby"));
+        return Err(SFError::InvalidRequest("character already has a mount, buying would waste mushrooms"));
     }
-    // Kolik hub smí tento příkaz utratit (jen pronájem zvířete, přesně jeho cena)
+    // How many mushrooms this command may spend (only renting a mount, exactly its price)
     let allowed_spend = match &cmd {
         Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
         _ => 0,
@@ -137,16 +137,16 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
     let res = session.send_command(cmd).await.map(|_| ());
     if let Some(kind) = kind {
-        // I při chybě: server mohl boj provést, další boj až po novém čase ze serveru
+        // Even on error: the server may have performed the action, next one only after a new server time
         remember_fight(kind);
     }
 
-    // Poslední pojistka: kdyby houby přesto ubyly, bot okamžitě končí
+    // Last line of defence: if mushrooms decreased anyway, the bot stops immediately
     if let (Some(before), Some(after)) = (mushrooms_before, session.game_state().map(|gs| gs.character.mushrooms))
         && after + allowed_spend < before
     {
-        report!("!!! UBYLY HOUBY ({before} → {after}, povoleno {allowed_spend}). Bot se okamžitě zastavuje, prověřit!");
-        crate::tray::message_box(&format!("UBYLY HOUBY ({before} → {after}). Bot se zastavil, podrobnosti v logu."));
+        report!("!!! MUSHROOMS DECREASED ({before} → {after}, allowed {allowed_spend}). Bot stops immediately, investigate!");
+        crate::tray::message_box(&format!("MUSHROOMS DECREASED ({before} → {after}). The bot stopped, details in the log."));
         std::process::exit(2);
     }
 

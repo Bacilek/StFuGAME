@@ -1,13 +1,13 @@
-//! Výpis průběhu: na terminál a zároveň s časem do logs/prubeh.log,
-//! aby se dalo sledovat, jak si bot vede, i když běží na pozadí.
+//! Progress output: to the terminal and, with a timestamp, to logs/progress.log,
+//! so the bot can be followed even when it runs in the background.
 
 use std::{fs::OpenOptions, io::Write};
 
 use chrono::Local;
 
-const PATH: &str = "logs/prubeh.log";
+const PATH: &str = "logs/progress.log";
 
-/// Jako `println!`, ale zapíše i do logu. Nikdy sem nedávat přihlašovací údaje.
+/// Like `println!`, but also writes to the log. Never put credentials in here.
 macro_rules! report {
     ($($arg:tt)*) => { $crate::report::write(&format!($($arg)*)) };
 }
@@ -20,6 +20,6 @@ pub fn write(msg: &str) {
         writeln!(f, "{line}")
     });
     if let Err(err) = res {
-        eprintln!("Zápis do {PATH} selhal: {err}");
+        eprintln!("Writing to {PATH} failed: {err}");
     }
 }

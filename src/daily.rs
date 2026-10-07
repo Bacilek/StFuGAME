@@ -1,5 +1,5 @@
-//! Denní odměny: odměna za přihlášení (kalendář) a jedno volné točení kolem štěstí denně.
-//! Nic jiného (pravidlo uživatele). Kolo nikdy za houby ani šťastné mince.
+//! Daily rewards: the daily login bonus (calendar) and one free Wheel of Fortune spin per day.
+//! Nothing else (user rule). The wheel never for mushrooms or lucky coins.
 
 use std::{
     sync::Mutex,
@@ -14,12 +14,12 @@ use sf_api::{
 
 use crate::{safe, tavern::Outcome};
 
-/// Když se akce nepovede (stav se nezměnil), zkusit ji znovu nejdřív za tuto dobu.
+/// When an action fails (state unchanged), retry it at the earliest after this long.
 const RETRY: Duration = Duration::from_secs(30 * 60);
 
 static TRIED: Mutex<Vec<(&'static str, Instant)>> = Mutex::new(Vec::new());
 
-/// Smí se akce zkusit? Zaznamená pokus (kvůli opakování při neúspěchu).
+/// May the action be tried? Records the attempt (for retrying after a failure).
 fn may_try(what: &'static str) -> bool {
     let Ok(mut tried) = TRIED.lock() else { return false };
     if tried.iter().any(|(w, t)| *w == what && t.elapsed() < RETRY) {
@@ -30,40 +30,40 @@ fn may_try(what: &'static str) -> bool {
     true
 }
 
-fn chyba(e: &sf_api::error::SFError) -> Outcome {
-    report!("[odměny] Chyba: {e}");
+fn fail(e: &sf_api::error::SFError) -> Outcome {
+    report!("[rewards] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
-/// Vybere všechno, co je dnes k vybrání. Když není co, nic neposílá.
+/// Collects everything available today. Sends nothing when there is nothing to collect.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let now = Local::now();
     let specials = &gs.specials;
 
-    // Kalendář: jedna odměna denně
+    // Calendar: one reward per day
     let calendar_ready = specials.calendar.next_possible.is_some_and(|t| t <= now);
-    if calendar_ready && may_try("kalendář") {
+    if calendar_ready && may_try("calendar") {
         let reward = specials.calendar.rewards.get(specials.calendar.collected).map(|r| format!("{:?} x{}", r.typ, r.amount));
-        report!("[odměny] Vybírám denní odměnu za přihlášení: {}", reward.unwrap_or_else(|| "?".into()));
+        report!("[rewards] Collecting the daily login bonus: {}", reward.unwrap_or_else(|| "?".into()));
         if let Err(e) = safe::send(session, Command::CollectCalendar).await {
-            return chyba(&e);
+            return fail(&e);
         }
     }
 
-    // Kolo štěstí: jen volné točení (nikdy za houby ani mince)
-    if session.game_state().is_some_and(safe::wheel_is_free) && may_try("kolo") {
-        report!("[odměny] Točím kolem štěstí (zdarma)");
+    // Wheel of Fortune: free spin only (never for mushrooms or lucky coins)
+    if session.game_state().is_some_and(safe::wheel_is_free) && may_try("wheel") {
+        report!("[rewards] Spinning the Wheel of Fortune (free)");
         match safe::send(session, Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }).await {
-            Ok(gs) => report!("[odměny] Kolo štěstí: {:?}", gs.specials.wheel.result),
-            Err(e) => return chyba(&e),
+            Ok(gs) => report!("[rewards] Wheel of Fortune: {:?}", gs.specials.wheel.result),
+            Err(e) => return fail(&e),
         }
     }
 
     Outcome::Done
 }
 
-/// Za kolik sekund bude něco k vybrání (kalendář nebo volné točení), pokud víme.
+/// In how many seconds something can be collected (calendar or free spin), if known.
 pub fn secs_until_ready(gs: &sf_api::gamestate::GameState) -> Option<u64> {
     let now = Local::now();
     [gs.specials.calendar.next_possible, gs.specials.wheel.next_free_spin]

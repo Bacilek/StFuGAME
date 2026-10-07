@@ -1,6 +1,6 @@
-//! Podzemí: kdykoli je mimo cooldown (i během expedice), jeden boj.
-//! Z odemčených podzemí vybere to s protivníkem nejnižšího levelu, při podobném levelu toho slabšího.
-//! Nikdy za houby, nikdy s plným inventářem.
+//! Dungeons: one fight whenever they are off cooldown (even during an expedition).
+//! Among unlocked dungeons picks the one with the lowest-level enemy, the weaker one at a similar level.
+//! Never for mushrooms, never with a full inventory.
 
 use sf_api::{
     SimpleSession,
@@ -13,13 +13,13 @@ use sf_api::{
 
 use crate::{arena::strength, safe, tavern::Outcome};
 
-/// Jak často nejvýš zkoušet podzemí, když boj neproběhl (plný inventář apod.).
+/// How often at most to retry the Dungeons when no fight happened (full inventory etc.).
 pub const RETRY_SEC: u64 = 5 * 60;
 
-/// Levely, které bereme jako „podobné“ (pak rozhoduje síla podle statů).
+/// Level difference considered "similar" (then strength by stats decides).
 const SIMILAR_LEVELS: u16 = 2;
 
-/// Protivník v podzemí: level a síla (stejný vzorec jako v aréně).
+/// Dungeon enemy: level and strength (same formula as in the Arena).
 #[derive(Debug, Clone)]
 pub struct Candidate {
     pub dungeon: Dungeon,
@@ -28,7 +28,7 @@ pub struct Candidate {
     pub strength: f64,
 }
 
-/// Všechna otevřená podzemí, kde se dá bojovat příkazem FightDungeon (věž má vlastní příkaz).
+/// All open dungeons fightable with FightDungeon (the Tower has its own command).
 fn open_dungeons(gs: &GameState) -> Vec<Dungeon> {
     let is_open = |p: &DungeonProgress| matches!(p, DungeonProgress::Open { .. });
     let light = gs.dungeons.light.iter().filter(|(d, p)| *d != LightDungeon::Tower && is_open(p)).map(|(d, _)| Dungeon::Light(d));
@@ -36,17 +36,17 @@ fn open_dungeons(gs: &GameState) -> Vec<Dungeon> {
     light.chain(shadow).collect()
 }
 
-/// Protivníci ve všech otevřených podzemích.
+/// Enemies in all open dungeons.
 pub fn candidates(gs: &GameState) -> Vec<Candidate> {
     let ch = &gs.character;
     open_dungeons(gs)
         .into_iter()
         .filter_map(|d| {
             let m = gs.dungeons.current_enemy(d)?;
-            // „Zrcadlový obraz“ je v sf-api válečník s levelem 0: je to kopie naší postavy
+            // The "mirror image" is a level 0 warrior in sf-api: it is a copy of our character
             let c = if m.level == 0 {
                 let stat = |a: AttributeType| f64::from(ch.attribute_basis[a] + ch.attribute_additions[a]);
-                Candidate { dungeon: d, name: "zrcadlový obraz".into(), level: ch.level, strength: strength(ch.class, stat) }
+                Candidate { dungeon: d, name: "mirror image".into(), level: ch.level, strength: strength(ch.class, stat) }
             } else {
                 let stat = |a: AttributeType| f64::from(m.attributes[a]);
                 Candidate { dungeon: d, name: m.name.into(), level: m.level, strength: strength(m.class, stat) }
@@ -56,7 +56,7 @@ pub fn candidates(gs: &GameState) -> Vec<Candidate> {
         .collect()
 }
 
-/// Nejnižší level; mezi protivníky s podobným levelem (do +SIMILAR_LEVELS) ten s nejnižší silou.
+/// Lowest level; among enemies of a similar level (up to +SIMILAR_LEVELS) the one with the lowest strength.
 pub fn choose(cands: &[Candidate]) -> Option<&Candidate> {
     let min_level = cands.iter().map(|c| c.level).min()?;
     cands
@@ -65,65 +65,65 @@ pub fn choose(cands: &[Candidate]) -> Option<&Candidate> {
         .min_by(|a, b| a.strength.total_cmp(&b.strength))
 }
 
-fn chyba(e: &sf_api::error::SFError) -> Outcome {
-    report!("[podzemí] Chyba: {e}");
+fn fail(e: &sf_api::error::SFError) -> Outcome {
+    report!("[dungeons] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
-/// Jeden boj v podzemí, pokud je to teď možné. Jinak nic nedělá.
+/// One Dungeons fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
-    // Čas podzemí se obnoví jen přes UpdateDungeons (Update ani boj ho neobnoví)
+    // The Dungeons timer is only refreshed by UpdateDungeons (neither Update nor a fight refreshes it)
     let gs = match safe::send(session, Command::UpdateDungeons).await {
         Ok(gs) => gs,
-        Err(e) => return chyba(&e),
+        Err(e) => return fail(&e),
     };
     if !safe::dungeon_is_free(gs) {
         return Outcome::Done;
     }
     if gs.character.inventory.count_free_slots() == 0 {
-        report!("[podzemí] Plný inventář, boj vynechávám");
+        report!("[dungeons] Inventory full, skipping the fight");
         return Outcome::Done;
     }
     let cands = candidates(gs);
     let Some(pick) = choose(&cands).cloned() else {
-        report!("[podzemí] Žádné otevřené podzemí");
+        report!("[dungeons] No open dungeon");
         return Outcome::Done;
     };
     for c in &cands {
-        report!("[podzemí] {:?}: {} (lvl {}, síla {:.0})", c.dungeon, c.name, c.level, c.strength);
+        report!("[dungeons] {:?}: {} (lvl {}, strength {:.0})", c.dungeon, c.name, c.level, c.strength);
     }
-    report!("[podzemí] Bojuji: {:?} – {} (lvl {})", pick.dungeon, pick.name, pick.level);
+    report!("[dungeons] Fighting: {:?} – {} (lvl {})", pick.dungeon, pick.name, pick.level);
 
     let gs = match safe::send(session, Command::FightDungeon { dungeon: pick.dungeon, use_mushroom: false }).await {
         Ok(gs) => gs,
-        Err(e) => return chyba(&e),
+        Err(e) => return fail(&e),
     };
     match &gs.last_fight {
         Some(f) => report!(
-            "[podzemí] {}: xp +{}, stříbro {:+}, předmět {}",
-            if f.has_player_won { "Výhra" } else { "Prohra" },
+            "[dungeons] {}: xp +{}, silver {:+}, item {}",
+            if f.has_player_won { "Win" } else { "Loss" },
             f.xp_change,
             f.silver_change,
-            if f.item_won.is_some() { "ano" } else { "ne" }
+            if f.item_won.is_some() { "yes" } else { "no" }
         ),
-        None => report!("[podzemí] Boj proběhl, výsledek server neposlal"),
+        None => report!("[dungeons] Fight done, the server sent no result"),
     }
-    // Nový čas cooldownu (pojistka v safe.rs bez něj další boj nepustí)
+    // New cooldown time (without it the guard in safe.rs will not allow another fight)
     match safe::send(session, Command::UpdateDungeons).await {
         Ok(gs) => {
             if let Some(t) = gs.dungeons.next_free_fight {
-                report!("[podzemí] Další volný boj v {}", t.format("%H:%M:%S"));
+                report!("[dungeons] Next free fight at {}", t.format("%H:%M:%S"));
             }
             Outcome::Done
         }
-        Err(e) => chyba(&e),
+        Err(e) => fail(&e),
     }
 }
 
-/// Za kolik sekund bude podzemí volné (s rezervou). Bez čerstvého stavu odhad.
+/// Seconds until the Dungeons are free (with margin). An estimate without a fresh state.
 pub fn secs_until_ready(gs: &GameState) -> u64 {
     let free_at = gs.dungeons.next_free_fight.map_or_else(chrono::Local::now, |t| {
-        t + chrono::Duration::seconds(safe::ARENA_SAFETY_SEC)
+        t + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC)
     });
     u64::try_from((free_at - chrono::Local::now()).num_seconds()).unwrap_or(0)
 }

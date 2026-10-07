@@ -1,5 +1,5 @@
-//! Hospoda: expedice s výběry (rozcestí, boss, odměny, čekání).
-//! Strategie: co nejdřív si zajistit 40 hrdinství (maximální odměna) a pak farmit klíče a truhly.
+//! Tavern: expeditions with choices (crossroads, boss, rewards, waiting).
+//! Strategy: secure 40 heroism (maximum reward) as soon as possible, then farm keys and chests.
 
 use std::time::Duration;
 
@@ -23,27 +23,27 @@ use crate::{
     safe,
 };
 
-/// Od tohoto hrdinství je odměna maximální, další už nepotřebujeme.
+/// From this heroism on the reward is maximal, we need no more.
 const MAX_HEROISM: i32 = 40;
-/// Bonus za věc, ke které máme plakát „hledá se“ (wanted).
+/// Bonus for an item we hold a wanted poster (bounty) for.
 const BOUNTY_BONUS: i32 = 10;
-/// Expedice má vždy 10 kol (rozcestí).
+/// An expedition always has 10 rounds (crossroads).
 const LAST_FLOOR: u8 = 10;
-/// Kolik hrdinství v průměru dá jedno kolo. Kolo strávené na přípravě (krok řetězu)
-/// tedy „stojí“ tolik, kolik bychom jinak sebrali. Ladit podle deníku.
+/// Average heroism one round yields. A round spent on preparation (a chain step)
+/// therefore "costs" what we would otherwise have collected. Tune from the journal.
 const OPPORTUNITY_COST: f64 = 4.0;
-/// Odhad bonusu za cílový předmět neznámé mise (než ji zmapujeme).
+/// Estimated bonus for the target item of an unknown mission (until it is mapped).
 const UNKNOWN_TARGET_GUESS: i32 = 5;
-/// Nejvíc hrdinství, které se dá realisticky získat za jedno kolo (plakát + kostlivec ~13,
-/// stupně vítězů 15). Když ani s tím 40 nedosáhneme, nemá smysl body honit.
+/// The most heroism realistically obtainable in one round (poster + dummy ~13,
+/// winner's podium 15). If even that cannot reach 40, chasing points is pointless.
 const MAX_GAIN_PER_FLOOR: i32 = 12;
-/// Pojistka proti nekonečné smyčce.
+/// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
-/// Vybere expedici: nejkratší (nejlevnější v ALU). Při stejné délce ta, kde je nejsnazší
-/// získat 40 hrdinství; neznámá mise (nebo s neověřeným bonusem) má při shodě přednost, abychom ji zmapovali.
+/// Picks an expedition: the shortest (cheapest in Thirst for Adventure). At equal length the one where
+/// 40 heroism is easiest; an unknown mission (or one with an unverified bonus) wins ties so we can map it.
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize> {
-    // Neznámá mise nebo neověřený bonus = chceme zmapovat, při shodě má přednost
+    // Unknown mission or unverified bonus = we want to map it, it wins ties
     let ease = |e: &AvailableExpedition| match missions::for_target(e.target) {
         Some(m) if m.bonus_known => m.ease(),
         _ => f64::INFINITY,
@@ -69,7 +69,7 @@ fn has(exp: &Expedition, t: ExpeditionThing) -> bool {
     exp.items.iter().flatten().any(|i| *i == t)
 }
 
-/// Kolik rozcestí ještě zbývá PO aktuálním výběru.
+/// How many crossroads remain AFTER the current pick.
 fn floors_after(exp: &Expedition) -> u8 {
     LAST_FLOOR.saturating_sub(exp.current_floor)
 }
@@ -78,10 +78,10 @@ fn target_done(exp: &Expedition) -> bool {
     exp.target_current >= exp.target_amount
 }
 
-/// Odhad hrdinství na konci expedice, pokud už nic dalšího nesebereme:
-/// aktuální + bonusy „za kus“ (připíšou se na konci) - trest za nesplněný úkol.
+/// Projected heroism at the end of the expedition if we collect nothing more:
+/// current + per-item bonuses (credited at the end) - penalty for an unfinished task.
 fn projected_heroism(exp: &Expedition) -> i32 {
-    // Po výběru v posledním kole už server bonusy i tresty připsal (ověřeno 2026-10-07)
+    // After the pick in the last round the server has already credited bonuses and penalties (verified 2026-10-07)
     if exp.current_floor >= LAST_FLOOR && !matches!(exp.current_stage(), ExpeditionStage::Encounters(_)) {
         return exp.heroism;
     }
@@ -97,7 +97,7 @@ fn projected_heroism(exp: &Expedition) -> i32 {
     p
 }
 
-/// O kolik se změní odhad konečného hrdinství hned tímto výběrem.
+/// How much this pick immediately changes the projected final heroism.
 fn immediate_gain(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     let mut g = enc.heroism;
     if let Some(poster) = enc.typ.required_bounty()
@@ -123,7 +123,7 @@ fn immediate_gain(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     g
 }
 
-/// Šance, že stihneme dalších `steps` potřebných kroků, když zbývá `floors` rozcestí.
+/// Chance of completing `steps` more required steps with `floors` crossroads left.
 fn feasibility(steps: u8, floors: u8) -> f64 {
     if steps == 0 {
         1.0
@@ -136,8 +136,8 @@ fn feasibility(steps: u8, floors: u8) -> f64 {
     }
 }
 
-/// Budoucí hodnota výběru: co odemkne (plakát, krok řetězu) nebo k čemu se přiblíží
-/// (počítací úkol), vážená šancí, že to stihneme. Krok, který nejde dokončit, má 0.
+/// Future value of a pick: what it unlocks (poster, chain step) or brings closer
+/// (counting task), weighted by the chance we make it in time. A step that cannot be completed is worth 0.
 fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
     let floors = floors_after(exp);
     let t = enc.typ;
@@ -149,13 +149,13 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         return unknown_chain_value(exp, t, floors);
     };
     let is_target = m.target() == exp.target_thing;
-    // Předměty cizích cyklů: za ně na konci nic nedostaneme, počítá se jen okamžitý zisk
+    // Items of foreign cycles: they give nothing at the end, only the immediate gain counts
     if !is_target {
         return 0.0;
     }
     let last_idx = m.chain.len() - 1;
 
-    // Úkol s počtem kusů (např. 3× toaletní papír): každý kus nás přibližuje ke splnění
+    // Task with a count (e.g. 3× toilet paper): each piece brings us closer to completion
     if idx == last_idx {
         if is_target
             && let Bonus::OnComplete(b) = m.bonus
@@ -170,7 +170,7 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         return 0.0;
     }
 
-    // Krok řetězu: má smysl, jen pokud ho ještě nemáme a řetěz jde dokončit
+    // Chain step: only worth it if we do not have it yet and the chain can still be completed
     let held = m.chain.iter().rposition(|(c, _)| has(exp, *c));
     if held.is_some_and(|h| h >= idx) {
         return 0.0;
@@ -187,8 +187,8 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
     feasibility(steps, floors) * payoff.max(0.0)
 }
 
-/// Odhad pro krok nezmapované mise. Předměty jedné mise mají v sf-api čísla po sobě
-/// ve stejné desítce (např. Mugs 151 → DraftBeer 152 → Barkeeper 153).
+/// Estimate for a step of an unmapped mission. Items of one mission have consecutive sf-api numbers
+/// within the same ten (e.g. Mugs 151 → DraftBeer 152 → Barkeeper 153).
 fn unknown_chain_value(exp: &Expedition, t: ExpeditionThing, floors: u8) -> f64 {
     let target = exp.target_thing;
     if missions::for_target(target).is_some() || has(exp, t) {
@@ -203,8 +203,8 @@ fn unknown_chain_value(exp: &Expedition, t: ExpeditionThing, floors: u8) -> f64 
     feasibility(steps, floors) * payoff.max(0.0)
 }
 
-/// O kolik hrdinství má vzrůst hned po výběru: body setkání + plakát + jednorázový bonus při splnění.
-/// (Bonusy „za kus“ přijdou až na konci, sem nepatří.)
+/// How much heroism should rise right after the pick: encounter points + poster + one-time completion bonus.
+/// (Per-item bonuses come at the end and do not belong here.)
 fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     let mut g = enc.heroism;
     if let Some(poster) = enc.typ.required_bounty()
@@ -223,8 +223,8 @@ fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     g
 }
 
-/// O kolik se má hrdinství změnit na konci (hned po výběru v 10. kole): bonusy „za kus“,
-/// nebo trest za nesplněný úkol.
+/// How much heroism should change at the end (right after the pick in round 10): per-item bonuses,
+/// or the penalty for an unfinished task.
 fn expected_end_change(exp: &Expedition) -> i32 {
     let Some(m) = missions::for_target(exp.target_thing) else { return 0 };
     let mut d = 0;
@@ -237,7 +237,7 @@ fn expected_end_change(exp: &Expedition) -> i32 {
     d
 }
 
-/// Popis možnosti pro výpis: body ze serveru, celkový zisk (je-li jiný) a budoucí hodnota (je-li nějaká).
+/// Option description for the log: server points, total gain (if different) and future value (if any).
 fn describe_option(exp: &Expedition, e: &ExpeditionEncounter) -> String {
     let gain = immediate_gain(exp, e);
     let future = future_value(exp, e);
@@ -246,26 +246,26 @@ fn describe_option(exp: &Expedition, e: &ExpeditionEncounter) -> String {
         s += &format!(" ⇒ {gain:+}");
     }
     if future > 0.0 {
-        s += &format!(", budoucí {future:.1}");
+        s += &format!(", future {future:.1}");
     }
     s + ")"
 }
 
-/// Zapíše výsledek ověření dat misí. Nesoulad se hned vypíše.
+/// Records a mission data check result. A mismatch is reported right away.
 fn check(entry: &mut crate::journal::Entry, ok: bool, what: &str) {
     if ok {
         entry.checks.push(format!("OK {what}"));
     } else {
-        report!("[kontrola] NESEDÍ: {what}");
-        entry.checks.push(format!("NESEDÍ {what}"));
+        report!("[check] MISMATCH: {what}");
+        entry.checks.push(format!("MISMATCH {what}"));
     }
 }
 
-/// Vybere setkání na rozcestí.
+/// Picks an encounter at the crossroads.
 ///
-/// Když je 40 zajištěno (i po započtení bonusů a trestů na konci): bere jen to, co nás
-/// pod 40 nestáhne, a přednostně truhlu (máme-li klíč), jinak klíč (zbývá-li kolo na truhlu).
-/// Jinak: nejvyšší součet okamžitého zisku a budoucí hodnoty.
+/// When 40 is secured (including bonuses and penalties at the end): only takes what does not
+/// drop us below 40, preferably a chest (if we hold a key), otherwise a key (if a round is left for a chest).
+/// Otherwise: the highest sum of immediate gain and future value.
 fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     let projected = projected_heroism(exp);
 
@@ -287,13 +287,13 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
         if let Some(&i) = safe.iter().max_by_key(|&&i| (immediate_gain(exp, &encs[i]), std::cmp::Reverse(i))) {
             return i;
         }
-        // Všechno nás stáhne pod 40: vezmeme nejmenší ztrátu
+        // Everything drops us below 40: take the smallest loss
         return (0..encs.len())
             .max_by_key(|&i| (immediate_gain(exp, &encs[i]), std::cmp::Reverse(i)))
             .unwrap_or(0);
     }
 
-    // 40 už nestihneme: body nepomůžou, ber aspoň truhlu/klíč
+    // 40 is out of reach: points will not help, take at least a chest/key
     let floors_incl_this = i32::from(floors_after(exp)) + 1;
     if projected + floors_incl_this * MAX_GAIN_PER_FLOOR < MAX_HEROISM {
         if has(exp, ExpeditionThing::Key)
@@ -318,11 +318,11 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     best
 }
 
-/// Expedice za nejvýš tolik ALU je „zbytková“: zlata dá málo, přesýpacích hodin stejně.
+/// An expedition costing at most this much Thirst for Adventure is a "leftover" one: little gold, but the same hourglasses.
 const REDUCED_EXPEDITION_SEC: u32 = 3 * 60;
 
-/// Vybere odměnu: houby > zlato > přesýpací hodiny > cokoli.
-/// U zbytkové expedice (za zbytek ALU) houby > přesýpací hodiny > zlato.
+/// Picks a reward: mushrooms > gold > hourglasses > anything.
+/// For a leftover expedition (the rest of the Thirst for Adventure) mushrooms > hourglasses > gold.
 fn choose_reward(rewards: &[Reward], reduced: bool) -> usize {
     let rank = |t: &RewardType| match t {
         RewardType::Mushrooms => 0,
@@ -339,9 +339,9 @@ fn choose_reward(rewards: &[Reward], reduced: bool) -> usize {
         .map_or(0, |(i, _)| i)
 }
 
-/// Je expedice po čekání (doprava po bossovi) a čeká na „pokračovat“?
-/// sf-api v tu chvíli ukazuje starou nabídku rozcestí; novou server pošle až po pokračování.
-/// Pole `floor_stage` (4 = čekání) není veřejné, čteme ho přes serde.
+/// Is the expedition past the waiting (travel after the boss) and waiting for "continue"?
+/// sf-api then shows the old crossroads offer; the server sends the new one only after continuing.
+/// The `floor_stage` field (4 = waiting) is not public, we read it via serde.
 fn is_after_wait(exp: &Expedition) -> bool {
     serde_json::to_value(exp)
         .ok()
@@ -349,55 +349,55 @@ fn is_after_wait(exp: &Expedition) -> bool {
         == Some(4)
 }
 
-/// Jak skončil běh hospody.
+/// How the Tavern run ended.
 pub enum Outcome {
-    /// Hotovo nebo chyba, kterou opakování nevyřeší.
+    /// Done, or an error that retrying will not fix.
     Done,
-    /// Server zneplatnil session, je potřeba se znovu přihlásit přes účet.
+    /// The server invalidated the session, a new login via the account is needed.
     SessionLost,
 }
 
-/// Server zneplatnil session (sf-api se při dalším příkazu přihlásí znovu).
+/// The server invalidated the session (sf-api logs in again with the next command).
 pub fn is_session_error(e: &SFError) -> bool {
     matches!(e, SFError::ServerError(msg) if msg.contains("sessionid"))
 }
 
 fn mission_name(t: ExpeditionThing) -> String {
     match missions::for_target(t) {
-        None => format!("{t:?} (neznámá mise)"),
-        Some(m) if !m.bonus_known => format!("{} (bonus neověřený)", m.name),
+        None => format!("{t:?} (unknown mission)"),
+        Some(m) if !m.bonus_known => format!("{} (bonus unverified)", m.name),
         Some(m) => m.name.to_string(),
     }
 }
 
-/// Odehraje expedice, dokud je ALU. Čekání vždy vyčká, nikdy nepřeskakuje.
+/// Plays expeditions while there is Thirst for Adventure. Always waits, never skips.
 pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome {
     let mut unknown_in_row = 0;
-    // sf-api obnoví stav expedice, jen když ho server pošle. Po každém herním příkazu proto
-    // stáhneme čerstvý stav a nikdy nevybíráme dvakrát ze stejné (zastaralé) nabídky.
+    // sf-api refreshes the expedition state only when the server sends it. So after every game command
+    // we download a fresh state and never pick twice from the same (stale) offer.
     let mut refresh_pending = true;
     let mut last_offer: Option<Vec<String>> = None;
     let mut stale_tries = 0;
-    // Po dokončení expedice vrátíme řízení (mezi expedicemi se dá stihnout aréna)
+    // After finishing an expedition we return control (the Arena fits in between expeditions)
     let mut played = false;
-    // Aréna během expedice: zkoušet nejvýš jednou za minutu (kdyby boj z nějakého důvodu neproběhl)
+    // Arena during an expedition: try at most once a minute (in case a fight did not happen for some reason)
     let mut last_arena_try: Option<std::time::Instant> = None;
     let mut last_dungeon_try: Option<std::time::Instant> = None;
-    // Expedice spuštěná za zbytek ALU (po restartu bota neznámé, pak se bere jako plná)
+    // Expedition started with the leftover Thirst for Adventure (unknown after a bot restart, then treated as full)
     let mut reduced_expedition = false;
-    // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
+    // Mission data checks during the run: (expected heroism, description)
     let mut pending_check: Option<(i32, String)> = None;
-    // Nesoulady s tabulkou hlásit jen jednou za běh
+    // Report table mismatches only once per run
     let mut reported = std::collections::HashSet::new();
-    // Před posledním bossem: (hrdinství, očekávaná změna na konci, popis)
+    // Before the last boss: (heroism, expected change at the end, description)
     let mut end_check: Option<(i32, i32, String)> = None;
 
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
-            report!("[hospoda] Chybí stav hry, končím");
+            report!("[tavern] Game state missing, stopping");
             return Outcome::Done;
         };
-        // Nové předměty (z truhel, boje): nasadit lepší, prodat horší. Bez akce nic neposílá.
+        // New items (from chests, fights): equip better, sell worse. Sends nothing without an action.
         if !refresh_pending {
             let before = gs.character.inventory.count_free_slots();
             if let Outcome::SessionLost = crate::inventory::manage(session).await {
@@ -410,7 +410,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             }
         }
         let Some(gs) = session.game_state() else { continue };
-        // Před novou expedicí zvíře (kupuje se až teď, když je opravdu potřeba)
+        // A mount before a new expedition (bought only now, when it is really needed)
         let about_to_start = !played
             && gs.tavern.current_action == CurrentAction::Idle
             && gs.tavern.expeditions.active().is_none()
@@ -454,25 +454,25 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             entry.target_amount = exp.target_amount;
 
             let stage = exp.current_stage();
-            // Po každém herním příkazu nejdřív čerstvý stav, ať nerozhodujeme podle starých dat
-            // (např. „pokračovat“ u bosse je pro server výběr odměny č. 1)
+            // After every game command first a fresh state, so we never decide on stale data
+            // (e.g. "continue" at the boss means "pick reward 1" to the server)
             if refresh_pending && !matches!(stage, ExpeditionStage::Waiting { .. }) {
                 refresh_pending = false;
                 if let Err(e) = safe::send(session, Command::Update).await {
-                    report!("[hospoda] Chyba: {e}");
+                    report!("[tavern] Error: {e}");
                     return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
                 }
                 continue;
             }
             if let Some((expected, what)) = pending_check.take() {
-                check(entry, expected == exp.heroism, &format!("{what}: čekal jsem {expected}, server má {}", exp.heroism));
+                check(entry, expected == exp.heroism, &format!("{what}: expected {expected}, server has {}", exp.heroism));
             }
             match stage {
                 ExpeditionStage::Encounters(_) if is_after_wait(exp) => {
                     unknown_in_row = 0;
                     last_offer = None;
                     stale_tries = 0;
-                    report!("[hospoda] Čekání skončilo, pokračuji do další části expedice");
+                    report!("[tavern] Waiting over, continuing to the next part of the expedition");
                     Command::ExpeditionContinue
                 }
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
@@ -480,20 +480,20 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     let offer: Vec<String> = encs.iter().map(|e| format!("{:?}{}", e.typ, e.heroism)).collect();
                     if last_offer.as_ref() == Some(&offer) && stale_tries < 2 {
                         stale_tries += 1;
-                        report!("[hospoda] Nabídka je stejná jako minule, obnovuji stav ({stale_tries}. pokus)");
+                        report!("[tavern] The offer is the same as last time, refreshing the state (attempt {stale_tries})");
                         if let Err(e) = safe::send(session, Command::Update).await {
-                            report!("[hospoda] Chyba: {e}");
+                            report!("[tavern] Error: {e}");
                             return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
                         }
                         continue;
                     }
                     if stale_tries >= 2 {
-                        report!("[hospoda] Nabídka zůstala stejná i po obnovení, beru ji jako skutečnou");
+                        report!("[tavern] The offer stayed the same after refreshing, treating it as real");
                     }
                     stale_tries = 0;
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
                         let note = format!("{:?}({:+})", u.typ, u.heroism);
-                        report!("[hospoda] Nezmapované setkání: {note}");
+                        report!("[tavern] Unmapped encounter: {note}");
                         if !entry.unmapped.contains(&note) {
                             entry.unmapped.push(note);
                         }
@@ -503,14 +503,14 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         if let Some((m, idx)) = missions::chain_position(e.typ) {
                             let table = m.chain[idx].1;
                             if table != e.heroism && reported.insert(e.typ as i64) {
-                                check(entry, false, &format!("{:?} má v tabulce {table:+}, server ukazuje {:+}", e.typ, e.heroism));
+                                check(entry, false, &format!("{:?} is {table:+} in the table, the server shows {:+}", e.typ, e.heroism));
                             }
                         }
                     }
                     let opts: Vec<String> = encs.iter().map(|e| describe_option(exp, e)).collect();
                     let picked = encs[pos].typ;
                     report!(
-                        "[hospoda] Kolo {}/{LAST_FLOOR}, hrdinství {} (odhad konce {}), {} {}/{} | {} → beru {picked:?}",
+                        "[tavern] Round {}/{LAST_FLOOR}, heroism {} (projected end {}), {} {}/{} | {} → taking {picked:?}",
                         exp.current_floor,
                         exp.heroism,
                         projected_heroism(exp),
@@ -541,28 +541,28 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     };
                     pending_check = Some((
                         exp.heroism + expected_now(exp, &encs[pos]) + end_change,
-                        format!("hrdinství po výběru {picked:?} v kole {}", exp.current_floor),
+                        format!("heroism after picking {picked:?} in round {}", exp.current_floor),
                     ));
                     Command::ExpeditionPickEncounter { pos }
                 }
                 ExpeditionStage::Boss(_) => {
                     unknown_in_row = 0;
                     if exp.current_floor >= LAST_FLOOR {
-                        // Bonusy za kus/trest už server připsal po výběru v 10. kole, po bossovi se nic měnit nemá
+                        // Per-item bonuses/penalty were credited after the pick in round 10, nothing should change after the boss
                         end_check = Some((
                             exp.heroism,
                             0,
-                            format!("změna hrdinství po posledním bossovi ({})", mission_name(exp.target_thing)),
+                            format!("heroism change after the last boss ({})", mission_name(exp.target_thing)),
                         ));
                     }
-                    report!("[hospoda] Boss, bojuji");
+                    report!("[tavern] Boss, fighting");
                     Command::ExpeditionContinue
                 }
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
                     let pos = choose_reward(&rewards, reduced_expedition);
                     let opts: Vec<String> = rewards.iter().map(|r| format!("{:?} x{}", r.typ, r.amount)).collect();
-                    report!("[hospoda] Odměny: {} → beru {:?}", opts.join(", "), rewards[pos].typ);
+                    report!("[tavern] Rewards: {} → taking {:?}", opts.join(", "), rewards[pos].typ);
                     entry.rewards.push(format!("{:?} x{}", rewards[pos].typ, rewards[pos].amount));
                     Command::ExpeditionPickReward { pos }
                 }
@@ -571,23 +571,23 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     let secs = u64::try_from((busy_until - Local::now()).num_seconds()).unwrap_or(0);
                     let extra = fastrand::u64(5..30);
                     report!(
-                        "[hospoda] Čekám do {} ({} min {} s)",
+                        "[tavern] Waiting until {} ({} min {} s)",
                         busy_until.format("%H:%M:%S"),
                         secs / 60,
                         secs % 60
                     );
-                    // Když se mezitím uvolní aréna, probudit se dřív a zabojovat
+                    // If the Arena becomes free in the meantime, wake up earlier and fight
                     let mut sleep = secs + extra;
                     if let Some(arena) = crate::arena::secs_until_ready(gs)
                         && arena + 5 < sleep
                     {
                         sleep = arena + fastrand::u64(5..20);
-                        report!("[hospoda] Během čekání se uvolní aréna, vzbudím se za {sleep} s");
+                        report!("[tavern] The Arena becomes free while waiting, waking up in {sleep} s");
                     }
                     let dungeon = crate::dungeons::secs_until_ready(gs);
                     if dungeon + 5 < sleep {
                         sleep = dungeon + fastrand::u64(5..20);
-                        report!("[hospoda] Během čekání se uvolní podzemí, vzbudím se za {sleep} s");
+                        report!("[tavern] The Dungeons become free while waiting, waking up in {sleep} s");
                     }
                     tokio::time::sleep(Duration::from_secs(sleep)).await;
                     Command::Update
@@ -595,7 +595,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 _ => {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
-                        report!("[hospoda] Neznámý stav expedice, končím");
+                        report!("[tavern] Unknown expedition state, stopping");
                         return Outcome::Done;
                     }
                     Command::Update
@@ -607,37 +607,37 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 let after = raw.as_ref().and_then(|v| v.get("active")?.get("heroism")?.as_i64());
                 if let (Some(after), Some(entry)) = (after, journal.current.as_mut()) {
                     let after = i32::try_from(after).unwrap_or(i32::MIN);
-                    check(entry, after - before == delta, &format!("{what}: čekal jsem {delta:+}, server {:+}", after - before));
+                    check(entry, after - before == delta, &format!("{what}: expected {delta:+}, server {:+}", after - before));
                     entry.heroism = after;
                     entry.projected = after;
                 }
             }
             journal.finish();
             match tavern.current_action {
-                // Poslední časovač doběhl, expedici je potřeba uzavřít
+                // The last timer ran out, the expedition needs to be closed
                 CurrentAction::Expedition => {
                     unknown_in_row += 1;
                     if unknown_in_row > 2 {
-                        report!("[hospoda] Expedici se nedaří uzavřít, končím");
+                        report!("[tavern] Could not close the expedition, stopping");
                         return Outcome::Done;
                     }
-                    // Diagnostika: co server o expedici ví (hlavně jestli nečeká výběr odměny)
+                    // Diagnostics: what the server knows about the expedition (mainly whether a reward choice is pending)
                     let raw = serde_json::to_value(&tavern.expeditions).ok();
                     let active = raw.as_ref().and_then(|v| v.get("active"));
                     let field = |k: &str| active.and_then(|a| a.get(k)).map(ToString::to_string).unwrap_or_default();
                     report!(
-                        "[hospoda] Stav před uzavřením: floor_stage {}, kolo {}, odměny {}",
+                        "[tavern] State before closing: floor_stage {}, round {}, rewards {}",
                         field("floor_stage"),
                         field("current_floor"),
                         field("rewards")
                     );
-                    // „Pokračovat“ je pro server výběr odměny č. 1. Když sf-api ukazuje odměny (třeba
-                    // zastaralé po 1. bossovi), vybereme podle priorit – horší to být nemůže.
+                    // "Continue" means "pick reward 1" to the server. If sf-api shows rewards (maybe
+                    // stale ones from the 1st boss), pick by priority – it cannot be worse.
                     let rewards: Vec<Reward> = active
                         .and_then(|a| a.get("rewards").cloned())
                         .and_then(|r| serde_json::from_value(r).ok())
                         .unwrap_or_default();
-                    report!("[hospoda] Uzavírám dokončenou expedici");
+                    report!("[tavern] Closing the finished expedition");
                     if rewards.is_empty() {
                         Command::ExpeditionContinue
                     } else {
@@ -648,19 +648,19 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
                         for e in list.iter().filter(|e| missions::for_target(e.target).is_none()) {
-                            report!("[hospoda] Nabízí se nezmapovaná mise s cílem {:?}", e.target);
+                            report!("[tavern] Unmapped mission on offer with target {:?}", e.target);
                         }
                         let thirst = tavern.thirst_for_adventure_sec;
                         let Some(pos) = choose_expedition(list, thirst) else {
                             report!(
-                                "[hospoda] Žádná expedice, na kterou by stačilo ALU ({} min), hotovo",
+                                "[tavern] No expedition affordable with the Thirst for Adventure ({} min), done",
                                 thirst / 60
                             );
                             return Outcome::Done;
                         };
                         let e = &list[pos];
                         report!(
-                            "[hospoda] Startuji expedici: {}, {} min ALU, speciál {:?}",
+                            "[tavern] Starting expedition: {}, {} min Thirst for Adventure, special {:?}",
                             mission_name(e.target),
                             e.thirst_for_adventure_sec / 60,
                             e.special
@@ -669,17 +669,17 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         played = true;
                         reduced_expedition = e.thirst_for_adventure_sec <= REDUCED_EXPEDITION_SEC;
                         if reduced_expedition {
-                            report!("[hospoda] Zbytková expedice: u odměn dávám přednost přesýpacím hodinám před zlatem");
+                            report!("[tavern] Leftover expedition: preferring hourglasses over gold for rewards");
                         }
                         Command::ExpeditionStart { pos }
                     }
                     AvailableTasks::Quests(_) => {
-                        report!("[hospoda] Expedice nejsou dostupné (jen klasické questy), zatím nepodporuji");
+                        report!("[tavern] Expeditions not available (only classic quests), not supported yet");
                         return Outcome::Done;
                     }
                 },
                 other => {
-                    report!("[hospoda] Postava je zaneprázdněná ({other:?}), hospodu přeskakuji");
+                    report!("[tavern] The character is busy ({other:?}), skipping the Tavern");
                     return Outcome::Done;
                 }
             }
@@ -687,11 +687,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
 
         refresh_pending = !matches!(cmd, Command::Update);
         if let Err(e) = safe::send(session, cmd).await {
-            report!("[hospoda] Chyba: {e}");
+            report!("[tavern] Error: {e}");
             return if is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
         }
     }
-    report!("[hospoda] Dosažen limit kroků, končím");
+    report!("[tavern] Step limit reached, stopping");
     Outcome::Done
 }
 
@@ -723,7 +723,7 @@ mod tests {
 
     #[test]
     fn target_item_beats_small_points() {
-        // Drak: +10 a +5 na konci
+        // Dragon: +10 and +5 at the end
         let e = with(exp(Dragon, 0, 2, 0, 3), &[Bait]);
         assert_eq!(choose_encounter(&e, &[enc(Cake, 5), enc(Dragon, 10)]), 1);
     }
@@ -741,14 +741,14 @@ mod tests {
         assert_eq!(choose_encounter(&e, &[enc(Cake, 5), enc(Dummy1, 2)]), 1);
     }
 
-    /// Příklad 1: na 40 nebereme překážku, která by nás stáhla pod 40.
+    /// Example 1: at 40 we do not take a hurdle that would drop us below 40.
     #[test]
     fn secured_never_drops_below_40() {
         let e = exp(Cake, 1, 1, 40, 5);
         assert_eq!(choose_encounter(&e, &[enc(SmallHurdle, -1), enc(Dummy1, 2)]), 1);
     }
 
-    /// Příklad 2: v posledním kole nezačínáme řetěz, který nejde dokončit.
+    /// Example 2: in the last round we do not start a chain that cannot be completed.
     #[test]
     fn no_unfinishable_chain_on_last_floor() {
         let e = exp(WinnersPodium, 0, 1, 38, 10);
@@ -756,7 +756,7 @@ mod tests {
         assert_eq!(choose_encounter(&e, &[enc(UnicornBounty, 0), enc(CampFire, 3)]), 1);
     }
 
-    /// Příklad 3: kolo 9, hledaný kostlivec (+2 +10) vs. cílový uhasený oheň (0 +4).
+    /// Example 3: round 9, wanted dummy (+2 +10) vs. the target burnt-out campfire (0 +4).
     #[test]
     fn wanted_beats_weak_target() {
         let e = with(exp(BurntCampfire, 0, 1, 20, 9), &[DummyBounty, Phoenix]);
@@ -777,14 +777,14 @@ mod tests {
         assert_eq!(choose_encounter(&e, &[enc(Dragon, 10), enc(Key, 0)]), 1);
         let e = with(exp(Cake, 1, 1, 42, 6), &[Key]);
         assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Suitcase, 0)]), 1);
-        // poslední kolo: klíč už nemá smysl
+        // last round: a key makes no sense any more
         let e = exp(Cake, 1, 1, 42, 10);
         assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dummy1, 2)]), 1);
     }
 
     #[test]
     fn per_item_bonus_counts_to_40() {
-        // Podium: 25 + 2 × 10 na konci = 45 → už je zajištěno, bereme klíč
+        // Podium: 25 + 2 × 10 at the end = 45 → already secured, take the key
         let e = exp(WinnersPodium, 2, 2, 25, 6);
         assert_eq!(projected_heroism(&e), 45);
         assert_eq!(choose_encounter(&e, &[enc(Dummy1, 2), enc(Key, 0)]), 1);
@@ -792,10 +792,10 @@ mod tests {
 
     #[test]
     fn sanitary_fail_penalty() {
-        // nesplněný papír: odhad 42 - 5 = 37 → ještě není zajištěno
+        // unfinished paper: projection 42 - 5 = 37 → not secured yet
         let e = exp(ToiletPaper, 2, 3, 42, 7);
         assert_eq!(projected_heroism(&e), 37);
-        // třetí papír splní úkol: 0 + 20 + 5
+        // the third paper completes the task: 0 + 20 + 5
         assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(ToiletPaper, 0)]), 1);
     }
 
@@ -811,15 +811,15 @@ mod tests {
 
     #[test]
     fn expedition_shortest_then_easiest() {
-        // kratší vyhrává i nad snazší
+        // shorter wins even over easier
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(BurntCampfire, 15)], 6000), Some(1));
-        // stejná délka: sele (8/kolo) je snazší než oheň (4/kolo)
+        // same length: suckling pig (8/round) is easier than the fire (4/round)
         assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000), Some(1));
-        // stejná délka: nezmapovaná mise má přednost
+        // same length: an unmapped mission wins
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Barkeeper, 20)], 6000), Some(1));
-        // stejná délka: mise s neověřeným bonusem má také přednost
+        // same length: a mission with an unverified bonus also wins
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
-        // na delší nestačí ALU
+        // not enough Thirst for Adventure for the longer one
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
     }
 
@@ -828,46 +828,46 @@ mod tests {
         let e = exp(Barkeeper, 0, 1, 0, 3);
         assert!(future_value(&e, &enc(Mugs, 0)) > 0.0);
         assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Mugs, 0)]), 1);
-        // jiná skupina nic nedostane
+        // another group gets nothing
         assert_eq!(future_value(&e, &enc(FishingRod, 0)), 0.0);
     }
 
-    /// Čísla ověřená v běhu 2026-10-07.
+    /// Numbers verified in the 2026-10-07 run.
     #[test]
     fn expectations_match_observed_runs() {
-        // jednorožec: 8 → 25 (7 + bonus 10 hned při splnění)
+        // unicorn: 8 → 25 (7 + bonus 10 right on completion)
         let e = with(exp(Unicorn, 0, 1, 8, 6), &[UnicornHorn, Donkey, Rainbow]);
         assert_eq!(e.heroism + expected_now(&e, &enc(Unicorn, 7)), 25);
-        // kostlivec s plakátem: 25 → 37
+        // dummy with a poster: 25 → 37
         let e = with(exp(Unicorn, 1, 1, 25, 7), &[DummyBounty]);
         assert_eq!(e.heroism + expected_now(&e, &enc(Dummy2, 2)), 37);
-        // draci: na konci +5 × 2
+        // dragons: +5 × 2 at the end
         assert_eq!(expected_end_change(&exp(Dragon, 2, 2, 36, 10)), 10);
-        // nesplněný papír: −5 na konci, splnění +20 hned
+        // unfinished paper: −5 at the end, completion +20 right away
         assert_eq!(expected_end_change(&exp(ToiletPaper, 2, 3, 30, 10)), -5);
         assert_eq!(expected_now(&exp(ToiletPaper, 2, 3, 30, 8), &enc(ToiletPaper, 0)), 20);
     }
 
-    /// Barkeeper 2026-10-07, kolo 9: hrdinství 13, máme klíč, nabídka truhla / kostlivec +3.
+    /// Barkeeper 2026-10-07, round 9: heroism 13, we hold a key, offer chest / dummy +3.
     #[test]
     fn chest_when_40_unreachable() {
         let e = with(exp(Barkeeper, 0, 1, 13, 9), &[Key]);
         assert_eq!(choose_encounter(&e, &[enc(Dummy3, 3), enc(Suitcase, 0), enc(Dummy1, 1)]), 1);
-        // na začátku expedice ještě body honíme
+        // at the start of the expedition we still chase points
         let e = with(exp(Barkeeper, 0, 1, 13, 4), &[Key]);
         assert_eq!(choose_encounter(&e, &[enc(Dummy3, 3), enc(Suitcase, 0)]), 0);
     }
 
-    /// Předměty cizích cyklů jen podle okamžitého zisku (pravidlo uživatele 2026-10-07).
+    /// Items of foreign cycles only by immediate gain (user rule 2026-10-07).
     #[test]
     fn foreign_quest_items_only_for_instant_gain() {
-        // mise drak: táborák (+3, cizí cyklus) je víc než slabý kostlivec (+1) → bereme
+        // dragon mission: campfire (+3, foreign cycle) beats a weak dummy (+1) → take it
         let e = exp(Dragon, 0, 1, 0, 3);
         assert_eq!(choose_encounter(&e, &[enc(Dummy1, 1), enc(CampFire, 3)]), 1);
-        // malá překážka (−1) kvůli cizím stupňům vítězů ne, radši klíč (0)
+        // no small hurdle (−1) for a foreign winner's podium, rather the key (0)
         let e = exp(Unicorn, 0, 1, 1, 4);
         assert_eq!(choose_encounter(&e, &[enc(SmallHurdle, -1), enc(Key, 0)]), 1);
-        // čarodějnice (−5) v cizí misi ne, kostlivec (+2)
+        // no witch (−5) in a foreign mission, the dummy (+2)
         let e = exp(BrokenSword, 2, 97, 3, 6);
         assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Girl, -5)]), 0);
     }
@@ -888,7 +888,7 @@ mod tests {
         assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], false), 2);
         assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], false), 1);
         assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], false), 1);
-        // zbytková expedice: hodiny před zlatem, houby pořád první
+        // leftover expedition: hourglasses before gold, mushrooms still first
         assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::QuicksandGlass)], true), 1);
         assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Mushrooms)], true), 1);
     }
