@@ -33,7 +33,7 @@ pub fn weapon_value(avg_damage: f64, main_attr_with_weapon: f64) -> f64 {
 
 /// Item value for our character: non-weapons by attributes; weapons by damage
 /// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage).
-fn value(gs: &GameState, item: &Item) -> f64 {
+pub fn value(gs: &GameState, item: &Item) -> f64 {
     let ch = &gs.character;
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
         return score(ch.class, item);

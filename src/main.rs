@@ -11,6 +11,7 @@ mod inventory;
 mod journal;
 mod missions;
 mod safe;
+mod shops;
 mod stable;
 mod tavern;
 mod tray;
@@ -122,7 +123,7 @@ fn print_status(session: &SimpleSession) {
 }
 
 /// Main loop: Arena (when free, max 10 wins a day), Dungeons (when free), Tavern (one expedition),
-/// City Guard (when the Tavern is done, until midnight),
+/// Shops (once a day after the Tavern), City Guard (when the Tavern is done, until midnight),
 /// and when there is nothing to do, wait for the nearest cooldown to end. Runs until stopped.
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
@@ -162,6 +163,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 continue;
             }
             tavern_done = before.0 != CurrentAction::Expedition;
+        }
+
+        // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)
+        if let tavern::Outcome::SessionLost = shops::run(session, tavern_done).await {
+            return tavern::Outcome::SessionLost;
         }
 
         // City Guard: pay for a finished shift, a new one when the Tavern is done (until midnight, max 10 h)

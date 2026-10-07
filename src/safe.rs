@@ -8,7 +8,7 @@ use sf_api::{
     SimpleSession,
     command::{Command, FortunePayment},
     error::SFError,
-    gamestate::{GameState, character::Mount},
+    gamestate::{GameState, ShopPosition, character::Mount, items::ItemCommandIdent},
 };
 
 /// Margin after a cooldown ends before we may act (Arena, Dungeons) – server and local clocks can differ.
@@ -18,7 +18,8 @@ pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 /// so a new command never reaches the server until it is deliberately added here.
 /// None of them spends mushrooms (`Fight`/`FightDungeon` only off cooldown, see `cooldown_free`;
 /// `SellShop` costs nothing, `Equip` only moves an item from the backpack onto the character,
-/// Wheel of Fortune only `FreeTurn` and only when a free spin is available).
+/// Wheel of Fortune only `FreeTurn` and only when a free spin is available,
+/// `BuyShop` only for an item with no mushroom price, see `shop_buy_ok`).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -33,6 +34,7 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::UpdateDungeons
             | Command::FightDungeon { use_mushroom: false, .. }
             | Command::SellShop { .. }
+            | Command::BuyShop { .. }
             | Command::Equip { .. }
             | Command::StartWork { .. }
             | Command::FinishWork
@@ -102,6 +104,14 @@ pub fn dungeon_is_free(gs: &GameState) -> bool {
     cooldown_free(Cooldown::Dungeon, gs.dungeons.next_free_fight)
 }
 
+/// May this shop item be bought? Only when it costs no mushrooms, is still exactly the item we looked at
+/// (`item_ident` contains both prices, the server also checks it) and we have the gold for it.
+fn shop_buy_ok(gs: &GameState, shop_pos: ShopPosition, item_ident: ItemCommandIdent) -> bool {
+    gs.shops[shop_pos.typ].items.get(shop_pos.pos).is_some_and(|item| {
+        item.mushroom_price == 0 && item.command_ident() == item_ident && u64::from(item.price) <= gs.character.silver
+    })
+}
+
 /// Random pause between actions (human-like behaviour).
 pub async fn human_pause() {
     tokio::time::sleep(Duration::from_millis(fastrand::u64(2500..7000))).await;
@@ -124,6 +134,11 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
             return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
         }
         _ => {}
+    }
+    if let Command::BuyShop { shop_pos, item_ident, .. } = &cmd
+        && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))
+    {
+        return Err(SFError::InvalidRequest("shop item costs mushrooms or changed, not buying"));
     }
     if matches!(cmd, Command::BuyMount { .. }) && !session.game_state().is_some_and(crate::stable::needs_mount) {
         return Err(SFError::InvalidRequest("character already has a mount, buying would waste mushrooms"));

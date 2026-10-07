@@ -3,9 +3,9 @@
 Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a popsat v příslušném dokumentu v `docs/`.
 
 - [x] Kolo štěstí (jen 1× denně zdarma, `docs/daily-rewards.md`)
-- [ ] Nákup ve zbrojírně
-- [ ] Nákup v čarovném obchodě
-- [ ] Točení v obchodech
+- [x] Nákup ve zbrojírně (`docs/shops.md`, čeká na ověření)
+- [x] Nákup v čarovném obchodě
+- [x] Točení v obchodech
 - [ ] Reklamy??
 - [ ] Questy (gamba, síň slávy, povolání, bare hands, …)
 - [ ] Event game loop (piva?)
