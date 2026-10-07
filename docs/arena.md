@@ -29,5 +29,6 @@
 | Soupeři se načtou z `enemy_ids` (jinak `CheckArena`) | ✅ 2026-10-07 |
 | `ViewPlayer` vrátí staty soupeře | ✅ 2026-10-07 |
 | Cooldown arény 10 min | ✅ 2026-10-07: boj 16:49:24, další 16:59:24 |
+| Boj během hlídky jde | ✅ 2026-10-07 (17:13–18:14 několik bojů) |
 | Boj během expedice jde | ⏳ neověřeno |
 | `fights_for_xp` = dnešní výhry za xp (uživatel) | ✅ 2026-10-07: po výhře 0 → 1, po prohře beze změny |

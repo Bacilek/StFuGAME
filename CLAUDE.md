@@ -2,6 +2,13 @@
 
 Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, aréna, podzemí, …).
 
+## Začni tady (nová session)
+1. `docs/stav.md` – kde jsme, co čeká na ověření, otevřené otázky.
+2. `docs/architektura.md` – moduly, záludnosti sf-api/serveru, pracovní postup (build, restart bota, push).
+3. `docs/precedenty.md` – rozhodnutí uživatele (řídit se jimi), `docs/todo.md` – plán.
+4. Dokumenty k funkcím: `docs/expedice.md`, `arena.md`, `podzemi.md`, `inventar.md`, `hlidka.md`, `odmeny.md`, `staj.md`, `ovladani.md`.
+5. Bot nejspíš právě běží u uživatele (ikona u hodin). Co dělal: `logs/prubeh.log`, deníky `logs/expedice.jsonl`, `logs/arena.jsonl`.
+
 ## Kontext
 - Uživatel Rust neumí. Kód píše Claude, uživateli vysvětluje jen to nutné.
 - Uživatel umí C#, vysvětlení ve srovnání s C# jsou vítána.
@@ -13,6 +20,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Přihlašovací údaje z `.env` (SF_USER, SF_PASS = S&F účet; SF_CHARACTER = jméno postavy; SF_SERVER volitelně), nikdy je nehardcodovat a nevypisovat do logů. Soubor `.env` nečíst.
 
 ## Pravidla
+- Všechny docs jsou hlavně pro Clauda: aktualizovat je pokaždé, když se zjistí cokoli nového (z běhu, od uživatele, z FAQ). Ověřená fakta zapisovat do tabulek „Stav ověření“, `docs/stav.md` přepsat při větším posunu.
 - Plán dalších funkcí: `docs/todo.md` (nové nápady připisovat, hotové odškrtnout). Kdykoli mě napadne velké herní TODO, připsat ho do sekce „Návrhy od Clauda“.
 - Kdykoli si nejsem jistý jakýmkoli rozhodnutím (strategie, data, co bot smí), zeptat se uživatele a odpověď zapsat do `docs/precedenty.md`. Při podobné situaci se řídit precedenty.
 - Mezi akcemi náhodné prodlevy (simulace člověka), žádné spamování serveru.
@@ -29,16 +37,16 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
-- Mise, pravidla a otevřené otázky: `docs/expedice.md`. Je to hlavně dokument pro Clauda: aktualizovat ho pokaždé, když se zjistí cokoli nového (z běhu, od uživatele, z FAQ).  (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
+- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
 - Výběr expedice: nejkratší, při shodě nezmapovaná, jinak nejsnazší na 40 (`Mission::ease`).
 - Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
 - Předměty cizích cyklů (ne hlavní mise) brát jen kvůli okamžitému hrdinství, ne kvůli budoucím krokům.
 - Odměny: houby > zlato > přesýpací hodiny; u zbytkové expedice (ALU ≤ 3 min) houby > hodiny > zlato. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
-- Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`, bot lze pustit na pozadí a log sledovat).
+- Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`).
 - Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
-- Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.
+- Klasické questy (`StartQuest`/`FinishQuest`) bot neumí; když `tavern.available_tasks()` vrátí `Quests`, hospodu přeskočí.
 
 ## Aréna
 - Popis a stav ověření: `docs/arena.md` (aktualizovat při každém novém zjištění).

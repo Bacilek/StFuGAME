@@ -25,6 +25,7 @@
 | Co | Stav |
 |---|---|
 | Cooldown 1 h | ✅ 2026-10-07: boj 16:59:29, další 17:59:29 |
-| `current_enemy` odpovídá protivníkovi ve hře | ⏳ boj proběhl (Henry Hobbyhorse lvl 3), shodu se hrou potvrdit u uživatele |
+| `current_enemy` odpovídá protivníkovi ve hře | ✅ 2026-10-07: Training Camp Henry Hobbyhorse (lvl 3) → po výhře Broken Brian (lvl 4), boje proběhly |
 | Výhra se „přijme“ sama (bez dalšího příkazu) | ✅ 2026-10-07: Training Camp, xp +280 |
+| Boj během hlídky jde | ✅ 2026-10-07 18:01 (výhra, xp +360, +1 g 90 s) |
 | Boj během expedice jde | ⏳ neověřeno |
