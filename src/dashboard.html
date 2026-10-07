@@ -6,9 +6,11 @@
 <title>Character Challenge</title>
 <style>
 :root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--line:#e1e0d9;
---s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#4a3aa7;--s8:#e34948}
+--Warrior:#6d8197;--Scout:#8a5a2e;--Mage:#3f55d9;--Assassin:#e0680f;--BattleMage:#9145e0;--Berserker:#d42a30;
+--Druid:#5aa832;--DemonHunter:#e0559f;--Bard:#2e9fe0;--Necromancer:#0a9e80;--Paladin:#c9a800;--PlagueDoctor:#2b7a3a;--Other:#898781}
 @media (prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--line:#2c2c2a;
---s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}}
+--Warrior:#7f93a8;--Scout:#9a6234;--Mage:#4a5fe8;--Assassin:#f2781c;--BattleMage:#a45af2;--Berserker:#e3343a;
+--Druid:#86d85a;--DemonHunter:#f46cb4;--Bard:#8fd3ff;--Necromancer:#0fbf98;--Paladin:#f6e358;--PlagueDoctor:#2b7a3a;--Other:#898781}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 system-ui,sans-serif;padding:16px}
 .wrap{max-width:1100px;margin:auto}
@@ -68,8 +70,10 @@ const METRICS = [
   {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
   {key:"strength", label:"Strength", fmt:v=>Math.round(v).toLocaleString()},
 ];
-// 8 hues in fixed order; characters 9+ reuse them with a dashed line and a hollow marker
-const HUES = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+// Colour = class (user 2026-10-07), plus a marker shape per class as the second cue (some class colours are close).
+// A second character of the same class gets a dashed line and a hollow marker.
+const CLASSES = ["Warrior","Scout","Mage","Assassin","BattleMage","Berserker","Druid","DemonHunter","Bard","Necromancer","Paladin","PlagueDoctor"];
+const SHAPES = ["square","circle","star","diamond","triangle","cross","leaf","triangleDown","pentagon","hexagon","shield","plus"];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let metric = 0, upto = Math.min(1, DATA.dates.length), hidden = new Set();
 // #day=N&metric=M opens a given view (handy for links and testing)
@@ -79,7 +83,31 @@ if (hp.get("metric")) metric = Math.max(0, Math.min(METRICS.length-1, +hp.get("m
 const $ = id => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs={}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-const style = i => ({color: css(HUES[i % 8]), dashed: i >= 8});
+const pretty = cls => (cls||"?").replace(/([a-z])([A-Z])/g, "$1 $2");
+const style = i => {
+  const cls = DATA.chars[i].cls, k = CLASSES.indexOf(cls);
+  const dup = DATA.chars.slice(0, i).some(c => c.cls === cls);
+  return {color: css(k >= 0 ? "--" + cls : "--Other"), shape: k >= 0 ? SHAPES[k] : "circle", dashed: dup || k < 0};
+};
+// Marker of a given shape centred on (cx, cy)
+function marker(parent, shape, cx, cy, r, fill, stroke){
+  const poly = (n, rot=-Math.PI/2, rr=r) => Array.from({length:n},(_,k)=>{const a=rot+k*2*Math.PI/n; return `${cx+rr*Math.cos(a)},${cy+rr*Math.sin(a)}`;}).join(" ");
+  const a = {fill, stroke, "stroke-width":1.6};
+  switch (shape){
+    case "square": return el("rect",{x:cx-r*0.85,y:cy-r*0.85,width:r*1.7,height:r*1.7,...a},parent);
+    case "diamond": return el("polygon",{points:poly(4,-Math.PI/2,r*1.15),...a},parent);
+    case "triangle": return el("polygon",{points:poly(3,-Math.PI/2,r*1.2),...a},parent);
+    case "triangleDown": return el("polygon",{points:poly(3,Math.PI/2,r*1.2),...a},parent);
+    case "pentagon": return el("polygon",{points:poly(5,-Math.PI/2,r*1.1),...a},parent);
+    case "hexagon": return el("polygon",{points:poly(6,0,r*1.05),...a},parent);
+    case "star": { const pts=[]; for(let k=0;k<10;k++){const rr=k%2?r*0.55:r*1.3,an=-Math.PI/2+k*Math.PI/5; pts.push(`${cx+rr*Math.cos(an)},${cy+rr*Math.sin(an)}`);} return el("polygon",{points:pts.join(" "),...a},parent); }
+    case "cross": { const w=r*0.45,l=r*1.15; return el("path",{d:`M${cx-l},${cy-l+w}l${w},${-w}l${l-w},${l-w}l${l-w},${-(l-w)}l${w},${w}l${-(l-w)},${l-w}l${l-w},${l-w}l${-w},${w}l${-(l-w)},${-(l-w)}l${-(l-w)},${l-w}l${-w},${-w}l${l-w},${-(l-w)}z`,...a},parent); }
+    case "plus": { const w=r*0.45,l=r*1.15; return el("path",{d:`M${cx-w},${cy-l}h${2*w}v${l-w}h${l-w}v${2*w}h${-(l-w)}v${l-w}h${-2*w}v${-(l-w)}h${-(l-w)}v${-2*w}h${l-w}z`,...a},parent); }
+    case "leaf": return el("path",{d:`M${cx},${cy-r*1.2}Q${cx+r*1.3},${cy} ${cx},${cy+r*1.2}Q${cx-r*1.3},${cy} ${cx},${cy-r*1.2}z`,...a},parent);
+    case "shield": return el("path",{d:`M${cx-r},${cy-r}h${2*r}v${r*0.7}q0,${r*0.9} ${-r},${r*1.4}q${-r},${-r*0.5} ${-r},${-r*1.4}z`,...a},parent);
+    default: return el("circle",{cx,cy,r,...a},parent);
+  }
+}
 
 function niceTicks(lo, hi, n=5){
   if (lo === hi){ lo -= 1; hi += 1; }
@@ -119,7 +147,7 @@ function render(){
     if (hidden.has(i)) return;
     const s = style(i), pts = days.map((d,j)=>[j, c.rows[d]?.[m.key]]).filter(p=>p[1]!=null);
     if (pts.length > 1) el("polyline",{points:pts.map(p=>`${x(p[0])},${y(p[1])}`).join(" "),fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-dasharray":s.dashed?"6 4":"none"},svg);
-    pts.forEach(p=> el("circle",{cx:x(p[0]),cy:y(p[1]),r:4.5,fill:s.dashed?css("--surface"):s.color,stroke:s.dashed?s.color:css("--surface"),"stroke-width":2},svg));
+    pts.forEach(p=> marker(svg, s.shape, x(p[0]), y(p[1]), 5, s.dashed?css("--surface"):s.color, s.dashed?s.color:css("--surface")));
     if (pts.length){ const last = pts[pts.length-1]; ends.push({i, y:y(last[1]), name:c.nick}); }
   });
   // direct labels at the line ends only for a few series (otherwise the legend + tooltip), nudged apart
@@ -140,7 +168,9 @@ function render(){
     const d = document.createElement("div"); d.className="d"; d.textContent=`Day ${j+1} · ${days[j]}`; tip.appendChild(d);
     rows.forEach(o=>{ const row=document.createElement("div"); row.className="r";
       const key=document.createElementNS(NS,"svg"); key.setAttribute("width",16); key.setAttribute("height",4);
-      el("line",{x1:0,x2:16,y1:2,y2:2,stroke:style(o.i).color,"stroke-width":3,"stroke-dasharray":style(o.i).dashed?"4 2":"none"},key);
+      key.setAttribute("width",22); key.setAttribute("height",12);
+      el("line",{x1:0,x2:22,y1:6,y2:6,stroke:style(o.i).color,"stroke-width":2,"stroke-dasharray":style(o.i).dashed?"4 2":"none"},key);
+      marker(key, style(o.i).shape, 11, 6, 4, style(o.i).dashed?css("--surface"):style(o.i).color, style(o.i).color);
       const b=document.createElement("b"); b.textContent=m.fmt(o.v); const n=document.createElement("span"); n.textContent=o.c.nick;
       row.append(key,b,n); tip.appendChild(row); });
     tip.style.display="block";
@@ -155,7 +185,7 @@ function render(){
 function renderTable(m, days){
   const t = document.createElement("table"), head = t.insertRow();
   ["Character", ...days.map((d,i)=>`Day ${i+1}`)].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; head.appendChild(th); });
-  DATA.chars.forEach(c=>{ const r=t.insertRow(); r.insertCell().textContent = `${c.nick} (${c.cls})`;
+  DATA.chars.forEach(c=>{ const r=t.insertRow(); r.insertCell().textContent = `${c.nick} (${pretty(c.cls)})`;
     days.forEach(d=>{ const v=c.rows[d]?.[m.key]; r.insertCell().textContent = v==null ? "–" : m.fmt(v); }); });
   $("table").replaceChildren(t);
 }
@@ -163,10 +193,10 @@ function renderTable(m, days){
 function legend(){
   const ul = $("legend"); ul.replaceChildren();
   DATA.chars.forEach((c,i)=>{ const li=document.createElement("li"), s=style(i);
-    const k=document.createElementNS(NS,"svg"); k.setAttribute("width",22); k.setAttribute("height",10);
-    el("line",{x1:0,x2:22,y1:5,y2:5,stroke:s.color,"stroke-width":2,"stroke-dasharray":s.dashed?"5 3":"none"},k);
-    el("circle",{cx:11,cy:5,r:3.5,fill:s.dashed?css("--surface"):s.color,stroke:s.color,"stroke-width":1.5},k);
-    const n=document.createElement("span"); n.textContent=`${c.nick} · ${c.cls}`;
+    const k=document.createElementNS(NS,"svg"); k.setAttribute("width",26); k.setAttribute("height",14);
+    el("line",{x1:0,x2:26,y1:7,y2:7,stroke:s.color,"stroke-width":2,"stroke-dasharray":s.dashed?"5 3":"none"},k);
+    marker(k, s.shape, 13, 7, 4.5, s.dashed?css("--surface"):s.color, s.color);
+    const n=document.createElement("span"); n.textContent=`${c.nick} · ${pretty(c.cls)}`;
     li.append(k,n); li.title="Click to hide / show";
     li.addEventListener("click",()=>{ hidden.has(i)?hidden.delete(i):hidden.add(i); li.classList.toggle("off"); render(); });
     ul.appendChild(li); });

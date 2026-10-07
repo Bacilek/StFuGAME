@@ -810,6 +810,8 @@ mod tests {
             ("MimiMimi11", "Paladin"),
             ("TestChar1", "Warrior"),
             ("Radek", "Druid"),
+            ("Petr N.", "PlagueDoctor"),
+            ("Já", "BattleMage"),
         ];
         let start = Local::now().date_naive() - chrono::Duration::days(6);
         let mut rng = fastrand::Rng::with_seed(7);
