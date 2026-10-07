@@ -26,8 +26,8 @@
 ## Stav ověření
 | Co | Stav |
 |---|---|
-| Soupeři se načtou z `enemy_ids` (jinak `CheckArena`) | ⏳ neověřeno |
-| `ViewPlayer` vrátí staty soupeře | ⏳ neověřeno |
-| Cooldown arény (délka) | ⏳ neověřeno |
+| Soupeři se načtou z `enemy_ids` (jinak `CheckArena`) | ✅ 2026-10-07 |
+| `ViewPlayer` vrátí staty soupeře | ✅ 2026-10-07 |
+| Cooldown arény 10 min | ✅ 2026-10-07: boj 16:49:24, další 16:59:24 |
 | Boj během expedice jde | ⏳ neověřeno |
-| `fights_for_xp` = dnešní výhry za xp (uživatel) | ⏳ ověřit z logu (po výhře +1, po prohře beze změny) |
+| `fights_for_xp` = dnešní výhry za xp (uživatel) | ✅ po výhře 0 → 1 (prohra zatím neviděna) |

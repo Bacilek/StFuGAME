@@ -24,7 +24,7 @@
 ## Stav ověření
 | Co | Stav |
 |---|---|
-| Cooldown 1 h | ⏳ neověřeno |
-| `current_enemy` odpovídá protivníkovi ve hře | ⏳ neověřeno |
-| Výhra se „přijme“ sama (bez dalšího příkazu) | ⏳ neověřeno |
+| Cooldown 1 h | ✅ 2026-10-07: boj 16:59:29, další 17:59:29 |
+| `current_enemy` odpovídá protivníkovi ve hře | ⏳ boj proběhl (Henry Hobbyhorse lvl 3), shodu se hrou potvrdit u uživatele |
+| Výhra se „přijme“ sama (bez dalšího příkazu) | ✅ 2026-10-07: Training Camp, xp +280 |
 | Boj během expedice jde | ⏳ neověřeno |
