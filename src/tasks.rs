@@ -104,7 +104,7 @@ fn attribute_for_task(gs: &GameState) -> Option<AttributeType> {
     })
 }
 
-async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
+pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
     // The price of the next point is not known in advance: estimate it by the last one paid
     let mut last_price = 0;
     for _ in 0..MAX_ACTIONS {
@@ -132,6 +132,38 @@ async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
         report!("[tasks] Paid {}", crate::report::gold(last_price));
     }
     Outcome::Done
+}
+
+fn is_attribute_task(t: TaskType) -> bool {
+    matches!(t, TaskType::Upgrade(_) | TaskType::UpgradeAnyAttribute | TaskType::SpendGoldOnUpgrades)
+}
+
+/// Do the attribute tasks help to a better chest? (user 2026-10-07: then they go before spinning the shops)
+/// Yes when some unopened chest is above earned + natural points and within reach with the attribute tasks
+/// (plus the costly tasks we could afford).
+fn attributes_help(tasks: &[Task], chests: &[RewardChest], means: Means) -> bool {
+    let open = |pred: &dyn Fn(TaskType) -> bool| -> u32 {
+        tasks.iter().filter(|t| !t.is_completed() && pred(t.typ)).map(|t| t.point_reward).sum()
+    };
+    let attr = open(&is_attribute_task);
+    if attr == 0 {
+        return false;
+    }
+    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+    let expected = earned + natural_points(tasks);
+    let extras = open(&|t| {
+        (t == TaskType::DefeatGambler && means.gamble)
+            || (t == TaskType::SpinWheelOfFortune && means.wheel_spins > 0)
+            || (t == TaskType::DrinkBeer && means.beers > 0)
+    });
+    chests.iter().any(|c| !c.opened && c.required_points > expected && c.required_points <= expected + attr + extras)
+}
+
+/// Attribute tasks needed for a better chest (daily or event)?
+pub fn attributes_needed(gs: &GameState) -> bool {
+    let t = &gs.specials.tasks;
+    let means = Means::of(gs);
+    attributes_help(&t.daily.tasks, &t.daily.rewards, means) || attributes_help(&t.event.tasks, &t.event.rewards, means)
 }
 
 /// Points of open tasks that will most likely complete on their own today (Arena, Dungeons, City Guard).
@@ -423,6 +455,24 @@ mod tests {
     }
 
     const RICH: Means = Means { gamble: true, wheel_spins: 10, beers: 10 };
+
+    #[test]
+    fn attributes_before_spinning_only_when_they_help() {
+        let chests = [chest(4), chest(8), chest(12)];
+        // earned 7 + STR 3 = 10 → reaches chest 8 → helps
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 7), task(TaskType::Upgrade(AttributeType::Strength), 0, 5, 3)];
+        assert!(attributes_help(&tasks, &chests, RICH));
+        // earned 12: everything reached → no
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 12), task(TaskType::Upgrade(AttributeType::Strength), 0, 5, 3)];
+        assert!(!attributes_help(&tasks, &chests, RICH));
+        // earned 5 + Arena 3 = 8: the next chest 12 is out of reach even with STR → no
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 5),
+            task(TaskType::WinFightsInArena, 0, 10, 3),
+            task(TaskType::Upgrade(AttributeType::Strength), 0, 5, 3),
+        ];
+        assert!(!attributes_help(&tasks, &chests, RICH));
+    }
 
     #[test]
     fn nothing_when_natural_tasks_reach_the_chest() {

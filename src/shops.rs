@@ -178,6 +178,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
 async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut spins = 0;
     let mut task_buys = 0;
+    let mut attributes_done = false;
     loop {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let reserve = update_reserve(gs);
@@ -204,6 +205,15 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
         if gold_offers(gs).is_empty() {
             report!("[shops] All items cost mushrooms, nothing more to buy");
             return Outcome::Done;
+        }
+        // Attribute tasks that help to a better chest go before spinning (user 2026-10-07); they keep the reserve
+        if !attributes_done && crate::tasks::attributes_needed(gs) {
+            attributes_done = true;
+            report!("[shops] Attribute tasks help to a better chest, buying them before spinning");
+            if let Outcome::SessionLost = crate::tasks::buy_attributes(session).await {
+                return Outcome::SessionLost;
+            }
+            continue;
         }
         if spins >= MAX_SPINS {
             report!("[shops] Spin limit ({MAX_SPINS}) for today reached");

@@ -26,6 +26,7 @@
   - "Drink beer" may ask for 10 beers (10 mushrooms). Only when it brings more (e.g. 10 mushrooms back + the Thirst for
     Adventure), otherwise be careful, 10 mushrooms is a lot.
   - Whether a costly task is worth it depends on what the chests actually contain → look at the chest rewards.
+  - Attribute tasks that help to a better chest go before spinning the shops (still after equipment upgrades).
 
 ## Implementation (src/tasks.rs + shops.rs + dungeons.rs + tavern.rs + arena.rs + hunt.rs)
 - sf-api parses `dailytasklist` / `eventtasklist` (`gs.specials.tasks`), chests `CollectDailyQuestReward` /
@@ -40,6 +41,9 @@
   wins are done or after 21:00. Hall of Fame page at our rank + 1500 / 3000 / 6000, players of our level or lower
   (and the class), 3 lowest honor inspected via `ViewPlayer`, fight one with strength ≤ 60 % of ours (30 % bare hands,
   50 % without chest plate). Item off via `PlayerItemMove` (equipment → backpack, whitelisted only this way), back via `Equip`.
+- Attribute tasks before spinning (`attributes_needed`, called from `shops.rs` before the first spin): when some unopened
+  chest is above earned + natural points and within reach with the attribute tasks (+ affordable costly tasks).
+  They still keep the shop reserve. Otherwise attributes come after the shops as before.
 - Costly tasks (`plan`, separately for the daily and the event list): shell game (`DefeatGambler`), Wheel of Fortune
   beyond the free spin (`SpinWheelOfFortune`, lucky coins), beer (`DrinkBeer`, mushrooms). Expected = earned + "natural"
   points (Arena, Dungeons, City Guard tasks). Of all combinations that we can afford (≥ 5 g; enough lucky coins for all

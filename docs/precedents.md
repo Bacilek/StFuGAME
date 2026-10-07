@@ -43,3 +43,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Wheel of Fortune task (e.g. 5 spins) | 1 free, the rest for lucky coins only when a reward would not be reached otherwise; do not waste lucky coins. |
 | 2026-10-07 | Beer task with 10 beers | Only when it brings more (e.g. 10 mushrooms back + Thirst for Adventure); otherwise careful, 10 mushrooms is a lot. Implemented as: chest mushrooms ≥ beers. |
 | 2026-10-07 | Costly tasks in general | Decide by what the chests actually contain (rewards), not just points. |
+| 2026-10-07 | Attribute tasks vs. spinning the shops | When the attribute task helps to a better chest, it goes before spinning the shops. |
