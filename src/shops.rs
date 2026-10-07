@@ -149,10 +149,12 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 /// Returns false when shopping must stop (no free slot, the shop did not change).
 async fn buy(session: &mut SimpleSession, shop_pos: ShopPosition) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
-    let Some(bag) = gs.character.inventory.free_slot() else {
+    if gs.character.inventory.free_slot().is_none() && !crate::potions::make_room(session).await? {
         report!("[shops] Backpack full, stopping shopping");
         return Ok(false);
-    };
+    }
+    let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
+    let Some(bag) = gs.character.inventory.free_slot() else { return Ok(false) };
     let Some(item) = gs.shops[shop_pos.typ].items.get(shop_pos.pos) else { return Ok(false) };
     let item_ident = item.command_ident();
     safe::send(session, Command::BuyShop { shop_pos, new_pos: bag.into(), item_ident })

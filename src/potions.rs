@@ -2,9 +2,12 @@
 //! (+25 % HP, 7 days); without an Eternal Life potion the third one is Luck. Stat potions last 3 days, sizes 10/15/25 %.
 //! Only for gold (Eternal Life is rare and usually costs mushrooms → only when it is for gold).
 //! - A target potion is missing and a slot is free → drink one from the backpack, otherwise buy the biggest for gold.
-//! - A smaller one of the same type is active with at most 3 days left and a bigger one is for gold → replace it
-//!   (drinking the same potion again only extends it, so a long stacked one is kept).
+//! - A smaller one of the same type is active with at most 3 days left, a bigger one is for gold and the backpack is
+//!   full → replace it (a long stacked one is kept). With room in the backpack the bigger one goes to the stock.
 //! - Eternal Life for gold while all slots are full → buy it and keep it in the backpack until a slot frees up.
+//! - Stock (user 2026-10-07): keep up to `MAX_STOCK` target potions in the backpack, buy them whenever they are for gold.
+//! - Backpack full → make room from the least important potion: drink it when that type is active (it stacks,
+//!   if not smaller than the active one), otherwise sell it. Eternal Life is never sold.
 //!
 //! Shop purchases run in `shops.rs` after equipment upgrades and before spinning (they may go below the reserve).
 
@@ -21,6 +24,8 @@ use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 /// A smaller active potion is replaced only when it has at most this much left (one potion = 3 days).
 const REPLACE_WITHIN: Duration = Duration::days(3);
+/// How many spare target potions to keep in the backpack.
+const MAX_STOCK: usize = 4;
 
 fn potion(item: &Item) -> Option<&Potion> {
     match &item.typ {
@@ -98,8 +103,14 @@ pub enum ShopStep {
     Drink(ShopPosition),
     /// Remove the active potion in this slot, buy and drink the bigger one
     Replace(usize, ShopPosition),
-    /// Buy Eternal Life and keep it in the backpack
+    /// Buy and keep in the backpack (stock, Eternal Life)
     Keep(ShopPosition),
+}
+
+/// Spare target potions in the backpack.
+fn stock(gs: &GameState) -> usize {
+    let t = targets(gs);
+    gs.character.inventory.backpack.iter().flatten().filter(|i| potion(i).is_some_and(|p| t.contains(&p.typ))).count()
 }
 
 pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
@@ -113,8 +124,10 @@ pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
             None if act.len() < 3 && in_bag(gs, t).is_none() => {
                 return Some((ShopStep::Drink(pos), format!("buying and drinking {}", describe(item))));
             }
+            // Replace only with a full backpack (user 2026-10-07); otherwise the bigger one goes to the stock
             Some((slot, cur))
                 if t != PotionType::EternalLife
+                    && gs.character.inventory.free_slot().is_none()
                     && new.size.effect() > cur.size.effect()
                     && cur.expires.is_some_and(|e| e - now <= REPLACE_WITHIN) =>
             {
@@ -134,7 +147,68 @@ pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
     {
         return Some((ShopStep::Keep(pos), format!("buying {} to keep until a slot is free", describe(item))));
     }
+    // Stock: the most important target type available for gold, biggest size
+    if stock(gs) < MAX_STOCK
+        && let Some((pos, item)) = targets(gs).into_iter().find_map(|t| in_shop(gs, t))
+    {
+        return Some((ShopStep::Keep(pos), format!("buying {} for the stock ({} in the backpack)", describe(item), stock(gs))));
+    }
     None
+}
+
+/// How important a potion is for us (0 = not a target at all). Smaller sizes are less important.
+fn importance(gs: &GameState, p: &Potion) -> f64 {
+    let rank = match targets(gs).iter().position(|t| *t == p.typ) {
+        Some(i) => 3.0 - i as f64, // main 3, CON 2, third 1
+        None => 0.0,
+    };
+    let life = if p.typ == PotionType::EternalLife { 10.0 } else { 0.0 };
+    rank + life + p.size.effect()
+}
+
+/// Making room in a full backpack: the least important potion is drunk (its type is active and it is not smaller,
+/// so it extends the duration) or sold. Eternal Life is never sold.
+pub enum RoomStep {
+    Drink(BagPosition),
+    Sell(BagPosition),
+}
+
+pub fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
+    let act = active(gs);
+    let (pos, item, p) = gs
+        .character
+        .inventory
+        .iter()
+        .filter_map(|(pos, i)| i.and_then(|i| potion(i).map(|p| (pos, i, p))))
+        .min_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))?;
+    let stacks = act.iter().any(|(_, a)| a.typ == p.typ && p.size.effect() >= a.size.effect());
+    if stacks {
+        Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (extends the active one)", describe(item))))
+    } else if p.typ != PotionType::EternalLife {
+        Some((RoomStep::Sell(pos), format!("backpack full: selling {}", describe(item))))
+    } else {
+        None
+    }
+}
+
+/// Frees one backpack slot using a potion, if possible. Returns true when a slot was freed.
+pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    let Some((step, what)) = room_step(gs) else { return Ok(false) };
+    let (RoomStep::Drink(pos) | RoomStep::Sell(pos)) = step;
+    let Some(item) = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()) else {
+        return Ok(false);
+    };
+    let item_ident = item.command_ident();
+    report!("[potions] {what}");
+    let cmd = match step {
+        RoomStep::Drink(pos) => Command::UsePotion { from: pos.into(), item_ident },
+        RoomStep::Sell(pos) => Command::SellShop { item_pos: pos.into(), item_ident },
+    };
+    match safe::send(session, cmd).await {
+        Ok(_) => Ok(true),
+        Err(e) => Err(fail(&e)),
+    }
 }
 
 /// May this active potion be removed? Only a smaller stat potion with at most 3 days left (see `shop_step`).
