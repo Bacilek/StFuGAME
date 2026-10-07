@@ -235,6 +235,16 @@ fn choose_reward(rewards: &[Reward]) -> usize {
         .map_or(0, |(i, _)| i)
 }
 
+/// Je expedice po čekání (doprava po bossovi) a čeká na „pokračovat“?
+/// sf-api v tu chvíli ukazuje starou nabídku rozcestí; novou server pošle až po pokračování.
+/// Pole `floor_stage` (4 = čekání) není veřejné, čteme ho přes serde.
+fn is_after_wait(exp: &Expedition) -> bool {
+    serde_json::to_value(exp)
+        .ok()
+        .and_then(|v| v.get("floor_stage")?.as_i64())
+        == Some(4)
+}
+
 /// Jak skončil běh hospody.
 pub enum Outcome {
     /// Hotovo nebo chyba, kterou opakování nevyřeší.
@@ -287,6 +297,13 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 continue;
             }
             match stage {
+                ExpeditionStage::Encounters(_) if is_after_wait(exp) => {
+                    unknown_in_row = 0;
+                    last_offer = None;
+                    stale_tries = 0;
+                    report!("[hospoda] Čekání skončilo, pokračuji do další části expedice");
+                    Command::ExpeditionContinue
+                }
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
                     unknown_in_row = 0;
                     let offer: Vec<String> = encs.iter().map(|e| format!("{:?}{}", e.typ, e.heroism)).collect();
@@ -554,6 +571,16 @@ mod tests {
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000), Some(1));
         // na delší nestačí ALU
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600), None);
+    }
+
+    #[test]
+    fn detects_after_wait() {
+        let e = Expedition::default();
+        assert!(!is_after_wait(&e));
+        let mut v = serde_json::to_value(&e).unwrap();
+        v["floor_stage"] = serde_json::json!(4);
+        let e: Expedition = serde_json::from_value(v).unwrap();
+        assert!(is_after_wait(&e));
     }
 
     #[test]
