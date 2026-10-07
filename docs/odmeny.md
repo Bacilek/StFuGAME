@@ -14,5 +14,5 @@
 ## Stav ověření
 | Co | Stav |
 |---|---|
-| Kalendář se vyzvedne | ⏳ neověřeno |
-| Volné točení kolem štěstí | ⏳ neověřeno |
+| Kalendář se vyzvedne | ⏳ 2026-10-07 už byl vybraný (další 08.10. 00:00), ověřit zítra |
+| Volné točení kolem štěstí | ✅ 2026-10-07 17:14: +492 xp, houby beze změny; další volné 08.10. 00:00 (1× denně) |
