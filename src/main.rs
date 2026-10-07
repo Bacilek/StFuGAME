@@ -161,8 +161,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
     }
 }
 
-/// Kolikrát se za jeden běh smíme znovu přihlásit po ztrátě session.
+/// Kolikrát po sobě se smíme znovu přihlásit, když session padá hned (do SESSION_OK_SEC).
 const MAX_RELOGINS: u32 = 3;
+/// Session, která vydržela aspoň tak dlouho, se počítá jako v pořádku (počítadlo se nuluje).
+const SESSION_OK_SEC: u64 = 5 * 60;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -180,10 +182,13 @@ async fn main() -> ExitCode {
     };
 
     let mut journal = journal::Journal::default();
-    for attempt in 0..=MAX_RELOGINS {
+    // Počítají se jen ztráty session hned po sobě; když session vydrží, počítadlo se nuluje
+    let mut attempt = 0;
+    let mut first = true;
+    while attempt <= MAX_RELOGINS {
         if attempt > 0 {
             let wait = fastrand::u64(20..60);
-            report!("Session vypršela (třeba kvůli přihlášení na účet jinde), za {wait} s se přihlásím znovu ({attempt}/{MAX_RELOGINS})");
+            report!("Session vypršela, za {wait} s se přihlásím znovu ({attempt}/{MAX_RELOGINS} po sobě)");
             tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
         }
         let mut session = match login(&creds).await {
@@ -193,10 +198,13 @@ async fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        if attempt == 0 {
+        if first {
             print_status(&session);
+            first = false;
         }
+        let started = std::time::Instant::now();
         if let tavern::Outcome::SessionLost = play(&mut session, &mut journal).await {
+            attempt = if started.elapsed().as_secs() >= SESSION_OK_SEC { 1 } else { attempt + 1 };
             continue;
         }
         return ExitCode::SUCCESS;
