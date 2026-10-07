@@ -7,7 +7,7 @@ use chrono::Local;
 use sf_api::{SimpleSession, command::Command, error::SFError, gamestate::GameState};
 
 /// Rezerva po konci cooldownu arény, než ji smíme použít (hodiny serveru a naše se můžou lišit).
-const ARENA_SAFETY_SEC: i64 = 30;
+pub const ARENA_SAFETY_SEC: i64 = 30;
 
 /// Příkazy, které bot smí poslat. Vše ostatní je zakázané (whitelist),
 /// takže nový příkaz se k serveru nedostane, dokud ho sem vědomě nepřidáme.

@@ -108,7 +108,7 @@ fn print_status(session: &SimpleSession) {
     report!("  Stav:   {action}");
 }
 
-/// Hlavní smyčka: aréna (když je volná a postava nic nedělá), hospoda (jedna expedice),
+/// Hlavní smyčka: aréna (když je volná, max 10 výher denně), hospoda (jedna expedice),
 /// a když není co dělat, čekání na konec cooldownu arény. Běží, dokud ji nezastavíme.
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     loop {
@@ -132,13 +132,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             }
         }
 
-        // Není co dělat: počkat na konec cooldownu arény (+ náhodná rezerva)
+        // Není co dělat: počkat na konec cooldownu arény (+ náhodná rezerva), po 10 výhrách 30 min
         let wait = session
             .game_state()
-            .and_then(|gs| gs.arena.next_free_fight)
-            .map_or(0, |t| (t - chrono::Local::now()).num_seconds().max(0))
-            .unsigned_abs()
-            + fastrand::u64(30..120);
+            .and_then(arena::secs_until_ready)
+            .map_or(30 * 60, |s| s + fastrand::u64(30..120));
         let wait = wait.clamp(60, 30 * 60);
         report!("Není co dělat, další kontrola za {} min {} s", wait / 60, wait % 60);
         tokio::time::sleep(std::time::Duration::from_secs(wait)).await;

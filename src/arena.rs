@@ -1,10 +1,15 @@
-//! Aréna: když postava nic nedělá a aréna je mimo cooldown, vyzve nejslabšího ze 3 soupeřů.
+//! Aréna: kdykoli je mimo cooldown (i během expedice), vyzve nejslabšího ze 3 soupeřů.
+//! Nejvýš 10 výher denně, pak už nejsou odměny.
 //! Síla = 100 % hlavní atribut + 80 % odolnost + 40 % štěstí + 10 % každý vedlejší atribut.
 
+use std::{fs::OpenOptions, io::Write};
+
+use chrono::Local;
+use serde_json::json;
 use sf_api::{
     SimpleSession,
     command::{AttributeType, Command},
-    gamestate::{character::Class, social::OtherPlayer, tavern::CurrentAction},
+    gamestate::{GameState, character::Class, social::OtherPlayer},
 };
 
 use crate::{safe, tavern::Outcome};
@@ -25,6 +30,45 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
     stat(main) + 0.8 * stat(AttributeType::Constitution) + 0.4 * stat(AttributeType::Luck) + 0.1 * side
 }
 
+/// Po tolika výhrách za den už aréna nedává odměny.
+const MAX_WINS_PER_DAY: usize = 10;
+const LOG: &str = "logs/arena.jsonl";
+
+/// Počet dnešních výher podle logu arény (přežije restart bota).
+pub fn wins_today() -> usize {
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    std::fs::read_to_string(LOG)
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .filter(|v| v["time"].as_str().is_some_and(|t| t.starts_with(&today)) && v["won"] == true)
+        .count()
+}
+
+/// Za kolik sekund bude aréna volná (s rezervou), pokud ještě má smysl (méně než 10 výher).
+pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
+    if wins_today() >= MAX_WINS_PER_DAY {
+        return None;
+    }
+    let free_at = gs.arena.next_free_fight.map_or_else(Local::now, |t| t + chrono::Duration::seconds(safe::ARENA_SAFETY_SEC));
+    Some(u64::try_from((free_at - Local::now()).num_seconds()).unwrap_or(0))
+}
+
+/// Má smysl jít do arény? Mimo cooldown a ještě ne 10 výher dnes.
+pub fn ready(gs: &GameState) -> bool {
+    safe::arena_is_free(gs) && wins_today() < MAX_WINS_PER_DAY
+}
+
+fn log_fight(line: &serde_json::Value) {
+    let res = std::fs::create_dir_all("logs").and_then(|()| {
+        let mut f = OpenOptions::new().create(true).append(true).open(LOG)?;
+        writeln!(f, "{line}")
+    });
+    if let Err(err) = res {
+        report!("[aréna] Zápis do {LOG} selhal: {err}");
+    }
+}
+
 fn chyba(e: &sf_api::error::SFError) -> Outcome {
     report!("[aréna] Chyba: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
@@ -37,10 +81,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return chyba(&e);
     }
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    if gs.tavern.current_action != CurrentAction::Idle {
-        return Outcome::Done;
-    }
-    if !safe::arena_is_free(gs) {
+    if !ready(gs) {
         return Outcome::Done;
     }
 
@@ -81,19 +122,39 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     report!("[aréna] Vyzývám nejslabšího: {name} (síla {s:.0})");
+    let opponent = name.clone();
     let gs = match safe::send(session, Command::Fight { name, use_mushroom: false }).await {
         Ok(gs) => gs,
         Err(e) => return chyba(&e),
     };
+    let fights_for_xp = gs.arena.fights_for_xp;
     match &gs.last_fight {
-        Some(f) => report!(
-            "[aréna] {}: čest {:+}, stříbro {:+}, xp +{}",
-            if f.has_player_won { "Výhra" } else { "Prohra" },
-            f.honor_change,
-            f.silver_change,
-            f.xp_change
-        ),
+        Some(f) => {
+            report!(
+                "[aréna] {}: čest {:+}, stříbro {:+}, xp +{} (server fights_for_xp {fights_for_xp})",
+                if f.has_player_won { "Výhra" } else { "Prohra" },
+                f.honor_change,
+                f.silver_change,
+                f.xp_change
+            );
+            log_fight(&json!({
+                "time": Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                "opponent": opponent,
+                "strength": s.round(),
+                "won": f.has_player_won,
+                "honor": f.honor_change,
+                "silver": f.silver_change,
+                "xp": f.xp_change,
+                "fights_for_xp": fights_for_xp,
+            }));
+        }
         None => report!("[aréna] Boj proběhl, výsledek server neposlal"),
+    }
+    let wins = wins_today();
+    if wins >= MAX_WINS_PER_DAY {
+        report!("[aréna] Dnes {wins} výher, aréna do zítřka stojí");
+    } else {
+        report!("[aréna] Dnes výher: {wins}/{MAX_WINS_PER_DAY}");
     }
     if let Some(next) = gs.arena.next_free_fight {
         report!("[aréna] Další volný boj v {}", next.format("%H:%M:%S"));
