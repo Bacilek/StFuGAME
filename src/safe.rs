@@ -8,7 +8,7 @@ use sf_api::{
     SimpleSession,
     command::{Command, FortunePayment},
     error::SFError,
-    gamestate::GameState,
+    gamestate::{GameState, character::Mount},
 };
 
 /// Rezerva po konci cooldownu (aréna, podzemí), než smíme bojovat (hodiny serveru a naše se můžou lišit).
@@ -38,6 +38,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FinishWork
             | Command::CollectCalendar
             | Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }
+            // Jediná povolená výjimka z pravidla o houbách (uživatel 2026-10-07), jen bez zvířete
+            | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )
 }
 
@@ -123,6 +125,14 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
         }
         _ => {}
     }
+    if matches!(cmd, Command::BuyMount { .. }) && !session.game_state().is_some_and(crate::stable::needs_mount) {
+        return Err(SFError::InvalidRequest("postava zvíře má, nákup by zbytečně stál houby"));
+    }
+    // Kolik hub smí tento příkaz utratit (jen pronájem zvířete, přesně jeho cena)
+    let allowed_spend = match &cmd {
+        Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
+        _ => 0,
+    };
 
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
     let res = session.send_command(cmd).await.map(|_| ());
@@ -133,9 +143,9 @@ pub async fn send<'a>(session: &'a mut SimpleSession, cmd: Command) -> Result<&'
 
     // Poslední pojistka: kdyby houby přesto ubyly, bot okamžitě končí
     if let (Some(before), Some(after)) = (mushrooms_before, session.game_state().map(|gs| gs.character.mushrooms))
-        && after < before
+        && after + allowed_spend < before
     {
-        report!("!!! UBYLY HOUBY ({before} → {after}). Bot se okamžitě zastavuje, prověřit!");
+        report!("!!! UBYLY HOUBY ({before} → {after}, povoleno {allowed_spend}). Bot se okamžitě zastavuje, prověřit!");
         std::process::exit(2);
     }
 

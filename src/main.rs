@@ -8,6 +8,7 @@ mod inventory;
 mod journal;
 mod missions;
 mod safe;
+mod stable;
 mod tavern;
 
 use std::process::ExitCode;
@@ -113,6 +114,7 @@ fn print_status(session: &SimpleSession) {
     let fmt = |t: Option<chrono::DateTime<chrono::Local>>| t.map_or("neznámé".to_string(), |t| t.format("%d.%m. %H:%M").to_string());
     report!("Odměna za přihlášení: další {} (vybráno {}×)", fmt(gs.specials.calendar.next_possible), gs.specials.calendar.collected);
     report!("Kolo štěstí: další volné točení {}", fmt(gs.specials.wheel.next_free_spin));
+    report!("Zvíře: {:?} do {}", gs.character.mount, fmt(gs.character.mount_end));
 }
 
 /// Hlavní smyčka: aréna (když je volná, max 10 výher denně), podzemí (když je volné), hospoda (jedna expedice),

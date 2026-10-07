@@ -16,7 +16,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Plán dalších funkcí: `docs/todo.md` (nové nápady připisovat, hotové odškrtnout). Kdykoli mě napadne velké herní TODO, připsat ho do sekce „Návrhy od Clauda“.
 - Kdykoli si nejsem jistý jakýmkoli rozhodnutím (strategie, data, co bot smí), zeptat se uživatele a odpověď zapsat do `docs/precedenty.md`. Při podobné situaci se řídit precedenty.
 - Mezi akcemi náhodné prodlevy (simulace člověka), žádné spamování serveru.
-- ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. Všechny příkazy posílat přes `safe::send` (src/safe.rs), který pustí jen příkazy z whitelistu `is_allowed`. Nový příkaz přidat do whitelistu jen po ověření, že neutrácí houby. Nikdy nepovolit:
+- ZA ŽÁDNÝCH OKOLNOSTÍ neutrácet houby, dokud uživatel pravidlo výslovně nezmění. JEDINÁ výjimka (uživatel 2026-10-07): pronájem zvířete ve stáji – gryf/drak za 25 hub, když hub není dost, tygr za 10 g + 1 houbu; jen když postava zvíře nemá a jde do hospody (viz `docs/staj.md`). Hlídač hub povolí úbytek jen u tohoto příkazu a přesně o jeho cenu. Všechny příkazy posílat přes `safe::send` (src/safe.rs), který pustí jen příkazy z whitelistu `is_allowed`. Nový příkaz přidat do whitelistu jen po ověření, že neutrácí houby. Nikdy nepovolit:
   - `BuyBeer` (pivo stojí houby), `TimeSkip::Mushroom` (v `FinishQuest { skip }` i `ExpeditionSkipWait`),
   - `GambleMushrooms`, `GuildLoadMushrooms`, cokoli s `Mushrooms` v názvu (např. `SocketUpgradeWithMushrooms`, `GemExtractWithMushrooms`),
   - a každý další příkaz, u kterého není jisté, že houby neutratí (radši odmítnout).
@@ -63,3 +63,6 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 ## Denní odměny
 - Popis a stav ověření: `docs/odmeny.md`.
 - Jen odměna za přihlášení (kalendář) a 1× denně volné točení kolem štěstí. Nikdy za houby ani šťastné mince.
+
+## Stáj
+- Popis: `docs/staj.md`. Zvíře kupovat až těsně před expedicí, když postava žádné nemá (ne hned po vypršení).

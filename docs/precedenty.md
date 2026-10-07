@@ -20,3 +20,4 @@ Při podobné situaci se pak řídí tímhle seznamem. Nejnovější dole.
 | 2026-10-07 | Hlídka | Po dojetí hospody; max 10 h, konec v 00:00–00:59 (hodiny do půlnoci zaokrouhlit nahoru), ať se nečeká na nové ALU. |
 | 2026-10-07 | Aréna/podzemí během hlídky | Jde, ničemu nevadí. |
 | 2026-10-07 | Kolo štěstí, denní odměny | Jen 1× denně volné točení (nikdy houby/šťastné mince) a odměna za přihlášení. Nic víc. |
+| 2026-10-07 | Stáj (výjimka z hub) | Gryf za 25 hub na 14 dní, jen když postava zvíře nemá a jde do hospody (kupovat až když je potřeba). Bez 25 hub tygr za 10 g + 1 houbu. |

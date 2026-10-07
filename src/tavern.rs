@@ -410,6 +410,21 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             }
         }
         let Some(gs) = session.game_state() else { continue };
+        // Před novou expedicí zvíře (kupuje se až teď, když je opravdu potřeba)
+        let about_to_start = !played
+            && gs.tavern.current_action == CurrentAction::Idle
+            && gs.tavern.expeditions.active().is_none()
+            && gs.tavern.thirst_for_adventure_sec > 0;
+        if about_to_start && crate::stable::needs_mount(gs) {
+            if let Outcome::SessionLost = crate::stable::ensure_mount(session).await {
+                return Outcome::SessionLost;
+            }
+            let Some(gs) = session.game_state() else { continue };
+            if !crate::stable::needs_mount(gs) {
+                continue;
+            }
+        }
+        let Some(gs) = session.game_state() else { continue };
         if crate::arena::ready(gs) && last_arena_try.is_none_or(|t| t.elapsed().as_secs() >= 60) {
             last_arena_try = Some(std::time::Instant::now());
             if let Outcome::SessionLost = crate::arena::run(session).await {

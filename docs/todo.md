@@ -10,7 +10,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [ ] Questy (gamba, síň slávy, povolání, bare hands, …)
 - [ ] Event game loop (piva?)
 - [ ] Cech
-- [ ] Stáj
+- [x] Stáj (`docs/staj.md`)
 
 ## Návrhy od Clauda
 Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
