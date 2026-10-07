@@ -19,6 +19,9 @@ Ověřeno z běhu:
   (Sword Trial: 19 → 15 za meč −4, pak +4 × 8 = 47).
 
 ## Pravidla
+- Hlavní mise (úkol od zadavatele) je vždy jen jedna. Na rozcestí se ale objevují předměty i z ostatních cyklů.
+- **Předměty cizích cyklů** se berou jen kvůli okamžitému hrdinství (např. mise drak, nabídka táborák +3 / kostlivec +1 → táborák).
+  Kvůli budoucím krokům cizího cyklu se neberou, za cizí úkol na konci nic nedostaneme (pravidlo uživatele).
 - Každé setkání přidá své hrdinství hned při výběru. Každé patří do nějakého cyklu (řetězu).
 - **40 hrdinství = maximální odměna.** Víc nic nepřidá. Cíl: zajistit si 40 a pak farmit klíče a truhly.
 - Limit = kolikrát se cyklus během expedice může zopakovat.
@@ -81,6 +84,12 @@ Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESED
 
 Bot se na neznámých věcech nezastavuje. Vypíše je a zapíše do deníku (`unmapped`).
 U nezmapované mise počítá předměty ze stejné číselné desítky jako cíl za kroky řetězu (např. 151 → 152 → 153).
+
+## Odměny po bossovi
+- Normálně: houby > zlato > přesýpací hodiny.
+- Zbytková expedice (spuštěná za méně než 5 min ALU, tj. za zbytek dne): houby > přesýpací hodiny > zlato.
+  Zlata dá málo (2026-10-07: 9 stříbra), hodin pořád stejně. Po restartu bota uprostřed expedice se bere jako plná.
+- Přesýpací hodiny se nikdy nepoužívají.
 
 ## Výběr expedice
 1. Nejkratší (nejméně ALU).

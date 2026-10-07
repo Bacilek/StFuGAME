@@ -149,6 +149,10 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         return unknown_chain_value(exp, t, floors);
     };
     let is_target = m.target() == exp.target_thing;
+    // Předměty cizích cyklů: za ně na konci nic nedostaneme, počítá se jen okamžitý zisk
+    if !is_target {
+        return 0.0;
+    }
     let last_idx = m.chain.len() - 1;
 
     // Úkol s počtem kusů (např. 3× toaletní papír): každý kus nás přibližuje ke splnění
@@ -314,11 +318,17 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     best
 }
 
+/// Expedice za méně ALU než tohle je „zbytková“: zlata dá málo, přesýpacích hodin stejně.
+const REDUCED_EXPEDITION_SEC: u32 = 5 * 60;
+
 /// Vybere odměnu: houby > zlato > přesýpací hodiny > cokoli.
-fn choose_reward(rewards: &[Reward]) -> usize {
+/// U zbytkové expedice (za zbytek ALU) houby > přesýpací hodiny > zlato.
+fn choose_reward(rewards: &[Reward], reduced: bool) -> usize {
     let rank = |t: &RewardType| match t {
         RewardType::Mushrooms => 0,
+        RewardType::Silver if reduced => 2,
         RewardType::Silver => 1,
+        RewardType::QuicksandGlass if reduced => 1,
         RewardType::QuicksandGlass => 2,
         _ => 3,
     };
@@ -368,6 +378,8 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
     let mut refresh_pending = true;
     let mut last_offer: Option<Vec<String>> = None;
     let mut stale_tries = 0;
+    // Expedice spuštěná za zbytek ALU (po restartu bota neznámé, pak se bere jako plná)
+    let mut reduced_expedition = false;
     // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
     let mut pending_check: Option<(i32, String)> = None;
     // Nesoulady s tabulkou hlásit jen jednou za běh
@@ -496,7 +508,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 }
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
-                    let pos = choose_reward(&rewards);
+                    let pos = choose_reward(&rewards, reduced_expedition);
                     let opts: Vec<String> = rewards.iter().map(|r| format!("{:?} x{}", r.typ, r.amount)).collect();
                     report!("[hospoda] Odměny: {} → beru {:?}", opts.join(", "), rewards[pos].typ);
                     entry.rewards.push(format!("{:?} x{}", rewards[pos].typ, rewards[pos].amount));
@@ -564,7 +576,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     if rewards.is_empty() {
                         Command::ExpeditionContinue
                     } else {
-                        Command::ExpeditionPickReward { pos: choose_reward(&rewards) }
+                        Command::ExpeditionPickReward { pos: choose_reward(&rewards, reduced_expedition) }
                     }
                 }
                 CurrentAction::Idle => match tavern.available_tasks() {
@@ -588,6 +600,10 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             e.special
                         );
                         unknown_in_row = 0;
+                        reduced_expedition = e.thirst_for_adventure_sec < REDUCED_EXPEDITION_SEC;
+                        if reduced_expedition {
+                            report!("[hospoda] Zbytková expedice: u odměn dávám přednost přesýpacím hodinám před zlatem");
+                        }
                         Command::ExpeditionStart { pos }
                     }
                     AvailableTasks::Quests(_) => {
@@ -775,6 +791,20 @@ mod tests {
         assert_eq!(choose_encounter(&e, &[enc(Dummy3, 3), enc(Suitcase, 0)]), 0);
     }
 
+    /// Předměty cizích cyklů jen podle okamžitého zisku (pravidlo uživatele 2026-10-07).
+    #[test]
+    fn foreign_quest_items_only_for_instant_gain() {
+        // mise drak: táborák (+3, cizí cyklus) je víc než slabý kostlivec (+1) → bereme
+        let e = exp(Dragon, 0, 1, 0, 3);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy1, 1), enc(CampFire, 3)]), 1);
+        // malá překážka (−1) kvůli cizím stupňům vítězů ne, radši klíč (0)
+        let e = exp(Unicorn, 0, 1, 1, 4);
+        assert_eq!(choose_encounter(&e, &[enc(SmallHurdle, -1), enc(Key, 0)]), 1);
+        // čarodějnice (−5) v cizí misi ne, kostlivec (+2)
+        let e = exp(BrokenSword, 2, 97, 3, 6);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Girl, -5)]), 0);
+    }
+
     #[test]
     fn detects_after_wait() {
         let e = Expedition::default();
@@ -788,8 +818,11 @@ mod tests {
     #[test]
     fn reward_order() {
         let r = |typ| Reward { typ, amount: 1 };
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)]), 2);
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)]), 1);
-        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], false), 2);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], false), 1);
+        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], false), 1);
+        // zbytková expedice: hodiny před zlatem, houby pořád první
+        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::QuicksandGlass)], true), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Mushrooms)], true), 1);
     }
 }

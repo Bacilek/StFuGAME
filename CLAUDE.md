@@ -27,11 +27,12 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
-- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
+- Mise, pravidla a otevřené otázky: `docs/expedice.md`. Je to hlavně dokument pro Clauda: aktualizovat ho pokaždé, když se zjistí cokoli nového (z běhu, od uživatele, z FAQ).  (strojově `src/missions.rs`). Neznámé mise/setkání bot nezastaví, ale zapíše do deníku (`unmapped`), pak se zeptat uživatele a doplnit.
 - Výběr expedice: nejkratší, při shodě nezmapovaná, jinak nejsnazší na 40 (`Mission::ease`).
 - Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
   Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
-- Odměny: houby > zlato > přesýpací hodiny. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
+- Předměty cizích cyklů (ne hlavní mise) brát jen kvůli okamžitému hrdinství, ne kvůli budoucím krokům.
+- Odměny: houby > zlato > přesýpací hodiny; u zbytkové expedice (< 5 min ALU) houby > hodiny > zlato. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
 - Průběh běhu s časy: `logs/prubeh.log` (výstup přes makro `report!`, bot lze pustit na pozadí a log sledovat).
 - Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
