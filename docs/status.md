@@ -5,7 +5,7 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
 ## Where we are
 - The bot runs on the user's machine from the icon next to the clock (release exe, independent of Claude Code), character **TestChar1** on **s31.sfgame.eu**
   (secondary test account, login via the S&F account / SSO).
-- Finished features: Tavern (expeditions), Arena, Dungeons, inventory, shops (written 2026-10-07, not yet in the release build / not verified), City Guard, daily rewards + Wheel of Fortune, Stable, icon controls.
+- Finished features: Tavern (expeditions), Arena, Dungeons, inventory, shops (release build 2026-10-07 20:53, not verified yet), City Guard, daily rewards + Wheel of Fortune, Stable, icon controls.
   Plan: `docs/todo.md`. The user's decisions: `docs/precedents.md`. Internals and pitfalls: `docs/architecture.md`.
 - Character state on the evening of 2026-10-07: level ~10, griffin until 21.10. 13:30, City Guard until 23:06 (then 1 h until 00:06), Arena 3/10 wins,
   Thirst for Adventure used up for today, the full inventory was solved by selling.
