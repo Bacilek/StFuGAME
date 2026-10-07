@@ -11,7 +11,8 @@ pub const ARENA_SAFETY_SEC: i64 = 30;
 
 /// Příkazy, které bot smí poslat. Vše ostatní je zakázané (whitelist),
 /// takže nový příkaz se k serveru nedostane, dokud ho sem vědomě nepřidáme.
-/// Žádný z nich neutrácí houby (`Fight` jen mimo cooldown, viz `arena_is_free`).
+/// Žádný z nich neutrácí houby (`Fight`/`FightDungeon` jen mimo cooldown, viz `cooldown_free`;
+/// `SellShop` houby nebere, `Equip` jen přesouvá předmět z batohu na postavu).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -25,6 +26,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::Fight { use_mushroom: false, .. }
             | Command::UpdateDungeons
             | Command::FightDungeon { use_mushroom: false, .. }
+            | Command::SellShop { .. }
+            | Command::Equip { .. }
     )
 }
 

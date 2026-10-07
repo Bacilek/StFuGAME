@@ -2,6 +2,7 @@
 mod report;
 mod arena;
 mod dungeons;
+mod inventory;
 mod journal;
 mod missions;
 mod safe;
@@ -114,6 +115,9 @@ fn print_status(session: &SimpleSession) {
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
     loop {
+        if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
         if let tavern::Outcome::SessionLost = arena::run(session).await {
             return tavern::Outcome::SessionLost;
         }

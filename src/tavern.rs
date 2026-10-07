@@ -397,6 +397,19 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             report!("[hospoda] Chybí stav hry, končím");
             return Outcome::Done;
         };
+        // Nové předměty (z truhel, boje): nasadit lepší, prodat horší. Bez akce nic neposílá.
+        if !refresh_pending {
+            let before = gs.character.inventory.count_free_slots();
+            if let Outcome::SessionLost = crate::inventory::manage(session).await {
+                return Outcome::SessionLost;
+            }
+            let Some(gs_now) = session.game_state() else { continue };
+            if gs_now.character.inventory.count_free_slots() != before {
+                refresh_pending = true;
+                continue;
+            }
+        }
+        let Some(gs) = session.game_state() else { continue };
         if crate::arena::ready(gs) && last_arena_try.is_none_or(|t| t.elapsed().as_secs() >= 60) {
             last_arena_try = Some(std::time::Instant::now());
             if let Outcome::SessionLost = crate::arena::run(session).await {

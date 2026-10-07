@@ -49,3 +49,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Jeden boj kdykoli mimo cooldown (NIKDY za houby), i během expedice. S plným inventářem ne.
 - Výběr: nejnižší level protivníka, při podobném levelu slabší staty.
 - Cooldown hlídá `safe.rs`: po boji další až s novým časem ze serveru (`UpdateDungeons`).
+
+## Inventář
+- Popis a stav ověření: `docs/inventar.md`.
+- Předmět na nasazení: lepší (vzorec z arény na atributy předmětu) nasadit, horší prodat. Epické NIKDY neprodávat.
