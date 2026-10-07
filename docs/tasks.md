@@ -58,7 +58,8 @@
 - Shops (`task_purchase`): `BuyWeaponInWeaponsShop`, `BuyFromShop(shop)` → buy the cheapest non-epic gold item
   (weapon from the Weapon Shop / any item from that shop) even below the reserve, `inventory::manage` sells it. Max 6 a day.
 - Dungeons: `DefeatMonstersLightDungeon(d)` open → fight in that dungeon instead of the usual pick.
-- Not doable (mushrooms): `DrinkBeer`, `SpinWheelOfFortune` beyond the free spin, `BuyHourGlasses`, `SkipQuest`, … – ignored.
+- Not doable (mushrooms): `SkipQuest`, … – ignored. `BuyHourGlasses` only when hourglasses are for gold in a shop (`shops.rs`).
+  `DrinkPotion(type)` happens when `potions.rs` drinks that type.
 - Not done yet: `RequestNewGoods` (only the ad, see `docs/shops.md`), `ClaimNewCustomerPack` (`docs/daily-rewards.md`),
   `ThrowItemInToilet`, `AddFriend`, potions, pets, Fortress, Underworld, … (later).
 

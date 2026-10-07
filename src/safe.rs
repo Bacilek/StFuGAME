@@ -27,6 +27,7 @@ pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 /// Wheel of Fortune only `FreeTurn` and only when a free spin is available,
 /// `BuyShop` only for an item with no mushroom price, see `shop_buy_ok`;
 /// `GuildJoinAttack`/`GuildJoinDefense` only sign up for a planned guild battle, free;
+/// `UsePotion` only a potion from the backpack, `RemovePotion` only per `potions::removal_ok`;
 /// task chests are free; `UpgradeSkill` (attributes) costs only gold; `GuildIncreaseSkill` only when its price has
 /// no mushrooms (`guild_upgrade_ok`); `GambleSilver` = shell game for gold, within the game limits (`gamble_ok`)).
 fn is_allowed(cmd: &Command) -> bool {
@@ -59,6 +60,8 @@ fn is_allowed(cmd: &Command) -> bool {
                 to: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
                 ..
             }
+            | Command::UsePotion { .. }
+            | Command::RemovePotion { .. }
             | Command::GuildJoinAttack
             | Command::GuildJoinDefense
             | Command::StartWork { .. }
@@ -212,6 +215,20 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(crate::tasks::lucky_spin_justified)
     {
         return Err(SFError::InvalidRequest("lucky coins only when a task chest needs the spins"));
+    }
+    if let Command::UsePotion { item_ident, .. } = &cmd
+        && !session.game_state().is_some_and(|gs| {
+            gs.character.inventory.backpack.iter().flatten().any(|i| {
+                i.command_ident() == *item_ident && matches!(i.typ, sf_api::gamestate::items::ItemType::Potion(_))
+            })
+        })
+    {
+        return Err(SFError::InvalidRequest("only a potion from the backpack can be drunk"));
+    }
+    if let Command::RemovePotion { pos } = &cmd
+        && !session.game_state().is_some_and(|gs| crate::potions::removal_ok(gs, *pos))
+    {
+        return Err(SFError::InvalidRequest("this active potion may not be removed"));
     }
     if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(crate::tasks::beer_justified) {
         return Err(SFError::InvalidRequest("beer costs a mushroom and is not justified by a task chest"));

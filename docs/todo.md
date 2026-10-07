@@ -14,6 +14,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
 ## Ověřit po nasazení
+- [ ] Lektvary: pití z batohu, nákup, výměna menšího za větší (`docs/potions.md`); hodiny za zlato při točení (batoh nebo počítadlo?)
 - [ ] Truhly u Goblin Gleemana: porovnat řádky `[tasks] daily/event chest …` v logu (body + odměny) s tím, co ukazuje hra (`docs/tasks.md`)
 
 ## Návrhy od Clauda

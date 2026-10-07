@@ -26,6 +26,8 @@ use crate::{inventory, safe, tavern::Outcome};
 const MAX_SPINS: usize = 60;
 /// Safety limit on purchases for tasks per day (in case the task counter does not update).
 const MAX_TASK_BUYS: usize = 6;
+/// Safety limit on potion purchases per day.
+const MAX_POTION_BUYS: usize = 4;
 
 /// Today's shopping: the reserve and whether shopping is done.
 struct Day {
@@ -59,6 +61,20 @@ fn gold_only(item: &Item) -> bool {
         && item.price != u32::MAX
         && !item.is_unique()
         && item.typ.equipment_slot().is_some()
+}
+
+/// Hourglasses for gold (user 2026-10-07): fine for spinning the shop, they are saved, never used.
+fn gold_hourglass(item: &Item) -> bool {
+    item.mushroom_price == 0 && item.price > 0 && item.price != u32::MAX && item.typ == ItemType::QuickSandGlass
+}
+
+/// Gold items that can be used to spin the shop: equipment (sold right away) and hourglasses (kept).
+fn spin_offers(gs: &GameState) -> Vec<(ShopPosition, &Item)> {
+    gs.shops
+        .values()
+        .flat_map(|s| s.iter())
+        .filter(|(_, i)| gold_only(i) || gold_hourglass(i))
+        .collect()
 }
 
 /// All items for gold only from both shops.
@@ -98,22 +114,26 @@ fn best_upgrade(gs: &GameState) -> Option<(ShopPosition, &Item, f64, f64)> {
 }
 
 /// The cheapest non-epic affordable gold item that an open task wants bought (Gleeman/event tasks:
-/// buy a weapon in the Weapon Shop, buy N items in a shop). Ignores the reserve: it is sold again right away.
+/// buy a weapon in the Weapon Shop, buy N items in a shop, buy hourglasses). Ignores the reserve: equipment is sold
+/// again right away, hourglasses are kept.
 fn task_purchase(gs: &GameState) -> Option<(ShopPosition, &Item)> {
     let weapon = crate::tasks::remaining(gs, |t| t == TaskType::BuyWeaponInWeaponsShop) > 0;
     let from = |shop: ShopType| crate::tasks::remaining(gs, |t| t == TaskType::BuyFromShop(shop)) > 0;
-    gold_offers(gs)
+    let hourglasses = crate::tasks::remaining(gs, |t| t == TaskType::BuyHourGlasses) > 0;
+    spin_offers(gs)
         .into_iter()
         .filter(|(_, i)| !i.is_epic() && u64::from(i.price) <= gs.character.silver)
         .filter(|(pos, i)| {
-            (weapon && pos.typ == ShopType::Weapon && matches!(i.typ, ItemType::Weapon { .. })) || from(pos.typ)
+            (weapon && pos.typ == ShopType::Weapon && matches!(i.typ, ItemType::Weapon { .. }))
+                || (hourglasses && i.typ == ItemType::QuickSandGlass)
+                || (from(pos.typ) && gold_only(i))
         })
         .min_by_key(|(_, i)| i.price)
 }
 
 /// The cheapest non-epic gold item, if buying it keeps the gold at or above the reserve.
 fn spin_candidate(gs: &GameState, reserve: u32) -> Option<(ShopPosition, &Item)> {
-    gold_offers(gs)
+    spin_offers(gs)
         .into_iter()
         .filter(|(_, i)| !i.is_epic())
         .min_by_key(|(_, i)| i.price)
@@ -178,6 +198,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
 async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut spins = 0;
     let mut task_buys = 0;
+    let mut potion_buys = 0;
     let mut attributes_done = false;
     loop {
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -192,6 +213,31 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
             }
         }
 
+        // Potions after equipment, before tasks and spinning (user 2026-10-07; may go below the reserve)
+        if let Some((step, what)) = crate::potions::shop_step(gs).filter(|_| potion_buys < MAX_POTION_BUYS) {
+            potion_buys += 1;
+            report!("[shops] Potion: {what}");
+            let (pos, remove) = match step {
+                crate::potions::ShopStep::Drink(pos) | crate::potions::ShopStep::Keep(pos) => (pos, None),
+                crate::potions::ShopStep::Replace(slot, pos) => (pos, Some(slot)),
+            };
+            match buy(session, pos).await {
+                Ok(true) => {}
+                Ok(false) => return Outcome::Done,
+                Err(o) => return o,
+            }
+            // Bought first, only then remove the old one, so a failed purchase never costs a potion
+            if let Some(slot) = remove
+                && let Outcome::SessionLost = crate::potions::remove(session, slot).await
+            {
+                return Outcome::SessionLost;
+            }
+            if let Outcome::SessionLost = crate::potions::drink_from_bag(session).await {
+                return Outcome::SessionLost;
+            }
+            continue;
+        }
+
         if let Some((pos, item)) = task_purchase(gs).filter(|_| task_buys < MAX_TASK_BUYS) {
             task_buys += 1;
             report!("[shops] Buying for a task: {}", describe(pos, item));
@@ -202,7 +248,7 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
             }
         }
 
-        if gold_offers(gs).is_empty() {
+        if spin_offers(gs).is_empty() {
             report!("[shops] All items cost mushrooms, nothing more to buy");
             return Outcome::Done;
         }

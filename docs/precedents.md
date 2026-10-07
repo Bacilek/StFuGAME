@@ -44,3 +44,5 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Beer task with 10 beers | Only when it brings more (e.g. 10 mushrooms back + Thirst for Adventure); otherwise careful, 10 mushrooms is a lot. Implemented as: chest mushrooms ≥ beers. |
 | 2026-10-07 | Costly tasks in general | Decide by what the chests actually contain (rewards), not just points. |
 | 2026-10-07 | Attribute tasks vs. spinning the shops | When the attribute task helps to a better chest, it goes before spinning the shops. |
+| 2026-10-07 | Hourglasses | Save them, never use. Buying them for gold in the shop (spinning) is fine. |
+| 2026-10-07 | Potions | Main attribute + CON + Eternal Life (only for gold), otherwise Luck third. Only gold. After equipment, before spinning. Bigger one replaces a smaller active one with ≤ 3 days left (esp. main attribute); long stacked ones are a harder question. Eternal Life while Luck is active: buy and keep in the backpack. |

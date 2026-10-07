@@ -12,6 +12,7 @@ mod hunt;
 mod inventory;
 mod journal;
 mod missions;
+mod potions;
 mod safe;
 mod session;
 mod shops;
@@ -138,6 +139,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        if let tavern::Outcome::SessionLost = potions::drink_from_bag(session).await {
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = guild::run(session).await {

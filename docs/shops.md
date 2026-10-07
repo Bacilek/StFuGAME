@@ -36,6 +36,11 @@
   (field not known yet, sf-api ignores it) – find it from the response bodies before implementing.
 - Waiting for the user: Weapon Shop capture + Response bodies of `AdvertisementsCompleted` and `PlayerNewWares` (after midnight / new character).
 
+## Hourglasses (user 2026-10-07)
+- Hourglasses (`ItemType::QuickSandGlass`) sometimes cost gold in the shop. Buying them for gold is fine for spinning
+  (cheapest gold item); they are saved, never used. The event task "Buy hourglasses" uses them too.
+- Potions are bought here as well (after equipment upgrades, before tasks and spinning), see `docs/potions.md`.
+
 ## Verification status
 | What | Status |
 |---|---|
@@ -43,4 +48,5 @@
 | `BuyShop` costs only gold, mushrooms unchanged | ⏳ not verified |
 | After a purchase the shop slot gets a new item (and `Update` shows it) | ⏳ not verified |
 | Spin cost (purchase vs sale price) | ⏳ not verified |
+| A bought hourglass: backpack item or straight to the hourglass counter? | ⏳ not verified |
 | Shopping works during City Guard | ✅ 2026-10-07 per the user (everything works during a shift); bot run not seen yet |

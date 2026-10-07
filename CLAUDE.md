@@ -6,7 +6,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 1. `docs/status.md` – where we are, what is waiting for verification, open questions.
 2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
 3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
-4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `shops.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
+4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
 5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: `logs/progress.log`, journals `logs/expeditions.jsonl`, `logs/arena.jsonl`.
 
 ## Context
@@ -73,6 +73,13 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Weapon Shop and Magic Shop once a day after the Tavern is done. ONLY for gold (`mushroom_price == 0`), never `RefreshShop`.
 - Better item (even slightly) → buy and equip. Spare gold above the reserve (most expensive gold item seen today) → spin
   (buy the cheapest, sell it right away) until all items cost mushrooms. Never buy or sell epic items when spinning.
+- Hourglasses for gold may be bought when spinning (kept, never used).
+
+## Potions
+- Description and verification status: `docs/potions.md`.
+- Targets: main attribute + CON + Eternal Life (only when for gold; otherwise Luck). Only for gold, after equipment upgrades,
+  before tasks and spinning. Replace a smaller active one only when it has ≤ 3 days left. Eternal Life while slots are full:
+  buy and keep in the backpack.
 
 ## Guild
 - Description and verification status: `docs/guild.md`.
