@@ -236,6 +236,11 @@ fn mission_name(t: ExpeditionThing) -> String {
 pub async fn run(session: &mut SimpleSession) {
     let mut unknown_in_row = 0;
     let mut journal = Journal::default();
+    // sf-api obnoví nabídku rozcestí, jen když ji server pošle. Po výběru proto vždy
+    // stáhneme čerstvý stav a nikdy nevybíráme dvakrát ze stejné (zastaralé) nabídky.
+    let mut refresh_pending = true;
+    let mut last_offer: Option<Vec<String>> = None;
+    let mut stale_tries = 0;
 
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
@@ -254,6 +259,25 @@ pub async fn run(session: &mut SimpleSession) {
             match exp.current_stage() {
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
                     unknown_in_row = 0;
+                    let offer: Vec<String> = encs.iter().map(|e| format!("{:?}{}", e.typ, e.heroism)).collect();
+                    let same_as_last = last_offer.as_ref() == Some(&offer);
+                    if refresh_pending || same_as_last {
+                        refresh_pending = false;
+                        stale_tries += 1;
+                        if stale_tries > 3 {
+                            report!("[hospoda] Nabídka rozcestí se neobnovuje, končím (nechci vybírat naslepo)");
+                            return;
+                        }
+                        if stale_tries > 1 {
+                            report!("[hospoda] Nabídka je stejná jako minule, obnovuji stav ({stale_tries}. pokus)");
+                        }
+                        if let Err(e) = safe::send(session, Command::Update).await {
+                            report!("[hospoda] Chyba: {e}");
+                            return;
+                        }
+                        continue;
+                    }
+                    stale_tries = 0;
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
                         let note = format!("{:?}({:+})", u.typ, u.heroism);
                         report!("[hospoda] Nezmapované setkání: {note}");
@@ -285,6 +309,8 @@ pub async fn run(session: &mut SimpleSession) {
                         ExpeditionThing::Suitcase => entry.chests += 1,
                         _ => {}
                     }
+                    last_offer = Some(offer);
+                    refresh_pending = true;
                     Command::ExpeditionPickEncounter { pos }
                 }
                 ExpeditionStage::Boss(_) => {

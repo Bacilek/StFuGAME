@@ -1,0 +1,16 @@
+2026-10-07 14:58:04 Přihlašuji se k S&F účtu...
+2026-10-07 14:58:06 Načítám postavu TestChar1 na s31.sfgame.eu...
+2026-10-07 14:58:13 Postava:  TestChar1
+2026-10-07 14:58:13 Level:    10
+2026-10-07 14:58:13 Zlato:    99 g 86 s
+2026-10-07 14:58:13 Houby:    7
+2026-10-07 14:58:13 Hospoda:
+2026-10-07 14:58:13   ALU:    43 min 5 s
+2026-10-07 14:58:13   Piva:   0/10
+2026-10-07 14:58:13   Stav:   na expedici
+2026-10-07 14:58:13 [hospoda] Čekám do 14:59:41 (1 min 27 s)
+2026-10-07 14:59:52 [hospoda] Kolo 5/10, hrdinství 26 (odhad konce 36), Dragon Taming 2/2 | Dummy2(+2, budoucí 0.0), Cake(+5, budoucí 0.0), Dummy2(+2, budoucí 0.0) → beru Cake
+2026-10-07 14:59:56 [hospoda] Kolo 6/10, hrdinství 26 (odhad konce 36), Dragon Taming 2/2 | Dummy2(+2, budoucí 0.0), Cake(+5, budoucí 0.0), Dummy2(+2, budoucí 0.0) → beru Cake
+2026-10-07 15:00:01 [hospoda] Kolo 7/10, hrdinství 31 (odhad konce 41), Dragon Taming 2/2 | Dummy3(+3, budoucí 0.0) → beru Dummy3
+2026-10-07 15:00:08 [hospoda] Kolo 8/10, hrdinství 34 (odhad konce 44), Dragon Taming 2/2 | Dummy2(+2, budoucí 0.0), DummyBounty(+0, budoucí 7.0), Key(+0, budoucí 0.0) → beru Key
+2026-10-07 15:00:11 [hospoda] Chyba: Server responded with error: sessionid invalid
