@@ -21,6 +21,12 @@
 - `safe.rs`: `BuyShop` passes only when the item at `shop_pos` has `mushroom_price == 0`, matches `item_ident`
   (it contains both prices; the server also rejects a changed item) and we have the gold. Plus the mushroom watchdog.
 
+## Shop refresh for an ad (idea, not implemented)
+- The user: once a day each shop can be rerolled for watching an ad. Wanted: do it after everything costs mushrooms.
+- sf-api 0.4.4 has no command for it (only `RefreshShop` = 1 mushroom, forbidden). The server sends a `skipvideo` key, sf-api ignores it.
+- To implement we would need the exact server command the client sends after the ad (`Command::Custom`), e.g. captured
+  from the browser DevTools (Network tab) when the user watches the ad. Until then not possible.
+
 ## Verification status
 | What | Status |
 |---|---|
@@ -28,4 +34,4 @@
 | `BuyShop` costs only gold, mushrooms unchanged | ⏳ not verified |
 | After a purchase the shop slot gets a new item (and `Update` shows it) | ⏳ not verified |
 | Spin cost (purchase vs sale price) | ⏳ not verified |
-| Shopping works during City Guard (after a bot restart) | ⏳ not verified |
+| Shopping works during City Guard | ✅ 2026-10-07 per the user (everything works during a shift); bot run not seen yet |
