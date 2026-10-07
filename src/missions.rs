@@ -74,6 +74,7 @@ const fn repeats(mut m: Mission) -> Mission {
     m
 }
 
+// Hodnoty ověřené na serveru mají přednost před FAQ (viz docs/expedice.md, „Stav ověření“).
 pub const MISSIONS: &[Mission] = &[
     known("Dragon Taming", &[(Bait, -2), (Dragon, 10)], Bonus::PerItem(5), 2),
     repeats(known(
@@ -101,9 +102,10 @@ pub const MISSIONS: &[Mission] = &[
         limit: 3,
         final_repeats: false,
     },
+    // FAQ: 5, 2, -5; server 2026-10-07: 6, 3, -4
     repeats(known(
         "The Sword Trial",
-        &[(SwordInStone, 5), (BentSword, 2), (BrokenSword, -5)],
+        &[(SwordInStone, 6), (BentSword, 3), (BrokenSword, -4)],
         Bonus::PerItem(8),
         1,
     )),

@@ -38,7 +38,7 @@ Ověřeno z běhu:
 | Unicorn Whisperer | 1× | roh (1) → osel (3) → duha (5) → jednorožec (7) | `UnicornHorn` → `Donkey` → `Rainbow` → `Unicorn` | +10 |
 | Podium Climber | 2× | malá překážka (−1) → velká překážka (−2) → stupně vítězů (15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | +10 / kus |
 | Revealing Lady | 1× | ponožky (0) → hromada šatů (0) → pár (12) | `Socks` → `ClothPile` → `RevealingCouple` | ? |
-| The Sword Trial | 1×, trvalý konec | meč v kameni (5) → ohnutý meč (2) → zlomený meč (−5) | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / kus |
+| The Sword Trial | 1×, trvalý konec | meč v kameni (6) → ohnutý meč (3) → zlomený meč (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / kus |
 | Bewitched Stew | 1× | kotel (2) → čarodějnice (−5) → čarodějný lektvar (15) | `Well` → `Girl` → `Balloons` | ? |
 | Toxic Fountain Cure | 1×, trvalý konec | vílí fontána (8) → znečištěná fontána (−4) | `Prince` → `RoyalFrog` | ? |
 | Build A Friend | 1× | ruka (−5) → nohy (−5) → tělo (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
@@ -46,6 +46,8 @@ Ověřeno z běhu:
 Sanitary: FAQ píše „na konci +5, pokud máš 3 papíry, jinak −5“. Uživatel si je jistý +20 / −5, platí jeho verze (zatím neověřeno během běhu).
 
 Bonusy za úkol z FAQ nejdou ověřit (FAQ je neuvádí), stojí na údajích uživatele. Ověřují se během běhu.
+
+✱ Ověřeno na serveru, FAQ uvádí 5 / 2 / −5.
 
 Plakáty existují jen pro: kostlivce, draka, uhasený oheň, jednorožce, stupně vítězů, pár, zlomený meč, čarodějný lektvar,
 znečištěnou fontánu a Klause. Objeví se jen ty, jejichž cíl je v aktuální expedici.
@@ -63,6 +65,7 @@ Výsledky jsou v deníku (`checks`), nesoulady se hlásí jako `[kontrola] NESED
 | Dragon Taming +5 / kus na konci | ✅ | 2026-10-07: 36 → 46 za 2 draky |
 | Truhla se objeví po klíči | ✅ | 2026-10-07: Barkeeper kolo 1 klíč, kolo 2 truhla |
 | Hot Carnal Craving: sele → další rozcestí 1 možnost, stehno → 2 | ✅ | 2026-10-07: Barkeeper kola 6 a 7 |
+| Sword Trial: 6 / 3 / −4 (FAQ 5 / 2 / −5, uživatel −4 u zlomeného) | ✅ server | 2026-10-07: nabídka i připsané hrdinství |
 | Revealing Lady: pár +12 | ❌ nesedí | 2026-10-07: server ukázal +12, hrdinství 16 → 23 (+7). Příčina neznámá, sledovat |
 | Ostatní bonusy za úkol, Sanitary +20 / −5 | ⏳ | čeká na ověření |
 

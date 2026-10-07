@@ -371,6 +371,8 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
     let mut stale_tries = 0;
     // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
     let mut pending_check: Option<(i32, String)> = None;
+    // Nesoulady s tabulkou hlásit jen jednou za běh
+    let mut reported = std::collections::HashSet::new();
     // Před posledním bossem: (hrdinství, očekávaná změna na konci, popis)
     let mut end_check: Option<(i32, i32, String)> = None;
 
@@ -437,7 +439,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     for e in &encs {
                         if let Some((m, idx)) = missions::chain_position(e.typ) {
                             let table = m.chain[idx].1;
-                            if table != e.heroism {
+                            if table != e.heroism && reported.insert(e.typ as i64) {
                                 check(entry, false, &format!("{:?} má v tabulce {table:+}, server ukazuje {:+}", e.typ, e.heroism));
                             }
                         }
