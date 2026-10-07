@@ -28,6 +28,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FightDungeon { use_mushroom: false, .. }
             | Command::SellShop { .. }
             | Command::Equip { .. }
+            | Command::StartWork { .. }
+            | Command::FinishWork
     )
 }
 

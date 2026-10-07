@@ -54,3 +54,7 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 ## Inventář
 - Popis a stav ověření: `docs/inventar.md`.
 - Předmět na nasazení: lepší (vzorec z arény na atributy předmětu) nasadit, horší prodat. Epické NIKDY neprodávat.
+
+## Hlídka
+- Popis a stav ověření: `docs/hlidka.md`.
+- Po dojetí hospody hlídka: min(10 h, celé hodiny do půlnoci). Aréna i podzemí během hlídky běží dál.

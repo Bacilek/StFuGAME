@@ -2,6 +2,7 @@
 mod report;
 mod arena;
 mod dungeons;
+mod guard;
 mod inventory;
 mod journal;
 mod missions;
@@ -111,6 +112,7 @@ fn print_status(session: &SimpleSession) {
 }
 
 /// Hlavní smyčka: aréna (když je volná, max 10 výher denně), podzemí (když je volné), hospoda (jedna expedice),
+/// hlídka (když je hospoda dojetá, do půlnoci),
 /// a když není co dělat, čekání na konec nejbližšího cooldownu. Běží, dokud ji nezastavíme.
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
@@ -134,16 +136,24 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let tavern_state =
             |gs: &sf_api::gamestate::GameState| (gs.tavern.current_action, gs.tavern.thirst_for_adventure_sec);
         let before = tavern_state(gs);
+        // Hospoda dojetá = není expedice a na další už není ALU
+        let mut tavern_done = before.0 != CurrentAction::Expedition && before.1 == 0;
         if before.0 == CurrentAction::Expedition || before.1 > 0 {
             if let tavern::Outcome::SessionLost = tavern::run(session, journal).await {
                 return tavern::Outcome::SessionLost;
             }
             // Hospoda něco odehrála (změnil se stav/ALU) → hned znovu: aréna, pak další expedice.
-            // Když se nic nezměnilo (zbytek ALU na žádnou expedici nestačí), jdeme čekat.
+            // Když se nic nezměnilo (zbytek ALU na žádnou expedici nestačí), hospoda je dojetá.
             let after = session.game_state().map(tavern_state);
             if after.is_some_and(|a| a != before) {
                 continue;
             }
+            tavern_done = before.0 != CurrentAction::Expedition;
+        }
+
+        // Hlídka: výplata za skončenou, nová když je hospoda dojetá (do půlnoci, max 10 h)
+        if let tavern::Outcome::SessionLost = guard::run(session, tavern_done).await {
+            return tavern::Outcome::SessionLost;
         }
 
         // Není co dělat: počkat, až se uvolní aréna nebo podzemí (+ náhodná rezerva), nejvýš 30 min
@@ -154,7 +164,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             // Podzemí „volné“, ale boj neproběhl (plný inventář apod.): další pokus až za RETRY_SEC
             dungeon = dungeons::RETRY_SEC;
         }
-        let wait = arena.min(dungeon) + fastrand::u64(30..120);
+        let now = chrono::Local::now();
+        let guard_done = gs.and_then(|gs| guard::secs_until_done(gs.tavern.current_action)).unwrap_or(30 * 60);
+        // O půlnoci se resetuje ALU: probudit se a začít nový den
+        let midnight = guard::secs_until_midnight(now);
+        let wait = arena.min(dungeon).min(guard_done).min(midnight) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         report!("Není co dělat, další kontrola za {} min {} s", wait / 60, wait % 60);
         tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
