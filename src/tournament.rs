@@ -1,8 +1,8 @@
-//! Round-robin tournament of the challenge characters (user 2026-10-07): at the end of day 1, 3, 7 and 14 every
-//! character "fights" every other one. Simulated with sf-api's fight simulator (the server's rules) `ITERATIONS` times
+//! Round-robin tournament of the challenge characters (user 2026-10-07): every day at 23:50 every character "fights"
+//! every other one (the daily win rate goes to the dashboard); the rounds of day 1, 3, 7 and 14 make the tournament page. Simulated with sf-api's fight simulator (the server's rules) `ITERATIONS` times
 //! per pair, so the result is a fair win rate instead of one random fight – no Arena cooldown, no honor lost.
 //! Participants = the characters in `roster/roster.md`, loaded via `ViewPlayer` (the bot's own character from its
-//! own state). Output: `roster/tournament/day-<n>.json` + `roster/tournament.html` (all rounds).
+//! own state). Output: `roster/tournament/<date>.json` (every day) + `roster/tournament.html` (rounds of DAYS).
 
 use std::{fs, path::Path};
 
@@ -50,12 +50,49 @@ pub fn start_date() -> Option<NaiveDate> {
     first
 }
 
-/// Today's challenge day if a tournament is due today and not done yet.
+/// Today's challenge day if today's round has not been simulated yet (every day).
 pub fn due_today() -> Option<i64> {
     let today = Local::now().date_naive();
     let day = (today - start_date().unwrap_or(today)).num_days() + 1;
-    let done = Path::new(ROOT).join("tournament").join(format!("day-{day}.json")).exists();
-    (DAYS.contains(&day) && !done).then_some(day)
+    let done = Path::new(ROOT).join("tournament").join(format!("{today}.json")).exists();
+    (!done).then_some(day)
+}
+
+/// Average win rate of every character in every daily round: date → nick → win rate (0–1).
+pub fn daily_win_rates(demo: bool) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, f64>> {
+    let mut out = std::collections::BTreeMap::new();
+    for r in rounds(demo) {
+        let Some(date) = r["date"].as_str() else { continue };
+        let players = r["players"].as_array().cloned().unwrap_or_default();
+        let win = r["win"].as_array().cloned().unwrap_or_default();
+        let mut day = std::collections::BTreeMap::new();
+        for (i, p) in players.iter().enumerate() {
+            let row: Vec<f64> = win.get(i).and_then(|w| w.as_array()).map_or_else(Vec::new, |w| {
+                w.iter().filter_map(serde_json::Value::as_f64).collect()
+            });
+            if let (Some(nick), false) = (p["nick"].as_str(), row.is_empty()) {
+                day.insert(nick.to_string(), row.iter().sum::<f64>() / row.len() as f64);
+            }
+        }
+        out.insert(date.to_string(), day);
+    }
+    out
+}
+
+/// All saved rounds, sorted by day. Demo rounds (`_demo-*`) only for a demo.
+fn rounds(demo: bool) -> Vec<serde_json::Value> {
+    let dir = Path::new(ROOT).join("tournament");
+    let mut v: Vec<serde_json::Value> = fs::read_dir(&dir)
+        .map(|it| {
+            it.flatten()
+                .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
+                .filter(|e| demo == e.file_name().to_string_lossy().starts_with("_demo"))
+                .filter_map(|e| serde_json::from_str(&fs::read_to_string(e.path()).ok()?).ok())
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort_by_key(|r| r["day"].as_i64().unwrap_or(0));
+    v
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
@@ -120,24 +157,16 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     });
     let dir = Path::new(ROOT).join("tournament");
     let _ = fs::create_dir_all(&dir);
-    let _ = fs::write(dir.join(format!("day-{day}.json")), round.to_string());
-    write_page();
+    let _ = fs::write(dir.join(format!("{}.json", Local::now().date_naive())), round.to_string());
+    write_page(false);
     report!("[tournament] Day {day} done ({n} characters, {} missing)", missing.len());
     Outcome::Done
 }
 
-/// `roster/tournament.html` from all rounds (template src/tournament.html).
-pub fn write_page() {
-    let dir = Path::new(ROOT).join("tournament");
-    let mut rounds: Vec<serde_json::Value> = fs::read_dir(&dir)
-        .map(|it| {
-            it.flatten()
-                .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
-                .filter_map(|e| serde_json::from_str(&fs::read_to_string(e.path()).ok()?).ok())
-                .collect()
-        })
-        .unwrap_or_default();
-    rounds.sort_by_key(|r| r["day"].as_i64().unwrap_or(0));
+/// `roster/tournament.html` from the rounds of day 1, 3, 7 and 14 (template src/tournament.html).
+pub fn write_page(demo: bool) {
+    let rounds: Vec<serde_json::Value> =
+        rounds(demo).into_iter().filter(|r| DAYS.contains(&r["day"].as_i64().unwrap_or(0))).collect();
     let template = include_str!("tournament.html");
     let (Some(a), Some(b)) = (template.find("/*DATA*/"), template.find("/*END*/")) else { return };
     let json = serde_json::Value::Array(rounds).to_string().replace("</", "<\\/");
@@ -149,7 +178,8 @@ pub fn write_page() {
 mod tests {
     use super::*;
 
-    /// Demo page with made-up win rates: `cargo test demo_tournament -- --ignored`.
+    /// Demo with made-up win rates for 7 days (same dates as the dashboard demo):
+    /// `cargo test demo_tournament -- --ignored`, then `cargo test demo_dashboard -- --ignored`.
     #[test]
     #[ignore]
     fn demo_tournament() {
@@ -157,30 +187,30 @@ mod tests {
         let n = players.len();
         let dir = Path::new(ROOT).join("tournament");
         let _ = fs::create_dir_all(&dir);
+        let start = Local::now().date_naive() - chrono::Duration::days(6);
         let mut rng = fastrand::Rng::with_seed(3);
-        let skill: Vec<f64> = (0..n).map(|_| rng.f64()).collect();
-        for day in DAYS {
+        let mut skill: Vec<f64> = (0..n).map(|_| rng.f64()).collect();
+        for day in 1..=7i64 {
+            for s in &mut skill {
+                *s += (rng.f64() - 0.5) * 0.15;
+            }
             let mut win = vec![vec![None; n]; n];
             for i in 0..n {
                 for j in (i + 1)..n {
-                    let d = (skill[i] - skill[j]) * (1.0 + day as f64 / 7.0) + (rng.f64() - 0.5) * 0.3;
-                    let p = (0.5 + d).clamp(0.02, 0.98);
+                    let p = (0.5 + (skill[i] - skill[j]) * 1.5).clamp(0.02, 0.98);
                     win[i][j] = Some((p * 1000.0).round() / 1000.0);
                     win[j][i] = Some(((1.0 - p) * 1000.0).round() / 1000.0);
                 }
             }
+            let date = start + chrono::Duration::days(day - 1);
             let round = serde_json::json!({
-                "day": day, "date": format!("demo day {day}"), "iterations": ITERATIONS,
+                "day": day, "date": date.to_string(), "iterations": ITERATIONS,
                 "players": players.iter().map(|(n, c)| serde_json::json!({"nick": n, "cls": c})).collect::<Vec<_>>(),
                 "win": win, "missing": [],
             });
-            let _ = fs::write(dir.join(format!("_demo-day-{day}.json")), round.to_string());
+            let _ = fs::write(dir.join(format!("_demo-{date}.json")), round.to_string());
         }
-        write_page();
-        // the demo files would mix with the real rounds: remove them again, the page stays
-        for day in DAYS {
-            let _ = fs::remove_file(dir.join(format!("_demo-day-{day}.json")));
-        }
+        write_page(true);
     }
 
     #[test]

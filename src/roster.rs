@@ -358,6 +358,8 @@ fn write_dashboard(demo: bool) {
         .filter(|e| e.path().is_dir() && (demo || !e.file_name().to_string_lossy().starts_with('_')))
         .collect();
     dirs.sort_by_key(|e| e.file_name());
+    // Daily simulated round robin: average win rate per character (src/tournament.rs)
+    let win_rates = crate::tournament::daily_win_rates(demo);
     for e in dirs {
         let rows = read_history(&e.path().join("history.csv"));
         if rows.is_empty() {
@@ -367,6 +369,7 @@ fn write_dashboard(demo: bool) {
         let (mut gold, mut xp, mut mush) = (0.0, 0.0, 0.0);
         let mut by_date = serde_json::Map::new();
         let mut class = String::new();
+        let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
         for r in &rows {
             let Some(date) = r.get("date") else { continue };
             gold += num(r, "gold_gained").unwrap_or(0.0);
@@ -381,10 +384,11 @@ fn write_dashboard(demo: bool) {
                 serde_json::json!({
                     "gold": gold, "xp": xp, "mushrooms": mush,
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
+                    "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                 }),
             );
         }
-        chars.push(serde_json::json!({ "nick": e.file_name().to_string_lossy().trim_start_matches("_demo_"), "cls": class, "rows": by_date }));
+        chars.push(serde_json::json!({ "nick": nick, "cls": class, "rows": by_date }));
     }
     let data = serde_json::json!({
         "generated": Local::now().format("%Y-%m-%d %H:%M").to_string(),

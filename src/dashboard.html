@@ -37,7 +37,7 @@ table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}
 th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--ink2);font-weight:600}
-details{margin-top:12px} summary{cursor:pointer;color:var(--ink2)}
+.tablecard{margin-top:14px;overflow-x:auto} .tablecard table{margin-top:0}
 .empty{color:var(--muted);padding:40px;text-align:center}
 </style>
 </head>
@@ -57,7 +57,7 @@ details{margin-top:12px} summary{cursor:pointer;color:var(--ink2)}
   <svg id="chart" viewBox="0 0 1000 420" role="img" aria-labelledby="sub"></svg>
   <ul class="legend" id="legend"></ul>
 </div>
-<details><summary>Table</summary><div id="table"></div></details>
+<div class="card tablecard"><div id="table"></div></div>
 </div>
 <div class="tip" id="tip"></div>
 <script>
@@ -69,6 +69,7 @@ const METRICS = [
   {key:"rank", label:"Hall of Fame rank", fmt:v=>"#"+Math.round(v).toLocaleString(), invert:true},
   {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
   {key:"strength", label:"Strength", fmt:v=>Math.round(v).toLocaleString()},
+  {key:"winrate", label:"Win rate [%] (simulated against all)", fmt:v=>v.toFixed(1)+" %"},
 ];
 // Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
 // A second character of the same class gets a dashed line and a hollow marker.
@@ -185,7 +186,10 @@ function render(){
 function renderTable(m, days){
   const t = document.createElement("table"), head = t.insertRow();
   ["Character", ...days.map((d,i)=>`Day ${i+1}`)].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; head.appendChild(th); });
-  DATA.chars.forEach(c=>{ const r=t.insertRow(); r.insertCell().textContent = `${c.nick} (${pretty(c.cls)})`;
+  // rows sorted by the last shown day (best first)
+  const last = days[days.length-1], val = c => c.rows[last]?.[m.key];
+  const order = [...DATA.chars].sort((a,b)=>{ const x=val(a), y=val(b); if (x==null) return 1; if (y==null) return -1; return m.invert ? x-y : y-x; });
+  order.forEach(c=>{ const r=t.insertRow(); r.insertCell().textContent = `${c.nick} (${pretty(c.cls)})`;
     days.forEach(d=>{ const v=c.rows[d]?.[m.key]; r.insertCell().textContent = v==null ? "–" : m.fmt(v); }); });
   $("table").replaceChildren(t);
 }
