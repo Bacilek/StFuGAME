@@ -1,5 +1,6 @@
 #[macro_use]
 mod report;
+mod arena;
 mod journal;
 mod missions;
 mod safe;
@@ -107,6 +108,43 @@ fn print_status(session: &SimpleSession) {
     report!("  Stav:   {action}");
 }
 
+/// Hlavní smyčka: aréna (když je volná a postava nic nedělá), hospoda (jedna expedice),
+/// a když není co dělat, čekání na konec cooldownu arény. Běží, dokud ji nezastavíme.
+async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
+    loop {
+        if let tavern::Outcome::SessionLost = arena::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+
+        let Some(gs) = session.game_state() else { return tavern::Outcome::SessionLost };
+        let tavern_state =
+            |gs: &sf_api::gamestate::GameState| (gs.tavern.current_action, gs.tavern.thirst_for_adventure_sec);
+        let before = tavern_state(gs);
+        if before.0 == CurrentAction::Expedition || before.1 > 0 {
+            if let tavern::Outcome::SessionLost = tavern::run(session, journal).await {
+                return tavern::Outcome::SessionLost;
+            }
+            // Hospoda něco odehrála (změnil se stav/ALU) → hned znovu: aréna, pak další expedice.
+            // Když se nic nezměnilo (zbytek ALU na žádnou expedici nestačí), jdeme čekat.
+            let after = session.game_state().map(tavern_state);
+            if after.is_some_and(|a| a != before) {
+                continue;
+            }
+        }
+
+        // Není co dělat: počkat na konec cooldownu arény (+ náhodná rezerva)
+        let wait = session
+            .game_state()
+            .and_then(|gs| gs.arena.next_free_fight)
+            .map_or(0, |t| (t - chrono::Local::now()).num_seconds().max(0))
+            .unsigned_abs()
+            + fastrand::u64(30..120);
+        let wait = wait.clamp(60, 30 * 60);
+        report!("Není co dělat, další kontrola za {} min {} s", wait / 60, wait % 60);
+        tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+    }
+}
+
 /// Kolikrát se za jeden běh smíme znovu přihlásit po ztrátě session.
 const MAX_RELOGINS: u32 = 3;
 
@@ -142,10 +180,10 @@ async fn main() -> ExitCode {
         if attempt == 0 {
             print_status(&session);
         }
-        match tavern::run(&mut session, &mut journal).await {
-            tavern::Outcome::Done => return ExitCode::SUCCESS,
-            tavern::Outcome::SessionLost => {}
+        if let tavern::Outcome::SessionLost = play(&mut session, &mut journal).await {
+            continue;
         }
+        return ExitCode::SUCCESS;
     }
     report!("Session se ztratila příliš často, končím");
     ExitCode::FAILURE

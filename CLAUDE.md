@@ -37,3 +37,8 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
 - Data misí nemusí být správně (ani od uživatele, ani z FAQ): bot je za běhu ověřuje (`checks` v deníku, `[kontrola] NESEDÍ`), po bězích aktualizovat tabulku „Stav ověření“ v docs/expedice.md a opravit `src/missions.rs`.
 - Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.
+
+## Aréna
+- Popis a stav ověření: `docs/arena.md` (aktualizovat při každém novém zjištění).
+- Bojovat JEN mimo cooldown (jinak to stojí houbu, server příznak use_mushroom ignoruje) a jen když postava nic nedělá.
+- Vyzvat nejslabšího ze 3: síla = 100 % hlavní atribut + 80 % CON + 40 % LCK + 10 % vedlejší atributy.

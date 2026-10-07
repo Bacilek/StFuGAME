@@ -358,7 +358,7 @@ pub enum Outcome {
 }
 
 /// Server zneplatnil session (sf-api se při dalším příkazu přihlásí znovu).
-fn is_session_error(e: &SFError) -> bool {
+pub fn is_session_error(e: &SFError) -> bool {
     matches!(e, SFError::ServerError(msg) if msg.contains("sessionid"))
 }
 
@@ -378,6 +378,8 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
     let mut refresh_pending = true;
     let mut last_offer: Option<Vec<String>> = None;
     let mut stale_tries = 0;
+    // Po dokončení expedice vrátíme řízení (mezi expedicemi se dá stihnout aréna)
+    let mut played = false;
     // Expedice spuštěná za zbytek ALU (po restartu bota neznámé, pak se bere jako plná)
     let mut reduced_expedition = false;
     // Ověřování dat misí za běhu: (očekávané hrdinství, popis)
@@ -395,6 +397,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
         let tavern = &gs.tavern;
 
         let cmd = if let Some(exp) = tavern.expeditions.active() {
+            played = true;
             let entry = journal.entry(&mission_name(exp.target_thing));
             entry.heroism = exp.heroism;
             entry.projected = projected_heroism(exp);
@@ -579,6 +582,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         Command::ExpeditionPickReward { pos: choose_reward(&rewards, reduced_expedition) }
                     }
                 }
+                CurrentAction::Idle if played => return Outcome::Done,
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
                         for e in list.iter().filter(|e| missions::for_target(e.target).is_none()) {
@@ -600,6 +604,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             e.special
                         );
                         unknown_in_row = 0;
+                        played = true;
                         reduced_expedition = e.thirst_for_adventure_sec < REDUCED_EXPEDITION_SEC;
                         if reduced_expedition {
                             report!("[hospoda] Zbytková expedice: u odměn dávám přednost přesýpacím hodinám před zlatem");
