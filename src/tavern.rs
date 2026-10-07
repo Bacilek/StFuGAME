@@ -554,8 +554,18 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         field("current_floor"),
                         field("rewards")
                     );
+                    // „Pokračovat“ je pro server výběr odměny č. 1. Když sf-api ukazuje odměny (třeba
+                    // zastaralé po 1. bossovi), vybereme podle priorit – horší to být nemůže.
+                    let rewards: Vec<Reward> = active
+                        .and_then(|a| a.get("rewards").cloned())
+                        .and_then(|r| serde_json::from_value(r).ok())
+                        .unwrap_or_default();
                     report!("[hospoda] Uzavírám dokončenou expedici");
-                    Command::ExpeditionContinue
+                    if rewards.is_empty() {
+                        Command::ExpeditionContinue
+                    } else {
+                        Command::ExpeditionPickReward { pos: choose_reward(&rewards) }
+                    }
                 }
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
