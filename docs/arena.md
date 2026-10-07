@@ -3,7 +3,7 @@
 ## Rules (from the user)
 - Fight whenever the Arena is **off cooldown**, even during an expedition (the Tavern does not get in the way).
 - **At most 10 wins per day**, after that the Arena gives no rewards. Driven by the server counter `fights_for_xp`
-  (per the user = today's wins for XP, 0–10), so the server resets the day. Wins are also counted from `logs/arena.jsonl` as a cross-check.
+  (per the user = today's wins for XP, 0–10), so the server resets the day.
   On cooldown a fight would cost a mushroom: the server ignores the `use_mushroom` flag and always fights (sf-api docs on `Command::Fight`).
 - Challenge the weakest of the 3 offered opponents.
 - Opponent strength = 100 % main attribute + 80 % Constitution (CON) + 40 % Luck (LCK) + 10 % each secondary attribute.
@@ -17,6 +17,10 @@
 - `Fight` only with `use_mushroom: false` and only when `next_free_fight` + a 30 s margin has passed.
 - After our fight another one may only happen once the server has sent a NEW cooldown end (later than our fight).
 - Mushroom watchdog: if mushrooms decrease after any command, the bot exits immediately (exit 2).
+
+## Log `logs/arena.jsonl` (user request)
+One line per fight: `date`, `fight_of_day` (which fight of that day), `opponent`, `won`, `honor`, `gold`, `xp`.
+No time, no opponent strength, no `fights_for_xp`.
 
 ## Flow (src/arena.rs, loop in src/main.rs)
 - Loop: Arena (when possible) → one expedition → again. During an expedition the Arena is tried between steps

@@ -119,7 +119,7 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
             return fail(&e);
         }
         if selling {
-            report!("[inventory] Sold for {} g {} s", price / 100, price % 100);
+            report!("[inventory] Sold for {}", crate::report::gold(u64::from(price)));
         }
         // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {

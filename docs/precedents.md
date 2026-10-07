@@ -24,3 +24,7 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Logs in the GitHub repo | Fine (the user may make the repo private). |
 | 2026-10-07 | Language | The whole repo in English (game terms from the English client), except `docs/todo.md`. Commit messages in English. Communication with the user stays Czech. |
 | 2026-10-07 | Starting the bot | The user starts it themselves (desktop shortcut); do not start it for them unless asked. |
+| 2026-10-07 | Money in logs | Always gold (silver / 100, e.g. 50 silver = 0.50 g), never "g + s". |
+| 2026-10-07 | Progress log | Keep only the last 100 messages in `logs/progress.log`. |
+| 2026-10-07 | Arena log | Only date, fight of the day, opponent, won, honor, gold, xp (no time, strength, `fights_for_xp`). |
+| 2026-10-07 | Old Czech log, README | Translate everything to English (old log translated into `progress.log`), write an English README. |

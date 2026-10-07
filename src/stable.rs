@@ -54,17 +54,17 @@ pub async fn ensure_mount(session: &mut SimpleSession) -> Outcome {
     }
     let Some(mount) = choose(gs) else {
         report!(
-            "[stable] WARNING: cannot afford a mount (mushrooms {}, gold {} g), going on the expedition without one",
+            "[stable] WARNING: cannot afford a mount (mushrooms {}, gold {}), going on the expedition without one",
             gs.character.mushrooms,
-            gs.character.silver / 100
+            crate::report::gold(gs.character.silver)
         );
         return Outcome::Done;
     };
     let cost = mount.cost();
     report!(
-        "[stable] Character has no mount, renting {mount:?} for 14 days ({} mushrooms, {} g)",
+        "[stable] Character has no mount, renting {mount:?} for 14 days ({} mushrooms, {})",
         cost.mushrooms,
-        cost.silver / 100
+        crate::report::gold(cost.silver)
     );
     match safe::send(session, Command::BuyMount { mount }).await {
         Ok(gs) => {

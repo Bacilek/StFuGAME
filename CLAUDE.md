@@ -46,7 +46,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
   Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
 - Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.
 - Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses, beer or mushroom skips.
-- Timestamped progress: `logs/progress.log` (output via the `report!` macro).
+- Timestamped progress: `logs/progress.log` (output via the `report!` macro, keeps the last 100 messages). Money is always shown in gold (`report::gold`).
 - Mission data may be wrong (from the user and from the FAQ): the bot verifies it during runs (`checks` in the journal, `[check] MISMATCH`); after runs update the "Verification status" table in docs/expeditions.md and fix `src/missions.rs`.
 - Journal `logs/expeditions.jsonl`: evaluate after runs (below 40 / far above 40) and tune the strategy.
 - The bot cannot do classic quests (`StartQuest`/`FinishQuest`); when `tavern.available_tasks()` returns `Quests`, it skips the Tavern.

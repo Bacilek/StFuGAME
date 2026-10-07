@@ -102,7 +102,7 @@ fn print_status(session: &SimpleSession) {
 
     report!("Character: {}", ch.name);
     report!("Level:     {}", ch.level);
-    report!("Gold:      {} g {} s", ch.silver / 100, ch.silver % 100);
+    report!("Gold:      {}", report::gold(ch.silver));
     report!("Mushrooms: {}", ch.mushrooms);
     report!("Tavern:");
     report!("  Thirst for Adventure: {} min {} s", thirst / 60, thirst % 60);

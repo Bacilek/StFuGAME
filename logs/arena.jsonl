@@ -1,17 +1,17 @@
-{"fights_for_xp":1,"honor":93,"opponent":"kl3bcio","silver":0,"strength":63.0,"time":"2026-10-07 16:49:29","won":true,"xp":98}
-{"fights_for_xp":1,"honor":-17,"opponent":"DanteRibilius","silver":0,"strength":113.0,"time":"2026-10-07 17:02:15","won":false,"xp":0}
-{"fights_for_xp":1,"honor":-15,"opponent":"SidorBozy","silver":0,"strength":218.0,"time":"2026-10-07 17:13:54","won":false,"xp":0}
-{"fights_for_xp":2,"honor":99,"opponent":"Ziigir Nukeugon","silver":0,"strength":62.0,"time":"2026-10-07 17:25:18","won":true,"xp":98}
-{"fights_for_xp":2,"honor":-23,"opponent":"Jeck Daniels 13","silver":0,"strength":146.0,"time":"2026-10-07 17:37:41","won":false,"xp":0}
-{"fights_for_xp":3,"honor":100,"opponent":"VenenoFate","silver":0,"strength":82.0,"time":"2026-10-07 17:49:16","won":true,"xp":98}
-{"fights_for_xp":3,"honor":-31,"opponent":"KurtC","silver":0,"strength":227.0,"time":"2026-10-07 18:01:43","won":false,"xp":0}
-{"fights_for_xp":3,"honor":-27,"opponent":"Nuraks","silver":0,"strength":163.0,"time":"2026-10-07 18:14:23","won":false,"xp":0}
-{"fights_for_xp":3,"honor":-25,"opponent":"Ratyikandur","silver":0,"strength":221.0,"time":"2026-10-07 18:27:02","won":false,"xp":0}
-{"fights_for_xp":3,"honor":-22,"opponent":"Seraphime","silver":0,"strength":275.0,"time":"2026-10-07 18:39:07","won":false,"xp":0}
-{"fights_for_xp":4,"honor":99,"opponent":"Hugox","silver":0,"strength":32.0,"time":"2026-10-07 18:51:02","won":true,"xp":98}
-{"fights_for_xp":4,"honor":-26,"opponent":"Sisatahlavaa","silver":0,"strength":229.0,"time":"2026-10-07 19:15:53","won":false,"xp":0}
-{"fights_for_xp":4,"honor":-24,"opponent":"bog mag","silver":0,"strength":240.0,"time":"2026-10-07 19:28:16","won":false,"xp":0}
-{"fights_for_xp":4,"honor":-21,"opponent":"slamak420","silver":0,"strength":224.0,"time":"2026-10-07 19:39:43","won":false,"xp":0}
-{"fights_for_xp":4,"honor":-19,"opponent":"banánkenyér","silver":0,"strength":151.0,"time":"2026-10-07 19:51:56","won":false,"xp":0}
-{"fights_for_xp":4,"honor":-17,"opponent":"LordGrim","silver":0,"strength":138.0,"time":"2026-10-07 20:04:31","won":false,"xp":0}
-{"fights_for_xp":4,"honor":-15,"opponent":"Alojzy Sprężyna","silver":0,"strength":138.0,"time":"2026-10-07 20:16:02","won":false,"xp":0}
+{"date": "2026-10-07", "fight_of_day": 1, "opponent": "kl3bcio", "won": true, "honor": 93, "gold": 0.0, "xp": 98}
+{"date": "2026-10-07", "fight_of_day": 2, "opponent": "DanteRibilius", "won": false, "honor": -17, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 3, "opponent": "SidorBozy", "won": false, "honor": -15, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 4, "opponent": "Ziigir Nukeugon", "won": true, "honor": 99, "gold": 0.0, "xp": 98}
+{"date": "2026-10-07", "fight_of_day": 5, "opponent": "Jeck Daniels 13", "won": false, "honor": -23, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 6, "opponent": "VenenoFate", "won": true, "honor": 100, "gold": 0.0, "xp": 98}
+{"date": "2026-10-07", "fight_of_day": 7, "opponent": "KurtC", "won": false, "honor": -31, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 8, "opponent": "Nuraks", "won": false, "honor": -27, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 9, "opponent": "Ratyikandur", "won": false, "honor": -25, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 10, "opponent": "Seraphime", "won": false, "honor": -22, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 11, "opponent": "Hugox", "won": true, "honor": 99, "gold": 0.0, "xp": 98}
+{"date": "2026-10-07", "fight_of_day": 12, "opponent": "Sisatahlavaa", "won": false, "honor": -26, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 13, "opponent": "bog mag", "won": false, "honor": -24, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 14, "opponent": "slamak420", "won": false, "honor": -21, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 15, "opponent": "banánkenyér", "won": false, "honor": -19, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 16, "opponent": "LordGrim", "won": false, "honor": -17, "gold": 0.0, "xp": 0}
+{"date": "2026-10-07", "fight_of_day": 17, "opponent": "Alojzy Sprężyna", "won": false, "honor": -15, "gold": 0.0, "xp": 0}

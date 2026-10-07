@@ -1,5 +1,3 @@
 /target
 .env
 logs/progress.log
-logs/prubeh.log
-logs/expedice.jsonl

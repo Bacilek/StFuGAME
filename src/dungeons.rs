@@ -100,10 +100,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     };
     match &gs.last_fight {
         Some(f) => report!(
-            "[dungeons] {}: xp +{}, silver {:+}, item {}",
+            "[dungeons] {}: xp +{}, gold {}, item {}",
             if f.has_player_won { "Win" } else { "Loss" },
             f.xp_change,
-            f.silver_change,
+            crate::report::gold_change(f.silver_change),
             if f.item_won.is_some() { "yes" } else { "no" }
         ),
         None => report!("[dungeons] Fight done, the server sent no result"),

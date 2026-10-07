@@ -10,7 +10,7 @@
     (or directly `target\release\stfugame.exe`).
 - When you want to play manually in the browser, **stop** the bot first (otherwise you fight over the session).
 - The bot can run only once; a second start reports "already running".
-- Log: `logs\progress.log` (also via "Open log").
+- Log: `logs\progress.log` (also via "Open log"), keeps only the last 100 messages.
 - If mushrooms ever decrease outside the allowed exception, the bot stops itself and shows a warning.
 
 ## For Claude (development)

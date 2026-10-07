@@ -44,7 +44,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // Calendar: one reward per day
     let calendar_ready = specials.calendar.next_possible.is_some_and(|t| t <= now);
     if calendar_ready && may_try("calendar") {
-        let reward = specials.calendar.rewards.get(specials.calendar.collected).map(|r| format!("{:?} x{}", r.typ, r.amount));
+        let reward = specials.calendar.rewards.get(specials.calendar.collected).map(|r| crate::report::reward(&format!("{:?}", r.typ), r.amount));
         report!("[rewards] Collecting the daily login bonus: {}", reward.unwrap_or_else(|| "?".into()));
         if let Err(e) = safe::send(session, Command::CollectCalendar).await {
             return fail(&e);
@@ -55,7 +55,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if session.game_state().is_some_and(safe::wheel_is_free) && may_try("wheel") {
         report!("[rewards] Spinning the Wheel of Fortune (free)");
         match safe::send(session, Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }).await {
-            Ok(gs) => report!("[rewards] Wheel of Fortune: {:?}", gs.specials.wheel.result),
+            Ok(gs) => match &gs.specials.wheel.result {
+                Some(w) => report!("[rewards] Wheel of Fortune: {}", crate::report::reward(&format!("{:?}", w.typ), w.amount)),
+                None => report!("[rewards] Wheel of Fortune: no result from the server"),
+            },
             Err(e) => return fail(&e),
         }
     }

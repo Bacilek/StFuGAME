@@ -35,14 +35,14 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 const MAX_WINS_PER_DAY: usize = 10;
 const LOG: &str = "logs/arena.jsonl";
 
-/// Today's wins according to the Arena log (only as a cross-check of `fights_for_xp`).
-pub fn wins_today() -> usize {
+/// Number of Arena fights logged today (for the "fight of the day" number in the log).
+pub fn fights_today() -> usize {
     let today = Local::now().format("%Y-%m-%d").to_string();
     std::fs::read_to_string(LOG)
         .unwrap_or_default()
         .lines()
         .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
-        .filter(|v| v["time"].as_str().is_some_and(|t| t.starts_with(&today)) && v["won"] == true)
+        .filter(|v| v["date"].as_str() == Some(today.as_str()))
         .count()
 }
 
@@ -123,6 +123,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     report!("[arena] Challenging the weakest: {name} (strength {s:.0})");
+    let fight_of_day = fights_today() + 1;
     let opponent = name.clone();
     let gs = match safe::send(session, Command::Fight { name, use_mushroom: false }).await {
         Ok(gs) => gs,
@@ -132,21 +133,20 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     match &gs.last_fight {
         Some(f) => {
             report!(
-                "[arena] {}: honor {:+}, silver {:+}, xp +{} (server fights_for_xp {fights_for_xp})",
+                "[arena] Fight {fight_of_day} today – {}: honor {:+}, gold {}, xp +{}",
                 if f.has_player_won { "Win" } else { "Loss" },
                 f.honor_change,
-                f.silver_change,
+                crate::report::gold_change(f.silver_change),
                 f.xp_change
             );
             log_fight(&json!({
-                "time": Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                "date": Local::now().format("%Y-%m-%d").to_string(),
+                "fight_of_day": fight_of_day,
                 "opponent": opponent,
-                "strength": s.round(),
                 "won": f.has_player_won,
                 "honor": f.honor_change,
-                "silver": f.silver_change,
+                "gold": (f.silver_change as f64) / 100.0,
                 "xp": f.xp_change,
-                "fights_for_xp": fights_for_xp,
             }));
         }
         None => report!("[arena] Fight done, the server sent no result"),
@@ -155,7 +155,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if wins >= MAX_WINS_PER_DAY {
         report!("[arena] {wins} wins for XP today, Arena paused until tomorrow");
     } else {
-        report!("[arena] Wins for XP today: {wins}/{MAX_WINS_PER_DAY} (my log says {})", wins_today());
+        report!("[arena] Wins for XP today: {wins}/{MAX_WINS_PER_DAY}");
     }
     if let Some(next) = gs.arena.next_free_fight {
         report!("[arena] Next free fight at {}", next.format("%H:%M:%S"));

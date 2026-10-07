@@ -54,7 +54,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             Err(e) => return fail(&e),
         };
         let earned = gs.character.silver.saturating_sub(silver_before);
-        report!("[guard] Pay {} g {} s", earned / 100, earned % 100);
+        report!("[guard] Pay {}", crate::report::gold(earned));
     }
 
     let Some(gs) = session.game_state() else { return Outcome::Done };

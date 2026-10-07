@@ -561,9 +561,10 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
                     let pos = choose_reward(&rewards, reduced_expedition);
-                    let opts: Vec<String> = rewards.iter().map(|r| format!("{:?} x{}", r.typ, r.amount)).collect();
+                    let reward_text = |r: &Reward| crate::report::reward(&format!("{:?}", r.typ), i64::try_from(r.amount).unwrap_or(i64::MAX));
+                    let opts: Vec<String> = rewards.iter().map(reward_text).collect();
                     report!("[tavern] Rewards: {} → taking {:?}", opts.join(", "), rewards[pos].typ);
-                    entry.rewards.push(format!("{:?} x{}", rewards[pos].typ, rewards[pos].amount));
+                    entry.rewards.push(reward_text(&rewards[pos]));
                     Command::ExpeditionPickReward { pos }
                 }
                 ExpeditionStage::Waiting { busy_until, .. } => {

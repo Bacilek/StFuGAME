@@ -11,7 +11,8 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
   Thirst for Adventure used up for today, the full inventory was solved by selling.
 - 2026-10-07 ~20:25 the repo was translated to English (code, logs, docs; `docs/todo.md` stays Czech) and the English release
   build was made (`target/release/stfugame.exe`). The user starts it themselves with the desktop shortcut.
-  The bot now logs to `logs/progress.log`; the old Czech local log `logs/prubeh.log` (until 20:23, gitignored) was left as it is.
+  The bot logs to `logs/progress.log` (last 100 messages only); the old Czech log was translated into it and deleted.
+  Money is shown in gold everywhere (silver / 100). README written.
   The old bot was stopped 20:23, so the 23:06 City Guard pay will happen whenever the new bot runs after 23:06.
 
 ## Pending verification (check the log `logs/progress.log` and record in the matching doc)
@@ -30,8 +31,6 @@ Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
 | Tuning the expedition strategy from the journal (`logs/expeditions.jsonl`) | after more runs | `docs/expeditions.md` |
 
 ## Open questions for the user
-- `logs/prubeh.log` (old Czech local log): keep, prepend to `progress.log`, translate or delete? (asked 2026-10-07, no answer yet)
-- README.md only says "this is a readme" – write a short English README? (asked 2026-10-07, no answer yet)
 - Epic items are never sold → the backpack fills up over time and the Dungeons stop (in the TODO).
 - Unmapped missions: barkeeper (Mugs → DraftBeer → Barkeeper), merman, riding (Chicken → Tiger → RidingStan), lovebirds.
 
