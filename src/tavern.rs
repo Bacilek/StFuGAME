@@ -1,4 +1,5 @@
 //! Hospoda: expedice s výběry (rozcestí, boss, odměny, čekání).
+//! Strategie: co nejdřív si zajistit 40 hrdinství (maximální odměna) a pak farmit klíče a truhly.
 
 use std::time::Duration;
 
@@ -15,100 +16,185 @@ use sf_api::{
     },
 };
 
-use crate::safe;
+use crate::{
+    journal::Journal,
+    missions::{self, Bonus},
+    safe,
+};
 
 /// Od tohoto hrdinství je odměna maximální, další už nepotřebujeme.
 const MAX_HEROISM: i32 = 40;
 /// Bonus za věc, ke které máme plakát „hledá se“ (wanted).
 const BOUNTY_BONUS: i32 = 10;
+/// Expedice má vždy 10 kol (rozcestí).
+const LAST_FLOOR: u8 = 10;
+/// Kolik hrdinství v průměru dá jedno kolo. Kolo strávené na přípravě (krok řetězu)
+/// tedy „stojí“ tolik, kolik bychom jinak sebrali. Ladit podle deníku.
+const OPPORTUNITY_COST: f64 = 4.0;
 /// Pojistka proti nekonečné smyčce.
 const MAX_STEPS: u32 = 300;
 
-/// Vybere expedici: přednostně se speciální odměnou (vejce, denní úkol), jinak nejlevnější v ALU.
-/// Vrací jen expedice, na které máme dost ALU.
+/// Vybere expedici: jen se známou misí, přednostně se speciální odměnou (vejce, denní úkol),
+/// jinak nejlevnější v ALU. Vrací jen expedice, na které máme dost ALU.
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32) -> Option<usize> {
     list.iter()
         .enumerate()
-        .filter(|(_, e)| e.thirst_for_adventure_sec <= thirst)
+        .filter(|(_, e)| e.thirst_for_adventure_sec <= thirst && missions::for_target(e.target).is_some())
         .min_by_key(|(_, e)| (e.special.is_none(), e.thirst_for_adventure_sec))
         .map(|(i, _)| i)
 }
-
-/// Poslední kolo expedice. V něm nemá smysl brát „přípravné“ věci.
-const LAST_FLOOR: u8 = 10;
-/// Bonus na konci expedice za každý kus rozbitého meče, když je cílem.
-const BROKEN_SWORD_END_BONUS: i32 = 8;
 
 fn has(exp: &Expedition, t: ExpeditionThing) -> bool {
     exp.items.iter().flatten().any(|i| *i == t)
 }
 
-/// Přípravná věc: sama nic nedá (nebo ubere), ale odemkne bonus později.
-/// Plakát (+10 k hledanému), klíč (k truhle), princezna (`Bait`, odemkne draka +10).
-fn is_setup(t: ExpeditionThing) -> bool {
-    t.is_bounty_for().is_some() || matches!(t, ExpeditionThing::Key | ExpeditionThing::Bait)
+/// Kolik rozcestí ještě zbývá PO aktuálním výběru.
+fn floors_after(exp: &Expedition) -> u8 {
+    LAST_FLOOR.saturating_sub(exp.current_floor)
 }
 
-/// Budoucí hodnota přípravné věci (0, pokud ji už máme nebo je poslední kolo).
-fn future_value(exp: &Expedition, t: ExpeditionThing) -> i32 {
-    if exp.current_floor >= LAST_FLOOR || has(exp, t) {
-        return 0;
-    }
-    if t.is_bounty_for().is_some() || t == ExpeditionThing::Bait {
-        BOUNTY_BONUS
-    } else {
-        0
-    }
+fn target_done(exp: &Expedition) -> bool {
+    exp.target_current >= exp.target_amount
 }
 
-/// Hodnota setkání v hrdinství: základ + bonus za plakát + budoucí hodnota přípravné věci.
-fn encounter_value(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
-    let bonus = match enc.typ.required_bounty() {
-        Some(poster) if has(exp, poster) => BOUNTY_BONUS,
-        _ => 0,
-    };
-    enc.heroism + bonus + future_value(exp, enc.typ)
-}
-
-/// Hrdinství, které budeme mít na konci, včetně bonusů připsaných až na konci.
+/// Odhad hrdinství na konci expedice, pokud už nic dalšího nesebereme:
+/// aktuální + bonusy „za kus“ (připíšou se na konci) - trest za nesplněný úkol.
 fn projected_heroism(exp: &Expedition) -> i32 {
-    let end_bonus = match exp.target_thing {
-        ExpeditionThing::BrokenSword => BROKEN_SWORD_END_BONUS * i32::from(exp.target_current),
-        _ => 0,
-    };
-    exp.heroism + end_bonus
-}
-
-/// Vybere setkání na rozcestí:
-/// 0. v posledním kole se neberou přípravné věci (plakát, klíč, princezna), pokud je jiná možnost,
-/// 1. cílový předmět expedice, dokud není úkol splněný,
-/// 2. když je úkol splněný a hrdinství (vč. bonusů na konci) je 40+: klíč nebo truhla,
-/// 3. jinak nejvyšší hodnota (plakát/princezna se počítají jako +10 do budoucna).
-fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
-    let last = exp.current_floor >= LAST_FLOOR;
-    let allowed = |e: &ExpeditionEncounter| !(last && is_setup(e.typ));
-    let any_allowed = encs.iter().any(allowed);
-    let ok = |e: &ExpeditionEncounter| !any_allowed || allowed(e);
-
-    let find = |pred: &dyn Fn(&ExpeditionEncounter) -> bool| encs.iter().position(|e| ok(e) && pred(e));
-
-    let target_done = exp.target_current >= exp.target_amount;
-    if !target_done && let Some(i) = find(&|e| e.typ == exp.target_thing) {
-        return i;
-    }
-    if target_done && projected_heroism(exp) >= MAX_HEROISM {
-        let need_key = !has(exp, ExpeditionThing::Key);
-        let key_or_chest =
-            |e: &ExpeditionEncounter| (need_key && e.typ == ExpeditionThing::Key) || e.typ == ExpeditionThing::Suitcase;
-        if let Some(i) = find(&key_or_chest) {
-            return i;
+    let mut p = exp.heroism;
+    if let Some(m) = missions::for_target(exp.target_thing) {
+        if let Bonus::PerItem(b) = m.bonus {
+            p += b * i32::from(exp.target_current);
+        }
+        if !target_done(exp) {
+            p -= m.fail_penalty;
         }
     }
-    encs.iter()
-        .enumerate()
-        .filter(|(_, e)| ok(e))
-        .max_by_key(|(i, e)| (encounter_value(exp, e), std::cmp::Reverse(*i)))
-        .map_or(0, |(i, _)| i)
+    p
+}
+
+/// O kolik se změní odhad konečného hrdinství hned tímto výběrem.
+fn immediate_gain(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
+    let mut g = enc.heroism;
+    if let Some(poster) = enc.typ.required_bounty()
+        && has(exp, poster)
+    {
+        g += BOUNTY_BONUS;
+    }
+    if enc.typ == exp.target_thing
+        && let Some(m) = missions::for_target(exp.target_thing)
+    {
+        match m.bonus {
+            Bonus::PerItem(b) => g += b,
+            Bonus::OnComplete(b) => {
+                if !target_done(exp) && exp.target_current + 1 >= exp.target_amount {
+                    g += b + m.fail_penalty;
+                }
+            }
+        }
+    }
+    g
+}
+
+/// Šance, že stihneme dalších `steps` potřebných kroků, když zbývá `floors` rozcestí.
+fn feasibility(steps: u8, floors: u8) -> f64 {
+    if steps == 0 {
+        1.0
+    } else if steps > floors {
+        0.0
+    } else if floors >= 2 * steps {
+        0.7
+    } else {
+        0.35
+    }
+}
+
+/// Budoucí hodnota výběru: co odemkne (plakát, krok řetězu) nebo k čemu se přiblíží
+/// (počítací úkol), vážená šancí, že to stihneme. Krok, který nejde dokončit, má 0.
+fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
+    let floors = floors_after(exp);
+    let t = enc.typ;
+
+    if t.is_bounty_for().is_some() {
+        return if has(exp, t) { 0.0 } else { f64::from(BOUNTY_BONUS) * feasibility(1, floors) };
+    }
+    let Some((m, idx)) = missions::chain_position(t) else {
+        return 0.0;
+    };
+    let is_target = m.target() == exp.target_thing;
+    let last_idx = m.chain.len() - 1;
+
+    // Úkol s počtem kusů (např. 3× toaletní papír): každý kus nás přibližuje ke splnění
+    if idx == last_idx {
+        if is_target
+            && let Bonus::OnComplete(b) = m.bonus
+            && !target_done(exp)
+        {
+            let steps = exp.target_amount.saturating_sub(exp.target_current + 1);
+            if steps > 0 {
+                let payoff = f64::from(b + m.fail_penalty) - OPPORTUNITY_COST * f64::from(steps);
+                return feasibility(steps, floors) * payoff.max(0.0);
+            }
+        }
+        return 0.0;
+    }
+
+    // Krok řetězu: má smysl, jen pokud ho ještě nemáme a řetěz jde dokončit
+    let held = m.chain.iter().rposition(|(c, _)| has(exp, *c));
+    if held.is_some_and(|h| h >= idx) {
+        return 0.0;
+    }
+    let steps = u8::try_from(last_idx - idx).unwrap_or(u8::MAX);
+    let rest: i32 = m.chain[idx + 1..].iter().map(|(_, h)| h).sum();
+    let bonus = match (is_target, m.bonus) {
+        (false, _) => 0,
+        (true, Bonus::PerItem(b)) => b,
+        (true, Bonus::OnComplete(b)) if !target_done(exp) => b + m.fail_penalty,
+        (true, Bonus::OnComplete(_)) => 0,
+    };
+    let payoff = f64::from(rest + bonus) - OPPORTUNITY_COST * f64::from(steps);
+    feasibility(steps, floors) * payoff.max(0.0)
+}
+
+/// Vybere setkání na rozcestí.
+///
+/// Když je 40 zajištěno (i po započtení bonusů a trestů na konci): bere jen to, co nás
+/// pod 40 nestáhne, a přednostně truhlu (máme-li klíč), jinak klíč (zbývá-li kolo na truhlu).
+/// Jinak: nejvyšší součet okamžitého zisku a budoucí hodnoty.
+fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
+    let projected = projected_heroism(exp);
+
+    if projected >= MAX_HEROISM {
+        let safe: Vec<usize> = (0..encs.len())
+            .filter(|&i| projected + immediate_gain(exp, &encs[i]) >= MAX_HEROISM)
+            .collect();
+        let pick = |t: ExpeditionThing| safe.iter().copied().find(|&i| encs[i].typ == t);
+        if has(exp, ExpeditionThing::Key)
+            && let Some(i) = pick(ExpeditionThing::Suitcase)
+        {
+            return i;
+        }
+        if floors_after(exp) > 0
+            && let Some(i) = pick(ExpeditionThing::Key)
+        {
+            return i;
+        }
+        if let Some(&i) = safe.iter().max_by_key(|&&i| (immediate_gain(exp, &encs[i]), std::cmp::Reverse(i))) {
+            return i;
+        }
+        // Všechno nás stáhne pod 40: vezmeme nejmenší ztrátu
+        return (0..encs.len())
+            .max_by_key(|&i| (immediate_gain(exp, &encs[i]), std::cmp::Reverse(i)))
+            .unwrap_or(0);
+    }
+
+    let score = |e: &ExpeditionEncounter| f64::from(immediate_gain(exp, e)) + future_value(exp, e);
+    let mut best = 0;
+    for (i, e) in encs.iter().enumerate() {
+        if score(e) > score(&encs[best]) {
+            best = i;
+        }
+    }
+    best
 }
 
 /// Vybere odměnu: houby > zlato > přesýpací hodiny > cokoli.
@@ -126,9 +212,14 @@ fn choose_reward(rewards: &[Reward]) -> usize {
         .map_or(0, |(i, _)| i)
 }
 
+fn mission_name(t: ExpeditionThing) -> String {
+    missions::for_target(t).map_or_else(|| format!("{t:?} (neznámá mise)"), |m| m.name.to_string())
+}
+
 /// Odehraje expedice, dokud je ALU. Čekání vždy vyčká, nikdy nepřeskakuje.
 pub async fn run(session: &mut SimpleSession) {
     let mut unknown_in_row = 0;
+    let mut journal = Journal::default();
 
     for _ in 0..MAX_STEPS {
         let Some(gs) = session.game_state() else {
@@ -138,21 +229,47 @@ pub async fn run(session: &mut SimpleSession) {
         let tavern = &gs.tavern;
 
         let cmd = if let Some(exp) = tavern.expeditions.active() {
+            let entry = journal.entry(&mission_name(exp.target_thing));
+            entry.heroism = exp.heroism;
+            entry.projected = projected_heroism(exp);
+            entry.target_current = exp.target_current;
+            entry.target_amount = exp.target_amount;
+
             match exp.current_stage() {
                 ExpeditionStage::Encounters(encs) if !encs.is_empty() => {
                     unknown_in_row = 0;
+                    if let Some(unknown) = encs.iter().find(|e| !missions::is_known(e.typ)) {
+                        println!(
+                            "[hospoda] STOP: neznámé setkání {:?} (hrdinství {}). Popiš mi ho prosím, \
+                             expedice počká na rozcestí.",
+                            unknown.typ, unknown.heroism
+                        );
+                        return;
+                    }
                     let pos = choose_encounter(exp, &encs);
-                    let opts: Vec<String> = encs.iter().map(|e| format!("{:?}({})", e.typ, e.heroism)).collect();
+                    let opts: Vec<String> = encs
+                        .iter()
+                        .map(|e| {
+                            format!("{:?}({:+}, budoucí {:.1})", e.typ, immediate_gain(exp, e), future_value(exp, e))
+                        })
+                        .collect();
+                    let picked = encs[pos].typ;
                     println!(
-                        "[hospoda] Patro {}, hrdinství {}, cíl {:?} {}/{} | možnosti: {} → beru {:?}",
+                        "[hospoda] Kolo {}/{LAST_FLOOR}, hrdinství {} (odhad konce {}), {} {}/{} | {} → beru {picked:?}",
                         exp.current_floor,
                         exp.heroism,
-                        exp.target_thing,
+                        projected_heroism(exp),
+                        mission_name(exp.target_thing),
                         exp.target_current,
                         exp.target_amount,
                         opts.join(", "),
-                        encs[pos].typ
                     );
+                    entry.picks.push(format!("{}: [{}] → {picked:?}", exp.current_floor, opts.join(", ")));
+                    match picked {
+                        ExpeditionThing::Key => entry.keys += 1,
+                        ExpeditionThing::Suitcase => entry.chests += 1,
+                        _ => {}
+                    }
                     Command::ExpeditionPickEncounter { pos }
                 }
                 ExpeditionStage::Boss(_) => {
@@ -165,11 +282,12 @@ pub async fn run(session: &mut SimpleSession) {
                     let pos = choose_reward(&rewards);
                     let opts: Vec<String> = rewards.iter().map(|r| format!("{:?} x{}", r.typ, r.amount)).collect();
                     println!("[hospoda] Odměny: {} → beru {:?}", opts.join(", "), rewards[pos].typ);
+                    entry.rewards.push(format!("{:?} x{}", rewards[pos].typ, rewards[pos].amount));
                     Command::ExpeditionPickReward { pos }
                 }
                 ExpeditionStage::Waiting { busy_until, .. } => {
                     unknown_in_row = 0;
-                    let secs = (busy_until - Local::now()).num_seconds().max(0) as u64;
+                    let secs = u64::try_from((busy_until - Local::now()).num_seconds()).unwrap_or(0);
                     let extra = fastrand::u64(5..30);
                     println!(
                         "[hospoda] Čekám do {} ({} min {} s)",
@@ -190,6 +308,7 @@ pub async fn run(session: &mut SimpleSession) {
                 }
             }
         } else {
+            journal.finish();
             match tavern.current_action {
                 // Poslední časovač doběhl, expedici je potřeba uzavřít
                 CurrentAction::Expedition => {
@@ -203,15 +322,21 @@ pub async fn run(session: &mut SimpleSession) {
                 }
                 CurrentAction::Idle => match tavern.available_tasks() {
                     AvailableTasks::Expeditions(list) => {
+                        for e in list.iter().filter(|e| missions::for_target(e.target).is_none()) {
+                            println!("[hospoda] Nabízí se neznámá mise s cílem {:?}, popiš mi ji prosím", e.target);
+                        }
                         let thirst = tavern.thirst_for_adventure_sec;
                         let Some(pos) = choose_expedition(list, thirst) else {
-                            println!("[hospoda] Na další expedici není ALU ({} min), hotovo", thirst / 60);
+                            println!(
+                                "[hospoda] Žádná známá expedice, na kterou by stačilo ALU ({} min), hotovo",
+                                thirst / 60
+                            );
                             return;
                         };
                         let e = &list[pos];
                         println!(
-                            "[hospoda] Startuji expedici: cíl {:?}, {} min ALU, speciál {:?}",
-                            e.target,
+                            "[hospoda] Startuji expedici: {}, {} min ALU, speciál {:?}",
+                            mission_name(e.target),
                             e.thirst_for_adventure_sec / 60,
                             e.special
                         );
@@ -243,14 +368,20 @@ mod tests {
     use super::*;
     use ExpeditionThing::*;
 
-    fn exp(target: ExpeditionThing, cur: u8, amount: u8, heroism: i32, items: [Option<ExpeditionThing>; 4]) -> Expedition {
+    fn exp(target: ExpeditionThing, cur: u8, amount: u8, heroism: i32, floor: u8) -> Expedition {
         let mut e = Expedition::default();
-        e.current_floor = 3;
         e.target_thing = target;
         e.target_current = cur;
         e.target_amount = amount;
         e.heroism = heroism;
-        e.items = items;
+        e.current_floor = floor;
+        e
+    }
+
+    fn with(mut e: Expedition, items: &[ExpeditionThing]) -> Expedition {
+        for (slot, t) in e.items.iter_mut().zip(items) {
+            *slot = Some(*t);
+        }
         e
     }
 
@@ -259,69 +390,81 @@ mod tests {
     }
 
     #[test]
-    fn target_first() {
-        let e = exp(Socks, 0, 2, 0, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 20), enc(Socks, 1), enc(Key, 5)]), 1);
+    fn target_item_beats_small_points() {
+        // Drak: +10 a +5 na konci
+        let e = with(exp(Dragon, 0, 2, 0, 3), &[Bait]);
+        assert_eq!(choose_encounter(&e, &[enc(Cake, 5), enc(Dragon, 10)]), 1);
     }
 
     #[test]
-    fn highest_heroism_when_no_target() {
-        let e = exp(Socks, 0, 2, 0, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 5), enc(Unicorn, 15), enc(Key, 5)]), 1);
-    }
-
-    #[test]
-    fn poster_counts_as_ten() {
-        let e = exp(Socks, 2, 2, 0, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 8), enc(UnicornBounty, 0)]), 1);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 12), enc(UnicornBounty, 0)]), 0);
+    fn poster_worth_ten_early() {
+        let e = exp(Cake, 1, 1, 5, 2);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy1, 2), enc(UnicornBounty, 0)]), 1);
+        assert_eq!(choose_encounter(&e, &[enc(Phoenix, 12), enc(UnicornBounty, 0)]), 0);
     }
 
     #[test]
     fn bounty_bonus_applies() {
-        let e = exp(Socks, 2, 2, 0, [Some(UnicornBounty), None, None, None]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 15), enc(Unicorn, 10)]), 1);
+        let e = with(exp(Cake, 1, 1, 5, 4), &[DummyBounty]);
+        assert_eq!(choose_encounter(&e, &[enc(Cake, 5), enc(Dummy1, 2)]), 1);
+    }
+
+    /// Příklad 1: na 40 nebereme překážku, která by nás stáhla pod 40.
+    #[test]
+    fn secured_never_drops_below_40() {
+        let e = exp(Cake, 1, 1, 40, 5);
+        assert_eq!(choose_encounter(&e, &[enc(SmallHurdle, -1), enc(Dummy1, 2)]), 1);
+    }
+
+    /// Příklad 2: v posledním kole nezačínáme řetěz, který nejde dokončit.
+    #[test]
+    fn no_unfinishable_chain_on_last_floor() {
+        let e = exp(WinnersPodium, 0, 1, 38, 10);
+        assert_eq!(choose_encounter(&e, &[enc(SmallHurdle, -1), enc(Key, 0)]), 1);
+        assert_eq!(choose_encounter(&e, &[enc(UnicornBounty, 0), enc(CampFire, 3)]), 1);
+    }
+
+    /// Příklad 3: kolo 9, hledaný kostlivec (+2 +10) vs. cílový uhasený oheň (0 +4).
+    #[test]
+    fn wanted_beats_weak_target() {
+        let e = with(exp(BurntCampfire, 0, 1, 20, 9), &[DummyBounty, Phoenix]);
+        assert_eq!(choose_encounter(&e, &[enc(BurntCampfire, 0), enc(Dummy1, 2)]), 1);
     }
 
     #[test]
-    fn keys_and_chests_after_max_heroism() {
-        let e = exp(Socks, 2, 2, 40, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 20), enc(Suitcase, 0)]), 1);
-        // úkol nesplněný → klíč nemá přednost
-        let e = exp(Socks, 1, 2, 40, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 20), enc(Suitcase, 0)]), 0);
+    fn princess_early_not_late() {
+        let early = exp(Dragon, 0, 1, 0, 2);
+        assert_eq!(choose_encounter(&early, &[enc(Dummy1, 2), enc(Bait, -2)]), 1);
+        let late = exp(Dragon, 0, 1, 0, 10);
+        assert_eq!(choose_encounter(&late, &[enc(Dummy1, 2), enc(Bait, -2)]), 0);
     }
 
     #[test]
-    fn no_setup_on_last_floor() {
-        let mut e = exp(Socks, 2, 2, 10, [None; 4]);
-        e.current_floor = 10;
-        assert_eq!(choose_encounter(&e, &[enc(UnicornBounty, 0), enc(Dragon, 3)]), 1);
-        assert_eq!(choose_encounter(&e, &[enc(Bait, -2), enc(Socks, 1)]), 1);
-        // po dosažení 40 v posledním kole: truhla ano, klíč ne
-        e.heroism = 40;
-        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dragon, 3), enc(Suitcase, 0)]), 2);
-        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dragon, 3)]), 1);
-        // když jsou všechny možnosti přípravné, vezme se aspoň něco
-        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(UnicornBounty, 0)]), 0);
-    }
-
-    #[test]
-    fn princess_counts_for_dragon() {
-        let e = exp(Socks, 2, 2, 0, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Unicorn, 5), enc(Bait, -2)]), 1);
-        // princeznu už máme → jen -2
-        let e = exp(Socks, 2, 2, 0, [Some(Bait), None, None, None]);
-        assert_eq!(choose_encounter(&e, &[enc(Unicorn, 5), enc(Bait, -2)]), 0);
-    }
-
-    #[test]
-    fn broken_sword_end_bonus_counts_to_cap() {
-        // 24 + 2 meče × 8 = 40 → klíč/truhla
-        let e = exp(BrokenSword, 2, 2, 24, [None; 4]);
+    fn keys_and_chests_after_secured() {
+        let e = exp(Cake, 1, 1, 42, 5);
         assert_eq!(choose_encounter(&e, &[enc(Dragon, 10), enc(Key, 0)]), 1);
-        let e = exp(Socks, 2, 2, 24, [None; 4]);
-        assert_eq!(choose_encounter(&e, &[enc(Dragon, 10), enc(Key, 0)]), 0);
+        let e = with(exp(Cake, 1, 1, 42, 6), &[Key]);
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Suitcase, 0)]), 1);
+        // poslední kolo: klíč už nemá smysl
+        let e = exp(Cake, 1, 1, 42, 10);
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(Dummy1, 2)]), 1);
+    }
+
+    #[test]
+    fn per_item_bonus_counts_to_40() {
+        // Podium: 25 + 2 × 10 na konci = 45 → už je zajištěno, bereme klíč
+        let e = exp(WinnersPodium, 2, 2, 25, 6);
+        assert_eq!(projected_heroism(&e), 45);
+        assert_eq!(choose_encounter(&e, &[enc(Dummy1, 2), enc(Key, 0)]), 1);
+    }
+
+    #[test]
+    fn sanitary_fail_penalty() {
+        // nesplněný papír: odhad 42 - 5 = 37 → ještě není zajištěno
+        let e = exp(ToiletPaper, 2, 3, 42, 7);
+        assert_eq!(projected_heroism(&e), 37);
+        // třetí papír splní úkol: 0 + 20 + 5
+        assert_eq!(choose_encounter(&e, &[enc(Key, 0), enc(ToiletPaper, 0)]), 1);
     }
 
     #[test]

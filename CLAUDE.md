@@ -27,12 +27,9 @@ Bot pro Shakes & Fidget, který automatizuje denní úkoly (hospoda, nákupy, ar
   - `ExpeditionStart { pos }` (výběr ze 2 expedic) → opakovaně `ExpeditionStage` z `tavern.expeditions.active()`:
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → počkat do `busy_until` a poslat `Update` (nikdy neskipovat houbami), `Finished` → konec.
-- Strategie (src/tavern.rs):
-  - expedice: přednostně se speciální odměnou (vejce, denní úkol), jinak nejlevnější v ALU,
-  - setkání: cílový předmět (dokud úkol není splněný) > nejvyšší hrdinství (plakát „wanted“ = +10 k budoucímu hledanému) ; při splněném úkolu a hrdinství ≥ 40 klíč/truhla,
-  - expedice má vždy 10 kol; v 10. kole nebrat přípravné věci (plakát, klíč, princezna = `Bait`),
-  - princezna: -2, ale odemkne draka +10 → počítat jako +10 do budoucna,
-  - speciální pravidla cíle: rozbitý meč (`BrokenSword`) dá při sebrání -4, ale na konci +8 za kus → počítá se do limitu 40,
-  - odměny: houby > zlato > přesýpací hodiny,
-  - přesýpací hodiny NEPOUŽÍVAT (ani pivo, ani skip houbami).
+- Mise, pravidla a otevřené otázky: `docs/expedice.md` (strojově `src/missions.rs`). Na neznámou misi/setkání se bot zastaví, pak se zeptat uživatele a doplnit.
+- Strategie (src/tavern.rs): zajistit 40 hrdinství (vč. bonusů/trestů na konci), pak jen klíče a truhly a nikdy neklesnout pod 40.
+  Do té doby skóre = okamžitý zisk + budoucí hodnota (plakát, krok řetězu) vážená šancí, že ho stihneme do 10. kola.
+- Odměny: houby > zlato > přesýpací hodiny. Přesýpací hodiny, pivo ani skip houbami NEPOUŽÍVAT.
+- Deník `logs/expedice.jsonl`: po bězích vyhodnotit (pod 40 / přehnaně nad 40) a ladit strategii.
 - Klasické questy (`StartQuest`/`FinishQuest`) jen pokud `tavern.available_tasks()` vrátí `Quests`.

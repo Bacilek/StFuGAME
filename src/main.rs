@@ -1,3 +1,5 @@
+mod journal;
+mod missions;
 mod safe;
 mod tavern;
 

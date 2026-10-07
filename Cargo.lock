@@ -1527,6 +1527,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "fastrand",
+ "serde_json",
  "sf-api",
  "tokio",
 ]
