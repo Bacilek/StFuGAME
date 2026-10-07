@@ -10,10 +10,6 @@ Aktualizováno: 2026-10-07 ~18:20. Při každém větším posunu přepsat.
 - Stav postavy 2026-10-07 večer: level ~10, gryf do 21.10. 13:30, hlídka do 23:06 (pak 1 h do 00:06), aréna 3/10 výher,
   ALU na dnešek vyčerpané, plný inventář byl vyřešen prodejem.
 
-## Čeká na nasazení
-- Commit `d4db66e` (rovnice zbraní se všemi staty) není v běžícím release exe. Postup: uživatel v ikoně „Ukončit“ →
-  `cargo build --release` → `Start-Process target\release\stfugame.exe -WorkingDirectory <projekt>`. Pak tuto sekci smazat.
-
 ## Co čeká na ověření (zkontrolovat v logu `logs/prubeh.log` a zapsat do příslušného docs)
 | Co | Kdy | Kde zapsat |
 |---|---|---|
