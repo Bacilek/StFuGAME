@@ -33,3 +33,6 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Choosing a guild | From the quick-join list in the Guild tab: Instructor first, then Treasure, then the overall guild strength. |
 | 2026-10-07 | Changing the guild | Once a day check the quick-join list and switch only to a clearly better guild (proposal: Instructor at least 10 higher), not for small differences. Joining again works right away, only ~12 h without guild fights. |
 | 2026-10-07 | Guild attacks and defenses | Sign up automatically for every planned guild attack (incl. raids) and defense. |
+| 2026-10-07 | Goblin Gleeman + event tasks | Do what costs only gold or nothing, claim the chests; never mushrooms. Event tasks under the same rules. Day 1 of a new character matters most (10 mushrooms). |
+| 2026-10-07 | Guild skill upgrade (task) | The cheaper of Treasure/Instructor; Instructor on equal price. Gold only. |
+| 2026-10-07 | Shell game (3 shells, ~33 %) | Allowed, but not an income: smallest bets, when gold is low (after shopping / before the Thirst for Adventure), only when the points are needed for a chest; the top chest does not need every task. Playable from 5 gold, bet ≤ 1/10 of the gold. |

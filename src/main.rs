@@ -15,6 +15,7 @@ mod safe;
 mod session;
 mod shops;
 mod stable;
+mod tasks;
 mod tavern;
 mod tray;
 
@@ -177,6 +178,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
 
         // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)
         if let tavern::Outcome::SessionLost = shops::run(session, tavern_done).await {
+            return tavern::Outcome::SessionLost;
+        }
+
+        // Goblin Gleeman tasks: chests, guild skill, attributes; shell game only after the Tavern and the shops
+        if let tavern::Outcome::SessionLost = tasks::run(session, tavern_done).await {
             return tavern::Outcome::SessionLost;
         }
 

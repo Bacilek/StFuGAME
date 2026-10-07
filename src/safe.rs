@@ -7,7 +7,7 @@ use chrono::{DateTime, Local};
 use sf_api::{
     command::{Command, FortunePayment},
     error::SFError,
-    gamestate::{GameState, ShopPosition, character::Mount, items::ItemCommandIdent},
+    gamestate::{GameState, ShopPosition, character::Mount, guild::GuildSkill, items::ItemCommandIdent},
 };
 
 use crate::session::SimpleSession;
@@ -21,7 +21,9 @@ pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 /// `SellShop` costs nothing, `Equip` only moves an item from the backpack onto the character,
 /// Wheel of Fortune only `FreeTurn` and only when a free spin is available,
 /// `BuyShop` only for an item with no mushroom price, see `shop_buy_ok`;
-/// `GuildJoinAttack`/`GuildJoinDefense` only sign up for a planned guild battle, free).
+/// `GuildJoinAttack`/`GuildJoinDefense` only sign up for a planned guild battle, free;
+/// task chests are free; `UpgradeSkill` (attributes) costs only gold; `GuildIncreaseSkill` only when its price has
+/// no mushrooms (`guild_upgrade_ok`); `GambleSilver` = shell game for gold, within the game limits (`gamble_ok`)).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -38,6 +40,11 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::SellShop { .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
+            | Command::CollectDailyQuestReward { .. }
+            | Command::CollectEventTaskReward { .. }
+            | Command::UpgradeSkill { .. }
+            | Command::GuildIncreaseSkill { skill: GuildSkill::Treasure | GuildSkill::Instructor, .. }
+            | Command::GambleSilver { .. }
             | Command::GuildJoinAttack
             | Command::GuildJoinDefense
             | Command::StartWork { .. }
@@ -116,6 +123,20 @@ fn shop_buy_ok(gs: &GameState, shop_pos: ShopPosition, item_ident: ItemCommandId
     })
 }
 
+/// Guild skill upgrade only for gold (from higher levels it also costs mushrooms) and only at the current level.
+fn guild_upgrade_ok(gs: &GameState, skill: GuildSkill, current: u16) -> bool {
+    gs.guild.as_ref().is_some_and(|g| {
+        let own = if skill == GuildSkill::Instructor { g.own_instructor_skill } else { g.own_treasure_skill };
+        g.upgrade_price[skill].mushrooms == 0 && g.upgrade_price[skill].silver <= gs.character.silver && own == current
+    })
+}
+
+/// Shell game: only with at least 5 gold and a bet of at most 1/10 of the gold.
+fn gamble_ok(gs: &GameState, amount: u64) -> bool {
+    let silver = gs.character.silver;
+    amount > 0 && silver >= crate::tasks::GAMBLE_MIN_SILVER && amount <= silver / 10
+}
+
 /// Random pause between actions (human-like behaviour).
 pub async fn human_pause() {
     tokio::time::sleep(Duration::from_millis(fastrand::u64(2500..7000))).await;
@@ -164,6 +185,16 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))
     {
         return Err(SFError::InvalidRequest("shop item costs mushrooms or changed, not buying"));
+    }
+    if let Command::GuildIncreaseSkill { skill, current } = &cmd
+        && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))
+    {
+        return Err(SFError::InvalidRequest("guild upgrade costs mushrooms or is not affordable"));
+    }
+    if let Command::GambleSilver { amount } = &cmd
+        && !session.game_state().is_some_and(|gs| gamble_ok(gs, *amount))
+    {
+        return Err(SFError::InvalidRequest("shell game bet outside the allowed limits"));
     }
     if matches!(cmd, Command::BuyMount { .. }) && !session.game_state().is_some_and(crate::stable::needs_mount) {
         return Err(SFError::InvalidRequest("character already has a mount, buying would waste mushrooms"));

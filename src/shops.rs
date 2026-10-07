@@ -10,8 +10,12 @@ use std::sync::Mutex;
 
 use chrono::{Local, NaiveDate};
 use sf_api::{
-    command::Command,
-    gamestate::{GameState, ShopPosition, items::Item},
+    command::{Command, ShopType},
+    gamestate::{
+        GameState, ShopPosition,
+        items::{Item, ItemType},
+        rewards::TaskType,
+    },
 };
 
 use crate::session::SimpleSession;
@@ -20,6 +24,8 @@ use crate::{inventory, safe, tavern::Outcome};
 
 /// Safety limit on spins per day.
 const MAX_SPINS: usize = 60;
+/// Safety limit on purchases for tasks per day (in case the task counter does not update).
+const MAX_TASK_BUYS: usize = 6;
 
 /// Today's shopping: the reserve and whether shopping is done.
 struct Day {
@@ -83,6 +89,20 @@ fn best_upgrade(gs: &GameState) -> Option<(ShopPosition, &Item, f64, f64)> {
             (new > cur).then_some((pos, i, new, cur))
         })
         .max_by(|a, b| (a.2 - a.3).total_cmp(&(b.2 - b.3)))
+}
+
+/// The cheapest non-epic affordable gold item that an open task wants bought (Gleeman/event tasks:
+/// buy a weapon in the Weapon Shop, buy N items in a shop). Ignores the reserve: it is sold again right away.
+fn task_purchase(gs: &GameState) -> Option<(ShopPosition, &Item)> {
+    let weapon = crate::tasks::remaining(gs, |t| t == TaskType::BuyWeaponInWeaponsShop) > 0;
+    let from = |shop: ShopType| crate::tasks::remaining(gs, |t| t == TaskType::BuyFromShop(shop)) > 0;
+    gold_offers(gs)
+        .into_iter()
+        .filter(|(_, i)| !i.is_epic() && u64::from(i.price) <= gs.character.silver)
+        .filter(|(pos, i)| {
+            (weapon && pos.typ == ShopType::Weapon && matches!(i.typ, ItemType::Weapon { .. })) || from(pos.typ)
+        })
+        .min_by_key(|(_, i)| i.price)
 }
 
 /// The cheapest non-epic gold item, if buying it keeps the gold at or above the reserve.
@@ -151,12 +171,23 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
 
 async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut spins = 0;
+    let mut task_buys = 0;
     loop {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let reserve = update_reserve(gs);
 
         if let Some((pos, item, new, cur)) = best_upgrade(gs) {
             report!("[shops] Buying an upgrade: {} (value {new:.1} > {cur:.1})", describe(pos, item));
+            match buy(session, pos).await {
+                Ok(true) => continue,
+                Ok(false) => return Outcome::Done,
+                Err(o) => return o,
+            }
+        }
+
+        if let Some((pos, item)) = task_purchase(gs).filter(|_| task_buys < MAX_TASK_BUYS) {
+            task_buys += 1;
+            report!("[shops] Buying for a task: {}", describe(pos, item));
             match buy(session, pos).await {
                 Ok(true) => continue,
                 Ok(false) => return Outcome::Done,

@@ -7,6 +7,7 @@ use sf_api::{
     gamestate::{
         GameState,
         dungeons::{Dungeon, DungeonProgress, LightDungeon},
+        rewards::TaskType,
     },
 };
 
@@ -86,7 +87,14 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let cands = candidates(gs);
-    let Some(pick) = choose(&cands).cloned() else {
+    // A Gleeman/event task "defeat monsters in <dungeon>" → fight there while the task is open
+    let wanted = cands.iter().find(|c| {
+        crate::tasks::remaining(gs, |t| matches!(t, TaskType::DefeatMonstersLightDungeon(l) if c.dungeon == Dungeon::Light(l))) > 0
+    });
+    if let Some(w) = wanted {
+        report!("[dungeons] Task: defeat monsters in {:?}", w.dungeon);
+    }
+    let Some(pick) = wanted.or_else(|| choose(&cands)).cloned() else {
         report!("[dungeons] No open dungeon");
         return Outcome::Done;
     };

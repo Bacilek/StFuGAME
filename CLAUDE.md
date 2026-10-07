@@ -6,7 +6,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 1. `docs/status.md` – where we are, what is waiting for verification, open questions.
 2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
 3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
-4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `shops.md`, `guild.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
+4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `shops.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
 5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: `logs/progress.log`, journals `logs/expeditions.jsonl`, `logs/arena.jsonl`.
 
 ## Context
@@ -78,6 +78,12 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Once a day the quick-join list: no guild → join the best (Instructor > Treasure > strength); in a guild → switch only
   when another one has Instructor ≥ ours + 10. Commands via `Command::Custom`, allowed one by one in `safe.rs`.
 - Signs up for every planned guild attack/raid and defense (`GuildJoinAttack`/`GuildJoinDefense`, free).
+
+## Goblin Gleeman (daily tasks)
+- Description and verification status: `docs/tasks.md`.
+- Claim task chests (daily + event); do tasks that cost only gold or nothing (attributes, guild skill – the cheaper one,
+  Instructor on a tie –, shop purchases, Training Camp). Never beer, paid wheel spins, hourglasses, skips.
+- Shell game only with minimal bets, after the Tavern and shops, and only when its points reach a chest.
 
 ## City Guard
 - Description and verification status: `docs/city-guard.md`.
