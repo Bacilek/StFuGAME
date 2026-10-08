@@ -73,6 +73,11 @@ pub fn register(accounts: &[Credentials]) {
 }
 
 /// Characters in registration order.
+/// How many characters are currently running (for `ctx::request_end_of_day`'s progress counter).
+pub fn running_count() -> u64 {
+    lock().iter().filter(|e| e.state == CharState::Running).count() as u64
+}
+
 pub fn names() -> Vec<String> {
     lock().iter().map(|e| e.name.clone()).collect()
 }

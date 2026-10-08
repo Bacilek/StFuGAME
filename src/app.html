@@ -72,6 +72,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
     <button id="startAll">Start all</button>
     <button id="stopAll">Stop all</button>
     <button id="eod">Run end of day now</button>
+    <span id="eodStatus" style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
     <button id="browser">Open in browser</button>
   </div>
 </header>
@@ -116,7 +117,27 @@ function setAll(on){
 }
 $("startAll").addEventListener("click", () => setAll(true));
 $("stopAll").addEventListener("click", () => setAll(false));
-$("eod").addEventListener("click", () => post({cmd:"eod"}));
+$("eod").addEventListener("click", () => {
+  post({cmd:"eod"});
+  eodClickedAt = Date.now();
+  renderEodStatus(STATUS.filter(c=>c.state==="running").length || 1);
+});
+let eodClickedAt = 0;
+// Shows progress while characters are still processing the last "Run end of day now" click (reports + the Day 0
+// round), so clicking it doesn't look like it did nothing for the next minute or two (user 2026-10-08).
+function renderEodStatus(pending){
+  const el = $("eod"), st = $("eodStatus");
+  if (pending > 0){
+    el.disabled = true;
+    st.style.display = "inline";
+    st.textContent = `Updating… (${pending} character${pending===1?"":"s"} left)`;
+  } else {
+    el.disabled = false;
+    // Keep a brief "Done" visible, but only right after an actual click, not forever/on every status tick
+    if (eodClickedAt && Date.now() - eodClickedAt < 15000){ st.style.display = "inline"; st.textContent = "Done – dashboard refreshed"; }
+    else st.style.display = "none";
+  }
+}
 $("browser").addEventListener("click", () => post({cmd:"open_browser"}));
 
 // Tile DOM elements persist across ticks (keyed by character name) so an in-flight click on the switch is never
@@ -224,8 +245,9 @@ function openCard(c){
   $("card").showModal();
 }
 
-// Called by the Rust side every ~2 s with the latest status (tray.rs / app.rs → evaluate_script).
-window.onStatus = (status) => { STATUS = status; renderTiles(); };
+// Called by the Rust side every ~2 s with the latest status (tray.rs / app.rs → evaluate_script) and how many
+// characters still have to finish the latest "Run end of day now" request (0 = none in flight / already done).
+window.onStatus = (status, eodPending) => { STATUS = status; renderTiles(); renderEodStatus(eodPending || 0); };
 setTab(true);
 </script>
 </body>

@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~14:38. Rewrite after every bigger change.
+Updated: 2026-10-08 ~14:48. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -151,6 +151,15 @@ Updated: 2026-10-08 ~14:38. Rewrite after every bigger change.
   needs one more "Run end of day now" click. Dashboard also only auto-refreshes every 5 min
   (`<meta http-equiv="refresh" content="300">` in `dashboard.html`) – a browser tab opened right after a click
   can show stale numbers for a few minutes; hard-refresh (Ctrl+F5) to confirm.
+- **"Run end of day now" progress indicator (2026-10-08, user: "chtělo by to nějaký ukazatel, že data se
+  načítají"):** `request_end_of_day` now also stores how many characters were running at click time
+  (`control::running_count`) into `ctx::EOD_PENDING`; each character decrements it (`ctx::eod_done_one`) once it
+  finishes processing that request (report + Day 0/duels). The app's status tick (`app.rs`, ~2/s) now sends this
+  count to `window.onStatus(status, eodPending)` alongside the usual per-character array; `app.html` disables the
+  button and shows "Updating… (N characters left)" while pending > 0, then "Done – dashboard refreshed" for 15 s.
+  Note this only covers characters that were running at the moment of the click – one started afterwards won't
+  be counted (acceptable: it'll pick up the next click's request like before, nothing is lost, just not reflected
+  in that particular progress count).
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

@@ -282,6 +282,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 Err(e) => report!("[roster] Update before the daily report failed: {e}"),
             }
         }
+        if manual {
+            ctx::eod_done_one();
+        }
 
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min
         let gs = session.game_state();
