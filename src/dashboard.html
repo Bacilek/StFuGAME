@@ -58,6 +58,20 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 .sec{margin:12px 0 4px;font-weight:700;color:var(--ink2)} .mini{width:auto} .mini td{padding:2px 18px 2px 0;border:none;text-align:left}
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)} .epic{color:#9b6be0} .legendary{color:#e08a1a}
+.paperdoll{display:grid;grid-template-columns:58px 130px 58px;grid-template-rows:58px 58px 58px 58px 58px 58px;
+  grid-template-areas:". hat ." "weapon portrait shield" "amulet portrait breast" "belt portrait gloves" "ring portrait boots" ". talisman .";
+  gap:4px;margin:6px auto 10px;justify-content:center}
+.pdportrait{grid-area:portrait;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--line);overflow:hidden}
+.pdportrait img{width:100%;height:100%;object-fit:contain}
+.pdslot{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center}
+.pdslot.empty{opacity:.35}
+.pdslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
+.pdslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
+.pdslot img{width:40px;height:40px;object-fit:contain;image-rendering:pixelated}
+.pdslot .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#111;color:#fff;font-size:12px;line-height:1.4;padding:6px 9px;border-radius:6px;white-space:nowrap;z-index:5;box-shadow:0 2px 8px #0005}
+.pdslot .tip b{display:block;font-size:12px}
+.pdslot:hover .tip{display:block}
 .tablecard{margin-top:14px;overflow-x:auto} .tablecard table{margin-top:0}
 .h2{font-size:15px;margin:0 0 8px} .h2 span{color:var(--muted);font-weight:400}
 .mx{width:auto} .mx td{text-align:center;min-width:52px} .mx td:first-child{text-align:left} .mx th.rot{writing-mode:vertical-rl;transform:rotate(180deg);text-align:left;height:110px;vertical-align:bottom}
@@ -368,9 +382,19 @@ function openCard(i){
     const c2=r.insertCell(); c2.textContent = d.finished ? "done" : `${d.done}/10`; const pr=document.createElement("span"); pr.className="prog";
     const fill=document.createElement("i"); fill.style.width=Math.min(100,d.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
   el2("div","sec","Equipment");
-  const et = el2("table","mini");
-  Object.entries(n.equip||{}).forEach(([slot,it])=>{ const r=et.insertRow(); r.insertCell().textContent=slot;
-    const c2=r.insertCell(); c2.textContent = it.d || "–"; if (it.legendary) c2.className="legendary"; else if (it.epic) c2.className="epic"; });
+  const doll = el2("div","paperdoll");
+  const port = el2("div","pdportrait",null,doll);
+  const pimg = el2("img",null,null,port); pimg.src = encodeURIComponent(c.nick)+"/portrait.png";
+  pimg.onerror = () => { port.replaceChildren(); };
+  const SLOT_AREA = { Weapon:"weapon", Shield:"shield", Helmet:"hat", "Chest plate":"breast",
+    Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
+  Object.entries(SLOT_AREA).forEach(([slot,area])=>{
+    const it = (n.equip||{})[slot];
+    const s = el2("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
+    s.style.gridArea = area;
+    if (it && it.icon){ const img=el2("img",null,null,s); img.src = it.icon; img.onerror=()=>{img.style.visibility="hidden"}; }
+    const tip = el2("div","tip",null,s); el2("b",null,slot,tip); el2("div",null, it ? (it.d||"–") : "empty", tip);
+  });
   el2("div","sec","Guild"); el2("div",null,n.guild||"–");
   $("card").showModal();
 }
