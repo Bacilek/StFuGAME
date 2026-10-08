@@ -8,9 +8,11 @@
 use std::{fs, path::Path};
 
 use chrono::{Local, NaiveDate};
+use enum_map::EnumMap;
 use sf_api::{
-    command::Command,
-    simulate::{Fighter, PlayerFighterSquad, UpgradeableFighter, simulate_battle},
+    command::{AttributeType, Command},
+    gamestate::character::Class,
+    simulate::{DamageRange, Fighter, PlayerFighterSquad, UpgradeableFighter, Weapon, simulate_battle},
 };
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
@@ -140,15 +142,134 @@ pub fn unlock_today() {
     let _ = fs::remove_file(dir.join(format!("{date}.json")));
 }
 
-/// Loads every participant (the bot's own character from its own state, everyone else via `ViewPlayer`) and
-/// simulates all pairs. `win[i][j]` = share of fights `i` won against `j`.
-async fn simulate(session: &mut SimpleSession) -> Result<(Vec<(String, String)>, Vec<Vec<Option<f64>>>, Vec<String>), Outcome> {
+/// Health multiplier per class (own copy: `sf_api::gamestate::character::Class::health_multiplier` is
+/// crate-private). `is_companion` is always false for our fighters, so the Warrior/companion special case
+/// (6.1) never applies here.
+fn health_multiplier(class: Class) -> f64 {
+    use Class::{Assassin, Bard, BattleMage, Berserker, DemonHunter, Druid, Mage, Necromancer, Paladin, PlagueDoctor, Scout, Warrior};
+    match class {
+        Warrior | BattleMage | Druid => 5.0,
+        Paladin => 6.0,
+        PlagueDoctor | Scout | Assassin | Berserker | DemonHunter | Necromancer => 4.0,
+        Mage | Bard => 2.0,
+    }
+}
+
+/// The exact `Class` Debug spelling (no spaces, e.g. "BattleMage") as stored in `history.csv`'s `class` column.
+fn parse_class(s: &str) -> Option<Class> {
+    use Class::{Assassin, Bard, BattleMage, Berserker, DemonHunter, Druid, Mage, Necromancer, Paladin, PlagueDoctor, Scout, Warrior};
+    Some(match s {
+        "Warrior" => Warrior,
+        "Mage" => Mage,
+        "Scout" => Scout,
+        "Assassin" => Assassin,
+        "BattleMage" => BattleMage,
+        "Berserker" => Berserker,
+        "Druid" => Druid,
+        "Bard" => Bard,
+        "Necromancer" => Necromancer,
+        "DemonHunter" => DemonHunter,
+        "Paladin" => Paladin,
+        "PlagueDoctor" => PlagueDoctor,
+        _ => return None,
+    })
+}
+
+/// Parses an item's "d" description (built by `roster::item_desc`, e.g. "15–41 dmg, STR +9" or "CON +2") back
+/// into a weapon damage range (if any) and attribute bonuses (added into `attrs`), to rebuild a `Fighter` from a
+/// stored `days/<date>.json` snapshot instead of live data.
+fn parse_item_desc(d: &str, attrs: &mut EnumMap<AttributeType, u32>) -> Option<(f64, f64)> {
+    let mut dmg = None;
+    for part in d.split(", ") {
+        if let Some(rest) = part.strip_suffix(" dmg")
+            && let Some((min, max)) = rest.split_once('–')
+            && let (Ok(min), Ok(max)) = (min.trim().parse(), max.trim().parse())
+        {
+            dmg = Some((min, max));
+            continue;
+        }
+        if let Some((abbr, n)) = part.rsplit_once(" +")
+            && let Ok(n) = n.trim().parse::<u32>()
+        {
+            let a = match abbr {
+                "STR" => Some(AttributeType::Strength),
+                "DEX" => Some(AttributeType::Dexterity),
+                "INT" => Some(AttributeType::Intelligence),
+                "CON" => Some(AttributeType::Constitution),
+                "LCK" => Some(AttributeType::Luck),
+                _ => None,
+            };
+            if let Some(a) = a {
+                attrs[a] += n;
+            }
+        }
+    }
+    dmg
+}
+
+/// Builds a `Fighter` from this character's own stored Day 0 snapshot (`roster::day0_snapshot`), not live
+/// `ViewPlayer` data – by the time one character's first login triggers `run_day0`, others may well have already
+/// leveled past their own Day 0 (user 2026-10-08: Sanek/Květoš still level 2 in the round, but everyone else
+/// already level 4-7 by the time it ran, because the round used live data for them). Covers Chlamydie's manually
+/// simulated baseline too, the same way (no special-casing needed). Armor is always 0 and there is no gem/rune/
+/// potion/portal bonus – `days/<date>.json` does not record those, only level/base attributes/equipped items.
+fn fighter_from_day0(nick: &str) -> Option<Fighter> {
+    let (class_str, snap) = crate::roster::day0_snapshot(nick)?;
+    let class = parse_class(&class_str)?;
+    let level = u16::try_from(snap["level"].as_u64()?).ok()?;
+    let mut attrs: EnumMap<AttributeType, u32> = EnumMap::default();
+    for (key, a) in [
+        ("STR", AttributeType::Strength),
+        ("DEX", AttributeType::Dexterity),
+        ("INT", AttributeType::Intelligence),
+        ("CON", AttributeType::Constitution),
+        ("LCK", AttributeType::Luck),
+    ] {
+        attrs[a] = u32::try_from(snap["attrs"][key].as_u64().unwrap_or(0)).unwrap_or(0);
+    }
+    let mut weapon_dmg = None;
+    for item in snap["equip"].as_object().into_iter().flat_map(serde_json::Map::values) {
+        if let Some(d) = item["d"].as_str()
+            && let Some(dmg) = parse_item_desc(d, &mut attrs)
+        {
+            weapon_dmg = Some(dmg);
+        }
+    }
+    let con = attrs[AttributeType::Constitution];
+    let max_health = f64::from(con) * health_multiplier(class) * f64::from(level + 1);
+    Some(Fighter {
+        ident: Default::default(),
+        name: std::sync::Arc::from(nick),
+        class,
+        level,
+        attributes: attrs,
+        max_health,
+        armor: 0,
+        first_weapon: weapon_dmg.map(|(min, max)| Weapon { rune_value: 0, rune_type: None, damage: DamageRange { min, max } }),
+        second_weapon: None,
+        has_reaction_enchant: false,
+        crit_dmg_multi: 2.0,
+        resistances: EnumMap::default(),
+        portal_dmg_bonus: 0.0,
+        is_companion: false,
+        gladiator_lvl: 0,
+    })
+}
+
+/// Loads every participant (the bot's own character from its own state, everyone else via `ViewPlayer`, except
+/// `overrides` which are used as-is) and simulates all pairs. `win[i][j]` = share of fights `i` won against `j`.
+async fn simulate(
+    session: &mut SimpleSession,
+    overrides: &[(&str, Fighter)],
+) -> Result<(Vec<(String, String)>, Vec<Vec<Option<f64>>>, Vec<String>), Outcome> {
     let players = participants();
     let own = session.game_state().map(|gs| gs.character.name.clone()).unwrap_or_default();
     let mut fighters: Vec<(String, String, Fighter)> = Vec::new();
     let mut missing = Vec::new();
     for (nick, class) in &players {
-        let fighter = if nick.eq_ignore_ascii_case(&own) {
+        let fighter = if let Some((_, f)) = overrides.iter().find(|(n, _)| nick.eq_ignore_ascii_case(n)) {
+            Some(f.clone())
+        } else if nick.eq_ignore_ascii_case(&own) {
             session.game_state().map(|gs| Fighter::from(&PlayerFighterSquad::new(gs).character))
         } else {
             let gs = match safe::send(session, Command::ViewPlayer { ident: nick.clone() }).await {
@@ -194,7 +315,7 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     }
     let preview = Local::now() < run_time(Local::now().date_naive());
     report!("[tournament] Day {day}: {} characters, {ITERATIONS} simulated fights per pair", participants().len());
-    let (players, win, missing) = match simulate(session).await {
+    let (players, win, missing) = match simulate(session, &[]).await {
         Ok(r) => r,
         Err(o) => return o,
     };
@@ -231,8 +352,12 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
 
 /// Runs (or re-runs) the "Day 0" baseline round, backdated to `date` so it lines up with every character's own
 /// Day 0 snapshot (`roster::write_day0`) regardless of when each is actually handed to the bot. Re-run every time
-/// a freshly added character reaches its own Day 0, to pick up newcomers while others are still fresh too –
-/// earlier participants resolve again via `ViewPlayer`, so nothing already captured is lost.
+/// a freshly added character reaches its own Day 0, to pick up newcomers while others are still fresh too.
+/// Every participant with a stored Day 0 snapshot fights with THAT (`fighter_from_day0`), not live `ViewPlayer`
+/// data – otherwise whoever triggers this is compared fairly, but everyone else is pulled in at whatever level
+/// they already reached by that moment (user 2026-10-08: found exactly this – most participants were already
+/// level 4-7 in a round meant to be "everyone at level 2"). Only participants with no stored snapshot yet fall
+/// back to `ViewPlayer`.
 pub async fn run_day0(session: &mut SimpleSession, date: NaiveDate) -> Outcome {
     let dir = Path::new(ROOT).join("tournament");
     let _ = fs::create_dir_all(&dir);
@@ -240,7 +365,10 @@ pub async fn run_day0(session: &mut SimpleSession, date: NaiveDate) -> Outcome {
     if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
         return Outcome::Done; // another character's first login is already doing this
     }
-    let (players, win, missing) = match simulate(session).await {
+    let day0_fighters: Vec<(String, Fighter)> =
+        participants().iter().filter_map(|(nick, _)| fighter_from_day0(nick).map(|f| (nick.clone(), f))).collect();
+    let overrides: Vec<(&str, Fighter)> = day0_fighters.iter().map(|(n, f)| (n.as_str(), f.clone())).collect();
+    let (players, win, missing) = match simulate(session, &overrides).await {
         Ok(r) => r,
         Err(o) => {
             let _ = fs::remove_file(&lock);

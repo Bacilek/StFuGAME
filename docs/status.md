@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~14:40. Rewrite after every bigger change.
+Updated: 2026-10-08 ~14:25. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -124,6 +124,23 @@ Updated: 2026-10-08 ~14:40. Rewrite after every bigger change.
   e-mails were swapped** in `SF_ACCOUNTS` (the user's own slip when typing them in, confirmed by the user).
   Fixed by swapping them back. Lesson: when several characters get `ConnectionError` on login and the bot itself
   hasn't changed, check the credentials before suspecting the bot/network.
+- **Day 0 tournament round was not actually "everyone at level 2" (found and fixed 2026-10-08):** Sanek's first
+  login triggered `run_day0` at 14:03, but by then Filminy/Mrožik/Wecros/Květoš/PajaRizz/Pjotr/MimiMimi11/Novotné
+  had all been running since ~13:30 and were already level 4-7 – the round used live `ViewPlayer` data for
+  everyone except the hand-fixed Chlamydie override, so most "Day 0" win rates (e.g. Květoš 0.4%, PajaRizz 88.9%)
+  reflected whatever level each happened to be at 14:03, not level 2. Fixed properly (not just patched for
+  Chlamydie): `tournament::run_day0` now builds a synthetic `Fighter` for EVERY participant from their own stored
+  `roster/<nick>/days/<day0_date>.json` snapshot (`tournament::fighter_from_day0`, parsing level/base attrs/
+  equipped items' "d" description strings back into numbers – `tournament::parse_item_desc`), falling back to
+  live `ViewPlayer` only when a character has no Day 0 snapshot yet. This replaces and generalizes the earlier
+  Chlamydie-only hardcoded fighter (removed) – her manually simulated baseline is just a snapshot like everyone
+  else's now, no special-casing needed. `run()`'s regular daily rounds are untouched, still always live data.
+  Needs `roster/<nick>/days/<date>.json` to exist (it does for everyone who has reached their own Day 0) and a
+  release rebuild; re-run via "Run end of day now" in the app (also now re-runs `run_day0` – `main.rs`) once
+  rebuilt, to regenerate `roster/tournament/2026-10-07.json` with the corrected data. Added `enum-map = "2.7.3"`
+  as a direct dependency (matching sf-api's own pinned version) to construct `Fighter`'s attribute/resistance
+  `EnumMap`s by hand; `Fighter`'s `ident` field needs `Default::default()` rather than naming `FighterIdent`
+  directly – that type exists but its containing module isn't re-exported, so it can't be named outside sf-api.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

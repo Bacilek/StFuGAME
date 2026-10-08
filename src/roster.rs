@@ -231,9 +231,23 @@ impl Snapshot {
 /// character's "Day 0" baseline so they all line up on the same point on the dashboard regardless of when each is
 /// actually handed to the bot. For a brand new roster this is just "today − 1 day"; that first baseline row then
 /// becomes the earliest `history.csv` date, so it is what every later character's Day 0 lines up with too.
-fn day0_date() -> NaiveDate {
+pub fn day0_date() -> NaiveDate {
     let today = Local::now().date_naive();
     crate::tournament::start_date().unwrap_or(today) - chrono::Duration::days(1)
+}
+
+/// This character's class (`history.csv`'s `class` column, e.g. "BattleMage") and Day 0 snapshot
+/// (`days/<day0_date>.json`: level/base attributes/equipped items), if it has one – lets
+/// `tournament::run_day0` build a synthetic fighter from the frozen Day 0 data instead of a live, possibly
+/// already-leveled-up `ViewPlayer` snapshot.
+pub fn day0_snapshot(nick: &str) -> Option<(String, serde_json::Value)> {
+    let dir = Path::new(ROOT).join(nick);
+    let date = day0_date().to_string();
+    let rows = read_history(&dir.join("history.csv"));
+    let row = rows.iter().find(|r| r.get("date").map(String::as_str) == Some(date.as_str()))?;
+    let class = row.get("class")?.clone();
+    let text = fs::read_to_string(dir.join("days").join(format!("{date}.json"))).ok()?;
+    Some((class, serde_json::from_str(&text).ok()?))
 }
 
 /// Above this level a character is no longer "fresh" (tutorial just done) – the guard that keeps a character
