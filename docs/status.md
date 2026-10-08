@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~16:15. Rewrite after every bigger change.
+Updated: 2026-10-08 ~16:20. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -202,6 +202,14 @@ Updated: 2026-10-08 ~16:15. Rewrite after every bigger change.
   as they were (lower priority than being deep in an expedition – not wrong just because those also get skipped
   on a `continue`'d pass; the main loop comes back to them very soon after, once the expedition finally pauses or
   finishes), but may be worth revisiting the same way later if anything similar turns up.
+- **Second "N characters left" bug, same day:** after the starvation fix above, the progress indicator still got
+  stuck (went 10 → 3 and stalled). Root cause: `ctx::eod_done_one()` was called at the *end* of the manual block,
+  after `tournament::run`/`run_day0`/the report `Update` – but `take_end_of_day_request()` already marks the
+  request "seen" for that character the moment it returns `true`, before any of that runs. If one of those calls
+  hit `SessionLost` and the function returned early, the decrement never happened – and a reconnect wouldn't
+  retrigger it either, since `manual` would now read `false` for this same request (already seen). Fixed by
+  calling `ctx::eod_done_one()` immediately once `manual` is confirmed true, before doing any of the actual work,
+  so exactly one decrement always happens per character per request regardless of what happens afterward.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
