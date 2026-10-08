@@ -118,13 +118,26 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Err(o) => return o,
     };
 
-    // Take the item off (weapon / chest plate) into a free backpack slot
-    let mut stripped = None;
+    // Take the item(s) off (weapon / chest plate) into free backpack slots. An Assassin carries a weapon in
+    // both the Weapon and Shield slot (sf-api types the off-hand item as a Weapon too), so "bare hands" must
+    // take both off, not just the main hand.
+    let mut stripped: Vec<(EquipmentSlot, sf_api::gamestate::items::BagPosition, sf_api::gamestate::items::ItemCommandIdent)> =
+        Vec::new();
     if let Hunt::Without(slot) = hunt {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        if let Some(item) = gs.character.equipment.0[slot].as_ref() {
+        let mut slots = vec![slot];
+        if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
+            slots.push(EquipmentSlot::Shield);
+        }
+        for slot in slots {
+            let Some(gs) = session.game_state() else { return Outcome::Done };
+            let Some(item) = gs.character.equipment.0[slot].as_ref() else { continue };
             let Some(bag) = gs.character.inventory.free_slot() else {
                 report!("[hunt] Backpack full, cannot take off the {slot:?}");
+                // Put back whatever was already stripped this run before giving up
+                for (slot, bag, item_ident) in stripped {
+                    let _ = safe::send(session, Command::Equip { from_pos: bag.into(), to_slot: slot, item_ident }).await;
+                }
                 return Outcome::Done;
             };
             let item_ident = item.command_ident();
@@ -134,7 +147,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             {
                 return fail(&e);
             }
-            stripped = Some((slot, bag, item_ident));
+            stripped.push((slot, bag, item_ident));
         }
     }
 
@@ -153,8 +166,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     };
 
-    // Always put the item back on
-    if let Some((slot, bag, item_ident)) = stripped {
+    // Always put the item(s) back on
+    for (slot, bag, item_ident) in stripped {
         report!("[hunt] Putting the {slot:?} back on");
         if let Err(e) = safe::send(session, Command::Equip { from_pos: bag.into(), to_slot: slot, item_ident }).await {
             // inventory::manage will equip it on the next pass anyway (better than an empty slot)

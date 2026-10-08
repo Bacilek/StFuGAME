@@ -21,6 +21,8 @@
     far below our rank (e.g. we are 8600th → look at 10000) for a weak player of that class with low honor and beat them.
     Hall of Fame fights do not count towards the 10 XP wins.
   - "Win bare-handed": take the weapon off, beat a weak player low in the Hall of Fame, put the weapon back on.
+    An Assassin has a weapon in both the Weapon and Shield slot (dual-wield) – both come off, both go back on
+    (`src/hunt.rs`, 2026-10-08, ahead of Sanek's first run).
   - "Spin the Wheel of Fortune 5×": 1 free, the rest costs lucky coins (collected from offers, ads, …). Do not waste them,
     use them only when a reward would not be reached otherwise.
   - "Drink beer" may ask for 10 beers (10 mushrooms). Only when it brings more (e.g. 10 mushrooms back + the Thirst for
