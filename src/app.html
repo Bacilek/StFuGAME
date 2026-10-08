@@ -33,6 +33,8 @@ main{flex:1;min-height:0;overflow:auto;padding:16px}
 .tile .top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
 .tile .n{font-weight:700;font-size:15px;cursor:pointer}
 .tile .c{color:var(--ink2);font-size:12px;cursor:pointer}
+.tile .act{color:var(--ink2);font-size:12px;margin-top:3px;display:flex;justify-content:space-between;gap:6px}
+.tile .act b{color:var(--ink);font-weight:600}
 .tile .s{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;cursor:pointer}
 .tile .s b{font-size:16px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -128,6 +130,9 @@ function renderTiles(){
       top.append(name, sw); tile.appendChild(top);
       const cl = document.createElement("div"); cl.className = "c";
       cl.addEventListener("click", ()=>openCard(STATUS.find(s=>s.name===c.name))); tile.appendChild(cl);
+      const act = document.createElement("div"); act.className = "act";
+      const actLabel = document.createElement("span"); const actTimer = document.createElement("b");
+      act.append(actLabel, actTimer); tile.appendChild(act);
       const st = document.createElement("div"); st.className = "status";
       const dot = document.createElement("span"); dot.className = "dot"; const dotText = document.createTextNode("");
       st.append(dot, dotText); tile.appendChild(st);
@@ -138,7 +143,7 @@ function renderTiles(){
       const alu = document.createElement("div"); alu.className = "alu"; const aluFill = document.createElement("i"); alu.appendChild(aluFill);
       tile.appendChild(alu);
       box.appendChild(tile);
-      el = {tile, name, cl, dot, dotText, r, g, sw, aluFill};
+      el = {tile, name, cl, actLabel, actTimer, dot, dotText, r, g, sw, aluFill, until: null};
       tileEls.set(c.name, el);
     }
     const n = c.now || {};
@@ -147,6 +152,9 @@ function renderTiles(){
     el.dot.className = "dot " + c.state; el.dotText.textContent = " " + c.state;
     el.r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
     el.g.textContent = n.strength != null ? Math.round(n.strength).toLocaleString() : "–";
+    el.actLabel.textContent = n.activity ? n.activity.label : "–";
+    el.until = n.activity && n.activity.until ? new Date(n.activity.until).getTime() : null;
+    updateTimer(el);
     const pend = pendingSwitch.get(c.name);
     if (pend && Date.now() < pend.until) el.sw.checked = pend.checked;
     else { pendingSwitch.delete(c.name); el.sw.checked = c.state === "running"; }
@@ -155,6 +163,16 @@ function renderTiles(){
     el.aluFill.parentElement.title = n.thirst_sec != null ? `Thirst for Adventure: ${Math.round(n.thirst_sec/60)} / ${Math.round(n.thirst_max_sec/60)} min` : "";
   });
 }
+
+// A countdown ("Xh Ym" / "Ym Zs") for the character's current activity, ticking every second between status
+// refreshes so it counts down smoothly instead of jumping every ~2 s.
+function updateTimer(el){
+  if (el.until == null){ el.actTimer.textContent = ""; return; }
+  const left = Math.max(0, Math.round((el.until - Date.now())/1000));
+  const h = Math.floor(left/3600), m = Math.floor((left%3600)/60), s = left%60;
+  el.actTimer.textContent = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+setInterval(()=>{ for (const el of tileEls.values()) updateTimer(el); }, 1000);
 
 function openCard(c){
   const n = c.now, body = $("cardbody"); body.replaceChildren();

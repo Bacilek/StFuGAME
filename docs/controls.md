@@ -10,6 +10,9 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - Buttons in the header: **Start all / Stop all**, **Run end of day now** (preview: duels + report + dashboard
   right away; the real 23:20/23:50 runs replace it, nothing counts twice), **Open in browser** (the dashboard as
   a normal web page, e.g. to share the link elsewhere).
+- Each tile shows what the character is doing right now (Idle / City Guard / Expedition (choosing/boss/reward/
+  waiting) / Quest) with a live countdown to when that ends, when the server gives an end time (City Guard,
+  the expedition's waiting stage). Ticks every second client-side between the ~2 s status refreshes.
 - Each tile has a yellow bar along its bottom edge showing the character's Thirst for Adventure (ALU) as a
   fraction of the daily max (6000 s / 100 min) – shrinks through the day, refills after the midnight reset.
   A quick glance tells you a character is stuck (bar not moving) without opening its card.

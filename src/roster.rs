@@ -19,6 +19,7 @@ use sf_api::{
         GameState,
         dungeons::DungeonProgress,
         items::{EquipmentSlot, Item, ItemType},
+        tavern::{CurrentAction, ExpeditionStage},
     },
 };
 
@@ -338,6 +339,32 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
 /// Thirst for Adventure (ALU) at full: `sf-api` itself checks against this constant for "full day" (100 min).
 const MAX_THIRST_SEC: u32 = 6000;
 
+/// What the character is doing right now, for the app window's tile: a short label and, when known,
+/// the time it ends (so the tile can show a countdown).
+fn activity(gs: &GameState) -> serde_json::Value {
+    let until = |t: chrono::DateTime<Local>| t.to_rfc3339();
+    match gs.tavern.current_action {
+        CurrentAction::Idle => serde_json::json!({ "label": "Idle" }),
+        CurrentAction::CityGuard { busy_until, .. } => {
+            serde_json::json!({ "label": "City Guard", "until": until(busy_until) })
+        }
+        CurrentAction::Expedition => {
+            let stage = gs.tavern.expeditions.active().map(sf_api::gamestate::tavern::Expedition::current_stage);
+            match stage {
+                Some(ExpeditionStage::Waiting { busy_until, .. }) => {
+                    serde_json::json!({ "label": "Expedition (waiting)", "until": until(busy_until) })
+                }
+                Some(ExpeditionStage::Encounters(_)) => serde_json::json!({ "label": "Expedition (choosing)" }),
+                Some(ExpeditionStage::Boss(_)) => serde_json::json!({ "label": "Expedition (boss)" }),
+                Some(ExpeditionStage::Rewards(_)) => serde_json::json!({ "label": "Expedition (reward)" }),
+                _ => serde_json::json!({ "label": "Expedition" }),
+            }
+        }
+        CurrentAction::Quest { busy_until, .. } => serde_json::json!({ "label": "Quest", "until": until(busy_until) }),
+        CurrentAction::Unknown(_) => serde_json::json!({ "label": "Unknown" }),
+    }
+}
+
 fn card_data(gs: &GameState) -> serde_json::Value {
     let c = &gs.character;
     let attrs: serde_json::Map<String, serde_json::Value> = ATTRS
@@ -394,6 +421,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "updated": Local::now().format("%d.%m. %H:%M").to_string(),
         "thirst_sec": gs.tavern.thirst_for_adventure_sec,
         "thirst_max_sec": MAX_THIRST_SEC,
+        "activity": activity(gs),
     })
 }
 

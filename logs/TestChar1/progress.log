@@ -1,7 +1,3 @@
-2026-10-08 02:38:59 [shops] Spin 2: buying Weapon { min_dmg: 20, max_dmg: 24 } from the Weapon shop (slot 5) for 10.40 g to sell it again
-2026-10-08 02:39:10 [inventory] selling Weapon { min_dmg: 20, max_dmg: 24 } (value 80.8 ≤ 103.2 of the equipped one)
-2026-10-08 02:39:14 [inventory] Sold for 2.60 g
-2026-10-08 02:39:21 [shops] Spin cost 7.80 g
 2026-10-08 02:39:21 [shops] Spin 3: buying Amulet from the Magic shop (slot 5) for 12.80 g to sell it again
 2026-10-08 02:39:27 [inventory] selling Amulet (value 8.0 ≤ 12.0 of the equipped one)
 2026-10-08 02:39:31 [inventory] Sold for 3.20 g
@@ -98,3 +94,7 @@
 2026-10-08 03:19:25 [tasks] event chest 2 (2 points, opened): Silver 800
 2026-10-08 03:19:25 [tasks] event chest 3 (3 points, opened): Silver 200, Beer 1
 2026-10-08 03:19:25 Nothing to do, next check in 1 min 0 s
+2026-10-08 03:20:28 [tavern] The character is busy (CityGuard { hours: 10, busy_until: 2026-10-08T12:41:38+02:00 }), skipping the Tavern
+2026-10-08 03:20:28 Nothing to do, next check in 1 min 0 s
+2026-10-08 03:21:33 [tavern] The character is busy (CityGuard { hours: 10, busy_until: 2026-10-08T12:41:38+02:00 }), skipping the Tavern
+2026-10-08 03:21:33 Nothing to do, next check in 1 min 33 s
