@@ -190,9 +190,11 @@ enum Battle {
 
 /// Battles we already signed up for (kind + time of the battle), so we never send the same sign-up twice.
 static SIGNED_UP: crate::ctx::PerChar<Vec<(Battle, DateTime<Local>)>> = crate::ctx::PerChar::new();
-/// Last failed sign-up per kind (e.g. ~12 h after joining a guild): retry at most once an hour.
+/// Last failed sign-up per kind (e.g. ~12 h after joining a guild, not yet a 24 h member): retry every 4 h
+/// rather than hourly, since the server-side reason doesn't change until the 24 h mark anyway. This is only
+/// in-memory, so a reconnect/restart still resets it and may retry sooner than that.
 static LAST_FAIL: crate::ctx::PerChar<Vec<(Battle, std::time::Instant)>> = crate::ctx::PerChar::new();
-const RETRY_SEC: u64 = 3600;
+const RETRY_SEC: u64 = 4 * 3600;
 
 /// Has our character already joined this kind of battle (per the guild member data)?
 fn already_joined(guild: &Guild, me: &str, kind: Battle) -> bool {
@@ -237,7 +239,7 @@ pub async fn battles(session: &mut SimpleSession) -> Outcome {
             }
             Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
             Err(e) => {
-                report!("[guild] Sign-up failed: {e} (retry in an hour)");
+                report!("[guild] Sign-up failed: {e} (retry in {} h)", RETRY_SEC / 3600);
                 if let Ok(mut v) = LAST_FAIL.lock() {
                     v.retain(|(k, _)| *k != kind);
                     v.push((kind, std::time::Instant::now()));

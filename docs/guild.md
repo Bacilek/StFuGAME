@@ -59,7 +59,12 @@
   When `gs.guild.attacking` / `defending` holds a future battle (attacks incl. raids, `is_raid`) and our member entry
   does not show it as joined (`battles_joined`), send `GuildJoinAttack` / `GuildJoinDefense` (free, whitelisted).
   Each battle (kind + time) is signed up for only once per run (in case the command toggles); a failure
-  (e.g. ~12 h after joining a guild) is retried after an hour.
+  (e.g. ~12 h after joining a guild, not yet a 24 h member) is retried after 4 h (`RETRY_SEC`, bumped from 1 h
+  2026-10-09 – the underlying "not 24 hours member" error doesn't change until the 24 h mark anyway, no point
+  retrying hourly). This throttle is in-memory only (`PerChar`), so a reconnect/restart still resets it and can
+  retry sooner than that – observed live: Novotné relogged at 23:07:56 right after a failed attempt at 22:57:19,
+  retrying after only ~11 min instead of the full interval. Not fixed further (reconnects are infrequent enough
+  that this is an acceptable, rare exception, not worth persisting the throttle to disk).
 - sf-api reads `battles_joined` as value % 100; the raw values look like `010` / `100` / `000` (3 digits, the hundreds digit
   is probably the raid) → a raid sign-up may not be visible in `battles_joined`, hence the local memory.
 

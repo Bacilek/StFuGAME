@@ -1,6 +1,27 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~23:55. Rewrite after every bigger change.
+Updated: 2026-10-09 ~00:20. Rewrite after every bigger change.
+
+- **Paperdoll: real slot positions, square portrait, day-pinned equipment (2026-10-08/09, user feedback round 2):**
+  - Grid rearranged per the user's correction (weapon + shield belong at the very bottom, not flanking the
+    portrait): now hat (top-center) → amulet/breastplate → belt/gloves → ring/boots → talisman (bottom-center,
+    above weapon+shield) → weapon/shield (bottom row). `grid-template-areas` in both `src/app.html` and
+    `src/dashboard.html` (kept identical). Not yet confirmed against the user's actual in-game screen – ask if
+    still off after they look at it live.
+  - `.pdportrait` is now a fixed 130×130 box (`object-fit:cover`, was `contain`) so it's always a square
+    regardless of the source image's own aspect ratio.
+  - **Charts dashboard's card now pins equipment to the day being viewed**, not live `now.json` (the app tab's
+    own card stays live – that distinction was explicit from the user). `src/roster.rs::write_dashboard` now
+    reads each character's full `days/<date>.json` history (new `read_days` helper, `daily_changes` takes its
+    output instead of re-reading the dir) and stores that day's `equip` (icons included) into
+    `DATA.chars[i].rows[date].equip`. `src/dashboard.html::openCard` looks up `DATA.dates[upto-1]` (the globally
+    selected chart day) and renders *that* snapshot's equipment, falling back to "No snapshot for this day yet"
+    when absent.
+  - **Known gap, not fixable retroactively:** every character's Day 0 snapshot (`days/<first-date>.json`) was
+    written before the icon feature existed, so it has no `icon` field – only the text description. The paperdoll
+    for Day 0 will show empty/icon-less slots; from tonight's real 23:50 report (Day 1) onward, new snapshots
+    carry icons. Confirmed as expected with the user (2026-10-08), not something to backfill (the raw item fields
+    needed for the icon were never saved for those old snapshots).
 
 - **Dashboard's own card also got the paperdoll (2026-10-08, user-reported gap):** the paperdoll/hover-tooltip
   equipment layout only existed in the app tab's card (`src/app.html::openCard`) – the **Charts tab's own card**
@@ -377,6 +398,15 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
   reset is unknown/unverified – the margin is deliberately conservative to stay clear of finding out live. See
   `docs/city-guard.md` for the full writeup and `docs/precedents.md` for the dated decision. **Needs a release
   rebuild and a full live day to verify** – nothing about this has been observed running yet.
+
+- **Guild battle sign-up retry interval 1 h → 4 h (2026-10-09, user request):** checked in on a status question –
+  all 11 challenge characters had their daily chest 3 (max, 20 pts) + all 3 event chests open, no mushroom-watchdog
+  trips, no connection errors. Only noise: `[guild] Sign-up failed: not 24 hours member` repeating for Novotné
+  faster than the intended hourly throttle – traced to a reconnect (`Logging in...` again at 23:07:56, ~10 min
+  after a failed attempt) resetting the in-memory `LAST_FAIL` state (`src/guild.rs`), not a logic bug in the
+  throttle itself. Since the server-side reason doesn't change until the character hits 24 h membership anyway,
+  bumped `RETRY_SEC` 3600 → 14400 (4 h) to cut down the noise; left as in-memory (not persisted across
+  reconnects/restarts) since those are rare. See `docs/guild.md`.
 
 ## Next steps (not started)
 - Add PajaRizz + Chlamydie to `.env`'s `SF_ACCOUNTS` (blocks `MrozikMarta@seznam.cz|mrozikChall1|Mrožik` already
