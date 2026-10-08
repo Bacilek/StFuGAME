@@ -46,16 +46,21 @@
 - Attribute tasks before spinning (`attributes_needed`, called from `shops.rs` before the first spin): when some unopened
   chest is above earned + natural points and within reach with the attribute tasks (+ affordable costly tasks).
   They still keep the shop reserve. Otherwise attributes come after the shops as before.
-- Costly tasks (`plan`, separately for the daily and the event list): shell game (`DefeatGambler`), Wheel of Fortune
-  beyond the free spin (`SpinWheelOfFortune`, lucky coins), beer (`DrinkBeer`, mushrooms). Expected = earned + "natural"
-  points (Arena, Dungeons, City Guard tasks). Of all combinations that we can afford (≥ 5 g; enough lucky coins for all
-  remaining spins incl. the free one; enough beers left today) take the one reaching the highest unopened chest above
-  "expected", and the cheapest for it (weights per unit: shell game 1, lucky coin 10, beer 100). A chest counts only if it
-  is worth it (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins as spent (10 per spin).
-  Run after the Tavern and the shops: shell game (bet 1 silver, `GAMBLE_BET`, accepted by the server; stop below 5 g),
-  then lucky-coin spins, then one beer per pass (beer gives Thirst for Adventure, the Tavern runs before the next one).
-  `safe.rs` re-checks: `gamble_ok` (bet ≤ 1/10 gold, ≥ 5 g), `lucky_spin_justified`, `beer_justified`; the watchdog allows
-  exactly 1 mushroom per beer.
+- Costly tasks (`plan`, separately for the daily and the event list): Wheel of Fortune beyond the free spin
+  (`SpinWheelOfFortune`, lucky coins), beer (`DrinkBeer`, mushrooms). Expected = earned + "natural" points (Arena,
+  Dungeons, City Guard tasks). Of all combinations that we can afford (enough lucky coins for all remaining spins
+  incl. the free one; enough beers left today) take the one reaching the highest unopened chest above "expected",
+  and the cheapest for it (weights per unit: lucky coin 10, beer 100). A chest counts only if it is worth it
+  (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins as
+  spent (10 per spin). Run after the Tavern and the shops: lucky-coin spins, then one beer per pass (beer gives
+  Thirst for Adventure, the Tavern runs before the next one).
+  `safe.rs` re-checks: `lucky_spin_justified`, `beer_justified`; the watchdog allows exactly 1 mushroom per beer.
+- **Shell game (`DefeatGambler`) is handled separately from the rest of `plan`** (user 2026-10-08: gold is more
+  dispensable than mushrooms/lucky coins, so there's no reason to ever skip a day of it). `planned()` adds
+  `Extra::Gamble` whenever the task is open and affordable (`Means::gamble`, ≥ 5 g), regardless of whether any
+  chest "needs" it – not gated by `chest_worth`, and `tasks::run` calls it right after `claim_chests`, independent
+  of `tavern_done` (any time of day, not just after the Tavern/shops like the other costly tasks). Bet 1 silver
+  (`GAMBLE_BET`), stop below 5 g (`GAMBLE_MIN_SILVER`). `safe.rs` re-checks `gamble_ok` (bet ≤ 1/10 gold, ≥ 5 g).
 - The daily task log also lists every chest with its rewards (`[tasks] daily chest 2 (8 points): Mushrooms 2, …`).
 - Shops (`task_purchase`): `BuyWeaponInWeaponsShop`, `BuyFromShop(shop)` → buy the cheapest non-epic gold item
   (weapon from the Weapon Shop / any item from that shop) even below the reserve, `inventory::manage` sells it. Max 6 a day.

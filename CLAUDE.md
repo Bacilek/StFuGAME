@@ -107,8 +107,12 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Description and verification status: `docs/tasks.md`.
 - Claim task chests (daily + event); do tasks that cost only gold or nothing (attributes, guild skill – the cheaper one,
   Instructor on a tie –, shop purchases, Training Camp). Never beer, paid wheel spins, hourglasses, skips.
-- Costly tasks (`tasks::plan`) only when needed for a chest, looking at the chest rewards: shell game (minimal bets), Wheel of
-  Fortune for lucky coins (only for a chest with mushrooms or as many lucky coins back), beer (chest mushrooms ≥ beers).
+- Costly tasks: Wheel of Fortune for lucky coins and beer only when needed for a chest, looking at the chest
+  rewards (`tasks::plan` – lucky coins only for a chest with mushrooms or as many lucky coins back, beer only
+  for a chest with mushrooms ≥ beers). Shell game (minimal bets) is different (user 2026-10-08: gold is more
+  dispensable than mushrooms/lucky coins) – play it to finish the task whenever it's open and there's enough
+  gold (`GAMBLE_MIN_SILVER`), any time of day, not gated by a chest being "worth" it and not waiting for the
+  Tavern/shops to be done first.
 - Attributes and guild skill for tasks only after the Tavern and shops and never below the shop reserve (better equipment first).
 - Fight tasks (win against <class>, bare hands, no chest plate): in the Arena prefer a weaker opponent of that class; otherwise a
   Hall of Fame hunt (rank + 1500…, low honor, clearly weaker) once the 10 XP wins are done or after 21:00 – Hall of Fame

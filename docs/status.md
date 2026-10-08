@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~15:12. Rewrite after every bigger change.
+Updated: 2026-10-08 ~16:05. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -179,6 +179,14 @@ Updated: 2026-10-08 ~15:12. Rewrite after every bigger change.
   ticks, stepper, tooltips, "Why up?" panel, head-to-head title, per-day table header) – the internal `upto`
   index and URL `#day=N` deep link are still 1-based, now one off from the label (acceptable, an internal/testing
   mechanism, not user-facing).
+- **Shell game now runs independently of the chest-value planner and of `tavern_done` (2026-10-08, user:
+  "goldy jsou postradatelnější než houby"):** unlike Wheel of Fortune (lucky coins) and beer (mushrooms), which
+  stay gated by `plan`'s `chest_worth` check, `tasks::planned` now also adds `Extra::Gamble` whenever the
+  `DefeatGambler` task is open and `Means::gamble` (≥ 5 g) is true, regardless of whether any unopened chest
+  actually needs it. `tasks::run` also calls `gamble()` right after `claim_chests`, no longer inside the
+  `tavern_done` branch – it can run any time during the day now, not just after the Tavern/shops are done (the
+  other costly tasks, guild-skill and attribute buying stay exactly as before, gated behind `tavern_done`). New
+  test `gambling_open_even_when_no_chest_needs_it`. `CLAUDE.md`, `docs/tasks.md` and `docs/precedents.md` updated.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

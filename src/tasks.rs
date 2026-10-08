@@ -308,7 +308,18 @@ pub fn planned(gs: &GameState) -> Vec<Extra> {
     let means = Means::of(gs);
     let mut v = plan(&t.daily.tasks, &t.daily.rewards, means);
     v.extend(plan(&t.event.tasks, &t.event.rewards, means));
+    // Shell game only ever spends gold (never mushrooms/lucky coins), so – unlike Wheel/Beer – there's no reason
+    // to wait for a chest that's "worth" it: finish it whenever it's open and affordable (user 2026-10-08:
+    // "goldy jsou postradatelnější než houby").
+    let gambling_open = gambling_is_open(&t.daily.tasks) || gambling_is_open(&t.event.tasks);
+    if means.gamble && gambling_open && !v.contains(&Extra::Gamble) {
+        v.push(Extra::Gamble);
+    }
     v
+}
+
+fn gambling_is_open(tasks: &[Task]) -> bool {
+    tasks.iter().any(|task| task.typ == TaskType::DefeatGambler && !task.is_completed())
 }
 
 /// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
@@ -418,13 +429,16 @@ fn log_tasks(gs: &GameState) {
 }
 
 /// Every pass of the main loop: chests. After the Tavern and the shops (the best equipment is bought first and
-/// the shop reserve is kept): guild skill, attributes, then the costly tasks per `plan` (shell game, lucky-coin
-/// wheel spins, beer).
+/// the shop reserve is kept): guild skill, attributes, then the remaining costly tasks per `plan` (lucky-coin
+/// wheel spins, beer). Shell game (gold only) runs independently of all that, any time (see `planned`).
 pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if let Some(gs) = session.game_state() {
         log_tasks(gs);
     }
     if let Outcome::SessionLost = claim_chests(session).await {
+        return Outcome::SessionLost;
+    }
+    if let Outcome::SessionLost = gamble(session).await {
         return Outcome::SessionLost;
     }
     if tavern_done {
@@ -435,9 +449,6 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             return Outcome::SessionLost;
         }
         // Costly tasks, cheapest first; each is done only when the plan needs it for a chest
-        if let Outcome::SessionLost = gamble(session).await {
-            return Outcome::SessionLost;
-        }
         if let Outcome::SessionLost = lucky_spins(session).await {
             return Outcome::SessionLost;
         }
@@ -518,6 +529,18 @@ mod tests {
         assert_eq!(plan(&tasks, &chests, RICH), [Extra::Gamble]);
         // not enough gold → no
         assert!(plan(&tasks, &chests, Means { gamble: false, ..RICH }).is_empty());
+    }
+
+    #[test]
+    fn gambling_open_even_when_no_chest_needs_it() {
+        // `plan` alone says no chest needs gambling (natural points already clear everything) – but unlike
+        // Wheel/Beer, `planned` adds Gamble anyway whenever the task is open and affordable (user 2026-10-08).
+        let chests = [chest(4)];
+        let tasks = vec![task(TaskType::LeaseMount, 1, 1, 10), task(TaskType::DefeatGambler, 0, 3, 1)];
+        assert!(plan(&tasks, &chests, RICH).is_empty());
+        assert!(gambling_is_open(&tasks));
+        let completed = vec![task(TaskType::DefeatGambler, 3, 3, 1)];
+        assert!(!gambling_is_open(&completed));
     }
 
     fn chest_coins(required_points: u32, coins: u64) -> RewardChest {
