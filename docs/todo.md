@@ -23,7 +23,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 ## Návrhy od Clauda
 Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
 
-- [ ] Free deal u Mushroom Dealera (`ShopCheckout` jen pro položky za 0, `docs/daily-rewards.md`) – zachytit až na další (nové) postavě, až se deal objeví: přesné params `ShopCheckout` (Request URL) a odpověď `ShopCatalog` do `my_input`
+- [x] Free deal u Mushroom Dealera – naimplementováno 2026-10-08 (`daily::claim_welcome_pack`), zachyceno živě přes DevTools. Čeká na živé ověření (`docs/daily-rewards.md`).
 - [x] Cechovní souboje: přihlásit se k útoku/obraně (`GuildJoinAttack`/`GuildJoinDefense`, zdarma)
 - [ ] Vylepšování atributů za zlato (sf-api: `UpgradeSkill`) – jeden pevný klíč pro všechny classy, hlavní atribut zjistit z postavy (klíč ještě domluvit)
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?

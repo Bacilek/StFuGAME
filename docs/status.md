@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~16:35. Rewrite after every bigger change.
+Updated: 2026-10-08 ~18:50. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -222,6 +222,18 @@ Updated: 2026-10-08 ~16:35. Rewrite after every bigger change.
   Doctor's poison, see the head-to-head outlier notes) but no longer absurd. Updated
   `roster/Chlamydie/days/2026-10-07.json` and her `history.csv` strength (17 → 38). Data-only change, no rebuild
   needed – re-run via "Run end of day now" to regenerate `roster/tournament/2026-10-07.json`.
+- **Implemented the free Mushroom Dealer "welcome pack" (2026-10-08, `daily::claim_welcome_pack`):** the user
+  captured the real request/response live via browser DevTools (Network tab) on one of the challenge characters –
+  `ShopCatalog`/`ShopCheckout`, `Command::Custom` + base64 params exactly like the guild list, see
+  `docs/daily-rewards.md` for the full capture and item details (`starterpacks_item_2`, price 0, gold/mushrooms/
+  hourglasses/lucky coins). `ShopCheckout`'s response is a JSON blob *followed by* sf-api's normal `&key:value`
+  tail – neither shape alone, so `GameState::update` can't be trusted on it. Added
+  `SimpleSession::send_raw_only`/`safe::send_raw_only`, which skip updating the game state for these two commands
+  entirely; the caller always does a normal `Command::Update` right after, which both refreshes the state and
+  re-triggers the mushroom watchdog against the state from before the checkout. Safety invariant: only ever
+  checks out an `identifier` whose catalog `price.amount` it just confirmed is exactly `0`, re-checked fresh every
+  time, never hardcoded – the rest of this shop is the real-money one. **Not yet verified live.** Needs a release
+  rebuild.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

@@ -1,16 +1,19 @@
-//! Daily rewards: the daily login bonus (calendar) and one free Wheel of Fortune spin per day.
-//! Nothing else (user rule). The wheel never for mushrooms or lucky coins.
+//! Daily rewards: the daily login bonus (calendar) and one free Wheel of Fortune spin per day (user rule: never
+//! for mushrooms or lucky coins) – plus the one-time free "new customer" pack at the Mushroom Dealer, below.
 
 use std::time::{Duration, Instant};
 
 use chrono::Local;
-use sf_api::{
-    command::{Command, FortunePayment},
-};
+use serde_json::Value;
+use sf_api::command::{Command, FortunePayment};
 
 use crate::session::SimpleSession;
 
 use crate::{safe, tavern::Outcome};
+
+fn custom(cmd_name: &str, arguments: &[&str]) -> Command {
+    Command::Custom { cmd_name: cmd_name.to_string(), arguments: arguments.iter().map(|a| (*a).to_string()).collect() }
+}
 
 /// When an action fails (state unchanged), retry it at the earliest after this long.
 const RETRY: Duration = Duration::from_secs(30 * 60);
@@ -61,6 +64,50 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
 
+    if let Outcome::SessionLost = claim_welcome_pack(session).await {
+        return Outcome::SessionLost;
+    }
+
+    Outcome::Done
+}
+
+/// One-time free "new customer" pack at the Mushroom Dealer (user 2026-10-07: for new accounts a free deal
+/// appears after some time; claimed manually once on TestChar1). Captured live 2026-10-08 from a browser Network
+/// tab: not one of sf-api's typed commands, same `Command::Custom` + base64-params mechanism as the guild list
+/// (`guild.rs`). Catalog item as of 2026-10-08: identifier `starterpacks_item_2` (internal `welcomepack_1`),
+/// `sku: "FREE"`, price 0 – gold, mushrooms, hourglasses and lucky coins. **Never** checks out anything whose
+/// catalog price is not exactly 0 – the rest of this shop (`starterpacks_item_1`, mushroom packs, VIP status)
+/// costs real money. Not yet verified live (pending: does the pack actually show up and get claimed correctly?).
+async fn claim_welcome_pack(session: &mut SimpleSession) -> Outcome {
+    if !may_try("welcome_pack") {
+        return Outcome::Done;
+    }
+    let raw = match safe::send_raw_only(session, custom("ShopCatalog", &["1", "", "1"])).await {
+        Ok(raw) => raw,
+        Err(e) => return fail(&e),
+    };
+    let Ok(v) = serde_json::from_str::<Value>(&raw) else {
+        report!("[rewards] Could not parse the shop catalog, skipping");
+        return Outcome::Done;
+    };
+    let Some(articles) = v["catalog"]["articles"].as_array() else { return Outcome::Done };
+    let free: Vec<String> = articles
+        .iter()
+        .filter(|a| a["price"]["amount"].as_u64() == Some(0))
+        .filter_map(|a| a["identifier"].as_str().map(str::to_string))
+        .collect();
+    for identifier in free {
+        report!("[rewards] Free shop item: {identifier}, claiming");
+        if let Err(e) = safe::send_raw_only(session, custom("ShopCheckout", &["1", &identifier, ""])).await {
+            return fail(&e);
+        }
+        // ShopCheckout's response is not parsed into the game state (see `SimpleSession::send_raw_only`) – a
+        // normal Update refreshes it and re-triggers the mushroom watchdog against the state from before this.
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e);
+        }
+        report!("[rewards] Claimed {identifier}");
+    }
     Outcome::Done
 }
 

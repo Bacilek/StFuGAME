@@ -168,13 +168,19 @@ pub async fn send(session: &mut SimpleSession, cmd: Command) -> Result<&mut Game
     session.game_state_mut().ok_or(SFError::EmptyResponse)
 }
 
-/// Guild commands sf-api does not know (`Command::Custom`, captured from the browser, docs/guild.md).
-/// None of them spends mushrooms; leaving the guild only with our own player id (never kicking anyone else).
+/// Commands sf-api does not know (`Command::Custom`, captured straight from a browser Network tab).
+/// Guild ones (docs/guild.md): none of them spend mushrooms; leaving the guild only with our own player id
+/// (never kicking anyone else). Shop ones (docs/daily-rewards.md, the free "new customer" pack): `ShopCatalog`
+/// is read-only; `ShopCheckout`'s real safety (never checking out anything that costs real money/mushrooms) is
+/// enforced by the caller (`daily::claim_welcome_pack`), which only ever passes an identifier whose catalog price
+/// it just confirmed was exactly 0 – this whitelist only pins the shop id ("1") and the request shape.
 fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) -> bool {
     match (cmd_name, arguments) {
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
         ("GroupJoin", [_, suffix]) => suffix == "int",
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
+        ("ShopCatalog", [shop, mid, page]) => shop == "1" && mid.is_empty() && page == "1",
+        ("ShopCheckout", [shop, identifier, suffix]) => shop == "1" && suffix.is_empty() && !identifier.is_empty(),
         _ => false,
     }
 }
@@ -275,6 +281,25 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         std::process::exit(2);
     }
 
+    human_pause().await;
+    res
+}
+
+/// Like `send_raw`, but for the shop's custom commands whose response `GameState::update` cannot be trusted to
+/// parse (`ShopCatalog`'s is a bare JSON blob; `ShopCheckout`'s is that same JSON shape followed by `&key:value…`
+/// pairs – neither is the one shape sf-api's parser expects) – never touches the game state itself, and skips the
+/// mushroom watchdog this file otherwise always runs, since there is nothing fresh to compare against here. The
+/// caller (`daily::claim_welcome_pack`) always follows up with a normal `Command::Update` (via `send`), which both
+/// refreshes the game state and re-triggers that same watchdog, comparing against the state from before this call.
+pub async fn send_raw_only(session: &mut SimpleSession, cmd: Command) -> Result<String, SFError> {
+    let custom_ok = match &cmd {
+        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), cmd_name, arguments),
+        _ => false,
+    };
+    if !custom_ok {
+        return Err(SFError::InvalidRequest("command is not whitelisted (mushroom protection)"));
+    }
+    let res = session.send_raw_only(cmd).await;
     human_pause().await;
     res
 }

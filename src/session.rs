@@ -65,4 +65,18 @@ impl SimpleSession {
         }
         Ok(raw)
     }
+
+    /// Like `send_raw`, but never touches the game state – for responses `GameState::update` cannot be trusted to
+    /// parse (e.g. the shop's `ShopCatalog`/`ShopCheckout`, whose raw response is a JSON blob, optionally followed
+    /// by `&key:value…` pairs sf-api does understand, not a response of either shape alone). A normal `Update` on
+    /// the next pass refreshes the game state as usual; this only returns what the command itself said.
+    pub async fn send_raw_only(&mut self, cmd: Command) -> Result<String, SFError> {
+        if self.gamestate.is_none() {
+            let resp = self.session.login().await?;
+            self.gamestate = Some(GameState::new(resp)?);
+            tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
+        }
+        let resp = self.session.send_command(cmd).await?;
+        Ok(resp.raw_response().to_string())
+    }
 }
