@@ -1,6 +1,10 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~21:42. Rewrite after every bigger change.
+Updated: 2026-10-08 ~21:50. Rewrite after every bigger change.
+
+- **Character card: hourglasses added (2026-10-08, user request):** the card opened by clicking a character tile
+  (`openCard` in `src/app.html`) now also shows "Hourglasses" next to Gold/Mushrooms/Lucky coins. Source:
+  `gs.tavern.quicksand_glasses`, added to `card_data` in `src/roster.rs` (written to `now.json`, read by the app).
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,

@@ -467,6 +467,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "gold": c.silver as f64 / 100.0,
         "mushrooms": c.mushrooms,
         "lucky_coins": gs.specials.wheel.lucky_coins,
+        "hourglasses": gs.tavern.quicksand_glasses,
         "strength": (crate::hunt::own_strength(gs)).round(),
         "attrs": attrs,
         "potions": potions,
@@ -816,7 +817,7 @@ mod tests {
             // Current state for the character card
             let now = serde_json::json!({
                 "name": nick, "class": class, "level": level, "xp": 4100, "next_xp": 6900, "rank": rank, "honor": 300 + i * 40,
-                "gold": 157.29 + i as f64 * 11.0, "mushrooms": 31 + i, "lucky_coins": 50, "strength": strength.round(),
+                "gold": 157.29 + i as f64 * 11.0, "mushrooms": 31 + i, "lucky_coins": 50, "hourglasses": 12 + i, "strength": strength.round(),
                 "attrs": {"STR": {"base": 28, "bonus": 41, "total": 69}, "DEX": {"base": 10, "bonus": 6, "total": 16},
                           "INT": {"base": 9, "bonus": 3, "total": 12}, "CON": {"base": 29, "bonus": 37, "total": 66},
                           "LCK": {"base": 14, "bonus": 12, "total": 26}},
