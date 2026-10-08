@@ -1,7 +1,19 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~23:40. Rewrite after every bigger change.
+Updated: 2026-10-08 ~23:55. Rewrite after every bigger change.
 
+- **Dashboard's own card also got the paperdoll (2026-10-08, user-reported gap):** the paperdoll/hover-tooltip
+  equipment layout only existed in the app tab's card (`src/app.html::openCard`) – the **Charts tab's own card**
+  (`src/dashboard.html::openCard`, a separate implementation, opened by clicking a character tile inside the
+  chart dashboard iframe) was still the old plain-text equipment list. Ported the same markup/CSS there (`c.nick`
+  instead of `c.name` for the portrait path, otherwise identical). Both cards now read `now.json`'s `equip` map,
+  which already carries `icon` (see below) – no new data plumbing needed, just the missing UI port.
+  **Open question clarified with the user:** the card always shows the character's *current* (`now.json`,
+  refreshed every ~10 min) equipment, not a per-day-in-the-chart snapshot – when day-0 (baseline) is still the
+  only day on the chart, that's necessarily day-0's starting gear; once the first real day's report runs
+  (~23:50, `write_day`) and day 1 appears on the chart (~1 h later incl. the 23:40 duel round), the live
+  `now.json` will already reflect that day's end-of-day gear by then anyway, so no extra "pin equipment to the
+  selected day" feature is needed – confirmed this matches what the user wants.
 - **Character card: paperdoll layout (2026-10-08, user request):** the Equipment section in `openCard`
   (`src/app.html`) is no longer a text table – it's a CSS-grid "paperdoll" (`.paperdoll`) with the 10 item
   icons arranged around a central portrait the way the game's own character screen does (hat top-center,
