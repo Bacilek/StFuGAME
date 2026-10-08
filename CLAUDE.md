@@ -36,6 +36,12 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
   Details and the dev-only `STFU_NO_LOGIN=1` flag: `docs/controls.md`.
 
 ## Rules
+- **Before ending a turn where any task was finished** (a feature, a fix, a decision, anything non-trivial), update
+  every doc that changed as a result — at minimum `docs/status.md` (where we are / pending verification / open
+  questions) and `docs/todo.md` if it affects the plan, plus the relevant feature doc and `docs/precedents.md` for
+  any new decision. Do this unprompted, every time, not just for "bigger" changes: the user may run `/clear` at
+  any point without warning, and the next session starts from these docs alone (see "Start here" above) — they
+  must already reflect the finished state, not need a reminder to be brought up to date.
 - All docs are mainly for Claude: update them whenever anything new is learned (from runs, from the user, from the FAQ). Record verified facts in the "Verification status" tables, rewrite `docs/status.md` after bigger changes.
 - Plan of further features: `docs/todo.md` (add new ideas, tick off finished ones). Whenever a big game TODO comes to mind, add it to the "Návrhy od Clauda" section.
 - Whenever unsure about any decision (strategy, data, what the bot may do), ask the user and record the answer in `docs/precedents.md`. Follow the precedents in similar situations.
