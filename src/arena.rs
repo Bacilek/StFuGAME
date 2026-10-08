@@ -34,7 +34,7 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 
 /// After this many wins per day the Arena gives no rewards.
 pub const MAX_WINS_PER_DAY: usize = 10;
-/// The Arena journal of the current character (`logs/<character>/arena.jsonl`).
+/// The Arena journal of the current character (`roster/<character>/logs/arena.jsonl`).
 fn log_file() -> String {
     crate::ctx::log_path("arena.jsonl")
 }

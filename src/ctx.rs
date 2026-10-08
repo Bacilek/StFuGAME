@@ -18,10 +18,11 @@ pub fn name() -> String {
     CHARACTER.try_with(Clone::clone).unwrap_or_default()
 }
 
-/// Log file of the current character: `logs/<character>/<file>` (`logs/<file>` outside of a character task).
+/// Log file of the current character: `roster/<character>/logs/<file>` (`logs/<file>` outside of a character
+/// task). Lives under `roster/` (gitignored, local only) so per-character gameplay logs never end up in git.
 pub fn log_path(file: &str) -> String {
     let n = name();
-    if n.is_empty() { format!("logs/{file}") } else { format!("logs/{n}/{file}") }
+    if n.is_empty() { format!("logs/{file}") } else { format!("roster/{n}/logs/{file}") }
 }
 
 /// "Run end of day now" from the icon menu: a request counter + a wake-up for the sleeping main loops.

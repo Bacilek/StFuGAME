@@ -7,7 +7,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
 3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
 4. Feature docs: `docs/expeditions.md`, `arena.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `controls.md`.
-5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: `logs/progress.log`, journals `logs/expeditions.jsonl`, `logs/arena.jsonl`.
+5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: combined `logs/progress.log`, per-character journals `roster/<character>/logs/` (progress.log, expeditions.jsonl, arena.jsonl).
 
 ## Context
 - Friends' character challenge: everything about it lives in `roster/` (local only, gitignored – never commit it):
@@ -27,7 +27,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
   `SF_ACCOUNTS=login|password|character;…`); never hardcode them or print them to logs. Never read the `.env` file.
 - Several characters run in one process, each in its own tokio task (`ctx::CHARACTER`); state kept between calls must be
   `ctx::PerChar<T>` (per character), never a plain static. Logs: combined `logs/progress.log` ([character] prefix) +
-  `logs/<character>/` (progress.log, arena.jsonl, expeditions.jsonl).
+  `roster/<character>/logs/` (progress.log, arena.jsonl, expeditions.jsonl; local only, gitignored with the rest of `roster/`).
 - No `.env`-level autostart setting: every character defaults to switched off, even `SF_USER`/`SF_CHARACTER`. What
   autostarts on launch is only the user's last on/off choice per character, in `roster/switches.json` (local only).
 - The bot is a desktop app (`app.rs`: tao window + wry/WebView2, loading `roster/app.html`), not just a tray icon.

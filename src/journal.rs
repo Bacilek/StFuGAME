@@ -1,4 +1,4 @@
-//! Expedition journal: every finished expedition is written as one JSON line to logs/expeditions.jsonl.
+//! Expedition journal: every finished expedition is written as one JSON line to roster/<character>/logs/expeditions.jsonl.
 //! Used to evaluate the strategy (goal: ~40 heroism exactly and as many keys/chests as possible).
 
 use std::{fs::OpenOptions, io::Write};
@@ -81,7 +81,7 @@ impl Journal {
             "checks": e.checks,
             "declined_resources": e.declined_resources,
         });
-        // logs/<character>/expeditions.jsonl
+        // roster/<character>/logs/expeditions.jsonl
         let path = crate::ctx::log_path("expeditions.jsonl");
         let dir = std::path::Path::new(&path).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
         let res = std::fs::create_dir_all(dir).and_then(|()| {
