@@ -57,15 +57,17 @@ Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
   item data.
 - **Chlamydie's Day 0 manually backfilled (2026-10-08, user request: "zasimuluj druid starting stats"):**
   `roster/Chlamydie/history.csv` and `roster/Chlamydie/days/2026-10-07.json` were written by hand (not from real
-  data – there is none) with generic, approximate "level 2, fresh Druid, one tutorial run + 2 items" numbers:
-  level 2, honor 100, base STR/DEX/INT/CON/LCK 5/5/7/6/5, gold 0.25, no mushrooms/guild/potions.
-  **Rank 45000 is the shakiest guess of the set** – there is no real reference point for a fresh level-2 rank on
-  this world; revisit if the user has a better number. Updated once more the same day (user request: "přidej mu
-  2 random itemy od ostatních našich postav, cokoliv kromě zbraně") – the 2 starting items are now Gloves (CON
-  +15) and Belt (LCK +20), copied as-is from TestChar1's current equipment (the only other character with equip
-  data on file), rather than the small made-up placeholder items from the first pass. Recomputed strength = 35
-  (base attrs + those two items, via the Arena strength formula) – notably higher than a typical fresh level 2
-  would have, since TestChar1's items are from a much higher level; accepted as-is per the user's explicit ask.
+  data – there is none) with "level 2, fresh Druid, one tutorial run" numbers: level 2, base STR/DEX/INT/CON/LCK
+  5/5/7/6/5 (strength 15, no equipment yet), no mushrooms/guild/potions. Gold 2.36, honor 101, rank 12560 are the
+  user's own numbers (2026-10-08), not estimates. First tried borrowing 2 non-weapon items from TestChar1's
+  current equipment for her "2 starting items", but the user rejected that (TestChar1's gear is from a much
+  higher level, far too strong for a Day 0 baseline) – reverted to no equipment for now. **Decision (user
+  2026-10-08): wait until 1–2 other challenge characters have their own real Day 0 captured, then borrow 2 of
+  their actual fresh-level-2 items for Chlamydie instead.** Resolved the same day: **Novotné** (Plague Doctor)
+  was the first to log in and get a real Day 0 (`roster/Novotné/days/2026-10-07.json` – level 2, rank 13474,
+  honor 101, gold 2.36, 5 mushrooms, 102 hourglasses, equip Boots DEX+6 / Chest plate CON+2 / Weapon 2–6 dmg –
+  confirms the mechanism works end to end). Borrowed the 2 non-weapon items (Boots DEX+6, Chest plate CON+2) for
+  Chlamydie; final strength = 17.
   This fixes her Gold/XP/rank/strength line charts (picked up automatically by the next `write_now`, within
   ~10 min while she keeps running). It does **not** fix the duel/tournament baseline: `tournament::run_day0` can
   only simulate a battle from a character's *live* `ViewPlayer` data, so as soon as any other character joins a
