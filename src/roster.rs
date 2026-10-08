@@ -227,6 +227,49 @@ impl Snapshot {
     }
 }
 
+/// The day before the challenge's Day 1 (same inference as `tournament::start_date()`), used to backdate every
+/// character's "Day 0" baseline so they all line up on the same point on the dashboard regardless of when each is
+/// actually handed to the bot. For a brand new roster this is just "today − 1 day"; that first baseline row then
+/// becomes the earliest `history.csv` date, so it is what every later character's Day 0 lines up with too.
+fn day0_date() -> NaiveDate {
+    let today = Local::now().date_naive();
+    crate::tournament::start_date().unwrap_or(today) - chrono::Duration::days(1)
+}
+
+/// Above this level a character is no longer "fresh" (tutorial just done) – the guard that keeps a character
+/// which already leveled up before its first bot run from getting a falsely low "Day 0" snapshot (see Chlamydie,
+/// user 2026-10-08: leveled from 2 to 13+ within the first run, before any report was ever written).
+const DAY0_MAX_LEVEL: u16 = 3;
+
+/// One-off "Day 0" baseline for a character handed to the bot for the first time (right after the tutorial,
+/// still near level 2): backdated to `day0_date()` so every character's chart starts at the same point, no
+/// matter when it is actually added. Does nothing once the character has its first real report, or if it is
+/// already past `DAY0_MAX_LEVEL` (catches the baseline immediately, before dungeons/Tavern/Arena can level the
+/// character past it). Returns the backdated date used, so the caller can also run the Day 0 tournament round.
+pub fn write_day0(gs: &GameState) -> Option<NaiveDate> {
+    let d = dir()?;
+    if d.join("history.csv").exists() {
+        return None;
+    }
+    if gs.character.level > DAY0_MAX_LEVEL {
+        report!(
+            "[roster] Day 0 baseline skipped: already level {} (past the hand-off point) \
+             – if you have older data from before the bot started, ask Claude to backfill it manually",
+            gs.character.level
+        );
+        return None;
+    }
+    let date = day0_date();
+    let mut s = Snapshot::of(gs, 0.0, 0, 0);
+    s.date = date;
+    let _ = fs::create_dir_all(d.join("days"));
+    let _ = fs::write(d.join("history.csv"), format!("{CSV_HEADER}\n{}\n", s.csv()));
+    let _ = fs::write(d.join("days").join(format!("{date}.json")), snapshot(gs).to_string());
+    write_shared(date);
+    report!("[roster] Day 0 baseline captured ({date}): level {}, rank {}", s.level, s.rank);
+    Some(date)
+}
+
 /// Writes today's report for the logged-in character and refreshes the shared files. Returns a summary line.
 /// (user 2026-10-07: only the dashboard is wanted – no character card / daily HTML pages.)
 ///

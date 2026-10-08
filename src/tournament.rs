@@ -140,17 +140,10 @@ pub fn unlock_today() {
     let _ = fs::remove_file(dir.join(format!("{date}.json")));
 }
 
-pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
-    // With several characters in one process only the first one to get here runs the duels (lock file)
-    let dir = Path::new(ROOT).join("tournament");
-    let _ = fs::create_dir_all(&dir);
-    let lock = dir.join(format!("{}.lock", Local::now().date_naive()));
-    if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
-        return Outcome::Done;
-    }
-    let preview = Local::now() < run_time(Local::now().date_naive());
+/// Loads every participant (the bot's own character from its own state, everyone else via `ViewPlayer`) and
+/// simulates all pairs. `win[i][j]` = share of fights `i` won against `j`.
+async fn simulate(session: &mut SimpleSession) -> Result<(Vec<(String, String)>, Vec<Vec<Option<f64>>>, Vec<String>), Outcome> {
     let players = participants();
-    report!("[tournament] Day {day}: {} characters, {ITERATIONS} simulated fights per pair", players.len());
     let own = session.game_state().map(|gs| gs.character.name.clone()).unwrap_or_default();
     let mut fighters: Vec<(String, String, Fighter)> = Vec::new();
     let mut missing = Vec::new();
@@ -160,7 +153,7 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
         } else {
             let gs = match safe::send(session, Command::ViewPlayer { ident: nick.clone() }).await {
                 Ok(gs) => gs,
-                Err(e) if crate::tavern::is_session_error(&e) => return fail(&e),
+                Err(e) if crate::tavern::is_session_error(&e) => return Err(fail(&e)),
                 Err(e) => {
                     report!("[tournament] {nick} could not be loaded: {e}");
                     missing.push(nick.clone());
@@ -174,13 +167,7 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
             None => missing.push(nick.clone()),
         }
     }
-
-    // win[i][j] = share of fights i won against j
     let n = fighters.len();
-    if n < 2 {
-        report!("[tournament] Fewer than 2 characters could be loaded ({} missing), no round today", missing.len());
-        return Outcome::Done;
-    }
     let mut win = vec![vec![None; n]; n];
     for i in 0..n {
         for j in (i + 1)..n {
@@ -194,11 +181,32 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
             win[j][i] = Some(1.0 - r.win_ratio);
         }
     }
+    Ok((fighters.iter().map(|(n, c, _)| (n.clone(), c.clone())).collect(), win, missing))
+}
+
+pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
+    // With several characters in one process only the first one to get here runs the duels (lock file)
+    let dir = Path::new(ROOT).join("tournament");
+    let _ = fs::create_dir_all(&dir);
+    let lock = dir.join(format!("{}.lock", Local::now().date_naive()));
+    if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
+        return Outcome::Done;
+    }
+    let preview = Local::now() < run_time(Local::now().date_naive());
+    report!("[tournament] Day {day}: {} characters, {ITERATIONS} simulated fights per pair", participants().len());
+    let (players, win, missing) = match simulate(session).await {
+        Ok(r) => r,
+        Err(o) => return o,
+    };
+    if players.len() < 2 {
+        report!("[tournament] Fewer than 2 characters could be loaded ({} missing), no round today", missing.len());
+        return Outcome::Done;
+    }
     let round = serde_json::json!({
         "day": day,
         "date": Local::now().date_naive().to_string(),
         "iterations": ITERATIONS,
-        "players": fighters.iter().map(|(n, c, _)| serde_json::json!({"nick": n, "cls": c})).collect::<Vec<_>>(),
+        "players": players.iter().map(|(n, c)| serde_json::json!({"nick": n, "cls": c})).collect::<Vec<_>>(),
         "win": win,
         "missing": missing,
     });
@@ -208,11 +216,50 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     if Local::now() >= run_time(date) {
         let _ = fs::write(dir.join(format!("{date}.final")), "");
     }
-    report!("[tournament] Day {day} done ({n} characters, {} missing){}", missing.len(), if preview { ", preview" } else { "" });
+    report!(
+        "[tournament] Day {day} done ({} characters, {} missing){}",
+        players.len(),
+        missing.len(),
+        if preview { ", preview" } else { "" }
+    );
     if preview {
         // the real 23:40 run must still be able to take the lock
         let _ = fs::remove_file(&lock);
     }
+    Outcome::Done
+}
+
+/// Runs (or re-runs) the "Day 0" baseline round, backdated to `date` so it lines up with every character's own
+/// Day 0 snapshot (`roster::write_day0`) regardless of when each is actually handed to the bot. Re-run every time
+/// a freshly added character reaches its own Day 0, to pick up newcomers while others are still fresh too –
+/// earlier participants resolve again via `ViewPlayer`, so nothing already captured is lost.
+pub async fn run_day0(session: &mut SimpleSession, date: NaiveDate) -> Outcome {
+    let dir = Path::new(ROOT).join("tournament");
+    let _ = fs::create_dir_all(&dir);
+    let lock = dir.join(format!("{date}.lock0"));
+    if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
+        return Outcome::Done; // another character's first login is already doing this
+    }
+    let (players, win, missing) = match simulate(session).await {
+        Ok(r) => r,
+        Err(o) => {
+            let _ = fs::remove_file(&lock);
+            return o;
+        }
+    };
+    if players.len() >= 2 {
+        let round = serde_json::json!({
+            "day": 0,
+            "date": date.to_string(),
+            "iterations": ITERATIONS,
+            "players": players.iter().map(|(n, c)| serde_json::json!({"nick": n, "cls": c})).collect::<Vec<_>>(),
+            "win": win,
+            "missing": missing,
+        });
+        let _ = fs::write(dir.join(format!("{date}.json")), round.to_string());
+        report!("[tournament] Day 0 baseline ({date}): {} characters, {} missing", players.len(), missing.len());
+    }
+    let _ = fs::remove_file(&lock);
     Outcome::Done
 }
 

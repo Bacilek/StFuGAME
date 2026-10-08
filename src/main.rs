@@ -61,14 +61,23 @@ pub(crate) struct Credentials {
     pub(crate) character: String,
     /// Optional: only if there are characters with the same name on several servers
     server: Option<String>,
+    /// Optional second login (e.g. the registration email) to retry with if `user` is rejected.
+    user_alt: Option<String>,
 }
 
-/// Logs in via the S&F account, finds the character and downloads its state.
+/// Logs in via the S&F account, finds the character and downloads its state. Tries `user_alt` (if any) when the
+/// primary login is rejected – some accounts were created with a username but only accept the registration email.
 async fn login(c: &Credentials) -> Result<SimpleSession, String> {
     report!("Logging in to the S&F account...");
-    let sessions = SimpleSession::login_sf_account(&c.user, &c.pass)
-        .await
-        .map_err(|e| format!("Account login failed: {}", describe_login_error(&e)))?;
+    let sessions = match SimpleSession::login_sf_account(&c.user, &c.pass).await {
+        Ok(s) => s,
+        Err(e) => match &c.user_alt {
+            Some(alt) => SimpleSession::login_sf_account(alt, &c.pass)
+                .await
+                .map_err(|e| format!("Account login failed: {}", describe_login_error(&e)))?,
+            None => return Err(format!("Account login failed: {}", describe_login_error(&e))),
+        },
+    };
 
     let mut matching: Vec<SimpleSession> = sessions
         .into_iter()
@@ -323,7 +332,10 @@ fn main() -> ExitCode {
 }
 
 /// All accounts from the environment (.env): `SF_USER`/`SF_PASS`/`SF_CHARACTER` (optional, one account) and
-/// `SF_ACCOUNTS` = `login|password|character;login|password|character;…` (the challenge characters).
+/// `SF_ACCOUNTS` = `login|password|character;login|password|character;…` (the challenge characters). An entry
+/// may add a 4th field, `login|password|character|alt_login`, when the account also has a registration email –
+/// the username is tried first, the alt login (e.g. the email) only if that is rejected (user 2026-10-08:
+/// prefer the username, but keep the email on file as a fallback).
 /// `SF_SERVER` applies to all. Never logs the values.
 ///
 /// Every character defaults to switched OFF (user 2026-10-08: opening the app must never start anything by
@@ -333,13 +345,21 @@ pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
     let server = env_var("SF_SERVER").ok();
     let mut out = Vec::new();
     if let (Ok(user), Ok(pass), Ok(character)) = (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
-        out.push(Credentials { user, pass, character, server: server.clone() });
+        let user_alt = env_var("SF_USER_ALT").ok();
+        out.push(Credentials { user, pass, character, server: server.clone(), user_alt });
     }
     if let Ok(list) = env_var("SF_ACCOUNTS") {
         for (i, entry) in list.split(';').map(str::trim).filter(|e| !e.is_empty()).enumerate() {
             let parts: Vec<&str> = entry.split('|').map(str::trim).collect();
-            let [user, pass, character] = parts[..] else {
-                return Err(format!("SF_ACCOUNTS: entry {} must be login|password|character", i + 1));
+            let (user, pass, character, user_alt) = match parts[..] {
+                [user, pass, character] => (user, pass, character, None),
+                [user, pass, character, alt] => (user, pass, character, Some(alt.to_string())),
+                _ => {
+                    return Err(format!(
+                        "SF_ACCOUNTS: entry {} must be login|password|character (optionally |alt_login)",
+                        i + 1
+                    ));
+                }
             };
             if out.iter().any(|c: &Credentials| c.character.eq_ignore_ascii_case(character)) {
                 continue;
@@ -349,6 +369,7 @@ pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
                 pass: pass.to_string(),
                 character: character.to_string(),
                 server: server.clone(),
+                user_alt,
             });
         }
     }
@@ -379,6 +400,9 @@ pub(crate) async fn run_character(creds: Credentials) -> ExitCode {
         };
         if first {
             print_status(&session);
+            if let Some(date) = session.game_state().and_then(roster::write_day0) {
+                tournament::run_day0(&mut session, date).await;
+            }
             first = false;
         }
         let started = std::time::Instant::now();

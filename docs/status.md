@@ -41,6 +41,24 @@ Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
   plus the Shell game and Wheel-of-Fortune lucky-coin loops in `tasks.rs` (now one summary line instead of one per
   bet/spin), and `buy_attributes` (one line per purchase instead of two). Data for the dashboard/charts is read
   straight from `GameState`, never parsed from these log lines, so trimming them is safe.
+- **"Day 0" baseline for new challenge characters (2026-10-08):** `roster::write_day0` fires once, right after a
+  character's very first successful login (`main.rs::run_character`, before `play()`'s first action), as long as
+  it has no `history.csv` yet AND is still level ≤ 3 (`DAY0_MAX_LEVEL`) – i.e. caught right after the tutorial,
+  before dungeons/Tavern/Arena can level it up. It writes a `history.csv` row and a `days/<date>.json` snapshot
+  backdated to "the day before the challenge's Day 1" (`roster::day0_date`, inferred the same way as
+  `tournament::start_date`), so every character's chart starts at the same point no matter when it is actually
+  added. `tournament::run_day0` then (re)runs a baseline duel round for that same backdated date, covering every
+  roster participant loadable via `ViewPlayer` at that moment – re-run every time a new character reaches its own
+  Day 0, so latecomers get folded in. A character that already leveled up before its first bot run (too late for
+  an accurate baseline) is skipped with a log line, not silently given a wrong snapshot: **Chlamydie** hit this –
+  she went from level 2 to 13+ within her first run (Training Camp farming) before any report was ever written, so
+  no accurate pre-bot snapshot of her exists; only `notes.log`'s classified events survive (first login ~04:08,
+  first dungeon win ~04:14, "Level up: 2 → 4" at 04:18), which only gives a rough lower bound, not real gold/rank/
+  item data. No manual backfill has been done for her yet – ask the user if/how to handle her baseline (e.g. just
+  let her first dashboard point start already elevated, flagged as not comparable to day 0).
+- **`SF_ACCOUNTS` / `SF_USER` optional 4th field / `SF_USER_ALT`:** an account can list a fallback login (e.g. the
+  registration email) alongside the username; `main.rs::login` tries the primary login first and only retries with
+  the fallback if that is rejected (user 2026-10-08: prefer the username, but some accounts need the email).
 
 ## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
 - **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set
