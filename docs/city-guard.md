@@ -17,5 +17,5 @@
 | What | Status |
 |---|---|
 | The shift starts and ends at the expected time | ✅ 2026-10-07: start 17:06 for 6 h, end 23:06 (wage 208 s/h) |
-| Pay via `FinishWork` | ⏳ not verified |
+| Pay via `FinishWork` | ✅ 2026-10-08 (`[guard] Shift (6 h) finished, collecting the pay` → `Pay 14.64 g`, new shift started right after) |
 | Thirst for Adventure reset at local midnight | ⏳ not verified |
