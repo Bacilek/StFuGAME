@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~14:48. Rewrite after every bigger change.
+Updated: 2026-10-08 ~15:05. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -160,6 +160,18 @@ Updated: 2026-10-08 ~14:48. Rewrite after every bigger change.
   Note this only covers characters that were running at the moment of the click – one started afterwards won't
   be counted (acceptable: it'll pick up the next click's request like before, nothing is lost, just not reflected
   in that particular progress count).
+- **Head-to-head outlier annotations in the dashboard (2026-10-08):** investigated why Day 0 showed Květoš
+  (Demon Hunter) losing 98% to Novotné (Plague Doctor) despite near-identical level-2 stats, but winning 92%
+  against Mrožik (Mage) – confirmed via a throwaway test (built both fighters, swapped only their `class` field,
+  the result flipped from 2% to 99.85%) that this is **real class-mechanic combat, not a bug**: Plague Doctor's
+  poison tincture (stacking extra damage over 3 rounds, skipped vs a Mage, ignores a Paladin's block) and Demon
+  Hunter's ~44%-declining revive chance (disabled vs a Mage) are both faithfully ported from the real game by
+  sf-api's simulator. Per the user's request, this is now surfaced directly on specific match-ups rather than as
+  a separate class glossary: `dashboard.html`'s head-to-head table flags a cell as an outlier
+  (`h2hOutlierNote`/`.outlier` CSS) when its win rate is far (≥30 points) from that character's own average
+  against everyone else, or is itself extreme (<8% / >92%), and shows a tooltip naming both classes' special
+  mechanic (`CLASS_QUIRKS`) as the likely factor. Template lives in `src/dashboard.html` (`include_str!`'d into
+  the binary by `roster.rs`), so **this needs a release rebuild** before it shows up in `roster/dashboard.html`.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

@@ -62,6 +62,7 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 .h2{font-size:15px;margin:0 0 8px} .h2 span{color:var(--muted);font-weight:400}
 .mx{width:auto} .mx td{text-align:center;min-width:52px} .mx td:first-child{text-align:left} .mx th.rot{writing-mode:vertical-rl;transform:rotate(180deg);text-align:left;height:110px;vertical-align:bottom}
 .w{color:var(--good)} .l{color:var(--bad)} .self{color:var(--muted)}
+.outlier{text-decoration:underline dotted;text-decoration-color:var(--muted);cursor:help}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .empty{color:var(--muted);padding:40px;text-align:center}
 </style>
@@ -106,6 +107,24 @@ const METRICS = [
 // Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
 // A second character of the same class gets a dashed line and a hollow marker.
 const CLASSES = ["Warrior","Scout","Mage","Assassin","BattleMage","Berserker","Druid","DemonHunter","Bard","Necromancer","Paladin","PlagueDoctor"];
+// Each class's special combat mechanic (from sf-api's battle simulator, a port of the real game's rules) – used
+// only to annotate head-to-head outliers (a win rate far from that character's own average against everyone
+// else), not as a standalone glossary (user 2026-10-08: explain specific surprising match-ups, not classes).
+const CLASS_QUIRKS = {
+  Warrior: "25% block chance",
+  Scout: "no special mechanic, a stat/weapon class",
+  Mage: "lowest HP multiplier in the game (2.0× CON) – very fragile",
+  Assassin: "dual-wields, gets a second attack with the off-hand weapon",
+  BattleMage: "casts a fireball for bonus magic damage",
+  Berserker: "frenzy – gains extra attacks the longer the fight goes on",
+  DemonHunter: "~44% chance to revive once after a killing blow (less each further time) – except never against a Mage",
+  Druid: "can shift into bear form, gains bonus crit chance enraged, and a chance to dodge the next hit (swoop)",
+  Bard: "a melody buff/debuff that changes damage dealt over several rounds",
+  Necromancer: "summons a minion/skeleton that fights alongside it",
+  Paladin: "a stance system with reduced incoming damage; also immune to the Plague Doctor's poison tick",
+  PlagueDoctor: "poison tincture – stacks extra damage over the next 3 rounds (skipped vs a Mage, ignores a Paladin's block)",
+};
+const classOf = nick => DATA.chars.find(c=>c.nick===nick)?.cls;
 const SHAPES = ["square","circle","star","diamond","triangle","cross","leaf","triangleDown","pentagon","hexagon","shield","plus"];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let metric = 0, upto = Math.min(1, DATA.dates.length), hidden = new Set();
@@ -259,15 +278,32 @@ function renderH2H(m, days){
   const idx = r.players.map((n,i)=>i);
   const avg = i => { const v = r.win[i].filter(x=>x!=null); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; };
   idx.sort((a,b)=>avg(b)-avg(a));
-  const cls = n => DATA.chars.find(c=>c.nick===n)?.cls;
   const t = document.createElement("table"); t.className = "mx"; const h = t.insertRow(); h.appendChild(document.createElement("th"));
   idx.forEach(j=>{ const th=document.createElement("th"); th.className="rot"; th.textContent=r.players[j]; h.appendChild(th); });
   idx.forEach(i=>{ const row=t.insertRow(), c0=row.insertCell(), d=document.createElement("span");
-    d.className="dot"; d.style.background = css(CLASSES.includes(cls(r.players[i])) ? "--"+cls(r.players[i]) : "--Other");
+    d.className="dot"; d.style.background = css(CLASSES.includes(classOf(r.players[i])) ? "--"+classOf(r.players[i]) : "--Other");
     c0.append(d, document.createTextNode(r.players[i]));
+    const avgI = avg(i);
     idx.forEach(j=>{ const c=row.insertCell(); if (i===j){ c.textContent="–"; c.className="self"; return; }
-      const v=r.win[i][j]; c.textContent = v==null ? "?" : Math.round(v*100)+" %"; if (v!=null) c.className = v>0.5 ? "w" : "l"; }); });
+      const v=r.win[i][j]; c.textContent = v==null ? "?" : Math.round(v*100)+" %"; if (v==null) return;
+      c.className = v>0.5 ? "w" : "l";
+      const note = h2hOutlierNote(r.players[i], r.players[j], v, avgI);
+      if (note){ c.className += " outlier"; c.title = note; } }); });
   $("h2h").replaceChildren(t);
+}
+
+// Flags a cell as a notable outlier when it is far from that character's own average win rate against everyone
+// else (not just "low" or "high" in absolute terms – a generally weak character losing most fights is normal,
+// one specific matchup swinging wildly away from their own average is what's surprising). Cites both classes'
+// special mechanics as the likely (not certain – several mechanics can interact) explanation.
+function h2hOutlierNote(nameA, nameB, v, avgI){
+  const dev = Math.abs(v - avgI);
+  if (dev < 0.3 && v > 0.08 && v < 0.92) return null;
+  const a = classOf(nameA), b = classOf(nameB);
+  const qa = CLASS_QUIRKS[a], qb = CLASS_QUIRKS[b];
+  if (!qa && !qb) return null;
+  return `${Math.round(v*100)}% vs this character's own ${Math.round(avgI*100)}% average – likely factor: `
+    + `${a || "?"} (${qa || "no special mechanic"}) vs ${b || "?"} (${qb || "no special mechanic"}).`;
 }
 
 function renderTable(m, days){
