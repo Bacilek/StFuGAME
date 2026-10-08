@@ -113,13 +113,23 @@ pub fn stock_has_room(gs: &GameState) -> bool {
     stock(gs) < MAX_STOCK
 }
 
-/// Next thing to drink from the backpack: a missing target potion while a slot is free.
+/// Next thing to drink from the backpack: a missing target potion while a slot is free. Falls back to the best
+/// non-target potion sitting in the backpack (user 2026-10-08: even a secondary attribute helps a bit in a fight,
+/// better active than rotting in the backpack or eventually sold) – it gets swapped out later once a target
+/// potion turns up (`removal_ok` already allows removing a non-target active one).
 fn bag_step(gs: &GameState) -> Option<(BagPosition, &Item)> {
     let act = active(gs);
     if act.len() >= 3 {
         return None;
     }
-    targets(gs).into_iter().filter(|t| !act.iter().any(|(_, p)| p.typ == *t)).find_map(|t| in_bag(gs, t))
+    if let Some(step) = targets(gs).into_iter().filter(|t| !act.iter().any(|(_, p)| p.typ == *t)).find_map(|t| in_bag(gs, t)) {
+        return Some(step);
+    }
+    bag_potions(gs)
+        .into_iter()
+        .filter(|(_, _, p)| !act.iter().any(|(_, a)| a.typ == p.typ))
+        .max_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))
+        .map(|(pos, i, _)| (pos, i))
 }
 
 /// May this active potion be removed? Never Eternal Life. A non-target one, or a stat one with ≤ 3 days left.

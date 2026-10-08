@@ -15,11 +15,15 @@
   get rid of them from the least important (non-target first): drink (if it stacks onto an active one) or sell.
 - With a full backpack it is better to remove an active non-target potion and drink a better one than to keep it.
 - Replacing a smaller active potion with a bigger one only with a full backpack; otherwise store the bigger one.
+- A free active slot with no target potion to fill it: drink the best non-target one from the backpack instead of
+  leaving it there (user 2026-10-08: even a secondary attribute helps in a fight against another class; better
+  active and later swapped out than rotting in the backpack or eventually sold).
 
 ## Implementation (src/potions.rs, called from main.rs and shops.rs)
 - Targets: [main attribute, CON, Eternal Life if active / in the backpack / for gold in a shop, otherwise Luck].
 - Importance (for what goes first): non-target 0 < third 1 < CON 2 < main 3 (+ size), Eternal Life highest.
 - Every pass of the main loop (`run`): a missing target and a free slot → drink the biggest from the backpack (`UsePotion`);
+  no target available for a free slot → drink the best non-target one instead (any type not already active);
   backpack full → `make_room` once.
 - `make_room` (full backpack, also before a shop purchase and to trim the stock above 4):
   1. a target potion waits in the backpack and a removable active one is less important (non-target, or a stat potion with
