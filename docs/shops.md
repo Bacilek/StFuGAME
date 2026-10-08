@@ -24,6 +24,14 @@
 ## Shop refresh for an ad (idea, not implemented)
 - The user: once a day each shop can be rerolled for watching an ad. Wanted: do it after everything costs mushrooms.
 - sf-api 0.4.4 has no command for it (only `RefreshShop` = 1 mushroom, forbidden). The server sends a `skipvideo` key, sf-api ignores it.
+- Captured by the user 2026-10-08 (Weapon Shop): `AdvertisementsCompleted:4` (base64 `NA==`), `PlayerNewWares:1/2`
+  (base64 `MS8y`). Confirms the pattern: ad id is per-shop (Weapon 4, Magic 5), second `PlayerNewWares` argument
+  is always `2` (paid by ad). The ad itself plays via a 3rd-party SDK (`www.ayetstudios.com` `sdk_event` calls,
+  a Google IMA video beacon to `csi.gstatic.com`), not something the bot could trigger on its own even once the
+  server commands are known – no video player, no SDK integration.
+- Also captured: `PlayerPollScrapbook` fires when opening the Magic Shop (scrapbook/legendary bitmask for the
+  shop's collection %), unrelated to ad availability. A plain `Poll` response is just a timestamp – the ad
+  availability flag is not in it, must be in some other, fuller response.
 - Captured by the user 2026-10-07 (browser, DevTools), one shop (probably the Magic Shop):
   1. `AdvertisementsCompleted:5` (params base64 `NQ==`), response 71 B,
   2. `PlayerNewWares:2/2` (params `Mi8y`), response 520 B (the new offer).
@@ -34,7 +42,14 @@
 - The user 2026-10-07: in the client, an ad that is still available shows a TV icon; after it is used the icon is gone.
   The "New Goods" button for a mushroom is always there. So the server tells the client about availability somewhere
   (field not known yet, sf-api ignores it) – find it from the response bodies before implementing.
-- Waiting for the user: Weapon Shop capture + Response bodies of `AdvertisementsCompleted` and `PlayerNewWares` (after midnight / new character).
+- Waiting for the user: Response bodies of `AdvertisementsCompleted`/`PlayerNewWares` (not just sizes), and – more
+  importantly – a capture of whatever request/response carries the "ad still available today" flag (not `Poll`,
+  not `PlayerPollScrapbook`): open the shop with the TV icon still showing and look for any other request in
+  Network, or diff a fuller state response from before vs. after using the ad.
+- The SDK/video-player integration (ayetstudios.com) means the bot cannot actually play the ad itself even with
+  the right server commands – at best it could call `AdvertisementsCompleted` without ever watching anything,
+  which may or may not be accepted by the server; needs testing once the availability flag is known, very
+  carefully (mushroom watchdog stays on).
 
 ## Hourglasses (user 2026-10-07)
 - Hourglasses (`ItemType::QuickSandGlass`) sometimes cost gold in the shop. Buying them for gold is fine for spinning
