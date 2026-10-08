@@ -182,6 +182,45 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             roster::track_level(gs);
             roster::write_now(gs);
         }
+
+        // Daily report for the character challenge at ~23:50 (roster/, local only) + simulated duels at 23:40
+        // (win rate for the dashboard). Checked up here, before the Tavern section below, which `continue`s the
+        // loop (skipping everything after it) on almost every pass while an expedition is actively progressing –
+        // this used to live near the bottom of the loop and could then go unchecked for a long time (found
+        // 2026-10-08: "Run end of day now" stuck on "N characters left" for 30+ min on characters mid-expedition).
+        if let Some(day) = tournament::due_today()
+            && let tavern::Outcome::SessionLost = tournament::run(session, day).await
+        {
+            return tavern::Outcome::SessionLost;
+        }
+        // "Run end of day now" from the icon menu: duels + report as a preview (the 23:40/23:50 runs replace it)
+        let manual = ctx::take_end_of_day_request();
+        if manual {
+            report!("[roster] Manual end of day (preview)");
+            tournament::unlock_today();
+            if let tavern::Outcome::SessionLost = tournament::run(session, tournament::today()).await {
+                return tavern::Outcome::SessionLost;
+            }
+            // Also re-runs the Day 0 baseline round (e.g. after fixing Chlamydie's synthetic fighter) – cheap
+            // and idempotent, so just always piggybacking it on this already-manual trigger is simplest.
+            if let tavern::Outcome::SessionLost = tournament::run_day0(session, roster::day0_date()).await {
+                return tavern::Outcome::SessionLost;
+            }
+        }
+        if roster::due() || manual {
+            let fin = roster::due();
+            match safe::send(session, Command::Update).await {
+                Ok(gs) => {
+                    let summary = roster::write_day(gs, fin);
+                    report!("[roster] {} written: {summary}", if fin { "Daily report" } else { "Preview report" });
+                }
+                Err(e) => report!("[roster] Update before the daily report failed: {e}"),
+            }
+        }
+        if manual {
+            ctx::eod_done_one();
+        }
+
         if let tavern::Outcome::SessionLost = daily::run(session).await {
             return tavern::Outcome::SessionLost;
         }
@@ -249,41 +288,6 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // City Guard: pay for a finished shift, a new one when the Tavern is done (until midnight, max 10 h)
         if let tavern::Outcome::SessionLost = guard::run(session, tavern_done).await {
             return tavern::Outcome::SessionLost;
-        }
-
-        // Daily report for the character challenge at ~23:50 (roster/, local only)
-        // Simulated duels of all challenge characters at 23:40 (win rate for the dashboard)
-        if let Some(day) = tournament::due_today()
-            && let tavern::Outcome::SessionLost = tournament::run(session, day).await
-        {
-            return tavern::Outcome::SessionLost;
-        }
-        // "Run end of day now" from the icon menu: duels + report as a preview (the 23:40/23:50 runs replace it)
-        let manual = ctx::take_end_of_day_request();
-        if manual {
-            report!("[roster] Manual end of day (preview)");
-            tournament::unlock_today();
-            if let tavern::Outcome::SessionLost = tournament::run(session, tournament::today()).await {
-                return tavern::Outcome::SessionLost;
-            }
-            // Also re-runs the Day 0 baseline round (e.g. after fixing Chlamydie's synthetic fighter) – cheap
-            // and idempotent, so just always piggybacking it on this already-manual trigger is simplest.
-            if let tavern::Outcome::SessionLost = tournament::run_day0(session, roster::day0_date()).await {
-                return tavern::Outcome::SessionLost;
-            }
-        }
-        if roster::due() || manual {
-            let fin = roster::due();
-            match safe::send(session, Command::Update).await {
-                Ok(gs) => {
-                    let summary = roster::write_day(gs, fin);
-                    report!("[roster] {} written: {summary}", if fin { "Daily report" } else { "Preview report" });
-                }
-                Err(e) => report!("[roster] Update before the daily report failed: {e}"),
-            }
-        }
-        if manual {
-            ctx::eod_done_one();
         }
 
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min

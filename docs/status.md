@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~16:05. Rewrite after every bigger change.
+Updated: 2026-10-08 ~16:15. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -187,6 +187,21 @@ Updated: 2026-10-08 ~16:05. Rewrite after every bigger change.
   `tavern_done` branch – it can run any time during the day now, not just after the Tavern/shops are done (the
   other costly tasks, guild-skill and attribute buying stay exactly as before, gated behind `tavern_done`). New
   test `gambling_open_even_when_no_chest_needs_it`. `CLAUDE.md`, `docs/tasks.md` and `docs/precedents.md` updated.
+- **Found and fixed a real starvation bug in `main.rs`'s main loop (2026-10-08):** the Tavern section does
+  `if after != before { continue; }` to retry immediately whenever an expedition made progress – which is
+  almost every single pass while one is actively running. Everything written AFTER that point in the loop body
+  (shops, tasks/shell game, City Guard, **and** the tournament due-date/manual-request/daily-report block) was
+  only ever reached on a pass where the Tavern state happened not to change – rare during a continuously
+  progressing expedition, which can run for many minutes at a time. Found via the new "Run end of day now"
+  progress indicator: it stayed on "N characters left" for 30+ minutes because characters mid-expedition never
+  got back around to checking `ctx::take_end_of_day_request()`. This could in principle also have delayed the
+  **real** 23:40 duels / 23:50 report for a character still deep in an expedition at that exact moment – not
+  confirmed to have actually happened yet, but the mechanism was there. Fixed by moving the whole
+  due-date/manual/report block to the very top of the loop (right after `write_now`), before the Tavern section,
+  so it is now checked on every single pass regardless of what the Tavern does. Shops/tasks/City Guard are left
+  as they were (lower priority than being deep in an expedition – not wrong just because those also get skipped
+  on a `continue`'d pass; the main loop comes back to them very soon after, once the expedition finally pauses or
+  finishes), but may be worth revisiting the same way later if anything similar turns up.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
