@@ -114,6 +114,22 @@ Updated: 2026-10-08 ~14:40. Rewrite after every bigger change.
     timer (previously could fire close to once a minute with ~10 characters running).
   Not yet verified that this actually fixes the connection errors or the slowdown – needs a release rebuild and
   another multi-character start to confirm.
+- **Actual root cause of the "ConnectionError" logins, found after a rebuild (2026-10-08): swapped credentials,
+  not load.** The thundering-herd theory above turned out to be wrong for these specific failures – Filminy and
+  Mimimimi11 kept failing even well after the throttle fix, spaced tens of seconds apart (clearly staggered).
+  `sf-api`'s SSO client (`sso.rs::send_api_request`) maps ANY non-2xx HTTP status *and* any `"success": false`
+  API response (wrong password, wrong/unknown login, account locked, real network failure – all of it) to the
+  same generic `SFError::ConnectionError`, so "Could not connect to the server" is not trustworthy as "it's a
+  network problem" – it just as easily means wrong credentials. Root cause here: **Filminy's and Mimimimi11's
+  e-mails were swapped** in `SF_ACCOUNTS` (the user's own slip when typing them in, confirmed by the user).
+  Fixed by swapping them back. Lesson: when several characters get `ConnectionError` on login and the bot itself
+  hasn't changed, check the credentials before suspecting the bot/network.
+- **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
+  (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
+  as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
+  pattern). Left as a single e-mail-only field for Mrožik/Wecros/PajaRizz, where the "username" in `roster.md` is
+  just the e-mail's local part, not a separately known login – adding it as a 4th field would just duplicate the
+  same credential, no real fallback coverage gained.
 
 ## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
 - **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set
