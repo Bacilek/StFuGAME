@@ -1,7 +1,21 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~21:50. Rewrite after every bigger change.
+Updated: 2026-10-08 ~23:10. Rewrite after every bigger change.
 
+- **Character card: item icons added (2026-10-08, user request – end-of-day visual snapshots):** the Equipment
+  table in the card (`openCard` in `src/app.html`) now shows the real game sprite next to each slot, not just
+  text. `src/roster.rs::item_icon` builds the filename `{type}_{model}_{color}_{class}.png` from the equipped
+  `Item`'s `typ.raw_id()`/`model_id`/`color`/`class` fields (`sf-api` already parses `color` with the same
+  1-indexed convention the game's web client uses; `class` is 0-indexed `Class::Warrior/Mage/Scout` so +1 for
+  the filename; raw type ≥ 10, i.e. talismans and beyond, always use variant/class 1 – matches `sf-tools`'
+  `Loca.pic`, reverse-engineered from that independently open-source project). Added to the `equip` map built in
+  `snapshot()` (shared by both the day-diff snapshot and `card_data`), so no extra server calls needed – it's
+  the character's own already-fetched `GameState`. Icon pack vendored at `roster/assets/items/` (~1930 PNGs,
+  43 MB, gitignored like the rest of `roster/` – never pushed to the public repo). `src/app.rs::serve_asset` now
+  sends `.png` as `image/png` (was falling back to `application/octet-stream`). Not yet tested live in the app
+  (needs a restart of the running bot to pick up the new build) – user to verify the icons actually render.
+  **Portrait itself (the user's ask also included this): out of scope by design** – the user supplies it by hand
+  since it won't change during the challenge; the bot only handles items. See `docs/precedents.md` 2026-10-08.
 - **Character card: hourglasses added (2026-10-08, user request):** the card opened by clicking a character tile
   (`openCard` in `src/app.html`) now also shows "Hourglasses" next to Gold/Mushrooms/Lucky coins. Source:
   `gs.tavern.quicksand_glasses`, added to `card_data` in `src/roster.rs` (written to `now.json`, read by the app).

@@ -55,6 +55,7 @@ dialog::backdrop{background:#0008}
 .kv .k{color:var(--muted);font-size:12px} .kv .v{font-size:18px;font-weight:700}
 .sec{margin:12px 0 4px;font-weight:700;color:var(--ink2)}
 table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2px 0;border:none;text-align:left}
+.itemicon{width:28px;height:28px;vertical-align:middle;object-fit:contain;image-rendering:pixelated}
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
 .epic{color:#9b6be0} .legendary{color:#e08a1a}
@@ -239,7 +240,9 @@ function openCard(c){
     const fill=document.createElement("i"); fill.style.width=Math.min(100,d.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
   el("div","sec","Equipment");
   const et = el("table","mini");
-  Object.entries(n.equip||{}).forEach(([slot,it])=>{ const r=et.insertRow(); r.insertCell().textContent=slot;
+  Object.entries(n.equip||{}).forEach(([slot,it])=>{ const r=et.insertRow();
+    const ic=r.insertCell(); if (it.icon){ const img=document.createElement("img"); img.className="itemicon"; img.src=it.icon; img.onerror=()=>{img.style.visibility="hidden"}; ic.appendChild(img); }
+    r.insertCell().textContent=slot;
     const c2=r.insertCell(); c2.textContent = it.d || "–"; if (it.legendary) c2.className="legendary"; else if (it.epic) c2.className="epic"; });
   el("div","sec","Guild"); el("div",null,n.guild||"–");
   $("card").showModal();

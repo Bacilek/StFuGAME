@@ -17,6 +17,7 @@ use sf_api::{
     command::AttributeType,
     gamestate::{
         GameState,
+        character::Class,
         dungeons::DungeonProgress,
         items::{EquipmentSlot, Item, ItemType},
         tavern::{CurrentAction, ExpeditionStage},
@@ -357,6 +358,28 @@ fn item_desc(i: &Item) -> String {
     parts.join(", ")
 }
 
+/// Filename of this item's sprite under `roster/assets/items/` (vendored, local-only, see
+/// `docs/precedents.md`): `{type}_{model}_{color}_{class}.png`, the same naming the game's own web client
+/// uses for its item sprites, reverse-engineered from the (independently open-source) `sf-tools` project.
+/// `color` comes straight from `Item.color` (`sf-api` already derives it with the same 1-indexed
+/// convention); the class variant comes from `Item.class` (only set for class-restricted slots) + 1, since
+/// `Class::Warrior == 0` but the sprite naming is 1-indexed. Non-class items and items of raw type ≥ 10
+/// (talismans and beyond) always use variant/class 1.
+fn item_icon(i: &Item) -> String {
+    let typ = i.typ.raw_id();
+    if typ >= 10 {
+        format!("assets/items/{typ}_{}_1_1.png", i.model_id)
+    } else {
+        let class = match i.class {
+            Some(Class::Warrior) => 1,
+            Some(Class::Mage) => 2,
+            Some(Class::Scout) => 3,
+            _ => 1,
+        };
+        format!("assets/items/{typ}_{}_{}_{class}.png", i.model_id, i.color)
+    }
+}
+
 /// What the dashboard compares day to day: level, bought attributes, equipment, potions, guild.
 fn snapshot(gs: &GameState) -> serde_json::Value {
     let c = &gs.character;
@@ -373,6 +396,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
                     "v": (crate::inventory::value(gs, i) * 10.0).round() / 10.0,
                     "epic": i.is_epic(),
                     "legendary": i.is_legendary(),
+                    "icon": item_icon(i),
                 }),
             ))
         })

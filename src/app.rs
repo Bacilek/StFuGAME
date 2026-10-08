@@ -38,6 +38,8 @@ fn serve_asset(_id: wry::WebViewId, request: http::Request<Vec<u8>>) -> http::Re
         "text/html; charset=utf-8"
     } else if path.ends_with(".js") {
         "text/javascript; charset=utf-8"
+    } else if path.ends_with(".png") {
+        "image/png"
     } else {
         "application/octet-stream"
     };
