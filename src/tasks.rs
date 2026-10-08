@@ -121,7 +121,6 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
         }
         let current = gs.character.attribute_basis[attribute];
         let silver = gs.character.silver;
-        report!("[tasks] Buying {attribute:?} {current} → {} for a task", current + 1);
         send_or_return!(session, Command::UpgradeSkill { attribute, next_attribute: current + 1 });
         let Some(gs) = session.game_state() else { return Outcome::Done };
         if gs.character.attribute_basis[attribute] == current {
@@ -129,7 +128,7 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         last_price = silver.saturating_sub(gs.character.silver);
-        report!("[tasks] Paid {}", crate::report::gold(last_price));
+        report!("[tasks] Buying {attribute:?} {current} → {} for a task, paid {}", current + 1, crate::report::gold(last_price));
     }
     Outcome::Done
 }
@@ -334,6 +333,7 @@ async fn drink_beer(session: &mut SimpleSession) -> Outcome {
 }
 
 async fn lucky_spins(session: &mut SimpleSession) -> Outcome {
+    let mut spins = 0;
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         if !lucky_spin_justified(gs) || remaining(gs, |t| t == TaskType::SpinWheelOfFortune) == 0 {
@@ -343,8 +343,11 @@ async fn lucky_spins(session: &mut SimpleSession) -> Outcome {
         if safe::wheel_is_free(gs) {
             break;
         }
-        report!("[tasks] Wheel of Fortune for a lucky coin ({} coins left): needed for a chest", gs.specials.wheel.lucky_coins);
         send_or_return!(session, Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins });
+        spins += 1;
+    }
+    if spins > 0 {
+        report!("[tasks] Wheel of Fortune: {spins} lucky-coin spin(s) for a chest");
     }
     claim_chests(session).await
 }
@@ -355,6 +358,7 @@ async fn gamble(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let start = gs.character.silver;
+    let mut bets = 0;
     for _ in 0..MAX_ACTIONS * 2 {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let left = remaining(gs, |t| t == TaskType::DefeatGambler);
@@ -366,12 +370,17 @@ async fn gamble(session: &mut SimpleSession) -> Outcome {
             break;
         }
         send_or_return!(session, Command::GambleSilver { amount: GAMBLE_BET });
-        let res = session.game_state().and_then(|gs| gs.tavern.gamble_result);
-        report!("[tasks] Shell game ({left} wins to go), bet {}: {res:?}", crate::report::gold(GAMBLE_BET));
+        bets += 1;
     }
-    if let Some(gs) = session.game_state() {
+    if let Some(gs) = session.game_state()
+        && bets > 0
+    {
         let diff = i128::from(gs.character.silver) - i128::from(start);
-        report!("[tasks] Shell game total: {}{}", if diff < 0 { "-" } else { "+" }, crate::report::gold(diff.unsigned_abs() as u64));
+        report!(
+            "[tasks] Shell game: {bets} bet(s), total {}{}",
+            if diff < 0 { "-" } else { "+" },
+            crate::report::gold(diff.unsigned_abs() as u64)
+        );
     }
     claim_chests(session).await
 }

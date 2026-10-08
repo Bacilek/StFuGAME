@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~04:15. Rewrite after every bigger change.
+Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -33,6 +33,14 @@ Updated: 2026-10-08 ~04:15. Rewrite after every bigger change.
   character's biggest success + flagged issues for the day – only written at 23:50 or via that preview button, not
   continuously (the underlying per-character `notes.log` **is** written continuously, in case a manual read is
   needed sooner).
+- **`progress.log` noise cleanup (2026-10-08):** the per-character log keeps only the last 100 lines
+  (`report::MAX_LINES`), so verbose loops were pushing out the day's real events. Removed/collapsed (user request):
+  Arena's per-opponent strength dump (keeps only "Challenging: X"), Dungeons' per-candidate dump, Hunt's per-inspected-
+  candidate dump (logs only the chosen opponent), the "Nothing to do, next check in…" heartbeat in `main.rs`'s main
+  loop, and the Shop's per-spin lines (up to `MAX_SPINS = 60`/day → now one "Spun Nx, total cost …" summary per run),
+  plus the Shell game and Wheel-of-Fortune lucky-coin loops in `tasks.rs` (now one summary line instead of one per
+  bet/spin), and `buy_attributes` (one line per purchase instead of two). Data for the dashboard/charts is read
+  straight from `GameState`, never parsed from these log lines, so trimming them is safe.
 
 ## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
 - **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set

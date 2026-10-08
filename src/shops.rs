@@ -206,8 +206,16 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     outcome
 }
 
+/// Spinning can run up to `MAX_SPINS` times a day; log one summary instead of one line per spin.
+fn finish_spins(spins: usize, cost: u64) {
+    if spins > 0 {
+        report!("[shops] Spun {spins}x, total cost {}", crate::report::gold(cost));
+    }
+}
+
 async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut spins = 0;
+    let mut spin_cost = 0u64;
     let mut task_buys = 0;
     let mut potion_buys = 0;
     let mut attributes_done = false;
@@ -263,6 +271,7 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
         }
 
         if spin_offers(gs).is_empty() {
+            finish_spins(spins, spin_cost);
             report!("[shops] All items cost mushrooms, nothing more to buy");
             return Outcome::Done;
         }
@@ -276,10 +285,12 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
             continue;
         }
         if spins >= MAX_SPINS {
+            finish_spins(spins, spin_cost);
             report!("[shops] Spin limit ({MAX_SPINS}) for today reached");
             return Outcome::Done;
         }
-        let Some((pos, item)) = spin_candidate(gs, reserve) else {
+        let Some((pos, _item)) = spin_candidate(gs, reserve) else {
+            finish_spins(spins, spin_cost);
             report!(
                 "[shops] Not spinning: gold {}, reserve {} (most expensive item seen today)",
                 crate::report::gold(gs.character.silver),
@@ -288,18 +299,17 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         };
         let silver_before = gs.character.silver;
-        report!("[shops] Spin {}: buying {} to sell it again", spins + 1, describe(pos, item));
         match buy(session, pos).await {
             Ok(true) => {}
-            Ok(false) => return Outcome::Done,
+            Ok(false) => {
+                finish_spins(spins, spin_cost);
+                return Outcome::Done;
+            }
             Err(o) => return o,
         }
         spins += 1;
         if let Some(gs) = session.game_state() {
-            report!(
-                "[shops] Spin cost {}",
-                crate::report::gold(silver_before.saturating_sub(gs.character.silver))
-            );
+            spin_cost += silver_before.saturating_sub(gs.character.silver);
         }
     }
 }

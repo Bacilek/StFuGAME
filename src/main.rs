@@ -258,7 +258,6 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let roster_due = roster::secs_until_due().unwrap_or(30 * 60).min(tournament::secs_until_due().unwrap_or(30 * 60));
         let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
-        report!("Nothing to do, next check in {} min {} s", wait / 60, wait % 60);
         // A manual "end of day now" from the icon wakes the loop up early
         tokio::select! {
             () = tokio::time::sleep(std::time::Duration::from_secs(wait)) => {}

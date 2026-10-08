@@ -98,9 +98,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[dungeons] No open dungeon");
         return Outcome::Done;
     };
-    for c in &cands {
-        report!("[dungeons] {:?}: {} (lvl {}, strength {:.0})", c.dungeon, c.name, c.level, c.strength);
-    }
     report!("[dungeons] Fighting: {:?} – {} (lvl {})", pick.dungeon, pick.name, pick.level);
 
     let gs = match safe::send(session, Command::FightDungeon { dungeon: pick.dungeon, use_mushroom: false }).await {

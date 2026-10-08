@@ -120,7 +120,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             continue;
         };
         let s = strength(p.class, |a| total(p, a));
-        report!("[arena] Opponent {} (lvl {}, {:?}): strength {s:.0}", p.name, p.level, p.class);
         if best.as_ref().is_none_or(|(b, _)| s < *b) {
             best = Some((s, p.name.clone()));
         }

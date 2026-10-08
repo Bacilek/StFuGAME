@@ -91,8 +91,8 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
             let gs = safe::send(session, Command::ViewPlayer { ident: name.clone() }).await.map_err(|e| fail(&e))?;
             let Some(p) = gs.lookup.lookup_name(&name) else { continue };
             let s = strength(p.class, |a| arena::total(p, a));
-            report!("[hunt] {name} (rank {}, lvl {}, {:?}): strength {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
             if s <= limit {
+                report!("[hunt] Found {name} (rank {}, lvl {}, {:?}): strength {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
                 return Ok(Some(name));
             }
         }
