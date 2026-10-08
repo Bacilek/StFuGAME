@@ -109,8 +109,13 @@ function setTab(chars){
   $("tiles").style.display = chars ? "grid" : "none";
   $("charts").style.display = chars ? "none" : "block";
 }
-$("startAll").addEventListener("click", () => post({cmd:"start_all"}));
-$("stopAll").addEventListener("click", () => post({cmd:"stop_all"}));
+function setAll(on){
+  const until = Date.now() + PENDING_MS;
+  for (const [nick, el] of tileEls){ pendingSwitch.set(nick, {until, checked: on}); el.sw.checked = on; }
+  post({cmd: on ? "start_all" : "stop_all"});
+}
+$("startAll").addEventListener("click", () => setAll(true));
+$("stopAll").addEventListener("click", () => setAll(false));
 $("eod").addEventListener("click", () => post({cmd:"eod"}));
 $("browser").addEventListener("click", () => post({cmd:"open_browser"}));
 

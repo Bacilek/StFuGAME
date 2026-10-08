@@ -43,15 +43,11 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
   Do not start the bot for the user unless asked – the user starts it themselves.
 - Do not run `cargo run` while the bot from the shortcut is running – the single-instance guard shows the
   "already running" dialog.
-- `SF_AUTOSTART` (env var, optional) = `character;character;…`: exactly those characters autostart when the app
-  launches. Unset (default): only the `SF_USER`/`SF_CHARACTER` account autostarts; every `SF_ACCOUNTS` entry is
-  added (visible in the app, switched off) and starts only when the user flips its tile or clicks "Start all".
-  This is how new challenge characters get added without touching the one already being tested (user 2026-10-08).
 - `STFU_NO_LOGIN=1` (env var) skips auto-starting every character – handy for trying out the window itself
   without touching the server. Never use it to justify logging in with throwaway/fake credentials instead;
   when a no-network check is needed, use this flag, not real or fake login attempts.
-- `.env.example` must stay in sync with real `.env` options (`SF_ACCOUNTS`, `SF_AUTOSTART`) – it was missing them
-  once, which contributed to the user editing the wrong file.
+- `.env.example` must stay in sync with real `.env` options (`SF_ACCOUNTS`) – it was missing them once, which
+  contributed to the user editing the wrong file.
 - Startup/crash errors must always reach a dialog (`tray::message_box`), never just the log – the release build has
   no console, so a silently-failed `accounts()` or a panic looks like "nothing happens" to the user.
 
@@ -64,10 +60,14 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
   custom-protocol pages get a single stable origin, same mechanism official wry examples use instead of `file://`.
   Devtools stay enabled (right click → Inspect or F12) and IPC errors still show as a red bar at the top, as a
   safety net for the future.
-- Opening the app no longer force-starts every character: each character's on/off switch position is remembered
-  in `roster/switches.json` (local only) across restarts. Only on the very first run (no saved file yet) does
-  `SF_AUTOSTART` / the `SF_USER` account's default apply; after that, the switches are the single source of
-  truth, updated by every start/stop – individual tile or Start all/Stop all alike.
+- Opening the app never force-starts anything: every character defaults to switched off, including on a brand
+  new install. Each character's on/off switch position is remembered in `roster/switches.json` (local only)
+  across restarts, updated by every start/stop – individual tile or Start all/Stop all alike – and is the only
+  thing that decides what autostarts. There is no `.env`-level autostart setting (`SF_AUTOSTART` was removed
+  2026-10-08: the switches fully replace it and are easier to use).
+- Start all / Stop all move every tile's switch immediately (optimistic, like the individual switch) instead of
+  waiting for the next ~2 s status tick – fixes the status text flipping to "stopped" well before the switch
+  visually caught up (user 2026-10-08).
 - Per-character tiles keep persistent DOM elements and debounce the start/stop switch for 5 s after a click
   (user 2026-10-08: without this, the periodic status refresh – every ~2 s – recreated every tile from scratch
   and the switch visually snapped back before the backend's state change had propagated, looking like "the

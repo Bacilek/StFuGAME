@@ -52,10 +52,10 @@ fn save_switch(name: &str, on: bool) {
     }
 }
 
-/// Should this character autostart when the app launches? The user's last switch position if we have one
-/// (saved by every start/stop, individual or bulk), otherwise `default` (from `SF_AUTOSTART`/`SF_USER`).
-pub fn should_autostart(name: &str, default: bool) -> bool {
-    load_switches().get(name).copied().unwrap_or(default)
+/// Should this character autostart when the app launches? Only if the user previously, explicitly switched it
+/// on (saved by every start/stop, individual or bulk) – unknown/never-touched characters default to off.
+pub fn should_autostart(name: &str) -> bool {
+    load_switches().get(name).copied().unwrap_or(false)
 }
 
 fn lock() -> std::sync::MutexGuard<'static, Vec<Entry>> {
