@@ -134,22 +134,20 @@ fn open_dashboard() {
 
 /// One message from `app.html`'s `window.ipc.postMessage`.
 fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(body) else { return };
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(body) else {
+        report!("[control] Could not parse a command from the app window: {body}");
+        return;
+    };
     let cmd = v["cmd"].as_str().unwrap_or_default();
     let name = v["name"].as_str().unwrap_or_default();
+    report!("[control] App window: {cmd} {name}");
     match cmd {
-        "start" if !name.is_empty() => {
-            report!("[control] Starting {name}");
-            control::start(rt, name, 0);
-        }
-        "stop" if !name.is_empty() => {
-            report!("[control] Stopping {name}");
-            control::stop(name);
-        }
+        "start" if !name.is_empty() => control::start(rt, name, 0),
+        "stop" if !name.is_empty() => control::stop(name),
         "start_all" => control::start_all(rt),
         "stop_all" => control::stop_all(),
         "eod" => crate::ctx::request_end_of_day(),
         "open_browser" => open_dashboard(),
-        _ => {}
+        other => report!("[control] Unknown command from the app window: {other:?}"),
     }
 }

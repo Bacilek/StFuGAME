@@ -10,6 +10,9 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - Buttons in the header: **Start all / Stop all**, **Run end of day now** (preview: duels + report + dashboard
   right away; the real 23:20/23:50 runs replace it, nothing counts twice), **Open in browser** (the dashboard as
   a normal web page, e.g. to share the link elsewhere).
+- Each tile has a yellow bar along its bottom edge showing the character's Thirst for Adventure (ALU) as a
+  fraction of the daily max (6000 s / 100 min) – shrinks through the day, refills after the midnight reset.
+  A quick glance tells you a character is stuck (bar not moving) without opening its card.
 - **Closing the window** (✕) only hides it; the bot keeps running. The tray icon's **"Open StFuGAME"** brings it
   back, **"Exit"** really quits.
 - The tray icon still exists (same icon as before): Open StFuGAME, Start/Stop **all** characters, Open log, Open
@@ -49,6 +52,12 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - Startup/crash errors must always reach a dialog (`tray::message_box`), never just the log – the release build has
   no console, so a silently-failed `accounts()` or a panic looks like "nothing happens" to the user.
 
+- Per-character tiles keep persistent DOM elements and debounce the start/stop switch for 5 s after a click
+  (user 2026-10-08: without this, the periodic status refresh – every ~2 s – recreated every tile from scratch
+  and the switch visually snapped back before the backend's state change had propagated, looking like "the
+  slider does nothing"). Every command from the app window (switch, Start all/Stop all, Run end of day, Open in
+  browser) is now logged (`[control] App window: <cmd> <name>`) – check `logs/progress.log` if a control still
+  seems unresponsive, to tell a JS-side problem from a Rust-side one.
 - **Never screenshot the user's whole screen** to check the app window (a mis-timed `GetWindowRect` can return
   a zeroed rect and `CopyFromScreen` silently falls back to the full screen, which may show the user's own
   browser/game session). Confirm the window via the process list, title, and log output instead, or ask the

@@ -335,6 +335,9 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
 }
 
 /// The character's current state for the dashboard card (user 2026-10-08).
+/// Thirst for Adventure (ALU) at full: `sf-api` itself checks against this constant for "full day" (100 min).
+const MAX_THIRST_SEC: u32 = 6000;
+
 fn card_data(gs: &GameState) -> serde_json::Value {
     let c = &gs.character;
     let attrs: serde_json::Map<String, serde_json::Value> = ATTRS
@@ -389,6 +392,8 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
         "equip": snapshot(gs)["equip"].clone(),
         "updated": Local::now().format("%d.%m. %H:%M").to_string(),
+        "thirst_sec": gs.tavern.thirst_for_adventure_sec,
+        "thirst_max_sec": MAX_THIRST_SEC,
     })
 }
 

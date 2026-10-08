@@ -7,8 +7,8 @@
 <style>
 :root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--line:#e1e0d9;--good:#2ea043;--bad:#c62828;
 --Warrior:#6d8197;--Scout:#8a5a2e;--Mage:#3f55d9;--Assassin:#e0680f;--BattleMage:#9145e0;--Berserker:#d42a30;
---Druid:#5aa832;--DemonHunter:#e0559f;--Bard:#2e9fe0;--Necromancer:#0a9e80;--Paladin:#c9a800;--PlagueDoctor:#2b7a3a;--Other:#898781}
-@media (prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;--line:#2c2c2a;--good:#3fb950;--bad:#ef9a9a;
+--Druid:#5aa832;--DemonHunter:#e0559f;--Bard:#2e9fe0;--Necromancer:#0a9e80;--Paladin:#c9a800;--PlagueDoctor:#2b7a3a;--Other:#898781;--alu:#d9a400}
+@media (prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;--line:#2c2c2a;--good:#3fb950;--bad:#ef9a9a;--alu:#f0c419;
 --Warrior:#7f93a8;--Scout:#9a6234;--Mage:#4a5fe8;--Assassin:#f2781c;--BattleMage:#a45af2;--Berserker:#e3343a;
 --Druid:#86d85a;--DemonHunter:#f46cb4;--Bard:#8fd3ff;--Necromancer:#0fbf98;--Paladin:#f6e358;--PlagueDoctor:#2b7a3a;--Other:#898781}}
 *{box-sizing:border-box}
@@ -26,8 +26,10 @@ main{flex:1;min-height:0;overflow:auto;padding:16px}
 #charts{display:none;height:100%}
 #charts iframe{width:100%;height:100%;border:0;border-radius:8px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
-.tile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px 10px 16px;overflow:hidden}
+.tile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px 14px 16px;overflow:hidden}
 .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.tile .alu{position:absolute;left:5px;right:0;bottom:0;height:4px;background:var(--line)}
+.tile .alu i{display:block;height:100%;width:0;background:var(--alu);transition:width .3s}
 .tile .top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
 .tile .n{font-weight:700;font-size:15px;cursor:pointer}
 .tile .c{color:var(--ink2);font-size:12px;cursor:pointer}
@@ -99,29 +101,58 @@ $("stopAll").addEventListener("click", () => post({cmd:"stop_all"}));
 $("eod").addEventListener("click", () => post({cmd:"eod"}));
 $("browser").addEventListener("click", () => post({cmd:"open_browser"}));
 
+// Tile DOM elements persist across ticks (keyed by character name) so an in-flight click on the switch is never
+// torn out from under the user; only a "change" event (real user interaction) sends a command, and for a few
+// seconds after that the switch shows the user's intent rather than whatever the backend reports meanwhile
+// (login takes a moment) – otherwise it looked like "the slider does nothing and resets itself" (user 2026-10-08).
+const tileEls = new Map();
+const pendingSwitch = new Map();
+const PENDING_MS = 5000;
+
 function renderTiles(){
   const box = $("tiles");
-  if (!STATUS.length){ box.replaceChildren(); const p=document.createElement("p"); p.className="empty"; p.textContent="No character configured (SF_USER/SF_ACCOUNTS in .env)."; box.appendChild(p); return; }
-  box.replaceChildren();
+  if (!STATUS.length){ box.replaceChildren(); tileEls.clear(); const p=document.createElement("p"); p.className="empty"; p.textContent="No character configured (SF_USER/SF_ACCOUNTS in .env)."; box.appendChild(p); return; }
+  for (const nick of [...tileEls.keys()]) if (!STATUS.some(c=>c.name===nick)){ tileEls.get(nick).tile.remove(); tileEls.delete(nick); pendingSwitch.delete(nick); }
+  if (box.querySelector(".empty")) box.replaceChildren();
   STATUS.forEach(c=>{
+    let el = tileEls.get(c.name);
+    if (!el){
+      const tile = document.createElement("div"); tile.className = "tile";
+      const top = document.createElement("div"); top.className = "top";
+      const name = document.createElement("div"); name.className = "n"; name.textContent = c.name;
+      name.addEventListener("click", ()=>openCard(STATUS.find(s=>s.name===c.name)));
+      const sw = document.createElement("input"); sw.type = "checkbox"; sw.className = "switch";
+      sw.title = "Start / stop this character";
+      sw.addEventListener("change", ()=>{ pendingSwitch.set(c.name, {until: Date.now()+PENDING_MS, checked: sw.checked});
+        post({cmd: sw.checked ? "start" : "stop", name: c.name}); });
+      top.append(name, sw); tile.appendChild(top);
+      const cl = document.createElement("div"); cl.className = "c";
+      cl.addEventListener("click", ()=>openCard(STATUS.find(s=>s.name===c.name))); tile.appendChild(cl);
+      const st = document.createElement("div"); st.className = "status";
+      const dot = document.createElement("span"); dot.className = "dot"; const dotText = document.createTextNode("");
+      st.append(dot, dotText); tile.appendChild(st);
+      const s = document.createElement("div"); s.className = "s";
+      s.addEventListener("click", ()=>openCard(STATUS.find(x=>x.name===c.name)));
+      const r = document.createElement("span"); const g = document.createElement("b"); g.title = "Strength";
+      s.append(r, g); tile.appendChild(s);
+      const alu = document.createElement("div"); alu.className = "alu"; const aluFill = document.createElement("i"); alu.appendChild(aluFill);
+      tile.appendChild(alu);
+      box.appendChild(tile);
+      el = {tile, name, cl, dot, dotText, r, g, sw, aluFill};
+      tileEls.set(c.name, el);
+    }
     const n = c.now || {};
-    const tile = document.createElement("div"); tile.className = "tile"; tile.style.setProperty("--c", classColor(n.class));
-    const top = document.createElement("div"); top.className = "top";
-    const name = document.createElement("div"); name.className = "n"; name.textContent = c.name; name.addEventListener("click", ()=>openCard(c));
-    const sw = document.createElement("input"); sw.type = "checkbox"; sw.className = "switch"; sw.checked = c.state === "running";
-    sw.title = "Start / stop this character";
-    sw.addEventListener("change", ()=> post({cmd: sw.checked ? "start" : "stop", name: c.name}));
-    top.append(name, sw); tile.appendChild(top);
-    const cl = document.createElement("div"); cl.className = "c"; cl.textContent = n.class ? `${pretty(n.class)} · level ${n.level}` : "not logged in yet";
-    cl.addEventListener("click", ()=>openCard(c)); tile.appendChild(cl);
-    const st = document.createElement("div"); st.className = "status";
-    const dot = document.createElement("span"); dot.className = "dot " + c.state; st.append(dot, document.createTextNode(c.state));
-    tile.appendChild(st);
-    const s = document.createElement("div"); s.className = "s"; s.addEventListener("click", ()=>openCard(c));
-    const r = document.createElement("span"); r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
-    const g = document.createElement("b"); g.textContent = n.strength != null ? Math.round(n.strength).toLocaleString() : "–"; g.title = "Strength";
-    s.append(r, g); tile.appendChild(s);
-    box.appendChild(tile);
+    el.tile.style.setProperty("--c", classColor(n.class));
+    el.cl.textContent = n.class ? `${pretty(n.class)} · level ${n.level}` : "not logged in yet";
+    el.dot.className = "dot " + c.state; el.dotText.textContent = " " + c.state;
+    el.r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
+    el.g.textContent = n.strength != null ? Math.round(n.strength).toLocaleString() : "–";
+    const pend = pendingSwitch.get(c.name);
+    if (pend && Date.now() < pend.until) el.sw.checked = pend.checked;
+    else { pendingSwitch.delete(c.name); el.sw.checked = c.state === "running"; }
+    const pct = n.thirst_max_sec ? Math.max(0, Math.min(100, n.thirst_sec*100/n.thirst_max_sec)) : 0;
+    el.aluFill.style.width = pct + "%";
+    el.aluFill.parentElement.title = n.thirst_sec != null ? `Thirst for Adventure: ${Math.round(n.thirst_sec/60)} / ${Math.round(n.thirst_max_sec/60)} min` : "";
   });
 }
 
