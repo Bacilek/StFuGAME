@@ -1,7 +1,16 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~23:10. Rewrite after every bigger change.
+Updated: 2026-10-08 ~23:40. Rewrite after every bigger change.
 
+- **Character card: paperdoll layout (2026-10-08, user request):** the Equipment section in `openCard`
+  (`src/app.html`) is no longer a text table – it's a CSS-grid "paperdoll" (`.paperdoll`) with the 10 item
+  icons arranged around a central portrait the way the game's own character screen does (hat top-center,
+  weapon/amulet/belt/ring left column, shield/breastplate/gloves/boots right column, talisman bottom-center),
+  and item stats (`it.d`) only show in a tooltip on hover (`.pdslot .tip`, shown via `:hover`), not as always-
+  visible text. Epic/legendary items get a colored border on the slot instead of colored text. The portrait
+  image itself is `roster/<nick>/portrait.png` (see `roster/README.md`) – supplied by hand by the user, static
+  for the challenge; a missing file just leaves the center empty (`<img>` `onerror` removes it), the bot never
+  generates or touches it.
 - **Character card: item icons added (2026-10-08, user request – end-of-day visual snapshots):** the Equipment
   table in the card (`openCard` in `src/app.html`) now shows the real game sprite next to each slot, not just
   text. `src/roster.rs::item_icon` builds the filename `{type}_{model}_{color}_{class}.png` from the equipped
