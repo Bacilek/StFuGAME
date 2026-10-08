@@ -58,13 +58,18 @@ Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
 - **Chlamydie's Day 0 manually backfilled (2026-10-08, user request: "zasimuluj druid starting stats"):**
   `roster/Chlamydie/history.csv` and `roster/Chlamydie/days/2026-10-07.json` were written by hand (not from real
   data – there is none) with generic, approximate "level 2, fresh Druid, one tutorial run + 2 items" numbers:
-  level 2, honor 100, strength 17 (base STR/DEX/INT/CON/LCK 5/5/7/6/5 + two starting items, via the Arena strength
-  formula), gold 0.25, no mushrooms/guild/potions. **Rank 45000 is the shakiest guess of the set** – there is no
-  real reference point for a fresh level-2 rank on this world; revisit if the user has a better number.
+  level 2, honor 100, base STR/DEX/INT/CON/LCK 5/5/7/6/5, gold 0.25, no mushrooms/guild/potions.
+  **Rank 45000 is the shakiest guess of the set** – there is no real reference point for a fresh level-2 rank on
+  this world; revisit if the user has a better number. Updated once more the same day (user request: "přidej mu
+  2 random itemy od ostatních našich postav, cokoliv kromě zbraně") – the 2 starting items are now Gloves (CON
+  +15) and Belt (LCK +20), copied as-is from TestChar1's current equipment (the only other character with equip
+  data on file), rather than the small made-up placeholder items from the first pass. Recomputed strength = 35
+  (base attrs + those two items, via the Arena strength formula) – notably higher than a typical fresh level 2
+  would have, since TestChar1's items are from a much higher level; accepted as-is per the user's explicit ask.
   This fixes her Gold/XP/rank/strength line charts (picked up automatically by the next `write_now`, within
   ~10 min while she keeps running). It does **not** fix the duel/tournament baseline: `tournament::run_day0` can
   only simulate a battle from a character's *live* `ViewPlayer` data, so as soon as any other character joins a
-  Day 0 round, Chlamydie would be pulled in with her real (already level 13+) stats, not the simulated level-2
+  Day 0 round, Chlamydie would be pulled in with her real (already level 13+) stats, not these simulated level-2
   ones – unfair against others' genuinely fresh Day 0. Not solved; flagged for the user, since faking a full
   synthetic opponent (equipment etc.) for `simulate_battle` felt too fragile/invasive to do silently.
 - **`SF_ACCOUNTS` / `SF_USER` optional 4th field / `SF_USER_ALT`:** an account can list a fallback login (e.g. the
