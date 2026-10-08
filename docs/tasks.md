@@ -47,8 +47,13 @@
   chest is above earned + natural points and within reach with the attribute tasks (+ affordable costly tasks).
   They still keep the shop reserve. Otherwise attributes come after the shops as before.
 - Costly tasks (`plan`, separately for the daily and the event list): Wheel of Fortune beyond the free spin
-  (`SpinWheelOfFortune`, lucky coins), beer (`DrinkBeer`, mushrooms). Expected = earned + "natural" points (Arena,
-  Dungeons, City Guard tasks). Of all combinations that we can afford (enough lucky coins for all remaining spins
+  (`SpinWheelOfFortune`, lucky coins), beer (`DrinkBeer`, mushrooms). Expected = earned + "natural" points –
+  **only** Arena and City Guard tasks (`natural_points`), **not** dungeon tasks any more (bug found + fixed live
+  2026-10-08: an open `DefeatMonstersLightDungeon`/`FightInDungeons` task used to count its full points as
+  "will finish today" too, which could silently convince `plan` a chest was already covered and skip beer even
+  while stuck well short of 10/10 – dungeons are capped at 1 real attempt/hour with a real win/loss outcome,
+  unlike Arena/City Guard which the bot retries every cooldown with no attempt cap). Of all combinations that we
+  can afford (enough lucky coins for all remaining spins
   incl. the free one; enough beers left today) take the one reaching the highest unopened chest above "expected",
   and the cheapest for it (weights per unit: lucky coin 10, beer 100). A chest counts only if it is worth it
   (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins as

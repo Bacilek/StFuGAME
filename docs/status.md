@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~20:25. Rewrite after every bigger change.
+Updated: 2026-10-08 ~21:42. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -250,6 +250,19 @@ Updated: 2026-10-08 ~20:25. Rewrite after every bigger change.
   `ClaimNewCustomerPack` Gleeman task isn't actually crediting (the mushroom/gold reward itself landed fine), so
   the chest-3 point math (15 fixed + 2 arena + 2 beer = 19) falls 1 short of the needed 20 without it. Not yet
   confirmed with a fresh task printout – pending this fix reaching a running character.
+- **Found and fixed a real bug in the costly-task planner: `natural_points()` wrongly assumed open dungeon tasks
+  would finish on their own (2026-10-08).** Confirmed live: the welcome-pack suspicion was a red herring –
+  `ClaimNewCustomerPack` DOES credit correctly, just with a delay (all 11 showed 1/1 after a restart gave it time
+  to sync). The real blocker: 9 of 11 characters reached Arena 10/10 + the pack (18 points), chest 3 needs exactly
+  20, and beer (+2) should have closed it – but `tasks::natural_points()` counted the OPEN
+  `DefeatMonstersLightDungeon` task's full 3 points as "will complete today" even though the character was stuck
+  at 6-8/10 with the dungeon's 1-attempt/hour cooldown making 10/10 unrealistic before midnight. That inflated
+  `expected` past the chest's 20-point requirement, so `plan()` concluded the chest was already covered by
+  "natural" progress and never selected beer – a silent, permanent lock for the rest of the day, not a timing
+  issue. Fixed by dropping `FightInDungeons`/`DefeatMonstersLightDungeon` from `natural_points()`'s optimistic
+  set (Arena and City Guard stay – the bot retries both every cooldown with no cap on attempts, so those reliably
+  land; dungeon tasks don't). New test `open_dungeon_task_does_not_block_a_chest_reachable_without_it`. Needs a
+  release rebuild; not yet verified that beer actually fires correctly after this fix.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

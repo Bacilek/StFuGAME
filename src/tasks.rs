@@ -167,21 +167,19 @@ pub fn attributes_needed(gs: &GameState) -> bool {
     attributes_help(&t.daily.tasks, &t.daily.rewards, means) || attributes_help(&t.event.tasks, &t.event.rewards, means)
 }
 
-/// Points of open tasks that will most likely complete on their own today (Arena, Dungeons, City Guard).
+/// Points of open tasks that will most likely complete on their own today (Arena, City Guard – the bot retries
+/// both every cooldown with no cap on attempts, so 10 Arena wins and the day's City Guard hours reliably land
+/// eventually). **Not** dungeon tasks (`FightInDungeons`/`DefeatMonstersLightDungeon`) any more (found 2026-10-08,
+/// live): those are capped at 1 real attempt/hour with a real win/loss outcome (and Training Camp's difficulty
+/// climbs with each win), so "will probably finish today" is often wrong – assuming it anyway made `plan()`
+/// think an unopened chest was already covered by "natural" progress and skip beer, even when the character was
+/// stuck at e.g. 6/10 with no realistic chance of reaching 10/10 before midnight. Beer (and the other costly
+/// tasks) now only ever gets credited for dungeon points once the task is *actually* done, not assumed.
 fn natural_points(tasks: &[Task]) -> u32 {
     tasks
         .iter()
         .filter(|t| !t.is_completed())
-        .filter(|t| {
-            matches!(
-                t.typ,
-                TaskType::WinFightsInArena
-                    | TaskType::FightInDungeons
-                    | TaskType::DefeatMonstersLightDungeon(_)
-                    | TaskType::CityGuardHours
-                    | TaskType::EarnMoneyCityGuard
-            )
-        })
+        .filter(|t| matches!(t.typ, TaskType::WinFightsInArena | TaskType::CityGuardHours | TaskType::EarnMoneyCityGuard))
         .map(|t| t.point_reward)
         .sum()
 }
@@ -539,6 +537,22 @@ mod tests {
         assert_eq!(plan(&tasks, &chests, RICH), [Extra::Gamble]);
         // not enough gold → no
         assert!(plan(&tasks, &chests, Means { gamble: false, ..RICH }).is_empty());
+    }
+
+    #[test]
+    fn open_dungeon_task_does_not_block_a_chest_reachable_without_it() {
+        // Bug found live 2026-10-08: an open (not yet completed) dungeon task used to count its full points as
+        // "natural" (assumed to finish on its own), making `plan` think the chest was already covered and skip
+        // beer – even stuck at 6/10 with the 1-attempt/hour cooldown making 10/10 unrealistic before reset.
+        use sf_api::gamestate::dungeons::LightDungeon;
+        let chests = [chest_with(20, 10)]; // needs mushrooms in the chest for beer to count as "worth it"
+        let tasks = vec![
+            task(TaskType::LeaseMount, 1, 1, 18),
+            task(TaskType::DefeatMonstersLightDungeon(LightDungeon::TrainingCamp), 6, 10, 3),
+            task(TaskType::DrinkBeer, 0, 1, 2),
+        ];
+        // earned 18; the open dungeon task must NOT count toward "expected" – only beer (+2) reaches 20
+        assert_eq!(plan(&tasks, &chests, RICH), [Extra::Beer]);
     }
 
     #[test]
