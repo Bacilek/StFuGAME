@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~14:25. Rewrite after every bigger change.
+Updated: 2026-10-08 ~14:38. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -141,6 +141,16 @@ Updated: 2026-10-08 ~14:25. Rewrite after every bigger change.
   as a direct dependency (matching sf-api's own pinned version) to construct `Fighter`'s attribute/resistance
   `EnumMap`s by hand; `Fighter`'s `ident` field needs `Default::default()` rather than naming `FighterIdent`
   directly – that type exists but its containing module isn't re-exported, so it can't be named outside sf-api.
+  Rebuilt + re-run: win rates spread out sensibly (e.g. Květoš ~33% average, not near 0% against everyone) –
+  except Chlamydie then showed **0% against everyone**, the opposite extreme: her synthetic baseline had 2
+  non-weapon items but no weapon at all (per the user's original ask to avoid TestChar1's over-strong items),
+  and `simulate_battle` makes a weaponless fighter deal essentially no damage. Fixed by giving her a plain Druid
+  starting wand, **8–10 dmg** (the user's own number, not borrowed from anyone), added to
+  `roster/Chlamydie/days/2026-10-07.json`'s equip – she now has the same 3 equipped slots (weapon + 2 armor) as a
+  normal fresh character (e.g. Novotné: Boots/Chest plate/Weapon). Not yet re-confirmed after this last change –
+  needs one more "Run end of day now" click. Dashboard also only auto-refreshes every 5 min
+  (`<meta http-equiv="refresh" content="300">` in `dashboard.html`) – a browser tab opened right after a click
+  can show stale numbers for a few minutes; hard-refresh (Ctrl+F5) to confirm.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
