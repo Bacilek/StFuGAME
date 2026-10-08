@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~18:50. Rewrite after every bigger change.
+Updated: 2026-10-08 ~19:05. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -232,8 +232,14 @@ Updated: 2026-10-08 ~18:50. Rewrite after every bigger change.
   entirely; the caller always does a normal `Command::Update` right after, which both refreshes the state and
   re-triggers the mushroom watchdog against the state from before the checkout. Safety invariant: only ever
   checks out an `identifier` whose catalog `price.amount` it just confirmed is exactly `0`, re-checked fresh every
-  time, never hardcoded – the rest of this shop is the real-money one. **Not yet verified live.** Needs a release
-  rebuild.
+  time, never hardcoded – the rest of this shop is the real-money one. Added a persistent marker file
+  (`roster/<nick>/welcome_pack_claimed`, not `PerChar` state) once claimed – user 2026-10-08: unlike calendar/wheel
+  (which have their own server-side daily reset timestamp to check against, no extra cost either way), the
+  welcome pack has no natural "done" signal, so without this it would keep polling `ShopCatalog` every 30 min
+  forever, even long after being claimed. Calendar/wheel need no such fix – `daily::run` only ever reads already-
+  cached `GameState` fields to decide "is it ready", never an extra request, so checking every pass is free; the
+  real claim command only ever fires once the server's own timestamp says so (next day). **Not yet verified
+  live.** Needs a release rebuild.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

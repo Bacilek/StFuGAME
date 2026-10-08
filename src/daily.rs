@@ -71,14 +71,27 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
+/// Marks this character as done with the welcome-pack check, forever – a plain file (not `PerChar` state) so it
+/// survives bot restarts: this is genuinely one-off (user 2026-10-08: "bude to jednorázová akce a už nikdy nebude
+/// potřeba"), unlike the calendar/wheel above, which are real daily resets. Living in `roster/<nick>/`, not in a
+/// `logs/` subfolder, so it is not mistaken for a log file.
+fn welcome_pack_marker() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("welcome_pack_claimed")
+}
+
 /// One-time free "new customer" pack at the Mushroom Dealer (user 2026-10-07: for new accounts a free deal
 /// appears after some time; claimed manually once on TestChar1). Captured live 2026-10-08 from a browser Network
 /// tab: not one of sf-api's typed commands, same `Command::Custom` + base64-params mechanism as the guild list
 /// (`guild.rs`). Catalog item as of 2026-10-08: identifier `starterpacks_item_2` (internal `welcomepack_1`),
 /// `sku: "FREE"`, price 0 – gold, mushrooms, hourglasses and lucky coins. **Never** checks out anything whose
 /// catalog price is not exactly 0 – the rest of this shop (`starterpacks_item_1`, mushroom packs, VIP status)
-/// costs real money. Not yet verified live (pending: does the pack actually show up and get claimed correctly?).
+/// costs real money. Checked at most every 30 min (`may_try`, shared with calendar/wheel) until either claimed or
+/// the marker file says to stop – not yet verified live (pending: does the pack actually show up and get claimed
+/// correctly?).
 async fn claim_welcome_pack(session: &mut SimpleSession) -> Outcome {
+    if welcome_pack_marker().exists() {
+        return Outcome::Done;
+    }
     if !may_try("welcome_pack") {
         return Outcome::Done;
     }
@@ -107,6 +120,10 @@ async fn claim_welcome_pack(session: &mut SimpleSession) -> Outcome {
             return fail(&e);
         }
         report!("[rewards] Claimed {identifier}");
+        if let Some(parent) = welcome_pack_marker().parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(welcome_pack_marker(), identifier);
     }
     Outcome::Done
 }
