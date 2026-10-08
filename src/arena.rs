@@ -1,7 +1,10 @@
-//! Arena: whenever it is off cooldown (even during an expedition), challenge the weakest of the 3 opponents.
+//! Arena: whenever it is off cooldown (even during an expedition), challenge whichever of the 3 opponents sf-api's
+//! own battle simulator (`simulate_battle`, the same one `tournament.rs` uses for the daily duels) gives us the
+//! best simulated win chance against – not just the one with the lowest attribute-only `strength()` (that coarse
+//! formula is kept for `hunt.rs`'s Hall of Fame search, where a full battle simulation per candidate would be far
+//! too many `ViewPlayer` calls).
 //! At most 10 wins per day, after that there are no rewards. Driven by the server counter `fights_for_xp`
 //! (today's wins for XP, 0–10), so the server resets the day.
-//! Strength = 100 % main attribute + 80 % Constitution + 40 % Luck + 10 % each secondary attribute.
 
 use std::{fs::OpenOptions, io::Write};
 
@@ -10,6 +13,7 @@ use serde_json::json;
 use sf_api::{
     command::{AttributeType, Command},
     gamestate::{GameState, character::Class, rewards::TaskType, social::OtherPlayer},
+    simulate::{Fighter, PlayerFighterSquad, UpgradeableFighter, simulate_battle},
 };
 
 use crate::session::SimpleSession;
@@ -34,6 +38,12 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
 
 /// After this many wins per day the Arena gives no rewards.
 pub const MAX_WINS_PER_DAY: usize = 10;
+/// Simulated fights per candidate opponent (sf-api's own battle simulator – the same one `tournament.rs` uses for
+/// the daily duels), to estimate our actual win chance rather than the coarse `strength()` formula, which ignores
+/// weapon damage, crit/block and class matchups (user 2026-10-08: a long real losing streak against "the weakest
+/// of 3" picked by `strength()` alone). Lower than the tournament's 1000 since this runs every ~10 min per
+/// character, not once a day.
+const SIM_ITERATIONS: u32 = 300;
 /// The Arena journal of the current character (`roster/<character>/logs/arena.jsonl`).
 fn log_file() -> String {
     crate::ctx::log_path("arena.jsonl")
@@ -92,12 +102,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
 
-    // A Gleeman/event task "win fights against <class>": an opponent of that class weaker than us wins
+    // A Gleeman/event task "win fights against <class>": an opponent of that class we have a real shot at wins
     let want_class = crate::tasks::open_tasks(gs).find_map(|t| match t.typ {
         TaskType::WinFightsAgainst(c) => Some(c),
         _ => None,
     });
-    let ours = crate::hunt::own_strength(gs);
+    let own_fighter = Fighter::from(&PlayerFighterSquad::new(gs).character);
     let mut ids = gs.arena.enemy_ids;
     if ids.iter().all(|&id| id == 0) {
         match safe::send(session, Command::CheckArena).await {
@@ -108,7 +118,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
     let mut task_pick: Option<(f64, String)> = None;
 
-    // Load the opponents' stats
+    // Load the opponents' stats and estimate our win chance against each via sf-api's own battle simulator
+    // (same one `tournament.rs` uses) instead of the coarse attribute-only `strength()` formula.
     let mut best: Option<(f64, String)> = None;
     for id in ids.into_iter().filter(|&id| id != 0) {
         let gs = match safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await {
@@ -119,19 +130,26 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             report!("[arena] Could not load opponent {id}");
             continue;
         };
-        let s = strength(p.class, |a| total(p, a));
-        if best.as_ref().is_none_or(|(b, _)| s < *b) {
-            best = Some((s, p.name.clone()));
+        let opponent_fighter = Fighter::from(&UpgradeableFighter::from_other(p));
+        let win_chance = simulate_battle(
+            std::slice::from_ref(&own_fighter),
+            std::slice::from_ref(&opponent_fighter),
+            SIM_ITERATIONS,
+            true,
+        )
+        .win_ratio;
+        if best.as_ref().is_none_or(|(b, _)| win_chance > *b) {
+            best = Some((win_chance, p.name.clone()));
         }
-        if want_class == Some(p.class) && s < ours && task_pick.as_ref().is_none_or(|(b, _)| s < *b) {
-            task_pick = Some((s, p.name.clone()));
+        if want_class == Some(p.class) && task_pick.as_ref().is_none_or(|(b, _)| win_chance > *b) {
+            task_pick = Some((win_chance, p.name.clone()));
         }
     }
     if let Some(pick) = task_pick {
         report!("[arena] Task: win against {:?}, choosing {}", want_class.unwrap_or_default(), pick.1);
         best = Some(pick);
     }
-    let Some((s, name)) = best else {
+    let Some((win_chance, name)) = best else {
         report!("[arena] No opponent available");
         return Outcome::Done;
     };
@@ -142,7 +160,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[arena] Arena is no longer free, cancelling the fight");
         return Outcome::Done;
     }
-    report!("[arena] Challenging: {name} (strength {s:.0})");
+    report!("[arena] Challenging: {name} (simulated win chance {:.0}%)", win_chance * 100.0);
     let fight_of_day = fights_today() + 1;
     let opponent = name.clone();
     let gs = match safe::send(session, Command::Fight { name, use_mushroom: false }).await {

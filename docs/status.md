@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
+Updated: 2026-10-08 ~14:00. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -77,6 +77,28 @@ Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
 - **`SF_ACCOUNTS` / `SF_USER` optional 4th field / `SF_USER_ALT`:** an account can list a fallback login (e.g. the
   registration email) alongside the username; `main.rs::login` tries the primary login first and only retries with
   the fallback if that is rejected (user 2026-10-08: prefer the username, but some accounts need the email).
+- **Day 0 mechanism confirmed working live (2026-10-08):** Novotné (Plague Doctor) was the first real challenge
+  character started after the rebuild – `roster/Novotné/history.csv` and `days/2026-10-07.json` got written
+  automatically and correctly (level 2, rank 13474, honor 101, gold 2.36, equip Boots DEX+6 / Chest plate CON+2 /
+  Weapon 2–6 dmg). Chlamydie's manual Day 0 got its final touch-up: borrowed Novotné's 2 non-weapon items
+  (Boots DEX+6, Chest plate CON+2) instead of TestChar1's (rejected – too strong for a Day 0 baseline); final
+  strength = 17. Also wrote `roster/start.txt` = 2026-10-08 by hand, *before* any other character's first login,
+  to lock the challenge's "Day 1" = today – without it, `tournament::start_date()` would have inferred "Day 1"
+  from Chlamydie's already-backfilled 2026-10-07 row and computed every other character's Day 0 as 2026-10-06,
+  one day off from Chlamydie's and Novotné's.
+- **Arena opponent picking changed from the attribute formula to a simulated win chance (2026-10-08):** found
+  digging into why TestChar1 was on a long losing streak (32 losses / 41 fights) despite always challenging "the
+  weakest of 3" – the old `strength()` formula is attribute-only, it ignores weapon damage, crit/block chance and
+  class matchups entirely, so "weakest by the formula" isn't reliably "easiest in practice". `arena::run` now
+  builds a `Fighter` for the character and for each of the 3 candidates (same sf-api types `tournament.rs` already
+  uses for the daily duels: `PlayerFighterSquad`/`UpgradeableFighter`/`Fighter`/`simulate_battle`) and picks
+  whichever candidate has the highest simulated win ratio (300 iterations, vs the tournament's 1000 – this runs
+  every ~10 min per character, not once a day). The old formula (`arena::strength`/`arena::total`) is kept as-is
+  for `hunt.rs`'s Hall of Fame search (a full battle sim per scanned candidate there would mean far too many
+  `ViewPlayer` calls). **Not yet verified live** – the user said to try it and revert if it doesn't actually
+  improve the win rate (`docs/arena.md`'s Verification status table tracks this). **Needs a release rebuild
+  before it takes effect** – the bot was running again (all characters) when this was written, so the rebuild is
+  still pending; `cargo check`/`cargo test` both pass on dev, but the release exe does not have this yet.
 
 ## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
 - **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set
