@@ -51,14 +51,41 @@ pub fn start_date() -> Option<NaiveDate> {
     first
 }
 
-/// Today's challenge day if today's round has not been simulated yet (every day).
-/// The daily duels run at 23:40 (user 2026-10-08, was 23:20), before the 23:50 report.
-pub fn due_today() -> Option<i64> {
-    let now = Local::now();
-    let today = now.date_naive();
-    let day = (today - start_date().unwrap_or(today)).num_days() + 1;
-    let done = Path::new(ROOT).join("tournament").join(format!("{today}.final")).exists();
-    (now >= run_time(today) && !done).then_some(day)
+/// Challenge day number (1-based) for a given date, per `start_date()`.
+pub fn day_number(date: NaiveDate) -> i64 {
+    (date - start_date().unwrap_or(date)).num_days() + 1
+}
+
+/// The most recent date this round-robin already has a finalized round for, if any.
+fn last_final_date(dir: &Path) -> Option<NaiveDate> {
+    let mut best: Option<NaiveDate> = None;
+    for e in fs::read_dir(dir).ok()?.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if let Some(date) = name.strip_suffix(".final").and_then(|s| s.parse::<NaiveDate>().ok()) {
+            best = Some(best.map_or(date, |b| b.max(date)));
+        }
+    }
+    best
+}
+
+/// Dates (oldest first) whose round has not been simulated yet: every date between the day after the last
+/// finalized one and yesterday (always overdue), plus today once 23:40 has passed. Mirrors
+/// `roster::overdue_days` – see there for why backdating a day the bot was off for is safe (nothing happens to
+/// any character while the whole process isn't running, so today's live `ViewPlayer` data IS that missed day's
+/// end-of-day state too).
+pub fn overdue_days() -> Vec<NaiveDate> {
+    let dir = Path::new(ROOT).join("tournament");
+    let today = Local::now().date_naive();
+    let mut day = last_final_date(&dir).map_or_else(|| start_date().unwrap_or(today), |d| d + chrono::Duration::days(1));
+    let mut out = Vec::new();
+    while day < today {
+        out.push(day);
+        day += chrono::Duration::days(1);
+    }
+    if Local::now() >= run_time(today) && !dir.join(format!("{today}.final")).exists() {
+        out.push(today);
+    }
+    out
 }
 
 fn run_time(date: NaiveDate) -> chrono::DateTime<Local> {
@@ -305,15 +332,19 @@ async fn simulate(
     Ok((fighters.iter().map(|(n, c, _)| (n.clone(), c.clone())).collect(), win, missing))
 }
 
-pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
+/// Runs the round-robin for `date` (normally today, at/after 23:40). A `date` in the past is how
+/// `overdue_days()` backfills a day the bot was off for entirely – always written as final straight away
+/// (never a preview), using today's live `ViewPlayer` data under that backdated date (see `overdue_days`).
+pub async fn run(session: &mut SimpleSession, day: i64, date: NaiveDate) -> Outcome {
     // With several characters in one process only the first one to get here runs the duels (lock file)
     let dir = Path::new(ROOT).join("tournament");
     let _ = fs::create_dir_all(&dir);
-    let lock = dir.join(format!("{}.lock", Local::now().date_naive()));
+    let lock = dir.join(format!("{date}.lock"));
     if fs::OpenOptions::new().write(true).create_new(true).open(&lock).is_err() {
         return Outcome::Done;
     }
-    let preview = Local::now() < run_time(Local::now().date_naive());
+    let today = Local::now().date_naive();
+    let preview = date == today && Local::now() < run_time(date);
     report!("[tournament] Day {day}: {} characters, {ITERATIONS} simulated fights per pair", participants().len());
     let (players, win, missing) = match simulate(session, &[]).await {
         Ok(r) => r,
@@ -325,16 +356,16 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     }
     let round = serde_json::json!({
         "day": day,
-        "date": Local::now().date_naive().to_string(),
+        "date": date.to_string(),
         "iterations": ITERATIONS,
         "players": players.iter().map(|(n, c)| serde_json::json!({"nick": n, "cls": c})).collect::<Vec<_>>(),
         "win": win,
         "missing": missing,
     });
-    let date = Local::now().date_naive();
     let _ = fs::write(dir.join(format!("{date}.json")), round.to_string());
-    // After 23:40 this is the day's real round (a manual run earlier is only a preview)
-    if Local::now() >= run_time(date) {
+    // After 23:40 (or for a backdated past day, always) this is the day's real round (a manual run earlier
+    // today is only a preview)
+    if date < today || Local::now() >= run_time(date) {
         let _ = fs::write(dir.join(format!("{date}.final")), "");
     }
     report!(

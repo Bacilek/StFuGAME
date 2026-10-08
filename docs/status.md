@@ -399,6 +399,25 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
   `docs/city-guard.md` for the full writeup and `docs/precedents.md` for the dated decision. **Needs a release
   rebuild and a full live day to verify** – nothing about this has been observed running yet.
 
+- **Daily report + duel round now catch up a day the bot was switched off for entirely (2026-10-09, user
+  request):** answered the user's "what if I turn the bot on only at 5am instead of 23:40/23:50" question –
+  confirmed `roster::due()`/`tournament::due_today()` only ever checked "today", so a fully-missed window meant
+  that day's `history.csv` row, `days/<date>.json` snapshot and `tournament/<date>.json` duel round were lost
+  for good (a permanent gap in the dashboard chart), not just delayed. User's reasoning for why backfilling is
+  still accurate: nothing happens to a character while the bot isn't running, so the state at whatever moment
+  it comes back next IS that missed day's real end-of-day state (gains show as 0, which is also correct).
+  Replaced `roster::due()`/`tournament::due_today()` with `overdue_days()` in both modules (scans for the most
+  recent `.final` marker, returns every date from the day after it up to yesterday – always overdue regardless
+  of time of day – plus today once its own report time has passed). `write_day`/`run` now take an explicit
+  `date` parameter (was always `Local::now().date_naive()`) so a past date can be backdated the same way
+  `write_day0`/`run_day0` already backdate Day 0. `main.rs`'s main loop now loops over `overdue_days()` instead
+  of a single today-or-nothing check, processing multiple missed days in one pass, oldest first, if needed.
+  Only covers "the whole app was off" (all characters frozen together, so comparing one's current state across
+  them stays apples-to-apples) – an individual character toggled off while others kept running is a different
+  case, not handled here. New unit test `overdue_days_backfills_past_but_not_future` (`src/roster.rs`); no
+  automated test for `tournament::overdue_days` (would have to touch the real, shared `roster/tournament/`
+  directory to verify, too risky to script against live data – left for live verification instead, see
+  `roster/README.md`'s Verification status table). **Needs a release rebuild and a live gap to confirm.**
 - **Guild battle sign-up retry interval 1 h → 4 h (2026-10-09, user request):** checked in on a status question –
   all 11 challenge characters had their daily chest 3 (max, 20 pts) + all 3 event chests open, no mushroom-watchdog
   trips, no connection errors. Only noise: `[guild] Sign-up failed: not 24 hours member` repeating for Novotné

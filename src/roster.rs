@@ -118,10 +118,37 @@ fn day_file(date: NaiveDate) -> Option<PathBuf> {
     Some(dir()?.join("days").join(format!("{date}.final")))
 }
 
-/// Is today's report due (after 23:50 and not written yet)?
-pub fn due() -> bool {
-    let now = Local::now();
-    now >= report_time(now.date_naive()) && day_file(now.date_naive()).is_some_and(|f| !f.exists())
+/// The most recent date this character already has a finalized report for, if any (scans `days/*.final`).
+fn last_final_date(d: &Path) -> Option<NaiveDate> {
+    let mut best: Option<NaiveDate> = None;
+    for e in fs::read_dir(d.join("days")).ok()?.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if let Some(date) = name.strip_suffix(".final").and_then(|s| s.parse::<NaiveDate>().ok()) {
+            best = Some(best.map_or(date, |b| b.max(date)));
+        }
+    }
+    best
+}
+
+/// Dates (oldest first) whose daily report is overdue and not yet written: every date between the day after
+/// the last finalized one and yesterday (always overdue, regardless of time of day), plus today once its
+/// report time has passed. Catches up a day the bot was switched off for entirely (e.g. turned back on the
+/// next morning, user 2026-10-09): since nothing happens to the character while the bot isn't running, today's
+/// otherwise-unchanged state IS that missed day's end-of-day state, so it's safe to backdate it rather than
+/// just lose the data point.
+pub fn overdue_days() -> Vec<NaiveDate> {
+    let Some(d) = dir() else { return Vec::new() };
+    let today = Local::now().date_naive();
+    let mut day = last_final_date(&d).map_or(today, |d| d + chrono::Duration::days(1));
+    let mut out = Vec::new();
+    while day < today {
+        out.push(day);
+        day += chrono::Duration::days(1);
+    }
+    if Local::now() >= report_time(today) && day_file(today).is_some_and(|f| !f.exists()) {
+        out.push(today);
+    }
+    out
 }
 
 /// Seconds until today's report (for the main loop's wait). None when already written / past.
@@ -290,11 +317,16 @@ pub fn write_day0(gs: &GameState) -> Option<NaiveDate> {
 ///
 /// `fin` = the real end-of-day report (23:50). A manual one from the icon menu is a preview: it writes the same files
 /// (today's history line is replaced, not added) but keeps the notes and does not count as the day's report.
-pub fn write_day(gs: &GameState, fin: bool) -> String {
+///
+/// `date` is normally today, but a date in the past is how `overdue_days()` backfills a day the bot was off for
+/// entirely (always written as final, never a preview) – gains for that date come out as 0 (accurate: nothing
+/// happened to the character while the bot wasn't running).
+pub fn write_day(gs: &GameState, date: NaiveDate, fin: bool) -> String {
     let Some(d) = dir() else { return "no character set".to_string() };
     let notes = take_notes(fin);
     let sum = |kind: &str| notes.iter().filter(|n| n.1 == kind).filter_map(|n| n.3.parse::<u64>().ok()).sum::<u64>();
-    let s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
+    let mut s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
+    s.date = date;
     let history = d.join("history.csv");
 
     // Biggest success + issues grouped by message (with a count and the first time) → days/<date>.issues
@@ -585,8 +617,8 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
     out
 }
 
-/// Changes per date for one character, from its daily snapshots (`days/<date>.json`).
-fn daily_changes(char_dir: &Path) -> BTreeMap<String, Vec<String>> {
+/// All of a character's daily snapshots (`days/<date>.json`), sorted by date.
+fn read_days(char_dir: &Path) -> Vec<(String, serde_json::Value)> {
     let mut snaps: Vec<(String, serde_json::Value)> = fs::read_dir(char_dir.join("days"))
         .map(|it| {
             it.flatten()
@@ -599,7 +631,12 @@ fn daily_changes(char_dir: &Path) -> BTreeMap<String, Vec<String>> {
         })
         .unwrap_or_default();
     snaps.sort_by(|a, b| a.0.cmp(&b.0));
-    snaps.windows(2).map(|w| (w[1].0.clone(), changes(&w[0].1, &w[1].1))).collect()
+    snaps
+}
+
+/// Changes per date for one character, from its daily snapshots (`days/<date>.json`).
+fn daily_changes(days: &[(String, serde_json::Value)]) -> BTreeMap<String, Vec<String>> {
+    days.windows(2).map(|w| (w[1].0.clone(), changes(&w[0].1, &w[1].1))).collect()
 }
 
 /// `roster/issues.txt` and `roster/leaderboard.md` from all characters' folders.
@@ -672,7 +709,10 @@ fn write_dashboard(demo: bool) {
         let mut by_date = serde_json::Map::new();
         let mut class = String::new();
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
-        let changes = daily_changes(&e.path());
+        let days = read_days(&e.path());
+        let changes = daily_changes(&days);
+        let equip_by_date: BTreeMap<&str, &serde_json::Value> =
+            days.iter().map(|(date, snap)| (date.as_str(), &snap["equip"])).collect();
         for r in &rows {
             let Some(date) = r.get("date") else { continue };
             gold += num(r, "gold_gained").unwrap_or(0.0);
@@ -690,6 +730,7 @@ fn write_dashboard(demo: bool) {
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                     "changes": changes.get(date).cloned().unwrap_or_default(),
+                    "equip": equip_by_date.get(date.as_str()).copied().cloned().unwrap_or(serde_json::Value::Null),
                 }),
             );
         }
@@ -736,6 +777,25 @@ pub fn track_level(gs: &GameState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Past days with no finalized report are always overdue regardless of time of day; today only once its
+    /// own report time has passed – not asserted here (would be flaky depending on when the test runs).
+    #[test]
+    fn overdue_days_backfills_past_but_not_future() {
+        let nick = "_test_overdue_roster";
+        let d = Path::new(ROOT).join(nick);
+        let _ = fs::remove_dir_all(&d);
+        let _ = fs::create_dir_all(d.join("days"));
+        set_character(nick);
+        let today = Local::now().date_naive();
+        let _ = fs::write(d.join("days").join(format!("{}.final", today - chrono::Duration::days(3))), "");
+        let overdue = overdue_days();
+        let _ = fs::remove_dir_all(&d);
+        assert!(overdue.contains(&(today - chrono::Duration::days(2))));
+        assert!(overdue.contains(&(today - chrono::Duration::days(1))));
+        assert!(!overdue.contains(&(today - chrono::Duration::days(3))));
+        assert!(!overdue.contains(&(today + chrono::Duration::days(1))));
+    }
 
     #[test]
     fn changes_between_snapshots() {

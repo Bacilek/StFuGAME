@@ -188,10 +188,14 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // loop (skipping everything after it) on almost every pass while an expedition is actively progressing –
         // this used to live near the bottom of the loop and could then go unchecked for a long time (found
         // 2026-10-08: "Run end of day now" stuck on "N characters left" for 30+ min on characters mid-expedition).
-        if let Some(day) = tournament::due_today()
-            && let tavern::Outcome::SessionLost = tournament::run(session, day).await
-        {
-            return tavern::Outcome::SessionLost;
+        // Catches up any day(s) the bot was switched off for entirely (e.g. only turned on next morning,
+        // user 2026-10-09): since nothing happens to the character while the bot isn't running, today's
+        // otherwise-unchanged state IS that missed day's end-of-day state too, so it's backdated rather than
+        // just losing the data point. Normally this is just today once 23:40 has passed.
+        for date in tournament::overdue_days() {
+            if let tavern::Outcome::SessionLost = tournament::run(session, tournament::day_number(date), date).await {
+                return tavern::Outcome::SessionLost;
+            }
         }
         // "Run end of day now" from the icon menu: duels + report as a preview (the 23:40/23:50 runs replace it)
         let manual = ctx::take_end_of_day_request();
@@ -204,7 +208,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             ctx::eod_done_one();
             report!("[roster] Manual end of day (preview)");
             tournament::unlock_today();
-            if let tavern::Outcome::SessionLost = tournament::run(session, tournament::today()).await {
+            let today = tournament::today();
+            if let tavern::Outcome::SessionLost = tournament::run(session, today, chrono::Local::now().date_naive()).await {
                 return tavern::Outcome::SessionLost;
             }
             // Also re-runs the Day 0 baseline round (e.g. after fixing Chlamydie's synthetic fighter) – cheap
@@ -213,12 +218,18 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 return tavern::Outcome::SessionLost;
             }
         }
-        if roster::due() || manual {
-            let fin = roster::due();
+        let overdue = roster::overdue_days();
+        if !overdue.is_empty() || manual {
             match safe::send(session, Command::Update).await {
                 Ok(gs) => {
-                    let summary = roster::write_day(gs, fin);
-                    report!("[roster] {} written: {summary}", if fin { "Daily report" } else { "Preview report" });
+                    for date in &overdue {
+                        let summary = roster::write_day(gs, *date, true);
+                        report!("[roster] Daily report written for {date}: {summary}");
+                    }
+                    if overdue.is_empty() && manual {
+                        let summary = roster::write_day(gs, chrono::Local::now().date_naive(), false);
+                        report!("[roster] Preview report written: {summary}");
+                    }
                 }
                 Err(e) => report!("[roster] Update before the daily report failed: {e}"),
             }
