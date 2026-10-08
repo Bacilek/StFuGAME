@@ -32,20 +32,27 @@ pub fn weapon_value(avg_damage: f64, main_attr_with_weapon: f64) -> f64 {
     avg_damage * (1.0 + main_attr_with_weapon / 20.0)
 }
 
-/// Item value for our character: non-weapons by attributes; weapons by damage
+/// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
 /// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage).
-pub fn value(gs: &GameState, item: &Item) -> f64 {
+/// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
+/// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
+fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
     let ch = &gs.character;
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
         return score(ch.class, item);
     };
     let main = ch.class.main_attribute();
     let total = f64::from(ch.attribute_basis[main] + ch.attribute_additions[main]);
-    let equipped = ch.equipment.0[EquipmentSlot::Weapon].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
+    let equipped = ch.equipment.0[slot].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
     let with_this = total - equipped + f64::from(item.attributes[main]);
     // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
     let others = score(ch.class, item) - f64::from(item.attributes[main]);
     weapon_value(f64::from(min_dmg + max_dmg) / 2.0, with_this) + others
+}
+
+/// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
+pub fn value(gs: &GameState, item: &Item) -> f64 {
+    value_in(gs, item, EquipmentSlot::Weapon)
 }
 
 #[derive(Debug)]
@@ -63,19 +70,27 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
     let class = gs.character.class;
     for (pos, item) in gs.character.inventory.iter() {
         let Some(item) = item else { continue };
-        let Some(slot) = item.typ.equipment_slot() else { continue };
+        let Some(base_slot) = item.typ.equipment_slot() else { continue };
         if item.is_unique() {
             continue;
         }
-        let new = value(gs, item);
         if !item.can_be_equipped_by(class) {
             if !item.is_epic() {
                 return Some((Action::Sell { pos }, format!("selling {} (for another class)", describe(item))));
             }
             continue;
         }
+        // Assassins dual-wield (a weapon in both Weapon and Shield): a weapon drop can go into either hand,
+        // so it competes against whichever of the two is currently weaker (or empty).
+        let slot = if class == Class::Assassin && base_slot == EquipmentSlot::Weapon {
+            let worth = |s: EquipmentSlot| gs.character.equipment.0[s].as_ref().map_or(f64::MIN, |i| value_in(gs, i, s));
+            if worth(EquipmentSlot::Weapon) <= worth(EquipmentSlot::Shield) { EquipmentSlot::Weapon } else { EquipmentSlot::Shield }
+        } else {
+            base_slot
+        };
+        let new = value_in(gs, item, slot);
         let current = gs.character.equipment.0[slot].as_ref();
-        let cur = current.map_or(-1.0, |i| value(gs, i));
+        let cur = current.map_or(-1.0, |i| value_in(gs, i, slot));
         if new > cur {
             let what = match current {
                 Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
