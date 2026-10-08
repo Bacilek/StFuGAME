@@ -28,6 +28,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Several characters run in one process, each in its own tokio task (`ctx::CHARACTER`); state kept between calls must be
   `ctx::PerChar<T>` (per character), never a plain static. Logs: combined `logs/progress.log` ([character] prefix) +
   `logs/<character>/` (progress.log, arena.jsonl, expeditions.jsonl).
+- `SF_AUTOSTART` (optional, in `.env`): which characters autostart on launch; unset → only `SF_USER`/`SF_CHARACTER`
+  does, new `SF_ACCOUNTS` entries are added but stay off until switched on (user 2026-10-08, testing one at a time).
 - The bot is a desktop app (`app.rs`: tao window + wry/WebView2, loading `roster/app.html`), not just a tray icon.
   `control.rs` starts/stops individual characters (abort handle per character); `tray.rs` only builds the icon+menu,
   `app.rs` owns the single Win32 message loop (via tao) that pumps both the window and the tray icon's events.

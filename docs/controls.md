@@ -37,6 +37,10 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
   Do not start the bot for the user unless asked – the user starts it themselves.
 - Do not run `cargo run` while the bot from the shortcut is running – the single-instance guard shows the
   "already running" dialog.
+- `SF_AUTOSTART` (env var, optional) = `character;character;…`: exactly those characters autostart when the app
+  launches. Unset (default): only the `SF_USER`/`SF_CHARACTER` account autostarts; every `SF_ACCOUNTS` entry is
+  added (visible in the app, switched off) and starts only when the user flips its tile or clicks "Start all".
+  This is how new challenge characters get added without touching the one already being tested (user 2026-10-08).
 - `STFU_NO_LOGIN=1` (env var) skips auto-starting every character – handy for trying out the window itself
   without touching the server. Never use it to justify logging in with throwaway/fake credentials instead;
   when a no-network check is needed, use this flag, not real or fake login attempts.

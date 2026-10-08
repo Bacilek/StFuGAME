@@ -70,13 +70,21 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
     let tray = tray::Tray::build();
     tray.set_state(tray::State::Stopped);
 
-    // Start every account right away (staggered inside start_all), like the previous single-character bot did.
-    // STFU_NO_LOGIN=1 skips this (handy for trying out the window without touching the server).
+    // Only the autostart accounts log in right away (staggered); the rest stay off until switched on.
+    // STFU_NO_LOGIN=1 skips this entirely (handy for trying out the window without touching the server).
     if std::env::var("STFU_NO_LOGIN").is_ok_and(|v| v == "1") {
         report!("[control] STFU_NO_LOGIN=1: not logging any character in");
     } else {
-        control::start_all(rt.handle());
-        report!("[control] Bot started ({} character(s))", control::names().len());
+        let auto: Vec<&str> = accounts.iter().filter(|c| c.autostart).map(|c| c.character.as_str()).collect();
+        for (i, name) in auto.iter().enumerate() {
+            let delay = if i == 0 { 0 } else { i as u64 * 20 + fastrand::u64(0..20) };
+            control::start(rt.handle(), name, delay);
+        }
+        report!(
+            "[control] Bot started ({} of {} character(s) autostart)",
+            auto.len(),
+            control::names().len()
+        );
     }
 
     event_loop.run(move |event, _, control_flow| {

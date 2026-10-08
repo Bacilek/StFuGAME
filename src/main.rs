@@ -61,6 +61,8 @@ pub(crate) struct Credentials {
     pub(crate) character: String,
     /// Optional: only if there are characters with the same name on several servers
     server: Option<String>,
+    /// Starts automatically when the app launches (see `accounts()`).
+    pub(crate) autostart: bool,
 }
 
 /// Logs in via the S&F account, finds the character and downloads its state.
@@ -315,11 +317,20 @@ fn main() -> ExitCode {
 /// All accounts from the environment (.env): `SF_USER`/`SF_PASS`/`SF_CHARACTER` (optional, one account) and
 /// `SF_ACCOUNTS` = `login|password|character;login|password|character;…` (the challenge characters).
 /// `SF_SERVER` applies to all. Never logs the values.
+///
+/// Which ones start automatically when the app launches (user 2026-10-08: add new challenge characters stopped,
+/// test on one first): `SF_AUTOSTART` = `character;character;…` if set (exactly those start). Otherwise only the
+/// `SF_USER`/`SF_CHARACTER` account autostarts; every `SF_ACCOUNTS` entry is added (visible, toggled off) and
+/// starts only when switched on in the app or via "Start all".
 pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
     let server = env_var("SF_SERVER").ok();
+    let autostart = env_var("SF_AUTOSTART")
+        .ok()
+        .map(|list| list.split([';', ',']).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect::<Vec<_>>());
     let mut out = Vec::new();
     if let (Ok(user), Ok(pass), Ok(character)) = (env_var("SF_USER"), env_var("SF_PASS"), env_var("SF_CHARACTER")) {
-        out.push(Credentials { user, pass, character, server: server.clone() });
+        let auto = autostart.as_ref().is_none_or(|a| a.iter().any(|n| n.eq_ignore_ascii_case(&character)));
+        out.push(Credentials { user, pass, character, server: server.clone(), autostart: auto });
     }
     if let Ok(list) = env_var("SF_ACCOUNTS") {
         for (i, entry) in list.split(';').map(str::trim).filter(|e| !e.is_empty()).enumerate() {
@@ -330,11 +341,13 @@ pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
             if out.iter().any(|c: &Credentials| c.character.eq_ignore_ascii_case(character)) {
                 continue;
             }
+            let auto = autostart.as_ref().is_some_and(|a| a.iter().any(|n| n.eq_ignore_ascii_case(character)));
             out.push(Credentials {
                 user: user.to_string(),
                 pass: pass.to_string(),
                 character: character.to_string(),
                 server: server.clone(),
+                autostart: auto,
             });
         }
     }
