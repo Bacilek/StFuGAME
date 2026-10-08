@@ -26,8 +26,8 @@ Updated: 2026-10-08 ~04:15. Rewrite after every bigger change.
   costly-task planner: shell game/lucky-coin spins/beer), Hall of Fame hunt (class/bare-hands fight tasks), guild
   (auto-join the best + daily switch check with a 3-day minimum tenure), guild battle sign-ups.
 - **Character challenge** (`roster/`, entirely local, gitignored): `roster/dashboard.html` is the one page to look
-  at – character tiles + cards (current state) and charts (Gold/XP/dungeons/Hall of Fame rank/mushrooms/strength/
-  simulated win rate, day-by-day, "Why up?" panel explaining win-rate jumps). A daily simulated round-robin runs at
+  at – character tiles + cards (current state) and charts (Gold/XP/dungeons/Arena wins total/Hall of Fame rank/
+  mushrooms/strength/simulated win rate, day-by-day, "Why up?" panel explaining win-rate jumps). A daily simulated round-robin runs at
   23:40, the real daily report (history.csv, issues, dashboard refresh) at 23:50; "Run end of day now" in the app
   does both immediately as a preview (does not count as the real day). `roster/issues.txt` collects every
   character's biggest success + flagged issues for the day – only written at 23:50 or via that preview button, not

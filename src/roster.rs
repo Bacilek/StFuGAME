@@ -574,7 +574,7 @@ fn write_dashboard(demo: bool) {
             continue;
         }
         let num = |r: &BTreeMap<String, String>, k: &str| r.get(k).and_then(|v| v.parse::<f64>().ok());
-        let (mut gold, mut xp, mut mush) = (0.0, 0.0, 0.0);
+        let (mut gold, mut xp, mut mush, mut arena_wins) = (0.0, 0.0, 0.0, 0.0);
         let mut by_date = serde_json::Map::new();
         let mut class = String::new();
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
@@ -584,6 +584,7 @@ fn write_dashboard(demo: bool) {
             gold += num(r, "gold_gained").unwrap_or(0.0);
             xp += num(r, "xp_gained").unwrap_or(0.0);
             mush += num(r, "mushrooms_gained").unwrap_or(0.0);
+            arena_wins += num(r, "arena_wins").unwrap_or(0.0);
             if let Some(c) = r.get("class") {
                 class.clone_from(c);
             }
@@ -591,7 +592,7 @@ fn write_dashboard(demo: bool) {
             by_date.insert(
                 date.clone(),
                 serde_json::json!({
-                    "gold": gold, "xp": xp, "mushrooms": mush,
+                    "gold": gold, "xp": xp, "mushrooms": mush, "arena_wins_total": arena_wins,
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                     "changes": changes.get(date).cloned().unwrap_or_default(),
