@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~16:20. Rewrite after every bigger change.
+Updated: 2026-10-08 ~16:35. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -210,6 +210,18 @@ Updated: 2026-10-08 ~16:20. Rewrite after every bigger change.
   retrigger it either, since `manual` would now read `false` for this same request (already seen). Fixed by
   calling `ctx::eod_done_one()` immediately once `manual` is confirmed true, before doing any of the actual work,
   so exactly one decrement always happens per character per request regardless of what happens afterward.
+- **Chlamydie's Day 0 baseline attributes were still way too low (found and fixed 2026-10-08):** even after
+  adding the borrowed items and the Druid wand, her average Day 0 win rate stayed at ~1%. Built a throwaway
+  `#[ignore]`d test (`fighter_from_day0` for her vs Novotné, printed both fighters) and found why: her *base*
+  attributes (my original hand-picked guess from before any real Day 0 data existed – STR/DEX/INT/CON/LCK
+  5/5/7/6/5) were roughly half of what real level-2 characters actually have. Now that several real ones exist,
+  the pattern is obvious: Mrožik (Mage) and Pjotr (Necromancer) – both INT-main, like Druid – have the *exact
+  same* base block, CON13/DEX9/INT18/LCK12/STR13, suggesting INT-main classes get a fixed stat split at creation
+  regardless of race. Replaced Chlamydie's base attrs with that block (keeping her 2 borrowed items + the Druid
+  wand on top); her simulated win rate vs Novotné went from 0% to 25% – still class-mechanic-skewed (Plague
+  Doctor's poison, see the head-to-head outlier notes) but no longer absurd. Updated
+  `roster/Chlamydie/days/2026-10-07.json` and her `history.csv` strength (17 → 38). Data-only change, no rebuild
+  needed – re-run via "Run end of day now" to regenerate `roster/tournament/2026-10-07.json`.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
