@@ -481,6 +481,18 @@ pub fn write_now(gs: &GameState) {
     let Some(d) = dir() else { return };
     let _ = fs::create_dir_all(&d);
     let _ = fs::write(d.join("now.json"), card_data(gs).to_string());
+
+    // The dashboard rebuild scans every character's folder (O(all characters)); only actually do it once per
+    // `NOW_EVERY` window for the whole process, not once per character on its own independent timer – with ~10
+    // characters all ticking roughly every 10 min, that could otherwise fire close to once a minute (user
+    // 2026-10-08: noticeably slower PC after starting ~10 characters at once).
+    static LAST_DASHBOARD: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+    let Ok(mut last_dashboard) = LAST_DASHBOARD.lock() else { return };
+    if last_dashboard.is_some_and(|t| t.elapsed() < NOW_EVERY) {
+        return;
+    }
+    *last_dashboard = Some(std::time::Instant::now());
+    drop(last_dashboard);
     write_dashboard(false);
 }
 

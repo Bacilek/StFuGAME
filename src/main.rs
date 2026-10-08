@@ -26,7 +26,11 @@ mod tavern;
 mod tournament;
 mod tray;
 
-use std::process::ExitCode;
+use std::{
+    process::ExitCode,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
 use sf_api::{command::Command, error::SFError, gamestate::tavern::CurrentAction};
 
@@ -65,9 +69,32 @@ pub(crate) struct Credentials {
     user_alt: Option<String>,
 }
 
+/// Minimum gap between any two login attempts across ALL characters in this process (reconnects included), so
+/// starting several at once – or several reconnecting together after a shared hiccup – doesn't fire a burst of
+/// simultaneous SSO requests. Found 2026-10-08: several characters toggled on within a few minutes of each other
+/// all failed with `ConnectionError` ("Could not connect to the server") at almost the same moment – `start_all`
+/// already staggers (`control::start_all`), but starting characters one by one from their own tile switches did
+/// not, and neither did simultaneous reconnects.
+const LOGIN_SPACING_SEC: u64 = 4;
+static NEXT_LOGIN_SLOT: Mutex<Option<Instant>> = Mutex::new(None);
+
+async fn throttle_login() {
+    let now = Instant::now();
+    let slot = {
+        let Ok(mut next) = NEXT_LOGIN_SLOT.lock() else { return };
+        let slot = next.unwrap_or(now).max(now);
+        *next = Some(slot + Duration::from_secs(LOGIN_SPACING_SEC));
+        slot
+    };
+    if slot > now {
+        tokio::time::sleep(slot - now).await;
+    }
+}
+
 /// Logs in via the S&F account, finds the character and downloads its state. Tries `user_alt` (if any) when the
 /// primary login is rejected – some accounts were created with a username but only accept the registration email.
 async fn login(c: &Credentials) -> Result<SimpleSession, String> {
+    throttle_login().await;
     report!("Logging in to the S&F account...");
     let sessions = match SimpleSession::login_sf_account(&c.user, &c.pass).await {
         Ok(s) => s,

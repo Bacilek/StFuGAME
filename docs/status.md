@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~14:00. Rewrite after every bigger change.
+Updated: 2026-10-08 ~14:40. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -99,6 +99,21 @@ Updated: 2026-10-08 ~14:00. Rewrite after every bigger change.
   improve the win rate (`docs/arena.md`'s Verification status table tracks this). **Needs a release rebuild
   before it takes effect** – the bot was running again (all characters) when this was written, so the rebuild is
   still pending; `cargo check`/`cargo test` both pass on dev, but the release exe does not have this yet.
+- **Found and fixed a thundering-herd login bug + reduced CPU/IO load (2026-10-08).** The user toggled several
+  challenge characters on one after another (not via "Start all", which already staggers logins –
+  `control::start_all`) and 4 of them (Filminy, Květoš, Mimimimi11, Sanek) failed with `ConnectionError`
+  ("Could not connect to the server") within the same ~5 min window; the PC also got noticeably slower. Fixes:
+  - **`main.rs::throttle_login`**: a process-wide minimum gap (`LOGIN_SPACING_SEC` = 4 s) between ANY two login
+    attempts across all characters, including reconnects after a session loss – not just the initial "Start all"
+    stagger, which didn't cover starting characters one by one from their own tile switch (delay always 0 there)
+    or several reconnecting together.
+  - **Arena's `SIM_ITERATIONS` 300 → 100** (see the entry above) – 3 candidates × up to ~10 characters every
+    ~10 min adds up; 100 is still plenty to rank 3 candidates.
+  - **`roster::write_now`**: the dashboard rebuild (scans every character's folder – O(all characters)) now only
+    actually runs once per 10-min window for the whole process, not once per character on its own independent
+    timer (previously could fire close to once a minute with ~10 characters running).
+  Not yet verified that this actually fixes the connection errors or the slowdown – needs a release rebuild and
+  another multi-character start to confirm.
 
 ## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
 - **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set

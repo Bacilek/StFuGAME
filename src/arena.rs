@@ -41,9 +41,11 @@ pub const MAX_WINS_PER_DAY: usize = 10;
 /// Simulated fights per candidate opponent (sf-api's own battle simulator – the same one `tournament.rs` uses for
 /// the daily duels), to estimate our actual win chance rather than the coarse `strength()` formula, which ignores
 /// weapon damage, crit/block and class matchups (user 2026-10-08: a long real losing streak against "the weakest
-/// of 3" picked by `strength()` alone). Lower than the tournament's 1000 since this runs every ~10 min per
-/// character, not once a day.
-const SIM_ITERATIONS: u32 = 300;
+/// of 3" picked by `strength()` alone). Much lower than the tournament's 1000 (once a day, 1 pair at a time) –
+/// this runs every ~10 min, 3 candidates at a time, times every running character, and the user noticed the PC
+/// getting noticeably slower after starting ~10 of them at once (2026-10-08); 100 is still plenty to rank 3
+/// candidates against each other.
+const SIM_ITERATIONS: u32 = 100;
 /// The Arena journal of the current character (`roster/<character>/logs/arena.jsonl`).
 fn log_file() -> String {
     crate::ctx::log_path("arena.jsonl")
