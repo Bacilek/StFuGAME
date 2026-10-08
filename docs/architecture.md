@@ -19,7 +19,7 @@
 | `hunt.rs` | Hall of Fame hunt for fight tasks (class, bare hands, no chest plate): weak opponent far below our rank. |
 | `potions.rs` | Potions: target set main + CON + Eternal Life/Luck, drink from the backpack, shop steps (bought in shops.rs). |
 | `roster.rs` | Character challenge report into `roster/` (local only): notes from progress messages, 23:50 daily report, card, leaderboard. |
-| `app.rs` | The app window: tao event loop + wry WebView2 showing `roster/app.html` (tiles, per-character on/off, Charts tab). |
+| `app.rs` | The app window: tao event loop + wry WebView2, served over a custom `app://` protocol (not `file://`, see `docs/controls.md`) showing `roster/app.html` (tiles, per-character on/off, Charts tab). |
 | `control.rs` | Starting/stopping individual characters (abort handle per character), status for the app window/tray icon. |
 | `ctx.rs` | Several characters: task-local `CHARACTER`, `PerChar<T>` (per-character state with the `Mutex::lock` API), per-character log paths, the manual end-of-day request. |
 | `guard.rs` | City Guard: `StartWork`/`FinishWork`, length so it ends 00:00–00:59. |

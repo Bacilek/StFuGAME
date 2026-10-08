@@ -55,15 +55,15 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - Startup/crash errors must always reach a dialog (`tray::message_box`), never just the log – the release build has
   no console, so a silently-failed `accounts()` or a panic looks like "nothing happens" to the user.
 
-- **Bug found 2026-10-08: none of the app window's controls (switches, Start all/Stop all, …) worked** – confirmed
-  by the complete absence of `[control] App window: …` log lines despite the user clicking them. The `post()`
-  helper swallowed any `window.ipc.postMessage` error silently (`catch (e) {}`), so nothing showed the failure
-  (the switch still *looked* like it did something for ~5 s thanks to the optimistic debounce below, then
-  reverted once that window expired and the real, unchanged backend state won). Root cause not pinned down yet
-  (wry's documented `window.ipc.postMessage` bridge should work regardless of the page being loaded via
-  `file://`) – fixed defensively: errors now show in a red bar at the top of the window and devtools are enabled
-  (`.with_devtools(true)`, right click → Inspect or F12) so a real stack trace is visible next time instead of
-  silence. If it recurs, check that bar / the console before anything else.
+- **Root cause found and fixed 2026-10-08: the app window loaded `app.html` over `file://`, and Chromium/WebView2
+  treats every `file://` page as its own unique, untrusted origin.** This silently breaks wry's `window.ipc`
+  injection (confirmed in devtools: `window.ipc` was `undefined`) and blocked the dashboard iframe (console:
+  `'file:' URLs are treated as unique security origins`) – with no exception on the page and nothing in the log,
+  so every control looked like it "did nothing". Fixed by serving the app over a custom `app://localhost/…`
+  protocol instead (`wry`'s `with_custom_protocol`, backed by a small handler that reads files from `roster/`) –
+  custom-protocol pages get a single stable origin, same mechanism official wry examples use instead of `file://`.
+  Devtools stay enabled (right click → Inspect or F12) and IPC errors still show as a red bar at the top, as a
+  safety net for the future.
 - Opening the app no longer force-starts every character: each character's on/off switch position is remembered
   in `roster/switches.json` (local only) across restarts. Only on the very first run (no saved file yet) does
   `SF_AUTOSTART` / the `SF_USER` account's default apply; after that, the switches are the single source of

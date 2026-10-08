@@ -392,7 +392,11 @@ fn log_tasks(gs: &GameState) {
             tasks.iter().map(|t| format!("{:?} {}/{} ({} p)", t.typ, t.current, t.target, t.point_reward)).collect();
         report!("[tasks] {name} tasks: {}", list.join(", "));
         for (i, c) in chests.iter().enumerate() {
-            let rewards: Vec<String> = c.rewards.iter().map(|r| format!("{:?} {}", r.typ, r.amount)).collect();
+            let rewards: Vec<String> = c
+                .rewards
+                .iter()
+                .map(|r| crate::report::reward(&format!("{:?}", r.typ), i64::try_from(r.amount).unwrap_or(i64::MAX)))
+                .collect();
             report!(
                 "[tasks] {name} chest {} ({} points{}): {}",
                 i + 1,

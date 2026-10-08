@@ -2,8 +2,13 @@
 //! "Charts" tab (the dashboard). Built with `tao` (window + the single Win32 message loop, also pumping the
 //! tray icon's events) and `wry` (an OS WebView2 control showing `app.html`, which embeds `dashboard.html`
 //! in an iframe). Closing the window only hides it; the tray icon's "Exit" ends the process.
+//!
+//! Served over the `app://` custom protocol (`app://localhost/…`), NOT `file://` (bug found 2026-10-08:
+//! Chromium/WebView2 treats every `file://` page as its own unique, untrusted origin, which silently breaks
+//! both wry's `window.ipc` injection and the dashboard iframe – console: "'file:' URLs are treated as unique
+//! security origins", no exception, nothing in the log, just a native message that quietly goes nowhere).
 
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 use tao::{
     dpi::LogicalSize,
@@ -13,7 +18,7 @@ use tao::{
 };
 use tokio::runtime::Runtime;
 use tray_icon::menu::MenuEvent;
-use wry::WebViewBuilder;
+use wry::{WebViewBuilder, http};
 
 use crate::{control, tray};
 
@@ -25,10 +30,28 @@ enum AppEvent {
     Tick,
 }
 
-/// A `file:///…` URL for a local file, forward slashes, so relative links (the dashboard iframe) resolve.
-fn file_url(path: &Path) -> Option<String> {
-    let abs = std::path::absolute(path).ok()?;
-    Some(format!("file:///{}", abs.to_string_lossy().replace('\\', "/")))
+/// Serves files from `roster/` over the `app://` custom protocol (see module doc for why not `file://`).
+fn serve_asset(_id: wry::WebViewId, request: http::Request<Vec<u8>>) -> http::Response<Cow<'static, [u8]>> {
+    let path = request.uri().path().trim_start_matches('/');
+    let path = if path.is_empty() { "app.html" } else { path };
+    let content_type = if path.ends_with(".html") {
+        "text/html; charset=utf-8"
+    } else if path.ends_with(".js") {
+        "text/javascript; charset=utf-8"
+    } else {
+        "application/octet-stream"
+    };
+    let empty = || http::Response::new(Cow::Borrowed(&[] as &[u8]));
+    match std::fs::read(Path::new("roster").join(path)) {
+        Ok(bytes) => http::Response::builder()
+            .header("Content-Type", content_type)
+            .body(Cow::Owned(bytes))
+            .unwrap_or_else(|_| empty()),
+        Err(e) => {
+            report!("[control] App window: asset {path} not found: {e}");
+            http::Response::builder().status(404).body(Cow::Borrowed(&[] as &[u8])).unwrap_or_else(|_| empty())
+        }
+    }
 }
 
 /// Builds the window + webview and runs the one message loop for the whole app (icon + window). Never returns.
@@ -37,10 +60,6 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
 
     let _ = std::fs::create_dir_all("roster");
     let _ = std::fs::write("roster/app.html", include_str!("app.html"));
-    let Some(url) = file_url(Path::new("roster/app.html")) else {
-        report!("Could not build the file:// URL for the app window");
-        std::process::exit(1);
-    };
 
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
@@ -62,7 +81,8 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
 
     let rt_handle = rt.handle().clone();
     let webview = WebViewBuilder::new()
-        .with_url(url)
+        .with_custom_protocol("app".to_string(), serve_asset)
+        .with_url("app://localhost/app.html")
         .with_ipc_handler(move |req| handle_ipc(&rt_handle, req.body()))
         // Right click → Inspect (or F12) to see the console if the window ever misbehaves again.
         .with_devtools(true)
