@@ -20,9 +20,14 @@
 - Selling: `SellShop` (sf-api picks the shop and slot itself), costs no mushrooms. Equipping: `Equip`, the removed item drops into the backpack
   and is evaluated in the next step (sold unless epic).
 - Epic = `Item::is_epic()` (model_id ≥ 50, includes legendary).
+- Assassin dual-wields: a weapon in the backpack can go into either `Weapon` or `Shield` (sf-api types the
+  off-hand weapon as `ItemType::Weapon` too, not `Shield` – only Paladin/Warrior ever get a real shield there,
+  per sf-api's `Class::can_wear_shield`). A new weapon competes against whichever of the two is currently
+  weaker (or empty) and is equipped into that slot (2026-10-08, ahead of Sanek/Assassin's first run).
 
 ## Verification status
 | What | Status |
 |---|---|
 | After `Equip` the old item drops into the backpack | ✅ 2026-10-07 (boots, weapon) |
 | Selling via `SellShop` adds silver | ✅ 2026-10-07 (boots for 1 g 25 s) |
+| Assassin off-hand weapon (Shield slot) gets filled/upgraded correctly | ⏳ not verified (no Assassin has run yet) |
