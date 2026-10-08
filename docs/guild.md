@@ -65,8 +65,8 @@
 | What | Status |
 |---|---|
 | Quick-join list request + response | ✅ captured 2026-10-07, parsing covered by tests |
+| Bot: list loads, decision logged (`[guild]`) | ✅ 2026-10-08 (`Staying in Venom (Instructor 93), no guild in the list is clearly better`) |
+| Leaving + joining by the bot | ✅ happened between 2026-10-07 evening and 2026-10-08 (character moved from Artušova Garda to Venom) |
 | Join command + response | ✅ captured 2026-10-07 |
-| Bot: list loads, decision logged (`[guild]`) | ⏳ not verified |
 | `gs.guild.total_instructor_skill` = Instructor from the list (106 for Artušova Garda) | ⏳ not verified |
 | Sign-up for attack/defense (`[guild] Signing up`), whether `Poll` refreshes planned battles | ⏳ not verified |
-| Leaving + joining by the bot | ⏳ not verified (only when a clearly better guild appears) |

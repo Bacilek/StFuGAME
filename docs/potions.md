@@ -34,12 +34,14 @@
   Max 4 such purchases a day. Spinning: gold potions are spin candidates while the stock is below 4 (kept, not sold).
 - `safe.rs`: `UsePotion` only for a potion in the backpack, `RemovePotion` only per `potions::removal_ok`.
 
+- Stock purchases confirmed 2026-10-08 (`[shops] Potion: buying … for the stock (0 in the backpack)`, count rising).
+
 ## Verification status
 | What | Status |
 |---|---|
-| Active potions parsed (type, size, expiry) | ⏳ not verified |
-| `UsePotion` from the backpack activates the potion | ⏳ not verified |
-| `RemovePotion` frees the slot | ⏳ not verified |
-| Drinking a bigger potion of an active type (replace vs. stack) | ⏳ not verified |
+| Active potions parsed (type, size, expiry) | ✅ 2026-10-08 (targets correctly picked STR/CON/LCK for the class) |
+| `UsePotion` from the backpack activates the potion | ✅ 2026-10-08 (`[shops] buying and drinking` → `[potions] Drinking … from the backpack`) |
+| `RemovePotion` frees the slot | ⏳ not seen yet (needs a full backpack + a smaller active potion) |
+| Drinking a bigger potion of an active type (replace vs. stack) | ⏳ not seen yet |
 | Drinking the same type while active extends it (stacking) | ✅ 2026-10-07 per the user; bot behaviour not verified |
 | Selling a potion via `SellShop` | ✅ possible in either shop per the user; bot not verified |

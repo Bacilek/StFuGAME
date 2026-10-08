@@ -44,9 +44,9 @@
 ## Verification status
 | What | Status |
 |---|---|
-| Gold-only items have `mushroom_price == 0` | ⏳ not verified |
-| `BuyShop` costs only gold, mushrooms unchanged | ⏳ not verified |
-| After a purchase the shop slot gets a new item (and `Update` shows it) | ⏳ not verified |
-| Spin cost (purchase vs sale price) | ⏳ not verified |
+| Gold-only items have `mushroom_price == 0` | ✅ 2026-10-08 (many purchases, mushroom watchdog never tripped) |
+| `BuyShop` costs only gold, mushrooms unchanged | ✅ 2026-10-08 (mushrooms stayed at 18 across many buys) |
+| After a purchase the shop slot gets a new item (and `Update` shows it) | ✅ 2026-10-08 (repeated buys in the same shop succeed, no "did not change" abort) |
+| Spin cost (purchase vs sale price) | ✅ seen (e.g. 2026-10-07 spin cost 1.03–6.59 g) |
 | A bought hourglass: backpack item or straight to the hourglass counter? | ⏳ not verified |
 | Shopping works during City Guard | ✅ 2026-10-07 per the user (everything works during a shift); bot run not seen yet |

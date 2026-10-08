@@ -2,3 +2,63 @@
 2026-10-08 01:50:10 Account login failed: Could not connect to the server (wrong SF_SERVER address or no connection)
 2026-10-08 02:35:29 Logging in to the S&F account...
 2026-10-08 02:35:30 Loading character TestChar1 on s31.sfgame.eu...
+2026-10-08 02:35:39 Character: TestChar1
+2026-10-08 02:35:39 Level:     13
+2026-10-08 02:35:39 Gold:      161.70 g
+2026-10-08 02:35:39 Mushrooms: 18
+2026-10-08 02:35:39 Tavern:
+2026-10-08 02:35:39   Thirst for Adventure: 100 min 0 s
+2026-10-08 02:35:39   Beers:  0/10
+2026-10-08 02:35:39   Status: City Guard until 23:06:37
+2026-10-08 02:35:39 Daily login bonus: next 08.10. 00:00 (collected 0×)
+2026-10-08 02:35:39 Wheel of Fortune: next free spin 08.10. 00:00
+2026-10-08 02:35:39 Mount: Some(Dragon) until 21.10. 13:30
+2026-10-08 02:35:39 [rewards] Collecting the daily login bonus: Fruit(Light) x5
+2026-10-08 02:35:45 [rewards] Spinning the Wheel of Fortune (free)
+2026-10-08 02:35:50 [rewards] Wheel of Fortune: WoodXL x2
+2026-10-08 02:35:53 [guild] Staying in Venom (Instructor 93), no guild in the list is clearly better
+2026-10-08 02:35:53 [guild] Signing up for the guild attack at 08.10. 11:42
+2026-10-08 02:35:57 [guild] Sign-up failed: Server responded with error: not 24 hours member (retry in an hour)
+2026-10-08 02:36:07 [arena] Opponent floky (lvl 11, PlagueDoctor): strength 88
+2026-10-08 02:36:11 [arena] Opponent k1NG (lvl 22, Berserker): strength 268
+2026-10-08 02:36:17 [arena] Opponent Calizard (lvl 17, Paladin): strength 264
+2026-10-08 02:36:17 [arena] Challenging: floky (strength 88)
+2026-10-08 02:36:23 [arena] Fight 1 today – Win: honor +111, gold +0.00 g, xp +98
+2026-10-08 02:36:23 [arena] Wins for XP today: 1/10
+2026-10-08 02:36:23 [arena] Next free fight at 02:46:17
+2026-10-08 02:36:26 [dungeons] Task: defeat monsters in Light(TrainingCamp)
+2026-10-08 02:36:26 [dungeons] Light(DesecratedCatacombs): Ghost (lvl 10, strength 194)
+2026-10-08 02:36:26 [dungeons] Light(TrainingCamp): Flying Francis (lvl 7, strength 147)
+2026-10-08 02:36:26 [dungeons] Fighting: Light(TrainingCamp) – Flying Francis (lvl 7)
+2026-10-08 02:36:31 [dungeons] Win: xp +716, gold +0.00 g, item no
+2026-10-08 02:36:33 [dungeons] Next free fight at 03:36:27
+2026-10-08 02:36:33 [tavern] The character is busy (CityGuard { hours: 6, busy_until: 2026-10-07T23:06:37+02:00 }), skipping the Tavern
+2026-10-08 02:36:33 [shops] Buying an upgrade: Belt from the Weapon shop (slot 1) for 19.44 g (value 8.0 > 4.4)
+2026-10-08 02:36:40 [inventory] selling BreastPlate (value 0.9 ≤ 3.0 of the equipped one)
+2026-10-08 02:36:47 [inventory] Sold for 4.62 g
+2026-10-08 02:36:51 [inventory] equipping Belt (value 8.0 > 4.4 of Belt)
+2026-10-08 02:36:58 [inventory] selling Belt (value 4.4 ≤ 8.0 of the equipped one)
+2026-10-08 02:37:03 [inventory] Sold for 1.32 g
+2026-10-08 02:37:10 [shops] Potion: buying and drinking Strength 10 %
+2026-10-08 02:37:21 [potions] Drinking Strength 10 % from the backpack
+2026-10-08 02:37:24 [shops] Potion: buying Dexterity 10 % for the stock (0 in the backpack)
+2026-10-08 02:37:32 [shops] Potion: buying Intelligence 10 % for the stock (1 in the backpack)
+2026-10-08 02:37:44 [shops] Buying an upgrade: Ring from the Magic shop (slot 5) for 10.10 g (value 1.8 > 1.4)
+2026-10-08 02:37:56 [inventory] equipping Ring (value 1.8 > 1.4 of Ring)
+2026-10-08 02:38:06 [inventory] selling Ring (value 1.4 ≤ 1.8 of the equipped one)
+2026-10-08 02:38:09 [inventory] Sold for 3.00 g
+2026-10-08 02:38:15 [shops] Buying an upgrade: Ring from the Magic shop (slot 5) for 2.25 g (value 3.2 > 1.8)
+2026-10-08 02:38:25 [inventory] equipping Ring (value 3.2 > 1.8 of Ring)
+2026-10-08 02:38:36 [inventory] selling Ring (value 1.8 ≤ 3.2 of the equipped one)
+2026-10-08 02:38:41 [inventory] Sold for 2.52 g
+2026-10-08 02:38:45 [shops] Spin 1: buying Gloves from the Weapon shop (slot 5) for 4.07 g to sell it again
+2026-10-08 02:38:52 [inventory] selling Gloves (value 9.0 ≤ 12.0 of the equipped one)
+2026-10-08 02:38:55 [inventory] Sold for 1.01 g
+2026-10-08 02:38:59 [shops] Spin cost 3.06 g
+2026-10-08 02:38:59 [shops] Spin 2: buying Weapon { min_dmg: 20, max_dmg: 24 } from the Weapon shop (slot 5) for 10.40 g to sell it again
+2026-10-08 02:39:10 [inventory] selling Weapon { min_dmg: 20, max_dmg: 24 } (value 80.8 ≤ 103.2 of the equipped one)
+2026-10-08 02:39:14 [inventory] Sold for 2.60 g
+2026-10-08 02:39:21 [shops] Spin cost 7.80 g
+2026-10-08 02:39:21 [shops] Spin 3: buying Amulet from the Magic shop (slot 5) for 12.80 g to sell it again
+2026-10-08 02:39:27 [inventory] selling Amulet (value 8.0 ≤ 12.0 of the equipped one)
+2026-10-08 02:39:31 [inventory] Sold for 3.20 g
