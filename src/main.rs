@@ -349,7 +349,9 @@ pub(crate) fn accounts() -> Result<Vec<Credentials>, String> {
         out.push(Credentials { user, pass, character, server: server.clone(), user_alt });
     }
     if let Ok(list) = env_var("SF_ACCOUNTS") {
-        for (i, entry) in list.split(';').map(str::trim).filter(|e| !e.is_empty()).enumerate() {
+        // Entries may be separated by ';' (one line) or by a newline (one account per line, inside a quoted
+        // multi-line value – dotenvy supports that: SF_ACCOUNTS="login1|...\nlogin2|...").
+        for (i, entry) in list.split(['\n', '\r', ';']).map(str::trim).filter(|e| !e.is_empty()).enumerate() {
             let parts: Vec<&str> = entry.split('|').map(str::trim).collect();
             let (user, pass, character, user_alt) = match parts[..] {
                 [user, pass, character] => (user, pass, character, None),
