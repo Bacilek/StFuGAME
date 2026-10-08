@@ -843,7 +843,7 @@ mod tests {
             ("Květoš", "DemonHunter"),
             ("PajaRizz", "Bard"),
             ("Pjotr", "Necromancer"),
-            ("MimiMimi11", "Paladin"),
+            ("Mimimimi11", "Paladin"),
             ("TestChar1", "Warrior"),
             ("Radek", "Druid"),
             ("Novotné", "PlagueDoctor"),

@@ -443,6 +443,21 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
   throttle itself. Since the server-side reason doesn't change until the character hits 24 h membership anyway,
   bumped `RETRY_SEC` 3600 → 14400 (4 h) to cut down the noise; left as in-memory (not persisted across
   reconnects/restarts) since those are rare. See `docs/guild.md`.
+- **Fixed Mimimimi11 missing from the dashboard's winrate chart/movers feed and wrong (grey "Other") matrix
+  color (2026-10-09, user report):** `roster/roster.md`'s table had the nick spelled `MimiMimi11` (capital M
+  mid-word), while the actual roster directory/`.env` character name is `Mimimimi11` (capital M only at the
+  start) – confirmed by `roster/Mimimimi11/` on disk and consistent usage everywhere else (`docs/status.md`
+  prose, dashboard JSON). `tournament::participants()` reads nicks straight from `roster.md`, so the daily
+  win-rate map was keyed `MimiMimi11` while `roster::write_dashboard` looks characters up by their directory
+  name `Mimimimi11` – an exact, case-sensitive string match that never hit. Effect: `winrate` stayed `null`
+  for every day → filtered out of the chart (`v!=null` checks) and the movers/"changes" side panel (`!isNaN`
+  checks on a null-derived NaN), and in the head-to-head matrix `classOf()` (keyed off the same nick) found no
+  matching character, so it fell back to the generic `--Other` grey instead of Paladin gold. Fixed by
+  correcting the nick in `roster.md` to `Mimimimi11`; also fixed the same stale casing in `src/roster.rs`'s
+  `demo_dashboard` test data for consistency. Not touched: already-written `roster/tournament/2026-10-07.json`
+  and `2026-10-08.json` still have the old casing baked in, so those two historical days will keep showing a
+  gap for this character; every day from today (`2026-10-09`) onward regenerates with the corrected nick and
+  should line up normally. **Needs the next daily report/dashboard regen to verify live.**
 
 ## Next steps (not started)
 - Add PajaRizz + Chlamydie to `.env`'s `SF_ACCOUNTS` (blocks `MrozikMarta@seznam.cz|mrozikChall1|Mrožik` already
