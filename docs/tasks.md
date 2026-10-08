@@ -50,7 +50,7 @@
   remaining spins incl. the free one; enough beers left today) take the one reaching the highest unopened chest above
   "expected", and the cheapest for it (weights per unit: shell game 1, lucky coin 10, beer 100). A chest counts only if it
   is worth it (`chest_worth`): beers → chest mushrooms ≥ beers; lucky coins → chest has mushrooms or ≥ as many lucky coins as spent (10 per spin).
-  Run after the Tavern and the shops: shell game (bet 1 silver, `GAMBLE_BET`, verify the minimum; stop below 5 g),
+  Run after the Tavern and the shops: shell game (bet 1 silver, `GAMBLE_BET`, accepted by the server; stop below 5 g),
   then lucky-coin spins, then one beer per pass (beer gives Thirst for Adventure, the Tavern runs before the next one).
   `safe.rs` re-checks: `gamble_ok` (bet ≤ 1/10 gold, ≥ 5 g), `lucky_spin_justified`, `beer_justified`; the watchdog allows
   exactly 1 mushroom per beer.
@@ -76,7 +76,7 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | Chest claim (`DailyTaskClaim`) | ⏳ not verified |
 | `UpgradeSkill` buys an attribute for gold, task counter rises | ⏳ not verified |
 | `GuildIncreaseSkill` for gold, task counter rises | ⏳ not verified |
-| Shell game: minimal bet 1 silver accepted? result in `gamble_result` | ✅ 2026-10-07: accepted, `SilverChange(-1)` on a loss. But 10 losses in a row (0.67^10 ≈ 2 %) – does a 1-silver bet ever win / count? Watch. |
+| Shell game: minimal bet 1 silver accepted? result in `gamble_result` | ✅ accepted; wins do happen too (2026-10-08: two `SilverChange(+1)` in a row, net `+0.02 g` for the session – the earlier 10-loss streak was just bad luck) |
 | Shop task purchase counts for `BuyWeaponInWeaponsShop` / `BuyFromShop` | ⏳ not verified |
 | `SpendGoldOnUpgrades` unit (silver or gold?) and whether attributes count | ⏳ not verified |
 | Beer for a task: 1 mushroom each, chest opens | ⏳ not verified (only when it happens) |
