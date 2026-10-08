@@ -32,3 +32,8 @@ Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá be
 - [ ] Věž, mazlíčci, pevnost, podsvětí – až budou na postavě odemčené
 - [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
 - [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expeditions.md`)
+- [ ] Týdenní server-wide eventy (sf-api: `gs.specials.events.active`, typ `Event`, s koncem `events.ends`) – bot je nikde nečte.
+  2026-10-09 běží Epic Shopping Spree, Epic Good Luck, Forge Frenzy Festival, Tidy Toilet Time zároveň. Shopping
+  Spree / Good Luck nevyžadují žádnou změnu kódu (jen vyšší šance na lepší věci, které beztak zpracováváme stejně).
+  Forge Frenzy (kovárna/sockety) a Tidy Toilet (záchod/pevnost) se týkají funkcí, které bot vůbec neautomatizuje
+  (viz "Záchod" a "Věž, mazlíčci, pevnost" výše) – případná automatizace by byla nová featura, ne reakce na event.
