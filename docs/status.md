@@ -54,8 +54,19 @@ Updated: 2026-10-08 ~05:00. Rewrite after every bigger change.
   she went from level 2 to 13+ within her first run (Training Camp farming) before any report was ever written, so
   no accurate pre-bot snapshot of her exists; only `notes.log`'s classified events survive (first login ~04:08,
   first dungeon win ~04:14, "Level up: 2 → 4" at 04:18), which only gives a rough lower bound, not real gold/rank/
-  item data. No manual backfill has been done for her yet – ask the user if/how to handle her baseline (e.g. just
-  let her first dashboard point start already elevated, flagged as not comparable to day 0).
+  item data.
+- **Chlamydie's Day 0 manually backfilled (2026-10-08, user request: "zasimuluj druid starting stats"):**
+  `roster/Chlamydie/history.csv` and `roster/Chlamydie/days/2026-10-07.json` were written by hand (not from real
+  data – there is none) with generic, approximate "level 2, fresh Druid, one tutorial run + 2 items" numbers:
+  level 2, honor 100, strength 17 (base STR/DEX/INT/CON/LCK 5/5/7/6/5 + two starting items, via the Arena strength
+  formula), gold 0.25, no mushrooms/guild/potions. **Rank 45000 is the shakiest guess of the set** – there is no
+  real reference point for a fresh level-2 rank on this world; revisit if the user has a better number.
+  This fixes her Gold/XP/rank/strength line charts (picked up automatically by the next `write_now`, within
+  ~10 min while she keeps running). It does **not** fix the duel/tournament baseline: `tournament::run_day0` can
+  only simulate a battle from a character's *live* `ViewPlayer` data, so as soon as any other character joins a
+  Day 0 round, Chlamydie would be pulled in with her real (already level 13+) stats, not the simulated level-2
+  ones – unfair against others' genuinely fresh Day 0. Not solved; flagged for the user, since faking a full
+  synthetic opponent (equipment etc.) for `simulate_battle` felt too fragile/invasive to do silently.
 - **`SF_ACCOUNTS` / `SF_USER` optional 4th field / `SF_USER_ALT`:** an account can list a fallback login (e.g. the
   registration email) alongside the username; `main.rs::login` tries the primary login first and only retries with
   the fallback if that is rejected (user 2026-10-08: prefer the username, but some accounts need the email).
