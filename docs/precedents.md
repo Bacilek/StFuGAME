@@ -56,7 +56,7 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-07 | Daily win rate | The round robin is simulated every day; the average win rate is a dashboard metric "Win rate [%]" and in the table under the chart (always visible). |
 | 2026-10-07 | Challenge pages | Only the dashboard (`roster/dashboard.html`) – the character card, daily HTML pages and the separate tournament page are not needed. |
 | 2026-10-07 | Win rate jumps | On the Win rate tab a panel on the right explains big jumps (new epic weapon, level, attributes, potions, guild) from daily character snapshots. |
-| 2026-10-07 | Daily duels time | The simulated duels run at 23:20, the report at 23:50. |
+| 2026-10-08 | Daily duels time | The simulated duels run at 23:40 (was 23:20), the report at 23:50 – 10 min is enough buffer for the round robin to finish. |
 | 2026-10-08 | Several characters | One process, every character in its own task (the "proper" way, chosen by the user). Accounts via `SF_ACCOUNTS` in .env, all on the same server. |
 | 2026-10-08 | App GUI | The dashboard is the GUI (no native window): character tiles, click = card with the current state (refreshed ~10 min), charts below. |
 | 2026-10-08 | Desktop app | One window (tao+wry/WebView2) instead of tray-only: character tiles with individual on/off switches, a card per character, and a Charts tab (the dashboard). The tray icon stays for global start/stop/exit. |

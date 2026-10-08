@@ -28,7 +28,7 @@ Updated: 2026-10-08 ~04:15. Rewrite after every bigger change.
 - **Character challenge** (`roster/`, entirely local, gitignored): `roster/dashboard.html` is the one page to look
   at – character tiles + cards (current state) and charts (Gold/XP/dungeons/Hall of Fame rank/mushrooms/strength/
   simulated win rate, day-by-day, "Why up?" panel explaining win-rate jumps). A daily simulated round-robin runs at
-  23:20, the real daily report (history.csv, issues, dashboard refresh) at 23:50; "Run end of day now" in the app
+  23:40, the real daily report (history.csv, issues, dashboard refresh) at 23:50; "Run end of day now" in the app
   does both immediately as a preview (does not count as the real day). `roster/issues.txt` collects every
   character's biggest success + flagged issues for the day – only written at 23:50 or via that preview button, not
   continuously (the underlying per-character `notes.log` **is** written continuously, in case a manual read is
@@ -62,7 +62,7 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 | What | When | Record in |
 |---|---|---|
 | Guild battle sign-up actually succeeding (24 h membership + now 3-day tenure gate) | a few days into a guild membership | `docs/guild.md` |
-| Daily report + simulated duels actually firing at 23:20/23:50 on a day the bot runs that long | any evening the bot is left running | `roster/README.md` |
+| Daily report + simulated duels actually firing at 23:40/23:50 on a day the bot runs that long | any evening the bot is left running | `roster/README.md` |
 | Potions: `RemovePotion`, replacing a smaller active potion (needs a full backpack) | whenever it happens | `docs/potions.md` |
 | Hourglasses bought while spinning: backpack item or straight to the counter? | next spin that offers one | `docs/shops.md` |
 | Lucky-coin wheel spin actually counting for the Gleeman task | next time it's needed | `docs/tasks.md` |

@@ -216,13 +216,13 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
 
         // Daily report for the character challenge at ~23:50 (roster/, local only)
-        // Simulated duels of all challenge characters at 23:20 (win rate for the dashboard)
+        // Simulated duels of all challenge characters at 23:40 (win rate for the dashboard)
         if let Some(day) = tournament::due_today()
             && let tavern::Outcome::SessionLost = tournament::run(session, day).await
         {
             return tavern::Outcome::SessionLost;
         }
-        // "Run end of day now" from the icon menu: duels + report as a preview (the 23:20/23:50 runs replace it)
+        // "Run end of day now" from the icon menu: duels + report as a preview (the 23:40/23:50 runs replace it)
         let manual = ctx::take_end_of_day_request();
         if manual {
             report!("[roster] Manual end of day (preview)");

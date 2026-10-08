@@ -1,4 +1,5 @@
-//! Round-robin of the challenge characters (user 2026-10-07): every day at 23:50 every character "fights" every other one;
+//! Round-robin of the challenge characters: every day at 23:40, 10 min before the 23:50 report (user 2026-10-07,
+//! time moved from 23:20 user 2026-10-08), every character "fights" every other one;
 //! the average win rate and the head-to-head go to the dashboard (no separate tournament page any more). Simulated with sf-api's fight simulator (the server's rules) `ITERATIONS` times
 //! per pair, so the result is a fair win rate instead of one random fight – no Arena cooldown, no honor lost.
 //! Participants = the characters in `roster/roster.md`, loaded via `ViewPlayer` (the bot's own character from its
@@ -49,7 +50,7 @@ pub fn start_date() -> Option<NaiveDate> {
 }
 
 /// Today's challenge day if today's round has not been simulated yet (every day).
-/// The daily duels run at 23:20 (user 2026-10-07), before the 23:50 report.
+/// The daily duels run at 23:40 (user 2026-10-08, was 23:20), before the 23:50 report.
 pub fn due_today() -> Option<i64> {
     let now = Local::now();
     let today = now.date_naive();
@@ -59,7 +60,7 @@ pub fn due_today() -> Option<i64> {
 }
 
 fn run_time(date: NaiveDate) -> chrono::DateTime<Local> {
-    let t = chrono::NaiveTime::from_hms_opt(23, 20, 0).unwrap_or_default();
+    let t = chrono::NaiveTime::from_hms_opt(23, 40, 0).unwrap_or_default();
     date.and_time(t).and_local_timezone(Local).earliest().unwrap_or_else(Local::now)
 }
 
@@ -131,7 +132,7 @@ pub fn today() -> i64 {
     (today - start_date().unwrap_or(today)).num_days() + 1
 }
 
-/// Allows the duels to run again today (manual "end of day now"; the 23:20 run then replaces the round).
+/// Allows the duels to run again today (manual "end of day now"; the 23:40 run then replaces the round).
 pub fn unlock_today() {
     let dir = Path::new(ROOT).join("tournament");
     let date = Local::now().date_naive();
@@ -203,13 +204,13 @@ pub async fn run(session: &mut SimpleSession, day: i64) -> Outcome {
     });
     let date = Local::now().date_naive();
     let _ = fs::write(dir.join(format!("{date}.json")), round.to_string());
-    // After 23:20 this is the day's real round (a manual run earlier is only a preview)
+    // After 23:40 this is the day's real round (a manual run earlier is only a preview)
     if Local::now() >= run_time(date) {
         let _ = fs::write(dir.join(format!("{date}.final")), "");
     }
     report!("[tournament] Day {day} done ({n} characters, {} missing){}", missing.len(), if preview { ", preview" } else { "" });
     if preview {
-        // the real 23:20 run must still be able to take the lock
+        // the real 23:40 run must still be able to take the lock
         let _ = fs::remove_file(&lock);
     }
     Outcome::Done

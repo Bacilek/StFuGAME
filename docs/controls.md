@@ -8,7 +8,7 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
   card with that character's current state (gold, mushrooms, attributes, potions, achievements %, collection,
   dungeons, equipment, guild) – the same data the dashboard's tiles show, refreshed every ~10 min while it plays.
 - Buttons in the header: **Start all / Stop all**, **Run end of day now** (preview: duels + report + dashboard
-  right away; the real 23:20/23:50 runs replace it, nothing counts twice), **Open in browser** (the dashboard as
+  right away; the real 23:40/23:50 runs replace it, nothing counts twice), **Open in browser** (the dashboard as
   a normal web page, e.g. to share the link elsewhere).
 - Each tile shows what the character is doing right now (Idle / City Guard / Expedition (choosing/boss/reward/
   waiting) / Quest) with a live countdown to when that ends, when the server gives an end time (City Guard,
