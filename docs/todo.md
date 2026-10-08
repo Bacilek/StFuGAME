@@ -6,7 +6,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Nákup ve zbrojírně (`docs/shops.md`, čeká na ověření)
 - [x] Nákup v čarovném obchodě
 - [x] Točení v obchodech
-- [ ] Reklamy – protočení obchodu za reklamu 1× denně v každém obchodě, až je vše za houbičky (`docs/shops.md`). Příkazy známe (`AdvertisementsCompleted:5`, `PlayerNewWares:2/2` pro Magic Shop), čeká se na záchyt z Weapon Shopu + odpovědi serveru (kde server říká, že je reklama dostupná). Bez toho nespouštět (riziko houbičky).
+- [x] Reklamy – rozhodnuto NEIMPLEMENTOVAT (`docs/shops.md`): `AdvertisementsCompleted` vrací `trust_counter`, nejspíš antifraud metrika reklamní sítě proti přesně tomuhle druhu automatizace. Riziko přesahuje jen houbičku.
 - [x] Questy u Goblin Gleemana + eventové úkoly (`docs/tasks.md`): truhly, atributy, cechovní upgrade, nákupy, Training Camp, skořápky jen když body chybí
 - [ ] Event game loop (piva?)
 - [x] Cech – automatický vstup do nejlepšího cechu ze seznamu rychlého vstupu (Instructor > Treasure > síla), 1× denně přechod do výrazně lepšího (`docs/guild.md`)
