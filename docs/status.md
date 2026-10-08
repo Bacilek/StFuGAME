@@ -261,8 +261,13 @@ Updated: 2026-10-08 ~21:42. Rewrite after every bigger change.
   "natural" progress and never selected beer – a silent, permanent lock for the rest of the day, not a timing
   issue. Fixed by dropping `FightInDungeons`/`DefeatMonstersLightDungeon` from `natural_points()`'s optimistic
   set (Arena and City Guard stay – the bot retries both every cooldown with no cap on attempts, so those reliably
-  land; dungeon tasks don't). New test `open_dungeon_task_does_not_block_a_chest_reachable_without_it`. Needs a
-  release rebuild; not yet verified that beer actually fires correctly after this fix.
+  land; dungeon tasks don't). New test `open_dungeon_task_does_not_block_a_chest_reachable_without_it`.
+  **Verified live after the release rebuild (2026-10-08 ~21:50):** 9/11 characters (Filminy, Mimimimi11, Mrožik,
+  Květoš, PajaRizz, Pjotr, Pagan, Novotné, Chlamydie) drank the beer and claimed daily chest 3 within seconds, no
+  errors, no unexpected mushroom loss (mushroom watchdog never tripped). Sanek and Wecros drank the beer
+  (`[tasks] Drinking a beer` logged) but chest 3 claim hadn't shown up yet as of the last check that day –
+  most likely the same server-sync delay seen earlier with `ClaimNewCustomerPack` (it should self-resolve on a
+  later pass; re-check their logs next session and confirm `Claiming the daily chest 3` eventually appears).
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this
@@ -311,6 +316,15 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - Unmapped expedition missions: barkeeper, merman, riding, lovebirds (`docs/expeditions.md`).
 - Attribute-purchase key for the challenge (which stats, how split) – not decided yet.
 - `Chlamydie` (Druid): whose character is this (Bacilek/Novotné/Radek/other)? `roster/roster.md`.
+- City Guard timing vs. beer's bonus Thirst for Adventure (2026-10-08): when beer is drunk for a Gleeman chest
+  while in City Guard (shift normally runs to ~00:00–00:59), the bonus ALU it grants goes unused until the guard
+  shift ends – and if that's at/after midnight, ALU resets anyway, so it's wasted. Not a real loss (the 1
+  mushroom spent is already justified purely by the chest reward, e.g. +10 mushrooms today), just a missed
+  opportunity for one more expedition. User asked whether to shorten the guard shift (e.g. always end by ~23:00)
+  to leave room for that bonus expedition – undecided: the tradeoff is a guaranteed small loss of guard pay
+  (~2.4 g/h) every day vs. an uncertain upside, and we can't reliably predict at shift-start time whether beer
+  will even be needed that day (depends on how arena/dungeon tasks play out later). Needs a decision before
+  implementing.
 
 ## Next steps (not started)
 - Add PajaRizz + Chlamydie to `.env`'s `SF_ACCOUNTS` (blocks `MrozikMarta@seznam.cz|mrozikChall1|Mrožik` already
