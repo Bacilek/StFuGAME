@@ -289,6 +289,11 @@ fn enter_project_dir() {
 }
 
 fn main() -> ExitCode {
+    // The release build has no console: show crashes in a dialog, otherwise they are invisible.
+    std::panic::set_hook(Box::new(|info| {
+        report!("PANIC: {info}");
+        tray::message_box(&format!("StFuGAME crashed:\n{info}"));
+    }));
     enter_project_dir();
     if tray::already_running() {
         tray::message_box("The StFuGAME bot is already running (icon next to the clock).");
@@ -300,6 +305,8 @@ fn main() -> ExitCode {
         Ok(a) => a,
         Err(e) => {
             report!("{e}");
+            // The release build has no console: without this the app would just silently not start.
+            tray::message_box(&format!("StFuGAME could not start:\n{e}\n\nCheck the .env file (see .env.example)."));
             return ExitCode::FAILURE;
         }
     };

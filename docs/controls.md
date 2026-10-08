@@ -44,6 +44,11 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - `STFU_NO_LOGIN=1` (env var) skips auto-starting every character – handy for trying out the window itself
   without touching the server. Never use it to justify logging in with throwaway/fake credentials instead;
   when a no-network check is needed, use this flag, not real or fake login attempts.
+- `.env.example` must stay in sync with real `.env` options (`SF_ACCOUNTS`, `SF_AUTOSTART`) – it was missing them
+  once, which contributed to the user editing the wrong file.
+- Startup/crash errors must always reach a dialog (`tray::message_box`), never just the log – the release build has
+  no console, so a silently-failed `accounts()` or a panic looks like "nothing happens" to the user.
+
 - **Never screenshot the user's whole screen** to check the app window (a mis-timed `GetWindowRect` can return
   a zeroed rect and `CopyFromScreen` silently falls back to the full screen, which may show the user's own
   browser/game session). Confirm the window via the process list, title, and log output instead, or ask the

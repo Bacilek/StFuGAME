@@ -61,3 +61,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-08 | App GUI | The dashboard is the GUI (no native window): character tiles, click = card with the current state (refreshed ~10 min), charts below. |
 | 2026-10-08 | Desktop app | One window (tao+wry/WebView2) instead of tray-only: character tiles with individual on/off switches, a card per character, and a Charts tab (the dashboard). The tray icon stays for global start/stop/exit. |
 | 2026-10-08 | Adding challenge accounts | New accounts go into `SF_ACCOUNTS` but stay switched off (not autostarted) by default, only `SF_USER`/`SF_CHARACTER` autostarts, until the user turns them on individually or sets `SF_AUTOSTART`. |
+| 2026-10-08 | Startup/crash errors must be visible | Release build has no console: show a message box on accounts() failure and on any panic, not just a log line (user could not tell why the app "did not start"). |
