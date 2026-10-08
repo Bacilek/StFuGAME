@@ -1,49 +1,85 @@
 # Project status (handover document)
 
-Updated: 2026-10-07 ~20:30. Rewrite after every bigger change.
+Updated: 2026-10-08 ~04:15. Rewrite after every bigger change.
 
 ## Where we are
-- The bot runs on the user's machine from the icon next to the clock (release exe, independent of Claude Code), character **TestChar1** on **s31.sfgame.eu**
-  (secondary test account, login via the S&F account / SSO).
-- Finished features: Tavern (expeditions), Arena, Dungeons, inventory, shops (release build 2026-10-07 20:53, not verified yet), guild (incl. 3-day min tenure) + Gleeman tasks + Hall of Fame hunt + potions + roster/dashboard (ALU bar) + multi-character support + desktop app window (app:// protocol, activity + live countdown, everyone defaults OFF, instant Start/Stop all feedback) + City Guard/Tavern fix + gold-not-silver in chest logs (release build 2026-10-08 04:01), City Guard, daily rewards + Wheel of Fortune, Stable, icon controls.
-  Plan: `docs/todo.md`. The user's decisions: `docs/precedents.md`. Internals and pitfalls: `docs/architecture.md`.
-- Character state on the evening of 2026-10-07: level ~10, griffin until 21.10. 13:30, City Guard until 23:06 (then 1 h until 00:06), Arena 3/10 wins,
-  Thirst for Adventure used up for today, the full inventory was solved by selling.
-- 2026-10-07 ~20:25 the repo was translated to English (code, logs, docs; `docs/todo.md` stays Czech) and the English release
-  build was made (`target/release/stfugame.exe`). The user starts it themselves with the desktop shortcut.
-  The bot logs to `logs/progress.log` (last 100 messages only); the old Czech log was translated into it and deleted.
-  Money is shown in gold everywhere (silver / 100). README written.
-  The old bot was stopped 20:23, so the 23:06 City Guard pay will happen whenever the new bot runs after 23:06.
+- The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
+  not `file://` – see `docs/controls.md`), not just a tray icon. The "StFuGAME bot" shortcut opens a window with a
+  **Characters** tab (a tile per character, on/off switch, current activity + live countdown, Thirst for Adventure
+  bar) and a **Charts** tab (the dashboard). The tray icon still exists for global Start all/Stop all/Exit/Open log.
+- **Every character defaults to switched off**, even on a brand new install – opening the app never starts anything
+  by itself. Each character's on/off position is remembered in `roster/switches.json` (local only) across restarts.
+  There is no `.env`-level autostart any more (`SF_AUTOSTART` was removed).
+- **Several characters run in one process**, each in its own tokio task (`ctx::CHARACTER` task-local). State kept
+  between calls uses `ctx::PerChar<T>` instead of a plain static. Accounts: `SF_USER`/`SF_PASS`/`SF_CHARACTER`
+  (one, optional) + `SF_ACCOUNTS=login|pass|character;…` (more, for the friends' challenge) in `.env`. Logs:
+  combined `logs/progress.log` (`[character]` prefix) + `logs/<character>/` (own progress.log, arena.jsonl,
+  expeditions.jsonl).
+- Character used for testing: **TestChar1** on **s31.sfgame.eu**, class **Battle Mage** (not Warrior – that was a
+  wrong assumption from made-up demo data, corrected 2026-10-08 against the real `now.json`). Currently in guild
+  **Venom**. Not running right now (all characters are off; the user starts them from the app when wanted).
+- **5 friends' accounts** are in `.env` (`SF_ACCOUNTS`) but not yet started even once: Filminy (Scout), Mimimimi11
+  (Paladin), Mrožik (Mage), Wecros (Berserker), Květoš (Demon Hunter). A 6th, PajaRizz (Bard), and a 7th, Chlamydie
+  (Druid, owner not noted yet), are known but not yet added to `.env` – see `roster/roster.md`.
+- All finished bot features: Tavern (expeditions), Arena, Dungeons, inventory, City Guard, daily rewards + Wheel of
+  Fortune, Stable, shops (incl. spinning + potions bought there), potions, Goblin Gleeman + event tasks (incl. the
+  costly-task planner: shell game/lucky-coin spins/beer), Hall of Fame hunt (class/bare-hands fight tasks), guild
+  (auto-join the best + daily switch check with a 3-day minimum tenure), guild battle sign-ups.
+- **Character challenge** (`roster/`, entirely local, gitignored): `roster/dashboard.html` is the one page to look
+  at – character tiles + cards (current state) and charts (Gold/XP/dungeons/Hall of Fame rank/mushrooms/strength/
+  simulated win rate, day-by-day, "Why up?" panel explaining win-rate jumps). A daily simulated round-robin runs at
+  23:20, the real daily report (history.csv, issues, dashboard refresh) at 23:50; "Run end of day now" in the app
+  does both immediately as a preview (does not count as the real day). `roster/issues.txt` collects every
+  character's biggest success + flagged issues for the day – only written at 23:50 or via that preview button, not
+  continuously (the underlying per-character `notes.log` **is** written continuously, in case a manual read is
+  needed sooner).
 
-## Pending verification (check the log `logs/progress.log` and record in the matching doc)
+## Bugs found and fixed tonight (2026-10-08), all live on TestChar1
+- **City Guard was starving the Tavern of fresh Thirst for Adventure.** After a shift ended, "Tavern done" was set
+  true merely because the Tavern had been *skipped* (character busy with City Guard), not only when it was
+  genuinely *attempted* and nothing was affordable – so a new shift started immediately even with 100 min of
+  freshly-reset ALU sitting unused. Fixed in `main.rs`'s main loop.
+- **Guild could have switched every day forever**, never letting the character reach the 24 h needed for guild
+  battles. Added `MIN_TENURE` = 3 days before another switch is even considered, on top of the existing "Instructor
+  ≥ current + 10" margin and the once-a-day check (`src/guild.rs`).
+- **The app window's controls did nothing at all** (switches, Start all/Stop all) – root cause: the window loaded
+  `app.html` over `file://`, and Chromium/WebView2 treats every `file://` page as its own unique, untrusted origin,
+  silently breaking `window.ipc` injection and the dashboard iframe (no exception, nothing in the log). Fixed by
+  serving over a custom `app://localhost/…` protocol (`wry`'s `with_custom_protocol`) instead. Devtools are now
+  enabled (right click → Inspect / F12) and IPC errors show as a red bar, as a safety net.
+- Task chest logs showed raw `Silver 5200` instead of gold; now goes through the existing `report::reward()` helper
+  like everywhere else.
+- Decided **not** to implement the ad-based shop reroll (`docs/shops.md`): `AdvertisementsCompleted`'s response
+  includes a `trust_counter` field, almost certainly anti-fraud/bot-detection telemetry from the ad network – not
+  worth the risk for a minor convenience.
+
+## Verified live tonight (see each doc's "Verification status" table for detail)
+Potions (drink from backpack, stock purchases) · shops (gold-only, mushrooms unchanged, shop slot refresh, spin
+cost) · guild (decision logged, a real switch happened) · City Guard pay · shell game (does win, not just lose) ·
+Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relogin (unprompted, worked cleanly).
+
+## Still pending verification (time-gated, nothing to do but wait and check the log)
 | What | When | Record in |
 |---|---|---|
-| Shops: gold-only purchase, mushrooms unchanged, shop slot refreshes, spin cost (`[shops]` in the log) | first day after the Tavern with the new build | `docs/shops.md` |
-| Shop ad reroll: the user captures the Weapon Shop + Response bodies (DevTools) | after midnight 2026-10-08 | `docs/shops.md` |
-| Guild: list loads, decision in the log (`[guild]`), Instructor of the own guild | first start of the new build | `docs/guild.md` |
-| Goblin Gleeman tasks (`[tasks]` in the log): chests, attributes, guild skill, shell game, shop task purchases | first day of the new build | `docs/tasks.md` |
-| City Guard pay via `FinishWork` | 2026-10-07 23:06 | `docs/city-guard.md` |
-| Second 1 h shift (23:06 → 00:06) per the 00:00–00:59 rule | 23:06 | `docs/city-guard.md` |
-| Thirst for Adventure reset at midnight, Tavern starts after the shift | 2026-10-08 00:06 | `docs/city-guard.md` |
-| Daily login bonus (`CollectCalendar`) | 2026-10-08 00:00 | `docs/daily-rewards.md` |
-| Free Wheel of Fortune spin on day 2 | 2026-10-08 00:00 | `docs/daily-rewards.md` |
-| Arena/Dungeons during an expedition (during City Guard already verified) | 2026-10-08 | `docs/arena.md`, `docs/dungeons.md` |
-| Buying the griffin in the Stable (25 mushrooms) | when the mount expires, 2026-10-22 at the earliest | `docs/stable.md` |
-| Sanitary +20 / −5, bonuses of Bewitched Stew, Toxic Fountain, Build A Friend | when they come up | `docs/expeditions.md` |
-| Revealing Lady: hypothesis "couple really +7, bonus +10" | when it comes up again | `docs/expeditions.md` |
-| Reward after the 2nd expedition boss (never seen yet) | every expedition | `docs/expeditions.md` |
-| Tuning the expedition strategy from the journal (`logs/expeditions.jsonl`) | after more runs | `docs/expeditions.md` |
+| Guild battle sign-up actually succeeding (24 h membership + now 3-day tenure gate) | a few days into a guild membership | `docs/guild.md` |
+| Daily report + simulated duels actually firing at 23:20/23:50 on a day the bot runs that long | any evening the bot is left running | `roster/README.md` |
+| Potions: `RemovePotion`, replacing a smaller active potion (needs a full backpack) | whenever it happens | `docs/potions.md` |
+| Hourglasses bought while spinning: backpack item or straight to the counter? | next spin that offers one | `docs/shops.md` |
+| Lucky-coin wheel spin actually counting for the Gleeman task | next time it's needed | `docs/tasks.md` |
+| Hall of Fame hunt (class/bare-hands fight tasks) end to end | next time such a task is open late in the day | `docs/tasks.md` |
+| Free deal at the Mushroom Dealer (`ShopCheckout`/`ShopCatalog`) | next brand-new character | `docs/daily-rewards.md` |
+| Sanitary +20/−5, Revealing Lady bonus hypothesis, 2nd expedition boss reward | whenever they come up | `docs/expeditions.md` |
 
 ## Open questions for the user
-- Epic items are never sold → the backpack fills up over time and the Dungeons stop (in the TODO).
-- Unmapped missions: barkeeper (Mugs → DraftBeer → Barkeeper), merman, riding (Chicken → Tiger → RidingStan), lovebirds.
+- Epic items are never sold → the backpack fills up over time (in the TODO, no decision yet).
+- Unmapped expedition missions: barkeeper, merman, riding, lovebirds (`docs/expeditions.md`).
+- Attribute-purchase key for the challenge (which stats, how split) – not decided yet.
+- `Chlamydie` (Druid): whose character is this (Bacilek/Novotné/Radek/other)? `roster/roster.md`.
 
-## Expedition journal 2026-10-07 (summary)
-| Mission | Heroism | Verdict |
-|---|---|---|
-| Dragon Taming | 46 | 40 reached (started by the user) |
-| Unicorn Whisperer | 45 | success |
-| Barkeeper (unmapped) | 23 | below 40 |
-| The Sword Trial | 47 | 40 reached |
-| Revealing Lady | 54 | success |
-| The Sword Trial (leftover) | 39 | below 40 |
+## Next steps (not started)
+- Add PajaRizz + Chlamydie to `.env`'s `SF_ACCOUNTS` (blocks `MrozikMarta@seznam.cz|mrozikChall1|Mrožik` already
+  fixed; PajaRizz capitalization confirmed as `PajaRizz`).
+- Start characters one at a time from the app (TestChar1 first, already proven tonight), watch each for issues
+  before adding the next.
+- Decide the attribute-purchase key, then implement general (non-task) attribute buying.
+- Write `roster/start.txt` (day 1 of the challenge) once all characters are confirmed stable.
