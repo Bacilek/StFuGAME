@@ -101,8 +101,10 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Targets: main attribute + CON + Eternal Life (only when for gold; otherwise Luck). Only for gold, after equipment upgrades,
   before tasks and spinning. Stock of up to 4 potions of any type in the backpack (gold potions also spin the shop).
   Full backpack: remove a less important active one for a better target from the backpack, else drink (if it stacks) or
-  sell the least important. Swap a smaller active one for a bigger bought one only with a full backpack and ≤ 3 days left.
-  Eternal Life is never removed or sold.
+  sell the least important. Swap a smaller active one for a bigger bought one only with a full backpack — immediately
+  once full, not gated by days left on the active one (a bigger potion replaces the smaller active one's remaining
+  time rather than adding to it, but waiting doesn't preserve more value since ongoing small-potion refills would just
+  delay the swap forever; see `docs/potions.md`). Eternal Life is never removed or sold.
 
 ## Guild
 - Description and verification status: `docs/guild.md`.

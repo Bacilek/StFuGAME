@@ -5,16 +5,19 @@
 //! - Stock: keep up to `MAX_STOCK` potions of any type in the backpack (better some than none, they are cheap, buying
 //!   them spins the shop and they can be sold any time). Target types first; non-target ones are the first to go.
 //! - Backpack full:
-//!   - an active potion that is not a target (or a smaller stat one with ≤ 3 days left) is removed and a better target
-//!     potion from the backpack drunk instead,
+//!   - an active potion that is not a target, or a smaller stat one of a target type, is removed and a better target
+//!     potion from the backpack drunk instead (user 2026-10-09: drinking replaces the active potion's remaining time
+//!     rather than adding to it, but waiting for it to run low doesn't preserve more value – ongoing small-potion
+//!     refills would just keep delaying the swap forever – so once the backpack is full and a strictly better potion
+//!     is waiting, swap immediately regardless of days left on the active one),
 //!   - otherwise the least important potion in the backpack is drunk (when it stacks onto an active one) or sold.
-//!   - A bigger potion for a smaller active one (≤ 3 days left) is bought and swapped in only with a full backpack,
-//!     with room it goes to the stock.
+//!   - A bigger potion for a smaller active one is bought and swapped in only with a full backpack, with room it
+//!     goes to the stock.
 //! - Eternal Life is never removed or sold.
 //!
 //! Shop purchases run in `shops.rs` after equipment upgrades and before spinning (they may go below the reserve).
 
-use chrono::{Duration, Local};
+use chrono::Local;
 use sf_api::{
     command::Command,
     gamestate::{
@@ -25,8 +28,6 @@ use sf_api::{
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
-/// A smaller active potion is replaced only when it has at most this much left (one potion = 3 days).
-const REPLACE_WITHIN: Duration = Duration::days(3);
 /// How many potions to keep in the backpack.
 pub const MAX_STOCK: usize = 4;
 
@@ -132,15 +133,10 @@ fn bag_step(gs: &GameState) -> Option<(BagPosition, &Item)> {
         .map(|(pos, i, _)| (pos, i))
 }
 
-/// May this active potion be removed? Never Eternal Life. A non-target one, or a stat one with ≤ 3 days left.
+/// May this active potion be removed? Never Eternal Life; any other active potion can be swapped out for a
+/// better one (days left on it don't matter, see module docs).
 pub fn removal_ok(gs: &GameState, slot: usize) -> bool {
-    let now = Local::now();
-    let t = targets(gs);
-    active(gs).iter().any(|(i, p)| {
-        *i == slot
-            && p.typ != PotionType::EternalLife
-            && (!t.contains(&p.typ) || p.expires.is_some_and(|e| e - now <= REPLACE_WITHIN))
-    })
+    active(gs).iter().any(|(i, p)| *i == slot && p.typ != PotionType::EternalLife)
 }
 
 /// What to buy in the shops now.
@@ -156,7 +152,6 @@ pub enum ShopStep {
 
 pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
     let act = active(gs);
-    let now = Local::now();
     let bag_full = gs.character.inventory.free_slot().is_none();
     for t in targets(gs) {
         let current = act.iter().find(|(_, p)| p.typ == t);
@@ -166,13 +161,9 @@ pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
             None if act.len() < 3 && in_bag(gs, t).is_none() => {
                 return Some((ShopStep::Drink(pos), format!("buying and drinking {}", describe(item))));
             }
-            // Swap in a bigger one only with a full backpack (user 2026-10-07); otherwise it goes to the stock
-            Some((slot, cur))
-                if t != PotionType::EternalLife
-                    && bag_full
-                    && new.size.effect() > cur.size.effect()
-                    && cur.expires.is_some_and(|e| e - now <= REPLACE_WITHIN) =>
-            {
+            // Swap in a bigger one only with a full backpack (user 2026-10-07); days left on the active one don't
+            // matter (user 2026-10-09, see module docs); otherwise it goes to the stock
+            Some((slot, cur)) if t != PotionType::EternalLife && bag_full && new.size.effect() > cur.size.effect() => {
                 return Some((
                     ShopStep::Replace(*slot, pos),
                     format!("replacing {:?} {:.0} % with {}", cur.typ, cur.size.effect() * 100.0, describe(item)),
@@ -230,7 +221,7 @@ enum RoomStep {
 
 fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
     let act = active(gs);
-    // 1. A better target potion waits in the backpack while a removable (non-target / weak expiring) one is active
+    // 1. A better target potion waits in the backpack while a removable (non-target, or smaller same-type) one is active
     for t in targets(gs) {
         if act.iter().any(|(_, p)| p.typ == t) {
             continue;
@@ -252,7 +243,7 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
     let (pos, item, p) =
         bag_potions(gs).into_iter().min_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))?;
     if act.iter().any(|(_, a)| a.typ == p.typ && p.size.effect() >= a.size.effect()) {
-        Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (extends the active one)", describe(item))))
+        Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (replaces the active one)", describe(item))))
     } else if p.typ != PotionType::EternalLife {
         Some((RoomStep::Sell(pos), format!("backpack full: selling {}", describe(item))))
     } else {

@@ -1,6 +1,16 @@
 # Project status (handover document)
 
-Updated: 2026-10-09 ~00:20. Rewrite after every bigger change.
+Updated: 2026-10-09. Rewrite after every bigger change.
+
+- **Potion swap rule fixed (2026-10-09, user correction):** removed the `REPLACE_WITHIN` (≤ 3 days left) gate from
+  `src/potions.rs` (`removal_ok`, `shop_step`'s `Replace` branch) — swapping a smaller active potion for a bigger
+  same-type one now triggers purely on backpack pressure (full backpack + strictly better available), not on how
+  many days are left on the active one. The old gate was based on a wrong assumption; see `docs/precedents.md`
+  2026-10-09 ("Potion swap: smaller active → bigger bought one") for the corrected reasoning (drinking a bigger
+  potion really does discard the smaller active one's remaining days — confirmed by the user — but waiting for it
+  to run low doesn't actually preserve more value since ongoing small-potion refills can delay the swap forever).
+  Compiles clean (`cargo check`); not yet run live — next character pass through `shops.rs`/`potions.rs` will
+  exercise it, watch `logs/progress.log` for `[potions]`/`[shops]` swap/replace lines.
 
 - **Paperdoll: real slot positions, square portrait, day-pinned equipment (2026-10-08/09, user feedback round 2):**
   - Grid rearranged per the user's correction (weapon + shield belong at the very bottom, not flanking the
