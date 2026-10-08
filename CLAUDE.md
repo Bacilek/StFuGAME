@@ -59,7 +59,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Strategy (src/tavern.rs): secure 40 heroism (including bonuses/penalties at the end), then only keys and chests and never drop below 40.
   Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
 - Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.
-- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses or mushroom skips; beer only per the task exception.
+- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses as a *reward preference for skipping* or mushroom skips; beer only per the task exception.
+  **One narrow exception (user 2026-10-08):** `ExpeditionSkipWait { typ: TimeSkip::Glass }` (hourglass, never `Mushroom`) is allowed during the `Waiting` stage, but only when normal waiting would leave less than 15 min before the midnight Thirst for Adventure reset (`tavern::should_skip_wait_with_glass`) – to avoid wasting a late-granted bonus ALU (e.g. from a Gleeman-task beer drunk near/during a City Guard shift, see the City Guard section) instead of letting it reset unused. See `docs/city-guard.md`.
 - Gleeman/event task "travel to <location>": an expedition through that location wins even when longer (user 2026-10-07).
 - Timestamped progress: `logs/progress.log` (output via the `report!` macro, keeps the last 100 messages). Money is always shown in gold (`report::gold`).
 - Mission data may be wrong (from the user and from the FAQ): the bot verifies it during runs (`checks` in the journal, `[check] MISMATCH`); after runs update the "Verification status" table in docs/expeditions.md and fix `src/missions.rs`.
@@ -120,7 +121,13 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## City Guard
 - Description and verification status: `docs/city-guard.md`.
-- After the Tavern is done: min(10 h, hours until midnight rounded up) → ends 00:00–00:59. Arena and Dungeons keep running during the shift.
+- After the Tavern is done: min(10 h, hours until midnight rounded up), but capped at a 23:00 checkpoint (user
+  2026-10-08) so a beer-granted bonus Thirst for Adventure around that time still has a real chance to reach the
+  Tavern before the midnight reset – a shift starting before 23:00 ends there instead of past midnight; one
+  starting at/after 23:00 falls back to ending 00:00–00:59 as before (this is what bridges the gap to the new day
+  on days when no beer is needed, no extra logic). Before starting a new shift, the bot re-checks Thirst for
+  Adventure fresh (not a value cached from earlier in the same pass) so a beer drunk moments earlier in the same
+  loop pass isn't immediately buried under a new shift. Arena and Dungeons keep running during the shift.
 
 ## Daily rewards
 - Description and verification status: `docs/daily-rewards.md`.

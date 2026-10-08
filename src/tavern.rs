@@ -3,9 +3,9 @@
 
 use std::time::Duration;
 
-use chrono::Local;
+use chrono::{DateTime, Local};
 use sf_api::{
-    command::Command,
+    command::{Command, TimeSkip},
     error::SFError,
     gamestate::{
         rewards::{Reward, RewardType, TaskType},
@@ -38,6 +38,19 @@ const UNKNOWN_TARGET_GUESS: i32 = 5;
 /// The most heroism realistically obtainable in one round (poster + dummy ~13,
 /// winner's podium 15). If even that cannot reach 40, chasing points is pointless.
 const MAX_GAIN_PER_FLOOR: i32 = 12;
+/// Conservative safety margin before the midnight Thirst-for-Adventure reset (user 2026-10-08):
+/// if normal waiting would leave less than this much real time before the reset, use an
+/// hourglass instead of risking the ALU (and the in-progress expedition) getting wiped at
+/// midnight. What exactly happens to an expedition right at the reset is not known/verified.
+const MIDNIGHT_SAFETY_MARGIN_SEC: u64 = 15 * 60;
+
+/// True when waiting out the current expedition stage normally would not leave enough real
+/// time before the midnight Thirst-for-Adventure reset (see `MIDNIGHT_SAFETY_MARGIN_SEC`).
+fn should_skip_wait_with_glass(busy_until: DateTime<Local>, now: DateTime<Local>) -> bool {
+    let wait_secs = u64::try_from((busy_until - now).num_seconds()).unwrap_or(0);
+    let midnight_secs = crate::guard::secs_until_midnight(now);
+    midnight_secs <= wait_secs + MIDNIGHT_SAFETY_MARGIN_SEC
+}
 /// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
@@ -577,28 +590,41 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 ExpeditionStage::Waiting { busy_until, .. } => {
                     unknown_in_row = 0;
                     let secs = u64::try_from((busy_until - Local::now()).num_seconds()).unwrap_or(0);
-                    let extra = fastrand::u64(5..30);
-                    report!(
-                        "[tavern] Waiting until {} ({} min {} s)",
-                        busy_until.format("%H:%M:%S"),
-                        secs / 60,
-                        secs % 60
-                    );
-                    // If the Arena becomes free in the meantime, wake up earlier and fight
-                    let mut sleep = secs + extra;
-                    if let Some(arena) = crate::arena::secs_until_ready(gs)
-                        && arena + 5 < sleep
-                    {
-                        sleep = arena + fastrand::u64(5..20);
-                        report!("[tavern] The Arena becomes free while waiting, waking up in {sleep} s");
+                    // Safety valve (user 2026-10-08): normal waiting would leave too little real
+                    // time before the midnight Thirst-for-Adventure reset to spend it in the
+                    // Tavern (typically bonus ALU from a beer drunk late in the day, near/during
+                    // a City Guard shift) – use an hourglass instead of risking it (and this
+                    // expedition) getting wiped at the reset. Never a mushroom skip.
+                    if should_skip_wait_with_glass(busy_until, Local::now()) && gs.tavern.quicksand_glasses > 0 {
+                        report!(
+                            "[tavern] Using an hourglass to avoid wasting bonus Thirst for Adventure before midnight ({} left)",
+                            gs.tavern.quicksand_glasses
+                        );
+                        Command::ExpeditionSkipWait { typ: TimeSkip::Glass }
+                    } else {
+                        let extra = fastrand::u64(5..30);
+                        report!(
+                            "[tavern] Waiting until {} ({} min {} s)",
+                            busy_until.format("%H:%M:%S"),
+                            secs / 60,
+                            secs % 60
+                        );
+                        // If the Arena becomes free in the meantime, wake up earlier and fight
+                        let mut sleep = secs + extra;
+                        if let Some(arena) = crate::arena::secs_until_ready(gs)
+                            && arena + 5 < sleep
+                        {
+                            sleep = arena + fastrand::u64(5..20);
+                            report!("[tavern] The Arena becomes free while waiting, waking up in {sleep} s");
+                        }
+                        let dungeon = crate::dungeons::secs_until_ready(gs);
+                        if dungeon + 5 < sleep {
+                            sleep = dungeon + fastrand::u64(5..20);
+                            report!("[tavern] The Dungeons become free while waiting, waking up in {sleep} s");
+                        }
+                        tokio::time::sleep(Duration::from_secs(sleep)).await;
+                        Command::Update
                     }
-                    let dungeon = crate::dungeons::secs_until_ready(gs);
-                    if dungeon + 5 < sleep {
-                        sleep = dungeon + fastrand::u64(5..20);
-                        report!("[tavern] The Dungeons become free while waiting, waking up in {sleep} s");
-                    }
-                    tokio::time::sleep(Duration::from_secs(sleep)).await;
-                    Command::Update
                 }
                 _ => {
                     unknown_in_row += 1;
@@ -905,6 +931,20 @@ mod tests {
         // no witch (−5) in a foreign mission, the dummy (+2)
         let e = exp(BrokenSword, 2, 97, 3, 6);
         assert_eq!(choose_encounter(&e, &[enc(Dummy2, 2), enc(Girl, -5)]), 0);
+    }
+
+    #[test]
+    fn skips_wait_with_glass_only_when_midnight_is_close() {
+        use chrono::TimeZone;
+        let at = |h: u32, m: u32| Local.with_ymd_and_hms(2026, 10, 7, h, m, 0).unwrap();
+        // Plenty of time: 1h wait at 20:00, 4h to midnight – no need for an hourglass.
+        assert!(!should_skip_wait_with_glass(at(21, 0), at(20, 0)));
+        // 50 min wait starting at 23:20: ends 00:10, already past midnight – skip.
+        assert!(should_skip_wait_with_glass(at(0, 10) + chrono::Duration::days(1), at(23, 20)));
+        // 10 min wait starting at 23, 50 min to midnight: plenty of margin even after waiting.
+        assert!(!should_skip_wait_with_glass(at(23, 10), at(23, 0)));
+        // 10 min wait starting at 23:50: ends 00:00, 0 min margin – skip.
+        assert!(should_skip_wait_with_glass(at(0, 0) + chrono::Duration::days(1), at(23, 50)));
     }
 
     #[test]

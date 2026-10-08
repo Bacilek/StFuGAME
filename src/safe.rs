@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Local};
 use sf_api::{
-    command::{Command, FortunePayment},
+    command::{Command, FortunePayment, TimeSkip},
     error::SFError,
     gamestate::{
         GameState, ShopPosition,
@@ -29,7 +29,8 @@ pub const COOLDOWN_SAFETY_SEC: i64 = 30;
 /// `GuildJoinAttack`/`GuildJoinDefense` only sign up for a planned guild battle, free;
 /// `UsePotion` only a potion from the backpack, `RemovePotion` only per `potions::removal_ok`;
 /// task chests are free; `UpgradeSkill` (attributes) costs only gold; `GuildIncreaseSkill` only when its price has
-/// no mushrooms (`guild_upgrade_ok`); `GambleSilver` = shell game for gold, within the game limits (`gamble_ok`)).
+/// no mushrooms (`guild_upgrade_ok`); `GambleSilver` = shell game for gold, within the game limits (`gamble_ok`);
+/// `ExpeditionSkipWait` only with `TimeSkip::Glass` (hourglass, replenishable, never `Mushroom`)).
 fn is_allowed(cmd: &Command) -> bool {
     matches!(
         cmd,
@@ -38,6 +39,10 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::ExpeditionPickEncounter { .. }
             | Command::ExpeditionContinue
             | Command::ExpeditionPickReward { .. }
+            // Hourglass-only expedition skip, to avoid wasting bonus Thirst for Adventure right
+            // before the midnight reset (user 2026-10-08, see tavern::should_skip_wait_with_glass).
+            // TimeSkip::Mushroom stays forbidden.
+            | Command::ExpeditionSkipWait { typ: TimeSkip::Glass }
             | Command::CheckArena
             | Command::ViewPlayer { .. }
             | Command::Fight { use_mushroom: false, .. }

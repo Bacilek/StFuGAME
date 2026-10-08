@@ -1,6 +1,9 @@
-//! City Guard: once the Tavern is done, go on guard duty. At most 10 h, but so that it ends
-//! in the first hour after midnight (00:00–00:59): then the Thirst for Adventure resets and a new
-//! day of tasks begins, and the bot does not idle waiting for the new Thirst for Adventure.
+//! City Guard: once the Tavern is done, go on guard duty. At most 10 h, but capped at a 23:00
+//! checkpoint (user 2026-10-08) so a beer-granted bonus Thirst for Adventure right around that
+//! time still has a real chance to be spent in the Tavern before the midnight reset, instead of
+//! sitting unused for the rest of a shift running past midnight. A shift starting at/after the
+//! checkpoint falls back to the old behavior (ends 00:00–00:59) – this is what bridges the gap
+//! to the new day on days when no beer is needed, with no extra code: see `guard_hours`.
 //! Collect the pay when the shift ends.
 
 use chrono::{DateTime, Duration, Local, Timelike};
@@ -11,11 +14,20 @@ use crate::session::SimpleSession;
 use crate::{safe, tavern::Outcome};
 
 const MAX_HOURS: i64 = 10;
+/// Local hour at which a shift that would otherwise run past midnight is capped instead
+/// (user 2026-10-08, see module doc).
+const CHECKPOINT_HOUR: i64 = 23;
 
-/// Shift length: hours until midnight rounded up (ends 00:00–00:59), at most 10 h.
+/// Shift length: at most 10 h, capped at the 23:00 checkpoint when starting before it,
+/// otherwise (already past the checkpoint) hours until midnight rounded up (ends 00:00–00:59).
 pub fn guard_hours(now: DateTime<Local>) -> u8 {
     let since_midnight = i64::from(now.num_seconds_from_midnight());
-    let left = 24 * 3600 - since_midnight;
+    let checkpoint_secs = CHECKPOINT_HOUR * 3600;
+    let left = if since_midnight < checkpoint_secs {
+        checkpoint_secs - since_midnight
+    } else {
+        24 * 3600 - since_midnight
+    };
     let hours = (left + 3599) / 3600;
     u8::try_from(hours.clamp(1, MAX_HOURS)).unwrap_or(1)
 }
@@ -60,7 +72,15 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     }
 
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    if !tavern_done || gs.tavern.current_action != CurrentAction::Idle {
+    // Re-check Thirst for Adventure fresh here, not just the `tavern_done` passed in from the
+    // top of this loop pass: if `tasks::run` drank a beer earlier in this same pass (granting
+    // bonus ALU), `tavern_done` is stale and would otherwise let a new shift start right on top
+    // of it (found 2026-10-08). A fresh zero here means the Tavern genuinely has nothing left to
+    // do; non-zero means the next pass's Tavern section should get first crack at it instead.
+    if !tavern_done
+        || gs.tavern.current_action != CurrentAction::Idle
+        || gs.tavern.thirst_for_adventure_sec > 0
+    {
         return Outcome::Done;
     }
     let hours = guard_hours(Local::now());
@@ -88,14 +108,22 @@ mod tests {
         Local.with_ymd_and_hms(2026, 10, 7, h, m, 0).unwrap()
     }
 
-    /// Shift ends 00:00–00:59 (user rule), at most 10 h.
+    /// A shift starting before the 23:00 checkpoint is capped there (at most 10 h either way).
     #[test]
-    fn guard_ends_in_first_hour_after_midnight() {
-        assert_eq!(guard_hours(at(8, 0)), 10);
-        assert_eq!(guard_hours(at(14, 0)), 10);
-        assert_eq!(guard_hours(at(17, 5)), 7); // ends 00:05
-        assert_eq!(guard_hours(at(17, 0)), 7); // exactly at midnight
-        assert_eq!(guard_hours(at(22, 59)), 2); // ends 00:59
+    fn guard_caps_at_the_checkpoint() {
+        assert_eq!(guard_hours(at(8, 0)), 10); // would be 15h to the checkpoint, capped at MAX_HOURS
+        assert_eq!(guard_hours(at(14, 0)), 9); // ends 23:00
+        assert_eq!(guard_hours(at(17, 5)), 6); // ends 23:05
+        assert_eq!(guard_hours(at(17, 0)), 6); // ends 23:00 exactly
+        assert_eq!(guard_hours(at(22, 59)), 1); // ends 23:59 (can't undershoot a whole hour)
+        assert_eq!(guard_hours(at(20, 0)), 3); // ends 23:00 exactly
+    }
+
+    /// A shift starting at/after the checkpoint falls back to the old rule (ends 00:00–00:59) –
+    /// this is the "bridging" shift to the new day on days when beer was never needed.
+    #[test]
+    fn guard_bridges_to_midnight_once_past_the_checkpoint() {
+        assert_eq!(guard_hours(at(23, 0)), 1); // ends 00:00
         assert_eq!(guard_hours(at(23, 30)), 1); // ends 00:30
     }
 }

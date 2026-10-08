@@ -310,21 +310,34 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 | Hall of Fame hunt (class/bare-hands fight tasks) end to end | next time such a task is open late in the day | `docs/tasks.md` |
 | Free deal at the Mushroom Dealer (`ShopCheckout`/`ShopCatalog`) | next brand-new character | `docs/daily-rewards.md` |
 | Sanitary +20/−5, Revealing Lady bonus hypothesis, 2nd expedition boss reward | whenever they come up | `docs/expeditions.md` |
+| City Guard 23:00 checkpoint actually caps a shift there + bridging shift starts on a no-beer day | next full day the bot runs, after a release rebuild | `docs/city-guard.md` |
+| Staleness fix: beer drunk near the checkpoint lets the Tavern run before a new shift starts | next time beer lands close to 23:00 | `docs/city-guard.md` |
+| Hourglass skip (`ExpeditionSkipWait{Glass}`) fires only in a genuine midnight-crunch case | next time bonus ALU is stranded late in the day | `docs/city-guard.md` |
 
 ## Open questions for the user
 - Epic items are never sold → the backpack fills up over time (in the TODO, no decision yet).
 - Unmapped expedition missions: barkeeper, merman, riding, lovebirds (`docs/expeditions.md`).
 - Attribute-purchase key for the challenge (which stats, how split) – not decided yet.
 - `Chlamydie` (Druid): whose character is this (Bacilek/Novotné/Radek/other)? `roster/roster.md`.
-- City Guard timing vs. beer's bonus Thirst for Adventure (2026-10-08): when beer is drunk for a Gleeman chest
-  while in City Guard (shift normally runs to ~00:00–00:59), the bonus ALU it grants goes unused until the guard
-  shift ends – and if that's at/after midnight, ALU resets anyway, so it's wasted. Not a real loss (the 1
-  mushroom spent is already justified purely by the chest reward, e.g. +10 mushrooms today), just a missed
-  opportunity for one more expedition. User asked whether to shorten the guard shift (e.g. always end by ~23:00)
-  to leave room for that bonus expedition – undecided: the tradeoff is a guaranteed small loss of guard pay
-  (~2.4 g/h) every day vs. an uncertain upside, and we can't reliably predict at shift-start time whether beer
-  will even be needed that day (depends on how arena/dungeon tasks play out later). Needs a decision before
-  implementing.
+
+- **City Guard checkpoint + hourglass safety valve for beer's bonus ALU (decided and implemented 2026-10-08):**
+  resolves the previously-open question about beer drunk during a City Guard shift wasting its bonus Thirst for
+  Adventure past midnight. User's refined proposal: split guard coverage at a 23:00 checkpoint instead of
+  shortening it outright (`guard::guard_hours` – a shift starting before 23:00 now caps there; one starting
+  at/after 23:00 still rides to 00:00–00:59 as before, which automatically produces a "bridging" shift to the new
+  day with zero extra code on a day beer was never needed – no guaranteed pay loss). Also found and fixed, as a
+  prerequisite: a same-pass staleness hazard where `guard::run` trusted the `tavern_done` boolean computed at the
+  *top* of a main-loop pass, so a beer drunk later in that same pass (via `tasks::run`) could still get buried
+  under a freshly-started guard shift; fixed by re-checking `gs.tavern.thirst_for_adventure_sec` fresh right
+  before `StartWork`. For the residual case where bonus ALU still ends up stranded with too little real time
+  before midnight (e.g. beer drunk during the bridging shift itself), the user explicitly approved a narrow,
+  scoped exception to "never use hourglasses": `tavern::should_skip_wait_with_glass` sends
+  `Command::ExpeditionSkipWait { typ: TimeSkip::Glass }` (newly whitelisted in `safe.rs`, `TimeSkip::Mushroom`
+  stays forbidden) instead of sleeping through an expedition's `Waiting` stage, but only within a conservative
+  15-min safety margin before midnight. What exactly happens to an in-progress expedition right at the midnight
+  reset is unknown/unverified – the margin is deliberately conservative to stay clear of finding out live. See
+  `docs/city-guard.md` for the full writeup and `docs/precedents.md` for the dated decision. **Needs a release
+  rebuild and a full live day to verify** – nothing about this has been observed running yet.
 
 ## Next steps (not started)
 - Add PajaRizz + Chlamydie to `.env`'s `SF_ACCOUNTS` (blocks `MrozikMarta@seznam.cz|mrozikChall1|Mrožik` already
