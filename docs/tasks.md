@@ -73,8 +73,8 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | What | Status |
 |---|---|
 | Task list refreshed by `Poll` (progress visible during the day) | ⏳ not verified |
-| Chest claim (`DailyTaskClaim`) | ⏳ not verified |
-| `UpgradeSkill` buys an attribute for gold, task counter rises | ⏳ not verified |
+| Chest claim (`DailyTaskClaim`) | ✅ 2026-10-08 (daily chest 1+2, all 3 event chests claimed and logged as `opened`) |
+| `UpgradeSkill` buys an attribute for gold, task counter rises | ✅ 2026-10-07/08 (Upgrade(Strength)/Upgrade(Constitution) both reached 5/5 after buying) |
 | `GuildIncreaseSkill` for gold, task counter rises | ⏳ not verified |
 | Shell game: minimal bet 1 silver accepted? result in `gamble_result` | ✅ accepted; wins do happen too (2026-10-08: two `SilverChange(+1)` in a row, net `+0.02 g` for the session – the earlier 10-loss streak was just bad luck) |
 | Shop task purchase counts for `BuyWeaponInWeaponsShop` / `BuyFromShop` | ⏳ not verified |
