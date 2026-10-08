@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~19:05. Rewrite after every bigger change.
+Updated: 2026-10-08 ~20:25. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -240,6 +240,16 @@ Updated: 2026-10-08 ~19:05. Rewrite after every bigger change.
   cached `GameState` fields to decide "is it ready", never an extra request, so checking every pass is free; the
   real claim command only ever fires once the server's own timestamp says so (next day). **Not yet verified
   live.** Needs a release rebuild.
+- **Task/chest log now refreshes every 15 min instead of once a day (2026-10-08, `tasks::log_tasks`):** while
+  watching for the welcome-pack's chest point math live, realized the human-readable overview was stuck at
+  whatever it printed once per day – the underlying decisions (claim_chests, the costly-task planner) already run
+  fresh every pass, only this printout was stale. `TASK_LOG_EVERY` = 15 min, `PerChar<Option<Instant>>` instead of
+  a date guard; stops entirely once every daily and event chest shows `opened`, so it doesn't keep repeating a
+  static view for the rest of the day. Live finding while building this: Mrožik and MimiMimi11 both reached
+  10/10 arena wins (19:50, 20:14) with no beer attempt following – suspect the welcome pack's
+  `ClaimNewCustomerPack` Gleeman task isn't actually crediting (the mushroom/gold reward itself landed fine), so
+  the chest-3 point math (15 fixed + 2 arena + 2 beer = 19) falls 1 short of the needed 20 without it. Not yet
+  confirmed with a fresh task printout – pending this fix reaching a running character.
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

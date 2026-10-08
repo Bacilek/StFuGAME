@@ -61,7 +61,10 @@
   chest "needs" it – not gated by `chest_worth`, and `tasks::run` calls it right after `claim_chests`, independent
   of `tavern_done` (any time of day, not just after the Tavern/shops like the other costly tasks). Bet 1 silver
   (`GAMBLE_BET`), stop below 5 g (`GAMBLE_MIN_SILVER`). `safe.rs` re-checks `gamble_ok` (bet ≤ 1/10 gold, ≥ 5 g).
-- The daily task log also lists every chest with its rewards (`[tasks] daily chest 2 (8 points): Mushrooms 2, …`).
+- The task/chest log (`log_tasks`) repeats every 15 min (`TASK_LOG_EVERY`) while anything today is still unclaimed,
+  not just once a day (user 2026-10-08: once a day was too stale to tell whether a chest's points are actually
+  within reach) – stops once every daily and event chest is `opened`, until tomorrow's reset. Lists every chest
+  with its rewards (`[tasks] daily chest 2 (8 points): Mushrooms 2, …`).
 - Shops (`task_purchase`): `BuyWeaponInWeaponsShop`, `BuyFromShop(shop)` → buy the cheapest non-epic gold item
   (weapon from the Weapon Shop / any item from that shop) even below the reserve, `inventory::manage` sells it. Max 6 a day.
 - Dungeons: `DefeatMonstersLightDungeon(d)` open → fight in that dungeon instead of the usual pick.

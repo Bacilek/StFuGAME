@@ -8,6 +8,8 @@
 //!
 //! Shop purchases for tasks are in `shops.rs`, the Training Camp preference in `dungeons.rs`.
 
+use std::time::{Duration, Instant};
+
 use sf_api::{
     command::{AttributeType, Command, FortunePayment},
     gamestate::{
@@ -396,17 +398,25 @@ async fn gamble(session: &mut SimpleSession) -> Outcome {
     claim_chests(session).await
 }
 
-/// Logs the open tasks once a day (to see what the Gleeman wants).
+/// How often `log_tasks` repeats the task/chest overview while anything is still unclaimed today (user
+/// 2026-10-08: once a day was too stale to tell whether a chest's points are actually within reach – e.g.
+/// whether the Mushroom Dealer welcome pack's task credit actually registered).
+const TASK_LOG_EVERY: Duration = Duration::from_secs(15 * 60);
+
+/// Logs the open tasks and chests (to see what the Gleeman wants and how close each chest is) – every
+/// `TASK_LOG_EVERY` while anything today is still unclaimed, then stops until tomorrow's reset.
 fn log_tasks(gs: &GameState) {
-    
-    static LOGGED: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
-    let today = chrono::Local::now().date_naive();
-    let Ok(mut last) = LOGGED.lock() else { return };
-    if *last == Some(today) {
+    let t = &gs.specials.tasks;
+    // Nothing left to claim today: stop logging until the lists reset tomorrow, no point repeating a static view.
+    if t.daily.rewards.iter().chain(&t.event.rewards).all(|c| c.opened) {
         return;
     }
-    *last = Some(today);
-    let t = &gs.specials.tasks;
+    static LAST: crate::ctx::PerChar<Option<Instant>> = crate::ctx::PerChar::new();
+    let Ok(mut last) = LAST.lock() else { return };
+    if last.is_some_and(|i| i.elapsed() < TASK_LOG_EVERY) {
+        return;
+    }
+    *last = Some(Instant::now());
     for (name, tasks, chests) in [("daily", &t.daily.tasks, &t.daily.rewards), ("event", &t.event.tasks, &t.event.rewards)] {
         let list: Vec<String> =
             tasks.iter().map(|t| format!("{:?} {}/{} ({} p)", t.typ, t.current, t.target, t.point_reward)).collect();
