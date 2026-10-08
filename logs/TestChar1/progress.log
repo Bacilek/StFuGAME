@@ -1,13 +1,3 @@
-2026-10-08 01:50:10 Logging in to the S&F account...
-2026-10-08 01:50:10 Account login failed: Could not connect to the server (wrong SF_SERVER address or no connection)
-2026-10-08 02:35:29 Logging in to the S&F account...
-2026-10-08 02:35:30 Loading character TestChar1 on s31.sfgame.eu...
-2026-10-08 02:35:39 Character: TestChar1
-2026-10-08 02:35:39 Level:     13
-2026-10-08 02:35:39 Gold:      161.70 g
-2026-10-08 02:35:39 Mushrooms: 18
-2026-10-08 02:35:39 Tavern:
-2026-10-08 02:35:39   Thirst for Adventure: 100 min 0 s
 2026-10-08 02:35:39   Beers:  0/10
 2026-10-08 02:35:39   Status: City Guard until 23:06:37
 2026-10-08 02:35:39 Daily login bonus: next 08.10. 00:00 (collected 0×)
@@ -62,3 +52,49 @@
 2026-10-08 02:39:21 [shops] Spin 3: buying Amulet from the Magic shop (slot 5) for 12.80 g to sell it again
 2026-10-08 02:39:27 [inventory] selling Amulet (value 8.0 ≤ 12.0 of the equipped one)
 2026-10-08 02:39:31 [inventory] Sold for 3.20 g
+2026-10-08 02:39:36 [shops] Spin cost 9.60 g
+2026-10-08 02:39:36 [shops] Spin 4: buying Ring from the Magic shop (slot 5) for 10.10 g to sell it again
+2026-10-08 02:39:48 [inventory] selling Ring (value 1.8 ≤ 3.2 of the equipped one)
+2026-10-08 02:39:54 [inventory] Sold for 2.52 g
+2026-10-08 02:39:57 [shops] Spin cost 7.58 g
+2026-10-08 02:39:57 [shops] Potion: buying Strength 10 % for the stock (2 in the backpack)
+2026-10-08 02:40:07 [shops] Spin 5: buying Amulet from the Magic shop (slot 5) for 8.85 g to sell it again
+2026-10-08 02:40:19 [inventory] selling Amulet (value 1.7 ≤ 12.0 of the equipped one)
+2026-10-08 02:40:23 [inventory] Sold for 2.21 g
+2026-10-08 02:40:28 [shops] Spin cost 6.64 g
+2026-10-08 02:40:28 [shops] Buying an upgrade: Ring from the Magic shop (slot 5) for 2.25 g (value 6.4 > 3.2)
+2026-10-08 02:40:38 [inventory] equipping Ring (value 6.4 > 3.2 of Ring)
+2026-10-08 02:40:48 [inventory] selling Ring (value 3.2 ≤ 6.4 of the equipped one)
+2026-10-08 02:40:54 [inventory] Sold for 0.56 g
+2026-10-08 02:41:01 [shops] Spin 6: buying BreastPlate from the Weapon shop (slot 4) for 16.20 g to sell it again
+2026-10-08 02:41:10 [inventory] selling BreastPlate (value 2.0 ≤ 3.0 of the equipped one)
+2026-10-08 02:41:14 [inventory] Sold for 4.05 g
+2026-10-08 02:41:18 [shops] Spin cost 12.15 g
+2026-10-08 02:41:18 [shops] All items cost mushrooms, nothing more to buy
+2026-10-08 02:41:18 [shops] Done, gold left 129.25 g
+2026-10-08 02:41:18 [tasks] daily tasks: LeaseMount 1/1 (1 p), Upgrade(Strength) 5/5 (3 p), Upgrade(Constitution) 5/5 (2 p), BuyWeaponInWeaponsShop 1/1 (3 p), SpinWheelOfFortune 2/5 (2 p), WinFightsInArena 6/10 (2 p), DefeatGambler 1/3 (1 p), DrinkBeer 0/1 (2 p), RequestNewGoods 1/1 (1 p), JoinOrCreateGuild 1/1 (2 p), UpgradeAnyGuildSkill 1/1 (1 p), DefeatMonstersLightDungeon(TrainingCamp) 9/10 (3 p), ClaimNewCustomerPack 1/1 (1 p)
+2026-10-08 02:41:18 [tasks] daily chest 1 (1 points, opened): XP 390
+2026-10-08 02:41:18 [tasks] daily chest 2 (10 points, opened): XP 390
+2026-10-08 02:41:18 [tasks] daily chest 3 (20 points): Silver 5200, Mushrooms 10
+2026-10-08 02:41:18 [tasks] event tasks: SpendGoldOnUpgrades 200/200 (1 p), BuyHourGlasses 0/3 (1 p), BuyFromShop(Weapon) 3/3 (1 p), BuyFromShop(Magic) 3/3 (1 p)
+2026-10-08 02:41:18 [tasks] event chest 1 (1 points, opened): LuckyCoins 50
+2026-10-08 02:41:18 [tasks] event chest 2 (2 points, opened): Silver 800
+2026-10-08 02:41:18 [tasks] event chest 3 (3 points): Silver 200, Beer 1
+2026-10-08 02:41:18 [tasks] Claiming the event chest 3 (3 points)
+2026-10-08 02:41:28 [tasks] Shell game (2 wins to go), bet 0.01 g: Some(SilverChange(1))
+2026-10-08 02:41:35 [tasks] Shell game (1 wins to go), bet 0.01 g: Some(SilverChange(1))
+2026-10-08 02:41:35 [tasks] Shell game total: +0.02 g
+2026-10-08 02:41:35 [guard] Shift (6 h) finished, collecting the pay
+2026-10-08 02:41:38 [guard] Pay 14.64 g
+2026-10-08 02:41:38 [guard] Tavern done, starting a 10 h City Guard shift (wage 244 s/h)
+2026-10-08 02:41:43 [guard] Shift ends at 12:41
+2026-10-08 02:41:43 Nothing to do, next check in 6 min 55 s
+2026-10-08 02:48:48 [arena] Opponent Turugick Eumedos (lvl 13, DemonHunter): strength 188
+2026-10-08 02:48:55 [arena] Opponent tono nigajevic (lvl 13, PlagueDoctor): strength 179
+2026-10-08 02:49:01 [arena] Opponent bajerek (lvl 13, PlagueDoctor): strength 220
+2026-10-08 02:49:01 [arena] Challenging: tono nigajevic (strength 179)
+2026-10-08 02:49:06 [arena] Fight 2 today – Loss: honor -20, gold +0.00 g, xp +0
+2026-10-08 02:49:06 [arena] Wins for XP today: 1/10
+2026-10-08 02:49:06 [arena] Next free fight at 02:59:02
+2026-10-08 02:49:06 [tavern] The character is busy (CityGuard { hours: 10, busy_until: 2026-10-08T12:41:38+02:00 }), skipping the Tavern
+2026-10-08 02:49:06 Nothing to do, next check in 11 min 53 s

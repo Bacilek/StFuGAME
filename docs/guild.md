@@ -5,7 +5,9 @@
   and joins it automatically.
 - The list shows: name, rank, number of members, Hall of Knights points, Treasure, Instructor, raids.
 - Priority: Instructor first, then Treasure, then the overall strength of the guild (members, their levels, …).
-- Once a day check the list and switch only to a clearly better guild (proposal: Instructor at least 10 higher).
+- Once a day check the list and switch only to a clearly better guild (Instructor at least 10 higher), and only
+  after at least 3 days in the current guild (user 2026-10-08: otherwise the 24 h battle-eligibility window could
+  keep resetting and the character would never actually take part in a guild fight).
   Leaving = `GroupRemoveMember:<own player id>` (to verify that it is the own id).
 
 ## What sf-api 0.4.4 can do
@@ -66,7 +68,7 @@
 |---|---|
 | Quick-join list request + response | ✅ captured 2026-10-07, parsing covered by tests |
 | Bot: list loads, decision logged (`[guild]`) | ✅ 2026-10-08 (`Staying in Venom (Instructor 93), no guild in the list is clearly better`) |
-| Leaving + joining by the bot | ✅ happened between 2026-10-07 evening and 2026-10-08 (character moved from Artušova Garda to Venom) |
+| Leaving + joining by the bot | ✅ happened between 2026-10-07 evening and 2026-10-08 (character moved from Artušova Garda to Venom). The exact `[guild] Leaving …` decision line rotated out of the log before it could be read back, so the Instructor margin on that specific switch is not directly confirmed from the log – trusted from the code, which only switches through `candidates()` (Instructor ≥ current + 10). The new `MIN_TENURE` guard (3 days) was added after this switch. |
 | Join command + response | ✅ captured 2026-10-07 |
 | `gs.guild.total_instructor_skill` = Instructor from the list (106 for Artušova Garda) | ⏳ not verified |
 | Sign-up for attack/defense (`[guild] Signing up`), whether `Poll` refreshes planned battles | ⏳ not verified |

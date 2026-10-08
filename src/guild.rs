@@ -1,6 +1,8 @@
 //! Guild: once a day load the quick-join list (`GroupJoinList`) and join the best guild (`GroupJoin`).
 //! Best = highest Instructor, then Treasure, then strength (members × average level) – user 2026-10-07.
-//! Already in a guild → switch only to a clearly better one (Instructor at least `SWITCH_MARGIN` higher).
+//! Already in a guild → switch only to a clearly better one (Instructor at least `SWITCH_MARGIN` higher), and only
+//! after `MIN_TENURE` in the current one (user 2026-10-08: otherwise the character could lose eligibility for
+//! guild battles – 24 h after joining – again and again before ever taking part).
 //! sf-api does not know these commands, they are sent as `Command::Custom` (captured from the browser, docs/guild.md).
 //! `battles`: signs up for every planned guild attack/defense (free, user 2026-10-07).
 
@@ -16,6 +18,8 @@ use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 /// How much higher the Instructor of another guild must be before we leave ours.
 const SWITCH_MARGIN: u32 = 10;
+/// Minimum time in the current guild before another switch is even considered.
+const MIN_TENURE: chrono::Duration = chrono::Duration::days(3);
 /// A guild has at most 50 members.
 const MAX_MEMBERS: u32 = 50;
 /// How many candidates to try when joining fails (requirements, full guild, …).
@@ -132,9 +136,19 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let current = gs.guild.as_ref().map(|g| (g.name.clone(), u32::from(g.total_instructor_skill)));
     let player_id = gs.character.player_id;
-    let list = candidates(offers.clone(), current.as_ref().map(|(n, i)| (n.as_str(), *i)));
+    let tenure = gs.guild.as_ref().and_then(|g| g.joined).map(|j| Local::now() - j);
+    let too_new = tenure.is_some_and(|t| t < MIN_TENURE);
+    let list = if too_new { Vec::new() } else { candidates(offers.clone(), current.as_ref().map(|(n, i)| (n.as_str(), *i))) };
 
     match &current {
+        Some((name, instructor)) if too_new => {
+            report!(
+                "[guild] Staying in {name} (Instructor {instructor}): joined {}, waiting for the {} day minimum",
+                tenure.map_or("an unknown time ago".to_string(), |t| format!("{} h ago", t.num_hours())),
+                MIN_TENURE.num_days()
+            );
+            return Outcome::Done;
+        }
         Some((name, instructor)) if list.is_empty() => {
             report!("[guild] Staying in {name} (Instructor {instructor}), no guild in the list is clearly better");
             return Outcome::Done;
