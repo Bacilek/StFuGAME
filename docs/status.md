@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-Updated: 2026-10-08 ~15:05. Rewrite after every bigger change.
+Updated: 2026-10-08 ~15:12. Rewrite after every bigger change.
 
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
@@ -172,6 +172,13 @@ Updated: 2026-10-08 ~15:05. Rewrite after every bigger change.
   against everyone else, or is itself extreme (<8% / >92%), and shows a tooltip naming both classes' special
   mechanic (`CLASS_QUIRKS`) as the likely factor. Template lives in `src/dashboard.html` (`include_str!`'d into
   the binary by `roster.rs`), so **this needs a release rebuild** before it shows up in `roster/dashboard.html`.
+- **Dashboard "Day N" labels now 0-indexed (2026-10-08, user request):** the baseline point (the backdated Day 0
+  date) now displays as "Day 0", today as "Day 1", etc. – it previously displayed as "Day 1"/"Day 2" (purely
+  positional 1-based labeling in `dashboard.html`'s JS, unrelated to the backend's own `day` numbering), which
+  didn't match how we'd been talking about Day 0 vs Day 1 all along. Only the displayed text changed (x-axis
+  ticks, stepper, tooltips, "Why up?" panel, head-to-head title, per-day table header) – the internal `upto`
+  index and URL `#day=N` deep link are still 1-based, now one off from the label (acceptable, an internal/testing
+  mechanism, not user-facing).
 - **`SF_ACCOUNTS` normalized for consistency (2026-10-08):** every entry now follows `login|password|character`
   (optionally `|alt_login`), username first, e-mail as the 4th-field fallback, wherever `roster.md` records both
   as genuinely distinct identifiers (Filminy, Mimimimi11, Květoš, Chlamydie joined Sanek/Pagan/Novotné in this

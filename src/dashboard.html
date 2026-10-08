@@ -176,7 +176,7 @@ function render(){
   svg.replaceChildren();
   [...$("tabs").children].forEach((b,i)=>b.setAttribute("aria-pressed", i===metric));
   $("prev").disabled = upto <= 1; $("next").disabled = upto >= DATA.dates.length;
-  $("day").textContent = DATA.dates.length ? `Day ${upto} of ${DATA.dates.length} · ${DATA.dates[upto-1]}` : "no data";
+  $("day").textContent = DATA.dates.length ? `Day ${upto-1} of ${DATA.dates.length-1} · ${DATA.dates[upto-1]}` : "no data";
   $("sub").textContent = `${m.label} · ${DATA.chars.length} characters · updated ${DATA.generated}`;
   if (!DATA.dates.length){ const t = el("text",{x:500,y:210,"text-anchor":"middle",fill:css("--muted")},svg); t.textContent="No data yet – the first report is written at 23:50."; return; }
   const W=1000,H=420,L=70,R=110,T=16,B=36, days = DATA.dates.slice(0, upto);
@@ -193,7 +193,7 @@ function render(){
   el("line",{x1:L,x2:W-R,y1:m.invert?T:H-B,y2:m.invert?T:H-B,stroke:css("--axis"),"stroke-width":1},svg);
   // x labels (at most ~10)
   const every = Math.ceil(days.length/10);
-  days.forEach((d,i)=>{ if(i%every===0||i===days.length-1){ const t=el("text",{x:x(i),y:H-B+20,"text-anchor":"middle",fill:css("--muted"),"font-size":12},svg); t.textContent=`Day ${i+1}`; }});
+  days.forEach((d,i)=>{ if(i%every===0||i===days.length-1){ const t=el("text",{x:x(i),y:H-B+20,"text-anchor":"middle",fill:css("--muted"),"font-size":12},svg); t.textContent=`Day ${i}`; }});
   // series
   const ends = [];
   DATA.chars.forEach((c,i)=>{
@@ -218,7 +218,7 @@ function render(){
     const rows = DATA.chars.map((c,i)=>({c,i,v:c.rows[days[j]]?.[m.key]})).filter(o=>!hidden.has(o.i)&&o.v!=null)
       .sort((a,b)=> m.invert ? a.v-b.v : b.v-a.v);
     tip.replaceChildren();
-    const d = document.createElement("div"); d.className="d"; d.textContent=`Day ${j+1} · ${days[j]}`; tip.appendChild(d);
+    const d = document.createElement("div"); d.className="d"; d.textContent=`Day ${j} · ${days[j]}`; tip.appendChild(d);
     rows.forEach(o=>{ const row=document.createElement("div"); row.className="r";
       const key=document.createElementNS(NS,"svg"); key.setAttribute("width",16); key.setAttribute("height",4);
       key.setAttribute("width",22); key.setAttribute("height",12);
@@ -245,8 +245,8 @@ function renderSide(m, days){
   if (side.hidden) return;
   const j = days.length - 1, day = days[j], prev = days[j-1];
   const body = $("sidebody"); body.replaceChildren();
-  if (!prev){ $("sidetitle").textContent = "Day 1"; body.appendChild(Object.assign(document.createElement("p"),{className:"muted",textContent:"Starting point – changes show from day 2 on."})); return; }
-  $("sidetitle").textContent = `Why up? Day ${j} → ${j+1}`;
+  if (!prev){ $("sidetitle").textContent = "Day 0"; body.appendChild(Object.assign(document.createElement("p"),{className:"muted",textContent:"Starting point – changes show from day 1 on."})); return; }
+  $("sidetitle").textContent = `Why up? Day ${j-1} → ${j}`;
   let movers = DATA.chars.map((c,i)=>({c,i,d:(c.rows[day]?.winrate ?? NaN) - (c.rows[prev]?.winrate ?? NaN)}))
     .filter(o=>!isNaN(o.d) && !hidden.has(o.i)).sort((a,b)=>b.d-a.d);
   let big = movers.filter(o=>o.d >= JUMP);
@@ -273,7 +273,7 @@ function renderH2H(m, days){
   // On the Win rate tab the head-to-head replaces the plain table (user 2026-10-07)
   $("tablecard").hidden = !card.hidden;
   if (card.hidden) return;
-  $("h2htitle").replaceChildren(document.createTextNode(`Head to head · Day ${days.length} `),
+  $("h2htitle").replaceChildren(document.createTextNode(`Head to head · Day ${days.length-1} `),
     Object.assign(document.createElement("span"), {textContent: "(row's win rate against the column)"}));
   const idx = r.players.map((n,i)=>i);
   const avg = i => { const v = r.win[i].filter(x=>x!=null); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; };
@@ -308,7 +308,7 @@ function h2hOutlierNote(nameA, nameB, v, avgI){
 
 function renderTable(m, days){
   const t = document.createElement("table"), head = t.insertRow();
-  ["Character", ...days.map((d,i)=>`Day ${i+1}`)].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; head.appendChild(th); });
+  ["Character", ...days.map((d,i)=>`Day ${i}`)].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; head.appendChild(th); });
   // rows sorted by the last shown day (best first)
   const last = days[days.length-1], val = c => c.rows[last]?.[m.key];
   const order = [...DATA.chars].sort((a,b)=>{ const x=val(a), y=val(b); if (x==null) return 1; if (y==null) return -1; return m.invert ? x-y : y-x; });
