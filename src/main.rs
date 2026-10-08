@@ -190,12 +190,16 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 return tavern::Outcome::SessionLost;
             }
             // The Tavern did something (state/Thirst for Adventure changed) → again right away: Arena, then the next expedition.
-            // If nothing changed (the leftover Thirst for Adventure is not enough for any expedition), the Tavern is done.
+            // If nothing changed, the Tavern is done ONLY when it was actually attempted (character was Idle and no
+            // expedition fit the remaining Thirst for Adventure) – not when it was skipped because the character was
+            // busy with something else (City Guard): that leftover Thirst must still get a real attempt once free
+            // (bug found 2026-10-08: City Guard was restarting shift after shift without ever touching fresh,
+            // post-midnight Thirst for Adventure, because being guard-busy was wrongly treated as "Tavern done").
             let after = session.game_state().map(tavern_state);
             if after.is_some_and(|a| a != before) {
                 continue;
             }
-            tavern_done = before.0 != CurrentAction::Expedition;
+            tavern_done = before.0 == CurrentAction::Idle;
         }
 
         // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)

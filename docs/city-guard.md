@@ -12,6 +12,13 @@
 - `StartWork { hours }` when the character is idle and the Tavern is done; `FinishWork` (pay) after the shift ends (+10 s).
 - `CancelWork` is never used (not whitelisted).
 - The main loop wakes up at the end of the shift (pay) and at midnight (Thirst for Adventure reset).
+- **Bug found and fixed 2026-10-08:** after a shift ended, the character would immediately start another one without
+  ever trying to spend fresh (e.g. post-midnight) Thirst for Adventure first. The "Tavern done" flag was wrongly set
+  to true whenever the Tavern was *skipped* because the character was busy with City Guard, not only when it was
+  *attempted* from Idle and genuinely found nothing affordable. Fixed in `main.rs`'s main loop
+  (`tavern_done = before.0 == CurrentAction::Idle` instead of `!= CurrentAction::Expedition`). Caught live on
+  TestChar1: a stale City-Guard-until-yesterday shift got paid out at restart, then a new shift started right away
+  even though 100 min of fresh Thirst for Adventure were sitting unused.
 
 ## Verification status
 | What | Status |
