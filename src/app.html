@@ -82,7 +82,18 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 <dialog id="card"><div id="cardbody"></div><form method="dialog"><button class="close" aria-label="Close">✕</button></form></dialog>
 <script>
 const $ = id => document.getElementById(id);
-const post = cmd => { try { window.ipc.postMessage(JSON.stringify(cmd)); } catch (e) {} };
+const post = cmd => {
+  try { window.ipc.postMessage(JSON.stringify(cmd)); }
+  catch (e) { showIpcError(`Could not send ${cmd.cmd}: ${e.message}`); }
+};
+function showIpcError(msg){
+  let bar = document.getElementById("ipcerr");
+  if (!bar){ bar = document.createElement("div"); bar.id = "ipcerr";
+    bar.style.cssText = "background:#c62828;color:#fff;padding:6px 16px;font-size:12px"; document.body.insertBefore(bar, document.body.firstChild); }
+  bar.textContent = msg;
+}
+window.addEventListener("error", e => showIpcError(`Page error: ${e.message}`));
+setTimeout(()=>{ if (typeof window.ipc === "undefined") showIpcError("window.ipc is not available – the app window cannot talk to the bot. Restart StFuGAME."); }, 1500);
 const CLASSES = ["Warrior","Scout","Mage","Assassin","BattleMage","Berserker","Druid","DemonHunter","Bard","Necromancer","Paladin","PlagueDoctor"];
 const pretty = cls => (cls||"?").replace(/([a-z])([A-Z])/g, "$1 $2");
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();

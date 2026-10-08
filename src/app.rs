@@ -64,6 +64,8 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
     let webview = WebViewBuilder::new()
         .with_url(url)
         .with_ipc_handler(move |req| handle_ipc(&rt_handle, req.body()))
+        // Right click → Inspect (or F12) to see the console if the window ever misbehaves again.
+        .with_devtools(true)
         .build(&window)
         .expect("creating the embedded web view");
 
@@ -71,11 +73,18 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
     tray.set_state(tray::State::Stopped);
 
     // Only the autostart accounts log in right away (staggered); the rest stay off until switched on.
+    // "Autostart" = the user's last switch position for that character (roster/switches.json), falling back to
+    // SF_AUTOSTART/SF_USER only when there is no saved position yet (user 2026-10-08: opening the app just to
+    // look at stats must never force-start a character the user left switched off).
     // STFU_NO_LOGIN=1 skips this entirely (handy for trying out the window without touching the server).
     if std::env::var("STFU_NO_LOGIN").is_ok_and(|v| v == "1") {
         report!("[control] STFU_NO_LOGIN=1: not logging any character in");
     } else {
-        let auto: Vec<&str> = accounts.iter().filter(|c| c.autostart).map(|c| c.character.as_str()).collect();
+        let auto: Vec<&str> = accounts
+            .iter()
+            .filter(|c| control::should_autostart(&c.character, c.autostart))
+            .map(|c| c.character.as_str())
+            .collect();
         for (i, name) in auto.iter().enumerate() {
             let delay = if i == 0 { 0 } else { i as u64 * 20 + fastrand::u64(0..20) };
             control::start(rt.handle(), name, delay);

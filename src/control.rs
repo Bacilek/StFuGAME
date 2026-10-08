@@ -35,6 +35,29 @@ struct Entry {
 
 static REGISTRY: Mutex<Vec<Entry>> = Mutex::new(Vec::new());
 
+/// Remembers the user's last on/off choice per character, across app restarts (user 2026-10-08: opening the app
+/// to just look at stats should never force-start a character the user left switched off).
+const STATE_PATH: &str = "roster/switches.json";
+
+fn load_switches() -> std::collections::HashMap<String, bool> {
+    std::fs::read_to_string(STATE_PATH).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn save_switch(name: &str, on: bool) {
+    let mut map = load_switches();
+    map.insert(name.to_string(), on);
+    let _ = std::fs::create_dir_all("roster");
+    if let Ok(json) = serde_json::to_string_pretty(&map) {
+        let _ = std::fs::write(STATE_PATH, json);
+    }
+}
+
+/// Should this character autostart when the app launches? The user's last switch position if we have one
+/// (saved by every start/stop, individual or bulk), otherwise `default` (from `SF_AUTOSTART`/`SF_USER`).
+pub fn should_autostart(name: &str, default: bool) -> bool {
+    load_switches().get(name).copied().unwrap_or(default)
+}
+
 fn lock() -> std::sync::MutexGuard<'static, Vec<Entry>> {
     REGISTRY.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
@@ -67,7 +90,9 @@ pub fn is_running(name: &str) -> bool {
 
 /// Starts a character (does nothing if already running): spawns `run_character` on `rt`, scoped to `name`
 /// via `ctx::CHARACTER`, optionally after `delay_secs` (used for not logging everyone in at once).
+/// Remembers this as the character's switch position for the next app launch.
 pub fn start(rt: &Handle, name: &str, delay_secs: u64) {
+    save_switch(name, true);
     if is_running(name) {
         return;
     }
@@ -90,8 +115,9 @@ pub fn start(rt: &Handle, name: &str, delay_secs: u64) {
     }
 }
 
-/// Stops a character (aborts its task at the next await point).
+/// Stops a character (aborts its task at the next await point). Remembers this for the next app launch.
 pub fn stop(name: &str) {
+    save_switch(name, false);
     if let Some(e) = lock().iter_mut().find(|e| e.name == name) {
         if let Some(h) = e.abort.take() {
             h.abort();

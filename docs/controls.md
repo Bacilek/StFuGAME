@@ -55,6 +55,19 @@ The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`)
 - Startup/crash errors must always reach a dialog (`tray::message_box`), never just the log – the release build has
   no console, so a silently-failed `accounts()` or a panic looks like "nothing happens" to the user.
 
+- **Bug found 2026-10-08: none of the app window's controls (switches, Start all/Stop all, …) worked** – confirmed
+  by the complete absence of `[control] App window: …` log lines despite the user clicking them. The `post()`
+  helper swallowed any `window.ipc.postMessage` error silently (`catch (e) {}`), so nothing showed the failure
+  (the switch still *looked* like it did something for ~5 s thanks to the optimistic debounce below, then
+  reverted once that window expired and the real, unchanged backend state won). Root cause not pinned down yet
+  (wry's documented `window.ipc.postMessage` bridge should work regardless of the page being loaded via
+  `file://`) – fixed defensively: errors now show in a red bar at the top of the window and devtools are enabled
+  (`.with_devtools(true)`, right click → Inspect or F12) so a real stack trace is visible next time instead of
+  silence. If it recurs, check that bar / the console before anything else.
+- Opening the app no longer force-starts every character: each character's on/off switch position is remembered
+  in `roster/switches.json` (local only) across restarts. Only on the very first run (no saved file yet) does
+  `SF_AUTOSTART` / the `SF_USER` account's default apply; after that, the switches are the single source of
+  truth, updated by every start/stop – individual tile or Start all/Stop all alike.
 - Per-character tiles keep persistent DOM elements and debounce the start/stop switch for 5 s after a click
   (user 2026-10-08: without this, the periodic status refresh – every ~2 s – recreated every tile from scratch
   and the switch visually snapped back before the backend's state change had propagated, looking like "the
