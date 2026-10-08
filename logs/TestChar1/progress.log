@@ -1,16 +1,3 @@
-2026-10-08 02:35:39   Beers:  0/10
-2026-10-08 02:35:39   Status: City Guard until 23:06:37
-2026-10-08 02:35:39 Daily login bonus: next 08.10. 00:00 (collected 0×)
-2026-10-08 02:35:39 Wheel of Fortune: next free spin 08.10. 00:00
-2026-10-08 02:35:39 Mount: Some(Dragon) until 21.10. 13:30
-2026-10-08 02:35:39 [rewards] Collecting the daily login bonus: Fruit(Light) x5
-2026-10-08 02:35:45 [rewards] Spinning the Wheel of Fortune (free)
-2026-10-08 02:35:50 [rewards] Wheel of Fortune: WoodXL x2
-2026-10-08 02:35:53 [guild] Staying in Venom (Instructor 93), no guild in the list is clearly better
-2026-10-08 02:35:53 [guild] Signing up for the guild attack at 08.10. 11:42
-2026-10-08 02:35:57 [guild] Sign-up failed: Server responded with error: not 24 hours member (retry in an hour)
-2026-10-08 02:36:07 [arena] Opponent floky (lvl 11, PlagueDoctor): strength 88
-2026-10-08 02:36:11 [arena] Opponent k1NG (lvl 22, Berserker): strength 268
 2026-10-08 02:36:17 [arena] Opponent Calizard (lvl 17, Paladin): strength 264
 2026-10-08 02:36:17 [arena] Challenging: floky (strength 88)
 2026-10-08 02:36:23 [arena] Fight 1 today – Win: honor +111, gold +0.00 g, xp +98
@@ -98,3 +85,16 @@
 2026-10-08 02:49:06 [arena] Next free fight at 02:59:02
 2026-10-08 02:49:06 [tavern] The character is busy (CityGuard { hours: 10, busy_until: 2026-10-08T12:41:38+02:00 }), skipping the Tavern
 2026-10-08 02:49:06 Nothing to do, next check in 11 min 53 s
+2026-10-08 03:01:05 [arena] Error: Server responded with error: sessionid invalid
+2026-10-08 03:01:05 Session expired, logging in again in 49 s (1/3 in a row)
+2026-10-08 03:01:54 Logging in to the S&F account...
+2026-10-08 03:01:55 Loading character TestChar1 on s31.sfgame.eu...
+2026-10-08 03:02:13 [arena] Opponent krasxz (lvl 15, PlagueDoctor): strength 230
+2026-10-08 03:02:18 [arena] Opponent Ivy_Tamwood85 (lvl 18, Necromancer): strength 163
+2026-10-08 03:02:23 [arena] Opponent Borz (lvl 6, PlagueDoctor): strength 58
+2026-10-08 03:02:23 [arena] Challenging: Borz (strength 58)
+2026-10-08 03:02:27 [arena] Fight 3 today – Win: honor +99, gold +0.00 g, xp +98
+2026-10-08 03:02:27 [arena] Wins for XP today: 2/10
+2026-10-08 03:02:27 [arena] Next free fight at 03:12:24
+2026-10-08 03:02:27 [tavern] The character is busy (CityGuard { hours: 10, busy_until: 2026-10-08T12:41:38+02:00 }), skipping the Tavern
+2026-10-08 03:02:27 Nothing to do, next check in 12 min 5 s

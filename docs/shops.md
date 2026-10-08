@@ -21,7 +21,7 @@
 - `safe.rs`: `BuyShop` passes only when the item at `shop_pos` has `mushroom_price == 0`, matches `item_ident`
   (it contains both prices; the server also rejects a changed item) and we have the gold. Plus the mushroom watchdog.
 
-## Shop refresh for an ad (idea, not implemented)
+## Shop refresh for an ad (2026-10-08: do not implement, see below)
 - The user: once a day each shop can be rerolled for watching an ad. Wanted: do it after everything costs mushrooms.
 - sf-api 0.4.4 has no command for it (only `RefreshShop` = 1 mushroom, forbidden). The server sends a `skipvideo` key, sf-api ignores it.
 - Captured by the user 2026-10-08 (Weapon Shop): `AdvertisementsCompleted:4` (base64 `NA==`), `PlayerNewWares:1/2`
@@ -32,6 +32,16 @@
 - Also captured: `PlayerPollScrapbook` fires when opening the Magic Shop (scrapbook/legendary bitmask for the
   shop's collection %), unrelated to ad availability. A plain `Poll` response is just a timestamp – the ad
   availability flag is not in it, must be in some other, fuller response.
+- Both Weapon Shop responses captured 2026-10-08: `AdvertisementsCompleted:4` → `trust_counter:4&resources:…`;
+  `PlayerNewWares:1/2` → `timestamp:…&resources:…&characterstatus:…&subscriptionstatus:&storeitemsshakes:…&itemlevelshop:16`.
+  Neither contains an "ad still available today" flag – that hunt is abandoned (see decision below).
+- **Decision (user + Claude, 2026-10-08): do not implement this.** `AdvertisementsCompleted`'s response includes a
+  `trust_counter` field, almost certainly an anti-fraud/bot-detection metric from the ad network (ayetstudios) or
+  the game's own ad-reward system, not a simple "ads remaining" counter. Spoofing `AdvertisementsCompleted` without
+  ever actually watching the ad through that SDK risks more than a failed call – this mechanism looks purpose-built
+  to catch exactly this kind of automation, with consequences that could reach beyond one rejected command. Not
+  worth it for a minor convenience (saving one mushroom's worth of shop reroll). Left here for reference only;
+  do not revisit unless the risk picture changes.
 - Captured by the user 2026-10-07 (browser, DevTools), one shop (probably the Magic Shop):
   1. `AdvertisementsCompleted:5` (params base64 `NQ==`), response 71 B,
   2. `PlayerNewWares:2/2` (params `Mi8y`), response 520 B (the new offer).
