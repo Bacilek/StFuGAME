@@ -59,7 +59,9 @@ async fn claim_chests(session: &mut SimpleSession) -> Outcome {
         let t = &gs.specials.tasks;
         let (cmd, what, points) = if let Some(pos) = (0..3).find(|&i| t.daily.can_open_chest(i)) {
             (Command::CollectDailyQuestReward { pos }, format!("daily chest {}", pos + 1), t.daily.earned_points())
-        } else if let Some(pos) = (0..3).find(|&i| t.event.can_open_chest(i)) {
+        } else if let Some(pos) =
+            (!t.event.tasks.is_empty()).then(|| (0..3).find(|&i| t.event.can_open_chest(i))).flatten()
+        {
             (Command::CollectEventTaskReward { pos }, format!("event chest {}", pos + 1), t.event.earned_points())
         } else {
             return Outcome::Done;
@@ -415,7 +417,14 @@ fn log_tasks(gs: &GameState) {
         return;
     }
     *last = Some(Instant::now());
-    for (name, tasks, chests) in [("daily", &t.daily.tasks, &t.daily.rewards), ("event", &t.event.tasks, &t.event.rewards)] {
+    // Skip the event section entirely while the server hasn't sent a real event task list yet (e.g. right after
+    // a new event theme starts but its tasks haven't synced) – the reward-chest array still exists but with
+    // zeroed thresholds, which otherwise prints a misleading "0 points" line forever (see claim_chests).
+    let mut sections = vec![("daily", &t.daily.tasks, &t.daily.rewards)];
+    if !t.event.tasks.is_empty() {
+        sections.push(("event", &t.event.tasks, &t.event.rewards));
+    }
+    for (name, tasks, chests) in sections {
         let list: Vec<String> =
             tasks.iter().map(|t| format!("{:?} {}/{} ({} p)", t.typ, t.current, t.target, t.point_reward)).collect();
         report!("[tasks] {name} tasks: {}", list.join(", "));

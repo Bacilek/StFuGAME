@@ -102,3 +102,20 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | Hall of Fame page around a rank (`HallOfFamePage`), fight by name, Arena cooldown after it | ⏳ not verified |
 | Hall of Fame fights do not count towards the XP wins | ✅ 2026-10-07 per the user |
 | Bare hands: `PlayerItemMove` equipment → backpack, fight, `Equip` back | ⏳ not verified |
+| New event theme at the daily reset: task list can lag behind the reward-chest reset | ❌ bug, fixed 2026-10-09 (below) |
+
+## Bug: "invalid chest" spam right after a new event theme starts (found and fixed 2026-10-09)
+At the 2026-10-09 midnight reset, all 11 running characters logged `[tasks] event tasks: ` (empty) together with
+`event chest 1/2/3 (0 points)`, then `Claiming the event chest 1 (0 points)` → `Error: Server responded with
+error: invalid chest`, repeating on every `claim_chests` call afterwards (pure noise, no mushroom risk – chest
+claims are free). Root cause: `gs.specials.tasks.event.rewards` (the reward-chest array, parsed from
+`eventtaskrewardpreview`) reset to a zeroed/empty-looking state for the new theme before
+`gs.specials.tasks.event.tasks` (the actual task list, parsed from a separate `eventtasklist` server message) had
+synced – `can_open_chest(0)` then reads `earned_points() (0) >= required_points (0)` as "claimable" even though
+there's no real event data yet. Fixed in `claim_chests` (`src/tasks.rs`): only considers an event chest when
+`t.event.tasks` is non-empty. `log_tasks` also skips the whole "event" section while the list is empty, so it
+doesn't keep printing a misleading "0 points" line every 15 min either. Yesterday's "Epic Shopping Spree" event
+(see `docs/todo.md`, weekly server-wide events) had a real, non-empty task list with real point thresholds the
+whole time, so this guard only ever suppresses the brief sync-lag window, not legitimate low/zero thresholds.
+**Needs a release rebuild + bot restart to take effect** – not yet verified live (the running bot still has the
+old behaviour until restarted).

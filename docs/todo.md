@@ -37,3 +37,6 @@ Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá be
   Spree / Good Luck nevyžadují žádnou změnu kódu (jen vyšší šance na lepší věci, které beztak zpracováváme stejně).
   Forge Frenzy (kovárna/sockety) a Tidy Toilet (záchod/pevnost) se týkají funkcí, které bot vůbec neautomatizuje
   (viz "Záchod" a "Věž, mazlíčci, pevnost" výše) – případná automatizace by byla nová featura, ne reakce na event.
+- [x] 2026-10-09: nová event témata od Gleemana (reset o půlnoci) krátce po startu hlásila `invalid chest` u všech
+  postav – prázdný seznam úkolů, ale truhly s „0 bodů". Oprava v `src/tasks.rs` (`claim_chests`/`log_tasks`
+  ignorují event sekci, dokud `event.tasks` není reálně naplněný), viz `docs/tasks.md`. Čeká na release build + restart.

@@ -62,6 +62,13 @@ Updated: 2026-10-09 ~00:20. Rewrite after every bigger change.
   (`openCard` in `src/app.html`) now also shows "Hourglasses" next to Gold/Mushrooms/Lucky coins. Source:
   `gs.tavern.quicksand_glasses`, added to `card_data` in `src/roster.rs` (written to `now.json`, read by the app).
 
+- **Fixed "invalid chest" spam at a new event theme's start (2026-10-09, user-reported: "všechny postavy by
+  měly dostat uplně nové druhy questů"):** every running character hit this at the 2026-10-09 midnight reset,
+  repeating ever since on every `tasks::run` pass. See `docs/tasks.md` for the root cause (event reward-chest
+  reset arriving before the event task list syncs) and the fix in `src/tasks.rs::claim_chests`/`log_tasks`.
+  **Needs a release rebuild + bot restart** – the bot was still running the old build when this was found, not
+  restarted by Claude per the "user starts the bot themselves" rule.
+
 ## Where we are
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
   not `file://` – see `docs/controls.md`), not just a tray icon. The "StFuGAME bot" shortcut opens a window with a
