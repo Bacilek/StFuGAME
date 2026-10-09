@@ -10,7 +10,7 @@
 //!     rather than adding to it, but waiting for it to run low doesn't preserve more value – ongoing small-potion
 //!     refills would just keep delaying the swap forever – so once the backpack is full and a strictly better potion
 //!     is waiting, swap immediately regardless of days left on the active one),
-//!   - otherwise the least important potion in the backpack is drunk (when it stacks onto an active one) or sold.
+//!   - otherwise the least important potion in the backpack is drunk (when it stacks onto an active one); a useful one (main/CON/Luck) swaps in for a less important active potion instead of being sold; else it is sold.
 //!   - A bigger potion for a smaller active one is bought and swapped in only with a full backpack, with room it
 //!     goes to the stock.
 //! - Eternal Life is never removed or sold.

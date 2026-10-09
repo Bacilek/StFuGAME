@@ -38,7 +38,7 @@
   1. a target potion waits in the backpack and a removable active one is less important (non-target, or a smaller
      same-type stat potion; never Eternal Life) → `RemovePotion` it and drink the better one, regardless of days left,
   2. otherwise the least important potion in the backpack: drink it if it stacks onto an active one of the same type
-     (not smaller), else sell it (`SellShop`, any shop); Eternal Life is never sold.
+     (not smaller); else if it is useful (main/CON/Luck) and a less important removable active potion exists (no active of its type, never Eternal Life), remove that active one and drink this instead of selling (user 2026-10-09; Luck counts as useful even with Eternal Life); else sell it (`SellShop`, any shop). Eternal Life is never sold.
 - Shops (after equipment upgrades), in this order:
   missing target + free slot + nothing in the backpack → buy the biggest gold one and drink;
   full backpack + a bigger one for gold than the active stat target → buy, `RemovePotion`, drink (any days left);
