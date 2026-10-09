@@ -118,6 +118,7 @@ best fight per category stays saved in-game.
 | `companion_big_hits` | Count of companion crit hits (`type=15`) in the fight | ≥ 2 | bigger better |
 | `combo_run` | Longest run of consecutive actions by us in one go (berserker rage, dual weapon, summon+attack) | ≥ 4 | bigger better |
 | `swoops` | Our Druid swoop attacks (`type=13`) | ≥ 3 | bigger better |
+| `swoop_streak` | Longest run of our Druid turns that each had a swoop (the free attack after it belongs to the same turn) | ≥ 3 | bigger better |
 | `bear_crits` | Our crits while in bear form (stance 11) | ≥ 3 | bigger better |
 | `revives` | How many times WE revived mid-fight (we are a demon hunter; `type=14` rows of our id) | ≥ 1 | bigger better |
 | `opp_revives` | How many times the opponent (a demon hunter) revived before we still won | ≥ 2 | bigger better |

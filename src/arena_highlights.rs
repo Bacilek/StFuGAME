@@ -167,6 +167,16 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
     let revive_count = own_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
     let opp_revive_count = opp_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
     let swoop_count = own_rounds.iter().filter(|r| r.typ == TYPE_SWOOP).count();
+    // Consecutive Druid turns that each contained a swoop (the free attack right after a swoop is part of its turn)
+    let mut turn_swoops = Vec::new();
+    let mut prev_swoop = false;
+    for r in &own_rounds {
+        if !prev_swoop {
+            turn_swoops.push(r.typ == TYPE_SWOOP);
+        }
+        prev_swoop = r.typ == TYPE_SWOOP;
+    }
+    let swoop_streak = longest_run(&turn_swoops);
     let bear_crits = own_rounds.iter().filter(|r| r.stance == STANCE_BEAR && r.typ == TYPE_CRIT).count();
 
     let level_gap = f64::from(opp.level).max(0.0) - f64::from(own.level);
@@ -249,6 +259,13 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
             threshold: 3.0,
             lower_is_better: false,
             describe: |v| format!("{v:.0}x sokolí útok (swoop)"),
+        },
+        Metric {
+            category: "swoop_streak",
+            value: f64::from(swoop_streak),
+            threshold: 3.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x swoop v řadě"),
         },
         Metric {
             category: "bear_crits",
@@ -480,6 +497,7 @@ mod tests {
         let swoops: Vec<usize> = rounds.iter().enumerate().filter(|(_, r)| r.typ == TYPE_SWOOP).map(|(i, _)| i).collect();
         assert_eq!(swoops.len(), 2);
         assert!(swoops.iter().all(|&i| rounds[i + 1].actor == 7079 && rounds[i + 1].typ == 0));
+        // no two swoops in consecutive turns in this sample (#4 and the last one)
         assert_eq!(druid.iter().position(|r| r.typ == TYPE_SWOOP), Some(3)); // the 4th Druid attack
     }
 
