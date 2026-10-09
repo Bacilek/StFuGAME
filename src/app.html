@@ -218,7 +218,7 @@ function renderTiles(){
     el.cl.textContent = n.class ? `${pretty(n.class)} · level ${n.level}` : "not logged in yet";
     el.dot.className = "dot " + c.state; el.dotText.textContent = " " + c.state;
     el.r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
-    el.g.textContent = n.strength != null ? Math.round(n.strength).toLocaleString() : "–";
+    el.g.textContent = n.power != null ? Math.round(n.power).toLocaleString() : "–";
     el.actLabel.textContent = n.activity ? n.activity.label : "–";
     el.until = n.activity && n.activity.until ? new Date(n.activity.until).getTime() : null;
     updateTimer(el);
@@ -305,7 +305,7 @@ function openCard(c){
   if (!n){ el("p",null,"No data yet – it appears a few minutes after the character logs in."); $("card").showModal(); return; }
   const kv = el("div","kv");
   const stat = (k,v) => { const d=el("div",null,null,kv); el("div","k",k,d); el("div","v",v,d); };
-  stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Power", Math.round(n.strength).toLocaleString());
+  stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Power", Math.round(n.power).toLocaleString());
   stat("Gold", n.gold.toFixed(2)); stat("Mushrooms", n.mushrooms); stat("Lucky coins", n.lucky_coins); stat("Hourglasses", n.hourglasses);
   const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
   stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");

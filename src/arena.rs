@@ -1,6 +1,6 @@
 //! Arena: whenever it is off cooldown (even during an expedition), challenge whichever of the 3 opponents sf-api's
 //! own battle simulator (`simulate_battle`, the same one `tournament.rs` uses for the daily duels) gives us the
-//! best simulated win chance against – not just the one with the lowest attribute-only `strength()` (that coarse
+//! best simulated win chance against – not just the one with the lowest attribute-only `power()` (that coarse
 //! formula is kept for `hunt.rs`'s Hall of Fame search, where a full battle simulation per candidate would be far
 //! too many `ViewPlayer` calls).
 //! At most 10 wins per day, after that there are no rewards. Driven by the server counter `fights_for_xp`
@@ -25,8 +25,8 @@ pub fn total(p: &OtherPlayer, a: AttributeType) -> f64 {
     f64::from(p.attribute_basis[a] + p.attribute_additions[a] + p.attribute_pet_bonus[a])
 }
 
-/// Opponent strength by the user's formula.
-pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
+/// Opponent power by the user's formula.
+pub fn power(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
     let main = class.main_attribute();
     let side: f64 = [AttributeType::Strength, AttributeType::Dexterity, AttributeType::Intelligence]
         .into_iter()
@@ -36,7 +36,7 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
     stat(main) + 0.8 * stat(AttributeType::Constitution) + 0.4 * stat(AttributeType::Luck) + 0.1 * side
 }
 
-/// This attribute's weight in the strength formula above: main 100 %, CON 80 %, LCK 40 %, the other two side
+/// This attribute's weight in the power formula above: main 100 %, CON 80 %, LCK 40 %, the other two side
 /// attributes 10 % each (used by `attributes.rs` to pick which attribute is the best value for gold).
 pub fn weight(class: Class, a: AttributeType) -> f64 {
     let main = class.main_attribute();
@@ -54,9 +54,9 @@ pub fn weight(class: Class, a: AttributeType) -> f64 {
 /// After this many wins per day the Arena gives no rewards.
 pub const MAX_WINS_PER_DAY: usize = 10;
 /// Simulated fights per candidate opponent (sf-api's own battle simulator – the same one `tournament.rs` uses for
-/// the daily duels), to estimate our actual win chance rather than the coarse `strength()` formula, which ignores
+/// the daily duels), to estimate our actual win chance rather than the coarse `power()` formula, which ignores
 /// weapon damage, crit/block and class matchups (user 2026-10-08: a long real losing streak against "the weakest
-/// of 3" picked by `strength()` alone). Much lower than the tournament's 1000 (once a day, 1 pair at a time) –
+/// of 3" picked by `power()` alone). Much lower than the tournament's 1000 (once a day, 1 pair at a time) –
 /// this runs every ~10 min, 3 candidates at a time, times every running character, and the user noticed the PC
 /// getting noticeably slower after starting ~10 of them at once (2026-10-08); 100 is still plenty to rank 3
 /// candidates against each other.
@@ -136,7 +136,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let mut task_pick: Option<(f64, String)> = None;
 
     // Load the opponents' stats and estimate our win chance against each via sf-api's own battle simulator
-    // (same one `tournament.rs` uses) instead of the coarse attribute-only `strength()` formula.
+    // (same one `tournament.rs` uses) instead of the coarse attribute-only `power()` formula.
     let mut best: Option<(f64, String)> = None;
     for id in ids.into_iter().filter(|&id| id != 0) {
         let gs = match safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await {
@@ -239,14 +239,14 @@ mod tests {
     #[test]
     fn scout_formula() {
         // Scout: 100 % DEX + 80 % CON + 40 % LCK + 10 % STR + 10 % INT
-        let s = strength(Class::Scout, stats(100.0, 1000.0, 200.0, 500.0, 300.0));
+        let s = power(Class::Scout, stats(100.0, 1000.0, 200.0, 500.0, 300.0));
         assert!((s - (1000.0 + 400.0 + 120.0 + 10.0 + 20.0)).abs() < 1e-9);
     }
 
     #[test]
     fn warrior_and_mage_main_stat() {
-        let w = strength(Class::Warrior, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
-        let m = strength(Class::Mage, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
+        let w = power(Class::Warrior, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
+        let m = power(Class::Mage, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
         assert!((w - 1000.0).abs() < 1e-9);
         assert!((m - 100.0).abs() < 1e-9);
     }

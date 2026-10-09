@@ -124,7 +124,7 @@ const METRICS = [
   {key:"arena_wins_total", label:"Arena wins (total)", fmt:v=>Math.round(v)},
   {key:"rank", label:"Hall of Fame rank", fmt:v=>"#"+Math.round(v).toLocaleString(), invert:true},
   {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
-  {key:"strength", label:"Power", fmt:v=>Math.round(v).toLocaleString()},
+  {key:"power", label:"Power", fmt:v=>Math.round(v).toLocaleString()},
   {key:"winrate", label:"Win rate [%] (simulated against all)", fmt:v=>v.toFixed(1)+" %"},
 ];
 // Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
@@ -365,7 +365,7 @@ function tiles(){
     const add = (cls, text) => { const d=document.createElement("div"); d.className=cls; d.textContent=text; b.appendChild(d); return d; };
     add("n", c.nick); add("c", `${pretty(c.cls)}${n.level ? " · level "+n.level : ""}`);
     const s = add("s", ""); const r = document.createElement("span"); r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
-    const g = document.createElement("b"); g.textContent = n.strength != null ? Math.round(n.strength).toLocaleString() : "–"; g.title = "Power";
+    const g = document.createElement("b"); g.textContent = n.power != null ? Math.round(n.power).toLocaleString() : "–"; g.title = "Power";
     s.append(r, g);
     b.addEventListener("click", ()=>openCard(i));
     box.appendChild(b);
@@ -455,7 +455,7 @@ function openCard(i){
   const stat = (k,v) => { const e=el2("div",null,null,kv); el2("div","k",k,e); el2("div","v",v??"–",e); };
   stat("Hall of Fame", d?.rank!=null ? "#"+Math.round(d.rank).toLocaleString() : null);
   stat("Honor", d?.honor!=null ? Math.round(d.honor).toLocaleString() : null);
-  stat("Power", d?.strength!=null ? Math.round(d.strength).toLocaleString() : null);
+  stat("Power", d?.power!=null ? Math.round(d.power).toLocaleString() : null);
   stat("Gold", d?.gold_now!=null ? d.gold_now.toFixed(2) : null);
   stat("Mushrooms", d?.mushrooms_now); stat("Lucky coins", d?.lucky_coins_now);
   if (n){

@@ -11,7 +11,7 @@ use sf_api::{
 };
 
 use crate::{
-    arena::{self, strength},
+    arena::{self, power},
     safe,
     session::SimpleSession,
     tavern::Outcome,
@@ -33,7 +33,7 @@ enum Hunt {
 }
 
 impl Hunt {
-    /// Required opponent strength relative to ours: without a weapon we are much weaker.
+    /// Required opponent power relative to ours: without a weapon we are much weaker.
     fn max_ratio(self) -> f64 {
         match self {
             Hunt::Class(_) => 0.6,
@@ -52,10 +52,10 @@ fn wanted_hunt(gs: &GameState) -> Option<Hunt> {
     })
 }
 
-/// Our own strength by the Arena formula.
-pub fn own_strength(gs: &GameState) -> f64 {
+/// Our own power by the Arena formula.
+pub fn own_power(gs: &GameState) -> f64 {
     let ch = &gs.character;
-    strength(ch.class, |a: AttributeType| f64::from(ch.attribute_basis[a] + ch.attribute_additions[a]))
+    power(ch.class, |a: AttributeType| f64::from(ch.attribute_basis[a] + ch.attribute_additions[a]))
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
@@ -66,7 +66,7 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 /// Finds a clearly weaker opponent for the hunt. Returns the name.
 async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option<String>, Outcome> {
     let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
-    let (our_rank, our_level, ours) = (gs.character.rank, u32::from(gs.character.level), own_strength(gs));
+    let (our_rank, our_level, ours) = (gs.character.rank, u32::from(gs.character.level), own_power(gs));
     let total = gs.hall_of_fames.players_total.max(our_rank);
     let limit = ours * hunt.max_ratio();
     for offset in RANK_OFFSETS {
@@ -90,9 +90,9 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
         for (_, name) in list.into_iter().take(INSPECT) {
             let gs = safe::send(session, Command::ViewPlayer { ident: name.clone() }).await.map_err(|e| fail(&e))?;
             let Some(p) = gs.lookup.lookup_name(&name) else { continue };
-            let s = strength(p.class, |a| arena::total(p, a));
+            let s = power(p.class, |a| arena::total(p, a));
             if s <= limit {
-                report!("[hunt] Found {name} (rank {}, lvl {}, {:?}): strength {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
+                report!("[hunt] Found {name} (rank {}, lvl {}, {:?}): power {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
                 return Ok(Some(name));
             }
         }

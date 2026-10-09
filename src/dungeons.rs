@@ -13,21 +13,21 @@ use sf_api::{
 
 use crate::session::SimpleSession;
 
-use crate::{arena::strength, safe, tavern::Outcome};
+use crate::{arena::power, safe, tavern::Outcome};
 
 /// How often at most to retry the Dungeons when no fight happened (full inventory etc.).
 pub const RETRY_SEC: u64 = 5 * 60;
 
-/// Level difference considered "similar" (then strength by stats decides).
+/// Level difference considered "similar" (then power by stats decides).
 const SIMILAR_LEVELS: u16 = 2;
 
-/// Dungeon enemy: level and strength (same formula as in the Arena).
+/// Dungeon enemy: level and power (same formula as in the Arena).
 #[derive(Debug, Clone)]
 pub struct Candidate {
     pub dungeon: Dungeon,
     pub name: String,
     pub level: u16,
-    pub strength: f64,
+    pub power: f64,
 }
 
 /// All open dungeons fightable with FightDungeon (the Tower has its own command).
@@ -48,23 +48,23 @@ pub fn candidates(gs: &GameState) -> Vec<Candidate> {
             // The "mirror image" is a level 0 warrior in sf-api: it is a copy of our character
             let c = if m.level == 0 {
                 let stat = |a: AttributeType| f64::from(ch.attribute_basis[a] + ch.attribute_additions[a]);
-                Candidate { dungeon: d, name: "mirror image".into(), level: ch.level, strength: strength(ch.class, stat) }
+                Candidate { dungeon: d, name: "mirror image".into(), level: ch.level, power: power(ch.class, stat) }
             } else {
                 let stat = |a: AttributeType| f64::from(m.attributes[a]);
-                Candidate { dungeon: d, name: m.name.into(), level: m.level, strength: strength(m.class, stat) }
+                Candidate { dungeon: d, name: m.name.into(), level: m.level, power: power(m.class, stat) }
             };
             Some(c)
         })
         .collect()
 }
 
-/// Lowest level; among enemies of a similar level (up to +SIMILAR_LEVELS) the one with the lowest strength.
+/// Lowest level; among enemies of a similar level (up to +SIMILAR_LEVELS) the one with the lowest power.
 pub fn choose(cands: &[Candidate]) -> Option<&Candidate> {
     let min_level = cands.iter().map(|c| c.level).min()?;
     cands
         .iter()
         .filter(|c| c.level <= min_level + SIMILAR_LEVELS)
-        .min_by(|a, b| a.strength.total_cmp(&b.strength))
+        .min_by(|a, b| a.power.total_cmp(&b.power))
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
@@ -163,8 +163,8 @@ pub fn secs_until_ready(gs: &GameState) -> u64 {
 mod tests {
     use super::*;
 
-    fn c(level: u16, strength: f64) -> Candidate {
-        Candidate { dungeon: Dungeon::Light(LightDungeon::DesecratedCatacombs), name: String::new(), level, strength }
+    fn c(level: u16, power: f64) -> Candidate {
+        Candidate { dungeon: Dungeon::Light(LightDungeon::DesecratedCatacombs), name: String::new(), level, power }
     }
 
     #[test]

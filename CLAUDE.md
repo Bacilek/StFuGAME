@@ -77,7 +77,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Description and verification status: `docs/arena.md` (update with every new finding).
 - Fight ONLY off cooldown (otherwise it costs a mushroom, the server ignores use_mushroom), any time, even during an expedition.
 - At most 10 wins per day (no rewards after that), driven by `arena.fights_for_xp` from the server. Losses are fine.
-- Challenge the weakest of 3: strength = 100 % main attribute + 80 % CON + 40 % LCK + 10 % secondary attributes.
+- Challenge the weakest of 3: power = 100 % main attribute + 80 % CON + 40 % LCK + 10 % secondary attributes.
 
 ## Dungeons
 - Description and verification status: `docs/dungeons.md`.

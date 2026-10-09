@@ -181,7 +181,7 @@ struct Snapshot {
     level: u16,
     rank: u32,
     honor: u32,
-    strength: f64,
+    power: f64,
     gold: f64,
     mushrooms: u32,
     lucky_coins: u32,
@@ -196,7 +196,7 @@ struct Snapshot {
     dungeons: u32,
 }
 
-const CSV_HEADER: &str = "date,level,rank,honor,strength,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,\
+const CSV_HEADER: &str = "date,level,rank,honor,power,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,\
 gold_gained,mushrooms_gained,xp_gained,dungeons,class";
 
 /// Dungeon enemies defeated so far (a finished dungeon counts as 10).
@@ -218,7 +218,7 @@ impl Snapshot {
             level: c.level,
             rank: c.rank,
             honor: c.honor,
-            strength: crate::hunt::own_strength(gs),
+            power: crate::hunt::own_power(gs),
             gold: c.silver as f64 / 100.0,
             mushrooms: c.mushrooms,
             lucky_coins: gs.specials.wheel.lucky_coins,
@@ -239,7 +239,7 @@ impl Snapshot {
             self.level,
             self.rank,
             self.honor,
-            self.strength,
+            self.power,
             self.gold,
             self.mushrooms,
             self.lucky_coins,
@@ -648,7 +648,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "mushrooms": c.mushrooms,
         "lucky_coins": gs.specials.wheel.lucky_coins,
         "hourglasses": gs.tavern.quicksand_glasses,
-        "strength": (crate::hunt::own_strength(gs)).round(),
+        "power": (crate::hunt::own_power(gs)).round(),
         "attrs": attrs,
         "potions": potions,
         "derived": derived(gs),
@@ -806,7 +806,7 @@ fn read_history(path: &Path) -> Vec<BTreeMap<String, String>> {
     let text = fs::read_to_string(path).unwrap_or_default();
     let mut lines = text.lines();
     let Some(header) = lines.next() else { return Vec::new() };
-    let cols: Vec<&str> = header.split(',').collect();
+    let cols: Vec<&str> = header.split(',').map(|c| if c == "strength" { "power" } else { c }).collect(); // column renamed 2026-10-09
     lines
         .map(|l| cols.iter().zip(l.split(',')).map(|(c, v)| ((*c).to_string(), v.to_string())).collect())
         .collect()
@@ -853,7 +853,7 @@ fn write_dashboard(demo: bool) {
                 date.clone(),
                 serde_json::json!({
                     "gold": gold, "xp": xp, "mushrooms": mush, "arena_wins_total": arena_wins,
-                    "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
+                    "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "power": num(r, "power"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                     "changes": changes.get(date).cloned().unwrap_or_default(),
                     "equip": get("equip"),
@@ -988,18 +988,18 @@ mod tests {
             let _ = fs::create_dir_all(&d);
             let mut text = format!("{CSV_HEADER}
 ");
-            let (mut level, mut rank, mut strength, mut dungeons) = (1u32, 60_000u32 - i as u32 * 900, 20.0, 0u32);
+            let (mut level, mut rank, mut power, mut dungeons) = (1u32, 60_000u32 - i as u32 * 900, 20.0, 0u32);
             for day in 0..7 {
                 let date = start + chrono::Duration::days(day);
                 level += 2 + rng.u32(0..4);
                 rank = rank.saturating_sub(4_000 + rng.u32(0..6_000));
-                strength += 25.0 + rng.f64() * 30.0;
+                power += 25.0 + rng.f64() * 30.0;
                 dungeons += rng.u32(10..25);
                 let gold = 40.0 + rng.f64() * 120.0;
                 let xp = 2_000 + rng.u64(0..6_000) * (day as u64 + 1);
                 let mush = rng.u64(0..4);
                 text += &format!(
-                    "{date},{level},{rank},0,{strength:.0},0,0,0,0,10,-,{gold:.2},{mush},{xp},{dungeons},{class}
+                    "{date},{level},{rank},0,{power:.0},0,0,0,0,10,-,{gold:.2},{mush},{xp},{dungeons},{class}
 "
                 );
             }
@@ -1032,7 +1032,7 @@ mod tests {
             // Current state for the character card
             let now = serde_json::json!({
                 "name": nick, "class": class, "level": level, "xp": 4100, "next_xp": 6900, "rank": rank, "honor": 300 + i * 40,
-                "gold": 157.29 + i as f64 * 11.0, "mushrooms": 31 + i, "lucky_coins": 50, "hourglasses": 12 + i, "strength": strength.round(),
+                "gold": 157.29 + i as f64 * 11.0, "mushrooms": 31 + i, "lucky_coins": 50, "hourglasses": 12 + i, "power": power.round(),
                 "attrs": {"STR": {"base": 28, "bonus": 41, "total": 69}, "DEX": {"base": 10, "bonus": 6, "total": 16},
                           "INT": {"base": 9, "bonus": 3, "total": 12}, "CON": {"base": 29, "bonus": 37, "total": 66},
                           "LCK": {"base": 14, "bonus": 12, "total": 26}},

@@ -11,12 +11,12 @@ marks standout ones via `PlayerCombatLogMark` (shows up in Quarter → Mail). No
 - Challenge whichever of the 3 offered opponents sf-api's own battle simulator gives us the best simulated win
   chance against (`sf_api::simulate::simulate_battle`, 300 iterations – the same simulator `tournament.rs` uses
   for the daily duels, just fewer iterations since this runs every ~10 min per character instead of once a day).
-  Changed 2026-10-08 (user): the previous coarse attribute-only formula ("weakest of 3" by `strength()` below)
+  Changed 2026-10-08 (user): the previous coarse attribute-only formula ("weakest of 3" by `power()` below)
   led to a long real losing streak on TestChar1 (32 losses out of 41 fights on 2026-10-08) because it ignores
   weapon damage, crit/block chance and class matchups entirely – a battle simulation accounts for all of that.
   Not yet verified live (pending: does the win rate actually improve?); if it doesn't help, easy to revert to the
   old formula (`git log` has it).
-- The old formula is kept as `arena::strength()`/`arena::total()` for `hunt.rs`'s Hall of Fame search (there it
+- The old formula is kept as `arena::power()`/`arena::total()` for `hunt.rs`'s Hall of Fame search (there it
   would mean a full battle simulation per candidate scanned, far too many `ViewPlayer` calls): opponent strength
   = 100 % main attribute + 80 % Constitution (CON) + 40 % Luck (LCK) + 10 % each secondary attribute.
   E.g. Scout: 100 % DEX + 80 % CON + 40 % LCK + 10 % STR + 10 % INT.

@@ -2,6 +2,8 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **"strength" → "power" everywhere (2026-10-09, user: "strength" is the STR attribute, the formula result is Power):** `history.csv` column, `now.json`/dashboard JSON key, `arena::power`, `hunt::own_power`, `Snapshot.power`, HTML. `read_history` maps an old `strength` header to `power`, and every `write_day` rewrites the header, so old files migrate themselves (no data edit needed; old `now.json` shows NaN/dash for power until the character writes it again, ≤ 10 min after start). Needs a release rebuild. Unchanged: guild "strength" (members × avg level), `strength_ratio` highlight category slug.
+
 - **Day 0 redefined: level 1, base stats + starting weapon (2026-10-09, user dictated the values):** all 11 characters' `roster/<nick>/days/2026-10-07.json` + the Day 0 row in `history.csv` (level 1, `strength` = Arena formula on base attrs, no items except the starting weapon; Assassin Sanek has two weapons, stored as Weapon + Shield slot) were rewritten by hand (local, gitignored). Pjotr INT was dictated as "188", taken as 18 (typo; same as the other demon mage). No shields yet (Paladin etc. have none; `Fighter` has no shield field anyway). `tournament::fighter_from_day0` now also builds the Assassin's second weapon. "Run end of day now" re-runs `run_day0` only when `roster/tournament/rerun-day0` exists (deleted after use); I created that marker, so the next click regenerates `tournament/2026-10-07.json`. Needs a release rebuild first. Other history rows (rank, honor, gold, hourglasses) of Day 0 were left as they were.
 
 - **Potions: secondary-stat swap without a full backpack (2026-10-09, user request):** new `potions::swap_secondary` (called from `potions::run`) replaces a drunk non-target potion with a better target potion waiting in the backpack at once. Compiles (`cargo check`); not run live – needs a release rebuild, then look for `[potions] better target potion in the backpack: removing the active …` (Chlamydie: Dex/Str out, INT/Eternal Life in). Rule in `docs/potions.md`.
@@ -107,7 +109,7 @@ Updated: 2026-10-09. Rewrite after every bigger change.
 - **Attribute-purchase weighting + surplus-gold buying (2026-10-09, new `src/attributes.rs`):** when a task lets
   the bot choose freely which attribute to buy (`UpgradeAnyAttribute`/`SpendGoldOnUpgrades`), it no longer always
   picks the main attribute – it picks whichever of the 5 attributes is currently the best weight-per-gold (weight
-  = the Arena strength formula's weights: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 10 %
+  = the Arena power formula's weights: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 10 %
   each; divided by that attribute's next purchase price). Also new: `tasks::buy_surplus_attributes` spends gold
   on attributes even with **no open task**, but only once gold piles up past 5× the shop reserve (the user's
   reasoning: attribute cost is fixed regardless of character level/income, so there's no rush to buy them, but
@@ -288,12 +290,12 @@ Updated: 2026-10-09. Rewrite after every bigger change.
   one day off from Chlamydie's and Novotné's.
 - **Arena opponent picking changed from the attribute formula to a simulated win chance (2026-10-08):** found
   digging into why TestChar1 was on a long losing streak (32 losses / 41 fights) despite always challenging "the
-  weakest of 3" – the old `strength()` formula is attribute-only, it ignores weapon damage, crit/block chance and
+  weakest of 3" – the old `power()` formula is attribute-only, it ignores weapon damage, crit/block chance and
   class matchups entirely, so "weakest by the formula" isn't reliably "easiest in practice". `arena::run` now
   builds a `Fighter` for the character and for each of the 3 candidates (same sf-api types `tournament.rs` already
   uses for the daily duels: `PlayerFighterSquad`/`UpgradeableFighter`/`Fighter`/`simulate_battle`) and picks
   whichever candidate has the highest simulated win ratio (300 iterations, vs the tournament's 1000 – this runs
-  every ~10 min per character, not once a day). The old formula (`arena::strength`/`arena::total`) is kept as-is
+  every ~10 min per character, not once a day). The old formula (`arena::power`/`arena::total`) is kept as-is
   for `hunt.rs`'s Hall of Fame search (a full battle sim per scanned candidate there would mean far too many
   `ViewPlayer` calls). **Not yet verified live** – the user said to try it and revert if it doesn't actually
   improve the win rate (`docs/arena.md`'s Verification status table tracks this). **Needs a release rebuild

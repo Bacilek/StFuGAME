@@ -124,7 +124,7 @@ best fight per category stays saved in-game.
 | `opp_revives` | How many times the opponent (a demon hunter) revived before we still won | ≥ 2 | bigger better |
 | `low_hp` | Lowest our life got relative to max, excl. the final (kill) round | ≤ 5 % | **smaller** better |
 | `level_gap` | Opponent's level minus ours | ≥ 6 | bigger better |
-| `strength_ratio` | Opponent's `arena::strength()` ÷ ours | ≥ 1.6 (60 %+ stronger) | bigger better |
+| `strength_ratio` | Opponent's `arena::power()` ÷ ours | ≥ 1.6 (60 %+ stronger) | bigger better |
 | `big_hit` | Biggest single hit we landed, as a fraction of the opponent's max life (covers bard notes, battle mage blast, mage/assassin one-shots – no dedicated code needed, see below) | ≥ 35 % | bigger better |
 
 All thresholds are **first guesses, unverified** – raise/lower them once real fights start producing records (or

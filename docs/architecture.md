@@ -9,7 +9,7 @@
 | `tavern.rs` | Expeditions: choosing the expedition, encounters, rewards, waiting, data checks (`checks`), journal. During an expedition it also calls inventory/Arena/Dungeons/Stable. Returns `Outcome` after every finished expedition. |
 | `missions.rs` | Table of missions/cycles (chains, heroism, bonuses, limits). Data from the FAQ + from the user + verified on the server. |
 | `journal.rs` | Expedition journal → `roster/<character>/logs/expeditions.jsonl` (picks, heroism, keys, chests, verdict, `checks`, `unmapped`). |
-| `arena.rs` | Arena: 3 opponents via `ViewPlayer`, strength by the formula, fight, log `roster/<character>/logs/arena.jsonl`. Limit `fights_for_xp` < 10. `strength()` is shared with Dungeons and inventory. |
+| `arena.rs` | Arena: 3 opponents via `ViewPlayer`, strength by the formula, fight, log `roster/<character>/logs/arena.jsonl`. Limit `fights_for_xp` < 10. `power()` is shared with Dungeons and inventory. |
 | `dungeons.rs` | Dungeons: `UpdateDungeons`, enemies via `Dungeons::current_enemy` (sf-api data), choice, fight. |
 | `inventory.rs` | Inventory: equip better / sell worse, keep epics. Weapons by damage. |
 | `shops.rs` | Weapon Shop + Magic Shop once a day after the Tavern: gold-only upgrades, spinning above the daily reserve. |

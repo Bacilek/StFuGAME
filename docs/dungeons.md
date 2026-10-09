@@ -7,7 +7,7 @@
 - The cooldown should be 1 h (user). The bot follows the server time though (`dungeons.next_free_fight`).
 - No fight with a full inventory (to be solved later).
 - Several unlocked dungeons: pick the enemy with the lowest level, at a similar level (up to +2) the one with weaker stats
-  (strength as in the Arena: 100 % main + 80 % CON + 40 % LCK + 10 % secondary).
+  (power as in the Arena: 100 % main + 80 % CON + 40 % LCK + 10 % secondary).
 
 ## Implementation (src/dungeons.rs)
 - Always `UpdateDungeons` before deciding: neither `Update` nor a fight refreshes the Dungeons timer (sf-api docs).

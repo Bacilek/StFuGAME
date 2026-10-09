@@ -14,14 +14,14 @@ use sf_api::{
 
 use crate::session::SimpleSession;
 
-use crate::{arena::strength, safe, tavern::Outcome};
+use crate::{arena::power, safe, tavern::Outcome};
 
 /// Safety limit against an endless loop in one pass.
 const MAX_ACTIONS: usize = 30;
 
 /// Item value for our class.
 pub fn score(class: Class, item: &Item) -> f64 {
-    strength(class, |a: AttributeType| f64::from(item.attributes[a]))
+    power(class, |a: AttributeType| f64::from(item.attributes[a]))
 }
 
 /// Weapon value = average damage × (1 + M / 20).

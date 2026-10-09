@@ -181,8 +181,8 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
 
     let level_gap = f64::from(opp.level).max(0.0) - f64::from(own.level);
     let strength_ratio = {
-        let own_s = crate::arena::strength(own.class, |a| f64::from(own.attributes[a]));
-        let opp_s = crate::arena::strength(opp.class, |a| f64::from(opp.attributes[a]));
+        let own_s = crate::arena::power(own.class, |a| f64::from(own.attributes[a]));
+        let opp_s = crate::arena::power(opp.class, |a| f64::from(opp.attributes[a]));
         if own_s > 0.0 { opp_s / own_s } else { 1.0 }
     };
     let low_hp_ratio = low_point as f64 / own_max_life as f64;

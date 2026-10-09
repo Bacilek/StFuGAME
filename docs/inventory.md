@@ -2,7 +2,7 @@
 
 ## Rules (from the user)
 - Whenever an equippable item arrives, decide right away whether it is better than the equipped one.
-  Value = the same formula as Arena strength: 100 % main attribute + 80 % CON + 40 % LCK + 10 % secondary (from the item's attributes).
+  Value = the same formula as Arena power: 100 % main attribute + 80 % CON + 40 % LCK + 10 % secondary (from the item's attributes).
 - Weapons (user request: ignore armor, a separate equation for weapons):
   value = average damage × (1 + M / 20), M = the character's total main attribute with this weapon.
   Derived from the sf-api fight simulation (`simulate/damage.rs`): hit = weapon × (1 + A / 10), A = max(M / 2, M − M_enemy / 2),

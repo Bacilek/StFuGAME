@@ -3,7 +3,7 @@
 ## App window (2026-10-08)
 The bot is a desktop app (`tao` window + an embedded WebView2 control via `wry`), not just a tray icon:
 - **"StFuGAME bot"** shortcut opens the **app window**: a "Characters" tab with a tile per character (name, class,
-  level, Hall of Fame rank, strength, a colored status dot, and an on/off switch that starts/stops just that
+  level, Hall of Fame rank, power, a colored status dot, and an on/off switch that starts/stops just that
   character) and a "Charts" tab (the dashboard, `roster/dashboard.html`, in an iframe). Clicking a tile opens a
   card with that character's current state (gold, mushrooms, attributes, potions, achievements %, collection,
   dungeons, equipment, guild) – the same data the dashboard's tiles show, refreshed every ~10 min while it plays.
