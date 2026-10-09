@@ -468,8 +468,10 @@ function openCard(i){
   if (n){
     el2("div","sec","Dungeons (now)");
     const dt = el2("table","mini");
-    if (!n.dungeons.length) el2("div","muted","–");
-    n.dungeons.forEach(dg=>{ const r=dt.insertRow(); r.insertCell().textContent = dg.name.replace(/([a-z])([A-Z])/g,"$1 $2");
+    // Only dungeons still in progress; finished ones drop off (user 2026-10-09)
+    const openDg = n.dungeons.filter(dg=>!dg.finished);
+    if (!openDg.length) el2("div","muted","No dungeon in progress");
+    openDg.forEach(dg=>{ const r=dt.insertRow(); r.insertCell().textContent = dg.name.replace(/([a-z])([A-Z])/g,"$1 $2");
       const c2=r.insertCell(); c2.textContent = dg.finished ? "done" : `${dg.done}/10`; const pr=document.createElement("span"); pr.className="prog";
       const fill=document.createElement("i"); fill.style.width=Math.min(100,dg.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
   }
