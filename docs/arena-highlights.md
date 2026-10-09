@@ -56,6 +56,7 @@ The next round starts wherever `actor` (field 0) is one of the two fighter ids a
 | 18 | Plague Doctor poison bolt/application (deals direct damage too) | plague-doctor fight |
 | 19 | Plague Doctor poison DoT tick (smaller) | plague-doctor fight |
 | 20 | Plague Doctor poison DoT tick (bigger) | plague-doctor fight |
+| 13 | Druid **swoop** (eagle/sweep) attack; the same actor attacks again right after with a regular `type=0` row (free attack) | Druid opponent, 2× in one fight (attack #4 and the last) |
 | 100 | Assassin's second weapon attack (always right after a `type=0`/`1` first-weapon action, same actor) | assassin fight, every one of their turns |
 
 `17`–`20` (Plague Doctor poison) are **not fully disambiguated** – which is the "crit tick" vs. plain tick wasn't
@@ -89,8 +90,7 @@ necromancer "wolf" fight (round 19: `type=12`, `result=6`).
   90 % then 80 %), `target_life` = the other side's life unchanged; the previous row ends with the reviver's
   `target_life` ≤ 0 (−4173, −1238), and the reviver acts again right after (same actor twice in a row). Counted by
   `type=14` per actor, no longer from the life sequence.
-- **Druid bear form / swoop**: never observed live either (no Druid opponent found). Covered only by the generic
-  crit-streak / big-hit signals, not a dedicated detector.
+- **Druid** – **confirmed 2026-10-09** (user's fight vs a Druid, narrated attack by attack): bear form = the Druid's `stance` field is `11` (`10` = normal form; our rows then carry the same value in f4), e.g. attack #1 was a bear crit. Swoop = `type=13`, immediately followed by a free regular attack of the same actor (attack #4 and the last one). Counted for OUR Druid as `swoops` and `bear_crits`.
 
 ## Scoring: per-character, per-category personal bests (`src/arena_highlights.rs::measure`)
 
@@ -117,6 +117,8 @@ best fight per category stays saved in-game.
 | `summons` | Count of companion summons (necromancer/druid) in the fight | ≥ 3 | bigger better |
 | `companion_big_hits` | Count of companion crit hits (`type=15`) in the fight | ≥ 2 | bigger better |
 | `combo_run` | Longest run of consecutive actions by us in one go (berserker rage, dual weapon, summon+attack) | ≥ 4 | bigger better |
+| `swoops` | Our Druid swoop attacks (`type=13`) | ≥ 3 | bigger better |
+| `bear_crits` | Our crits while in bear form (stance 11) | ≥ 3 | bigger better |
 | `revives` | How many times WE revived mid-fight (we are a demon hunter; `type=14` rows of our id) | ≥ 1 | bigger better |
 | `opp_revives` | How many times the opponent (a demon hunter) revived before we still won | ≥ 2 | bigger better |
 | `low_hp` | Lowest our life got relative to max, excl. the final (kill) round | ≤ 5 % | **smaller** better |
@@ -161,7 +163,7 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 | `result` 3/4/6 (blocked/evaded/blocked+healed) | ✅ confirmed across 5+ fights |
 | "several actions in one turn" = consecutive same-actor rows | ✅ berserker (5 in a row), assassin (dual weapon), necromancer (summon+attack) |
 | Demon Hunter revive | ✅ format confirmed from a saved fight (unit test `counts_opponent_demon_hunter_revives`); not yet seen live in the bot |
-| Druid bear form/swoop | ⏳ not observed live, no dedicated detection |
+| Druid bear form (stance 11) / swoop (type 13 + free attack) | ✅ format confirmed from a saved fight (unit test `decodes_druid_bear_and_swoop`); thresholds for `swoops`/`bear_crits` are guesses |
 | `PlayerCombatLogMark <id>/1` marks a fight (sets `combatloglist`'s last field to `3`, settling to `2`) | ✅ 2026-10-09, both via our own API call and the user's in-game click, same effect |
 | `PlayerCombatLogMark <id>/0` un-marks a fight (sets last field to `0`) | ✅ 2026-10-09, confirmed by diffing the user's own pin/unpin in-game clicks (clean single-row `3→0`) – inferred from the resulting list, the raw unmark request itself wasn't captured, but high confidence |
 | `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ⏳ unverified assumption, still untested by our own code sending `Fight` |

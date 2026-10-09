@@ -29,6 +29,7 @@ fn custom(cmd_name: &str, arguments: &[&str]) -> Command {
 #[derive(Debug, Clone, Copy)]
 struct Round {
     actor: i64,
+    stance: i64,
     typ: i64,
     result: i64,
     own_life: i64,
@@ -42,6 +43,11 @@ const TYPE_SUMMON: i64 = 11;
 /// (confirmed 2026-10-09, an opponent DH who revived 2× in one fight: 90 % then 80 % of max life).
 const TYPE_REVIVE: i64 = 14;
 const TYPE_COMPANION_BIG_HIT: i64 = 15;
+/// Druid swoop (eagle/sweep) attack: followed at once by a free regular attack of the same actor (confirmed
+/// 2026-10-09, opponent Druid fight, attacks #4 and the last one).
+const TYPE_SWOOP: i64 = 13;
+/// A Druid's `stance` while in bear form (10 = normal form); bear attacks crit often (2026-10-09, same fight).
+const STANCE_BEAR: i64 = 11;
 /// `result` field values (always refers to the outcome on the *defending* side, whichever row it is attached to).
 const RESULT_BLOCKED: i64 = 3;
 const RESULT_EVADED: i64 = 4;
@@ -61,7 +67,7 @@ fn parse_rounds(raw: &str, id_a: i64, id_b: i64) -> Vec<Round> {
         if actor != id_a && actor != id_b {
             break; // unexpected layout, stop rather than misparse the rest
         }
-        rounds.push(Round { actor, typ: toks[i + 2], result: toks[i + 3], own_life: toks[i + 5], target_life: toks[i + 6] });
+        rounds.push(Round { actor, stance: toks[i + 1], typ: toks[i + 2], result: toks[i + 3], own_life: toks[i + 5], target_life: toks[i + 6] });
         let mut j = i + 7;
         while j < toks.len() && toks[j] != id_a && toks[j] != id_b {
             j += 1;
@@ -160,6 +166,8 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
     }
     let revive_count = own_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
     let opp_revive_count = opp_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
+    let swoop_count = own_rounds.iter().filter(|r| r.typ == TYPE_SWOOP).count();
+    let bear_crits = own_rounds.iter().filter(|r| r.stance == STANCE_BEAR && r.typ == TYPE_CRIT).count();
 
     let level_gap = f64::from(opp.level).max(0.0) - f64::from(own.level);
     let strength_ratio = {
@@ -233,6 +241,21 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
             threshold: 2.0,
             lower_is_better: false,
             describe: |v| format!("soupeř se oživil {v:.0}x"),
+        },
+        // Druid (user 2026-10-09 decoded the fight); thresholds are first guesses
+        Metric {
+            category: "swoops",
+            value: swoop_count as f64,
+            threshold: 3.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x sokolí útok (swoop)"),
+        },
+        Metric {
+            category: "bear_crits",
+            value: bear_crits as f64,
+            threshold: 3.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x krit v podobě medvěda"),
         },
         Metric {
             category: "low_hp",
@@ -439,6 +462,25 @@ mod tests {
         assert_eq!(revives.len(), 2);
         assert!(revives.iter().all(|r| r.actor == 23926));
         assert_eq!([revives[0].own_life, revives[1].own_life], [11700, 10400]);
+    }
+
+    /// Real response (2026-10-09): our Paladin (23994) beats a Druid (7079). Bear form = stance 11 (attacks #1, #6,
+    /// #8, #10 of the Druid), swoop = `type=13` followed by a free regular attack of the same actor (#4 and the last).
+    const DRUID_FIGHT: &str = "fight.r:23994/0/0/4/10/39270/21320/0/0/7079/11/1/0/0/21320/38199/0/0/23994/0/0/0/11/38199/20403/0/0/7079/10/1/0/0/20403/37470/0/0/23994/20/0/0/10/37470/19499/0/0/7079/10/0/0/20/19499/37104/0/0/23994/20/0/0/10/37104/18437/0/0/7079/10/13/6/20/18437/37476/0/0/7079/10/0/0/20/18437/37110/0/0/23994/21/1/4/10/37110/18437/0/0/7079/11/0/0/21/18437/36484/0/0/23994/21/0/0/11/36484/16230/0/0/7079/10/0/0/21/16230/35476/0/0/23994/0/0/4/10/35476/16230/0/0/7079/11/0/0/0/16230/34996/0/0/23994/20/0/0/11/34996/14466/0/0/7079/10/0/6/20/14466/35283/0/0/23994/20/0/4/10/35283/14466/0/0/7079/11/1/6/20/14466/37133/0/0/23994/20/0/0/11/37133/12467/0/0/7079/10/0/6/20/12467/37442/0/0/23994/21/0/0/10/37442/8057/0/0/7079/10/0/3/21/8057/37442/0/0/23994/21/0/0/10/37442/2359/0/0/7079/10/13/0/21/2359/32737/0/0/7079/10/0/0/21/2359/31265/0/0/23994/0/0/0/10/31265/-873/0/0/&winnerid:23994";
+
+    #[test]
+    fn decodes_druid_bear_and_swoop() {
+        let rounds = parse_rounds(DRUID_FIGHT, 23994, 7079);
+        assert_eq!(rounds.len(), 27);
+        let druid: Vec<_> = rounds.iter().filter(|r| r.actor == 7079).collect();
+        // bear form attacks are the stance-11 rows (#1, #6, #8, #10 of the Druid's attacks)
+        let bear: Vec<usize> = druid.iter().enumerate().filter(|(_, r)| r.stance == STANCE_BEAR).map(|(i, _)| i + 1).collect();
+        assert_eq!(bear, [1, 6, 8, 10]);
+        // swoop = type 13, always followed by a regular (type 0) row of the same actor
+        let swoops: Vec<usize> = rounds.iter().enumerate().filter(|(_, r)| r.typ == TYPE_SWOOP).map(|(i, _)| i).collect();
+        assert_eq!(swoops.len(), 2);
+        assert!(swoops.iter().all(|&i| rounds[i + 1].actor == 7079 && rounds[i + 1].typ == 0));
+        assert_eq!(druid.iter().position(|r| r.typ == TYPE_SWOOP), Some(3)); // the 4th Druid attack
     }
 
     #[test]
