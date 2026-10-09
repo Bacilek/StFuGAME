@@ -2,6 +2,8 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Charts tab opens on the latest day (2026-10-09, user request):** `src/dashboard.html` now defaults `upto` to the
+  last date instead of Day 0 (`#day=N` in the URL still overrides). Pending: user confirms after next dashboard regen.
 - **Arena fight highlights implemented (2026-10-09, new `src/arena_highlights.rs`, user request):** after a won
   Arena fight, measures a set of categories (crit/block/evade streaks, paladin block+heal, companion summon/crit,
   combo/rampage turns, mid-fight revive, winning at very low HP, a much stronger opponent, a single huge hit) and

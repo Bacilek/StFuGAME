@@ -141,7 +141,7 @@ const CLASS_QUIRKS = {
 const classOf = nick => DATA.chars.find(c=>c.nick===nick)?.cls;
 const SHAPES = ["square","circle","star","diamond","triangle","cross","leaf","triangleDown","pentagon","hexagon","shield","plus"];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-let metric = 0, upto = Math.min(1, DATA.dates.length), hidden = new Set();
+let metric = 0, upto = Math.max(1, DATA.dates.length), hidden = new Set();
 // #day=N&metric=M opens a given view (handy for links and testing)
 const hp = new URLSearchParams(location.hash.slice(1));
 if (hp.get("day")) upto = Math.max(1, Math.min(DATA.dates.length, +hp.get("day")));
