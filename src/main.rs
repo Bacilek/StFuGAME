@@ -8,6 +8,7 @@ mod arena;
 mod arena_highlights;
 mod attributes;
 mod control;
+mod coupons;
 mod ctx;
 mod daily;
 mod dungeons;

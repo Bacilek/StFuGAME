@@ -9,6 +9,16 @@ use sf_api::{command::Command, error::SFError, gamestate::GameState, session::Se
 pub struct SimpleSession {
     session: Session,
     gamestate: Option<GameState>,
+    /// The raw `ownplayersavecharacter` numbers of the latest response that carried them (sf-api drops the first
+    /// one; the coupon "payment string" needs it, see `coupons.rs`).
+    char_save: Option<Vec<i64>>,
+}
+
+/// Picks the `ownplayersavecharacter` numbers out of a raw response (`key:value&key:value…`), if it has them.
+fn parse_char_save(raw: &str) -> Option<Vec<i64>> {
+    let v = raw.split('&').find_map(|kv| kv.strip_prefix("ownplayersavecharacter:"))?;
+    let nums: Vec<i64> = v.split('/').filter_map(|s| s.parse().ok()).collect();
+    (nums.len() > 3).then_some(nums)
 }
 
 impl SimpleSession {
@@ -20,7 +30,7 @@ impl SimpleSession {
             .await?
             .into_iter()
             .flatten()
-            .map(|session| Self { session, gamestate: None })
+            .map(|session| Self { session, gamestate: None, char_save: None })
             .collect())
     }
 
@@ -31,6 +41,11 @@ impl SimpleSession {
 
     pub fn username(&self) -> &str {
         self.session.username()
+    }
+
+    /// Numbers of the latest `ownplayersavecharacter` seen (login or any response), see `coupons.rs`.
+    pub fn char_save(&self) -> Option<&[i64]> {
+        self.char_save.as_deref()
     }
 
     pub fn game_state(&self) -> Option<&GameState> {
@@ -46,6 +61,7 @@ impl SimpleSession {
     pub async fn send_raw(&mut self, cmd: Command) -> Result<String, SFError> {
         if self.gamestate.is_none() {
             let resp = self.session.login().await?;
+            self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
@@ -57,6 +73,7 @@ impl SimpleSession {
             }
         };
         let raw = resp.raw_response().to_string();
+        self.char_save = parse_char_save(&raw).or(self.char_save.take());
         if let Some(gs) = &mut self.gamestate
             && let Err(e) = gs.update(resp)
         {
@@ -73,10 +90,12 @@ impl SimpleSession {
     pub async fn send_raw_only(&mut self, cmd: Command) -> Result<String, SFError> {
         if self.gamestate.is_none() {
             let resp = self.session.login().await?;
+            self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
         let resp = self.session.send_command(cmd).await?;
+        self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
         Ok(resp.raw_response().to_string())
     }
 }

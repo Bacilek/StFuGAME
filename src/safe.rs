@@ -47,6 +47,9 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::ViewPlayer { .. }
             | Command::Fight { use_mushroom: false, .. }
             | Command::UpdateDungeons
+            // Reward of a redeemed coupon waiting in the Mail (user 2026-10-09); only a Coupon-type mail, see `claimable_ok`
+            | Command::ClaimablePreview { .. }
+            | Command::ClaimableClaim { .. }
             // Dungeon unlock (user 2026-10-09: the game client itself sends `UnlockFeature` `30/1` when a character
             // with a pending dungeon unlock opens the Dungeons screen; nothing to pay), see dungeons::unlock_pending.
             // Ident 5 = Scrapbook (user 2026-10-09, wanted on every character).
@@ -227,6 +230,15 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))
     {
         return Err(SFError::InvalidRequest("shop item costs mushrooms or changed, not buying"));
+    }
+    if let Command::ClaimablePreview { msg_id } | Command::ClaimableClaim { msg_id } = &cmd
+        && !session.game_state().is_some_and(|gs| {
+            gs.mail.claimables.iter().any(|m| {
+                m.msg_id == *msg_id && m.typ == sf_api::gamestate::social::ClaimableMailType::Coupon
+            })
+        })
+    {
+        return Err(SFError::InvalidRequest("only the reward of a coupon mail may be viewed or claimed"));
     }
     if let Command::GuildIncreaseSkill { skill, current } = &cmd
         && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))

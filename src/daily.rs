@@ -68,6 +68,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::SessionLost;
     }
 
+    // Coupon codes from roster/coupons.txt (user 2026-10-09), at most every 30 min while something is pending
+    if may_try("coupons")
+        && let Outcome::SessionLost = crate::coupons::run(session).await
+    {
+        return Outcome::SessionLost;
+    }
+
     Outcome::Done
 }
 
