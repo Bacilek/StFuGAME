@@ -45,7 +45,7 @@ Verified from runs:
 | The Sword Trial | 1×, permanent end | sword in stone (6) → bent sword (3) → broken sword (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / piece |
 | Bewitched Stew | 1× | cauldron (−2) → witch (−5) → witch's brew (15) (user 2026-10-10; brew +15 server-verified) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
 | Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
-| Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 on completion, failure 0 (user 2026-10-10, not yet verified) |
+| Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 / piece (polluted fountain keeps appearing to the end, net +4 each), failure 0 (user 2026-10-10, not yet verified) |
 | Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
 Sanitary: the FAQ says "at the end +5 if you have 3 toilet papers, otherwise −5". The user is sure about +20 / −5; their version applies (not yet verified in a run).

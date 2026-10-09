@@ -122,8 +122,8 @@ pub const MISSIONS: &[Mission] = &[
     // user 2026-10-10: mugs 0, draft beer +6, tapping bartender +6, bonus +5 on completion, -5 when failed
     penalty(known("Running Dry", &[(Mugs, 0), (DraftBeer, 6), (Barkeeper, 6)], Bonus::OnComplete(5), 1), 5),
     // sf-api ids: Prince = fairy fountain, RoyalFrog = polluted fairy fountain
-    // user 2026-10-10: fountain +8, polluted fountain -4, bonus +8 on completion, 0 when failed
-    repeats(known("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], Bonus::OnComplete(8), 1)),
+    // user 2026-10-10: fountain +8, polluted fountain -4, bonus +8 per piece (net +4 each), 0 when failed
+    repeats(known("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], Bonus::PerItem(8), 1)),
     unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),
 ];
 
