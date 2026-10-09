@@ -32,6 +32,27 @@ pub fn weapon_value(avg_damage: f64, main_attr_with_weapon: f64) -> f64 {
     avg_damage * (1.0 + main_attr_with_weapon / 20.0)
 }
 
+/// Unarmed damage range of the game (sf-api `simulate/damage.rs`, `get_hand_damage`): 1–2 up to level 10, then it grows
+/// with the level and the class. The fight simulation uses it instead of a weapon whose min AND max are both below it.
+pub fn hand_damage(class: Class, level: u16, secondary: bool) -> (f64, f64) {
+    if level <= 10 {
+        return (1.0, 2.0);
+    }
+    let multiplier = if class == Class::Assassin { if secondary { 1.25 } else { 0.875 } } else { 0.7 };
+    let damage = multiplier * (f64::from(level) - 9.0) * class.weapon_multiplier();
+    (1.0f64.max((damage * 2.0 / 3.0).ceil()), 2.0f64.max((damage * 4.0 / 3.0).round()))
+}
+
+/// Average damage a weapon really deals: a weapon weaker than bare hands (both min and max below) is ignored by the game.
+pub fn effective_avg_damage(class: Class, level: u16, secondary: bool, min_dmg: u32, max_dmg: u32) -> f64 {
+    let (hand_min, hand_max) = hand_damage(class, level, secondary);
+    if f64::from(min_dmg) < hand_min && f64::from(max_dmg) < hand_max {
+        (hand_min + hand_max) / 2.0
+    } else {
+        f64::from(min_dmg + max_dmg) / 2.0
+    }
+}
+
 /// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
 /// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
@@ -47,7 +68,10 @@ fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
     let with_this = total - equipped + f64::from(item.attributes[main]);
     // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
     let others = score(ch.class, item) - f64::from(item.attributes[main]);
-    weapon_value(f64::from(min_dmg + max_dmg) / 2.0, with_this) + others
+    weapon_value(
+        effective_avg_damage(ch.class, ch.level, ch.class == Class::Assassin && slot == EquipmentSlot::Shield, min_dmg, max_dmg),
+        with_this,
+    ) + others
 }
 
 /// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
@@ -108,6 +132,44 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
     None
 }
 
+/// Uncapped per-character journal of item decisions (`roster/<character>/logs/inventory.log`): the progress log only
+/// keeps the last 100 messages, which is not enough to answer "why does this character still have that weapon"
+/// (user 2026-10-10, Wecros). `shops.rs` writes the weapons it saw there too.
+pub fn journal(line: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("inventory.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {line}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
+/// Everything about an item that matters for judging an equip/sell/buy decision.
+pub fn detail(item: &Item) -> String {
+    let attrs: Vec<String> = [
+        (AttributeType::Strength, "STR"),
+        (AttributeType::Dexterity, "DEX"),
+        (AttributeType::Intelligence, "INT"),
+        (AttributeType::Constitution, "CON"),
+        (AttributeType::Luck, "LCK"),
+    ]
+    .iter()
+    .filter(|(a, _)| item.attributes[*a] > 0)
+    .map(|(a, n)| format!("{n}+{}", item.attributes[*a]))
+    .collect();
+    format!(
+        "{:?} class={:?} epic={} price={} mushrooms={} [{}]",
+        item.typ,
+        item.class,
+        item.is_epic(),
+        item.price,
+        item.mushroom_price,
+        attrs.join(" ")
+    )
+}
+
 fn fail(e: &sf_api::error::SFError) -> Outcome {
     report!("[inventory] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
@@ -126,6 +188,7 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         let price = item.price;
 
         report!("[inventory] {what}");
+        journal(&format!("{what} | {}", detail(item)));
         let cmd = match action {
             Action::Equip { pos, slot } => Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident },
             Action::Sell { pos } => Command::SellShop { item_pos: pos.into(), item_ident },
@@ -151,6 +214,19 @@ mod tests {
     use super::*;
 
     /// 2026-10-07: weapon 13–15 vs 9–15. Higher damage wins unless the new one adds a lot of main attribute.
+    /// 2026-10-10 (Wecros): from level 11 on bare hands deal more than a starter weapon, the game then ignores the weapon.
+    #[test]
+    fn weapon_below_bare_hands_is_ignored() {
+        // Berserker level 16: hands 0.7 × 7 × 2 = 9.8 → 7–13
+        assert_eq!(hand_damage(Class::Berserker, 16, false), (7.0, 13.0));
+        assert_eq!(effective_avg_damage(Class::Berserker, 16, false, 3, 9), 10.0); // hands
+        assert_eq!(effective_avg_damage(Class::Berserker, 16, false, 15, 45), 30.0); // a real weapon
+        assert_eq!(effective_avg_damage(Class::Berserker, 16, false, 3, 20), 11.5); // only one bound is lower → the weapon
+        assert_eq!(hand_damage(Class::Mage, 10, false), (1.0, 2.0));
+        // Assassin off-hand hits harder than the main hand
+        assert!(hand_damage(Class::Assassin, 17, true).1 > hand_damage(Class::Assassin, 17, false).1);
+    }
+
     #[test]
     fn weapon_damage_matters() {
         // same main attribute of the character: 14 × 3.5 > 12 × 3.5

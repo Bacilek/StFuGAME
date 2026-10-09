@@ -268,6 +268,24 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut task_buys = 0;
     let mut potion_buys = 0;
     let mut attributes_done = false;
+    // Journal the weapons on offer for our class once per visit (user 2026-10-10: "why does Wecros still hold a 3–9 weapon"
+    // could not be answered, nothing recorded what the shops offered or whether he could afford it)
+    if let Some(gs) = session.game_state() {
+        let ch = &gs.character;
+        for (pos, i) in gs.shops.values().flat_map(|s| s.iter()) {
+            if matches!(i.typ, ItemType::Weapon { .. }) && i.can_be_equipped_by(ch.class) {
+                let new = inventory::value(gs, i);
+                let cur = ch.equipment.0[sf_api::gamestate::items::EquipmentSlot::Weapon].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+                inventory::journal(&format!(
+                    "[shops] offer {:?} slot {}: {} | value {new:.1} vs equipped {cur:.1}, our gold {}",
+                    pos.typ,
+                    pos.pos + 1,
+                    inventory::detail(i),
+                    crate::report::gold(ch.silver)
+                ));
+            }
+        }
+    }
     loop {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let reserve = update_reserve(gs);

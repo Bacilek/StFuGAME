@@ -31,3 +31,4 @@
 | After `Equip` the old item drops into the backpack | ✅ 2026-10-07 (boots, weapon) |
 | Selling via `SellShop` adds silver | ✅ 2026-10-07 (boots for 1 g 25 s) |
 | Assassin off-hand weapon (Shield slot) gets filled/upgraded correctly | ⏳ not verified (no Assassin has run yet) |
+- 2026-10-10: a weapon weaker than the bare-hand damage (min and max both below) is ignored by the game, so its value is the hands'. Decisions (equip/sell, shop weapon offers) are journaled in `roster/<character>/logs/inventory.log`.
