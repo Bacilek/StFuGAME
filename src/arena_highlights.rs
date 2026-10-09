@@ -1,12 +1,20 @@
-//! Arena "highlight" detection: after a win, score how impressive the fight was from the raw per-round combat
-//! log (`fight.r`), which sf-api does not parse for `fightversion > 1` (the server's current format – see
-//! `docs/arena-highlights.md` for the reverse-engineered field layout and scoring). If the score crosses a
-//! threshold, mark the fight with `PlayerCombatLogMark` (sf-api does not know this command either, same
+//! Arena "highlight" detection: after a win, look for a new **personal best** (per character, per category –
+//! never compared across characters) in the raw per-round combat log (`fight.r`), which sf-api does not parse
+//! for `fightversion > 1` (the server's current format – see `docs/arena-highlights.md` for the reverse-
+//! engineered field layout). Only a fight that beats this character's own previous record in at least one
+//! category gets marked via `PlayerCombatLogMark` (sf-api does not know this command either, same
 //! `Command::Custom` + base64-params mechanism as guild/daily, see `src/guild.rs`) so it shows up in Quarter →
 //! Mail, like manually clicking "save" on a fight in-game.
-//! Format and scoring reverse-engineered from the user's own saved fights (2026-10-09). Not yet verified live:
-//! does marking actually work, and are the point thresholds reasonable? Tune `MARK_THRESHOLD` and the per-signal
-//! points after seeing real scores in `logs/progress.log`.
+//! User's rule (2026-10-09, docs/precedents.md): thresholds high on purpose (not "a decent fight", a genuinely
+//! rare one), and at most one saved fight per character per category – a paladin can have one saved for its best
+//! block streak AND one for its best heal count, a plague doctor one for evades and one for poison damage, etc.,
+//! but a later, better fight of the *same* category should replace needing to keep the old one around (we can't
+//! un-mark the old one yet, see docs/arena-highlights.md's open question) rather than accumulate dozens of
+//! "pretty good" fights per character over the whole challenge.
+//! Format and category thresholds reverse-engineered/tuned from the user's own saved fights (2026-10-09). Not yet
+//! verified live – see docs/arena-highlights.md.
+
+use std::collections::HashMap;
 
 use chrono::Local;
 use sf_api::{command::Command, gamestate::GameState};
@@ -76,29 +84,40 @@ fn longest_actor_run(rounds: &[Round], actor_id: i64) -> u32 {
     longest_run(&rounds.iter().map(|r| r.actor == actor_id).collect::<Vec<_>>())
 }
 
-pub struct Highlight {
-    pub points: u32,
-    pub reasons: Vec<String>,
+/// One measured category from a fight. `lower_is_better` (only `low_hp`) means a *smaller* value is the more
+/// impressive one (closer to death); every other category is "bigger is better".
+struct Metric {
+    category: &'static str,
+    value: f64,
+    threshold: f64,
+    lower_is_better: bool,
+    describe: fn(f64) -> String,
 }
 
-/// Score to mark a fight. Unverified (docs/arena-highlights.md) – tune after seeing real scores logged.
-const MARK_THRESHOLD: u32 = 5;
+fn beats_threshold(m: &Metric) -> bool {
+    if m.lower_is_better { m.value <= m.threshold } else { m.value >= m.threshold }
+}
 
-/// Scores how "cool" a just-won Arena fight was. `None` if there is nothing to score: no fight, no raw rounds we
-/// can parse, or the fight was lost (the user's examples were all about winning, see docs/precedents.md).
-fn evaluate(gs: &GameState, raw: &str) -> Option<Highlight> {
-    let fight = gs.last_fight.as_ref()?;
+fn beats_record(m: &Metric, prev: f64) -> bool {
+    if m.lower_is_better { m.value < prev } else { m.value > prev }
+}
+
+/// Measures every category for a just-won Arena fight. Empty if there is nothing to measure: no fight, no raw
+/// rounds we can parse, or the fight was lost (the user's examples were all about winning, see
+/// docs/precedents.md – losses are never saved regardless of how impressive).
+fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
+    let Some(fight) = gs.last_fight.as_ref() else { return Vec::new() };
     if !fight.has_player_won {
-        return None;
+        return Vec::new();
     }
-    let single = fight.fights.first()?;
-    let (a, b) = (single.fighter_a.as_ref()?, single.fighter_b.as_ref()?);
+    let Some(single) = fight.fights.first() else { return Vec::new() };
+    let (Some(a), Some(b)) = (single.fighter_a.as_ref(), single.fighter_b.as_ref()) else { return Vec::new() };
     let own_id = i64::from(gs.character.player_id);
     let (own, opp) = if a.id == own_id { (a, b) } else { (b, a) };
 
     let rounds = parse_rounds(raw, a.id, b.id);
     if rounds.is_empty() {
-        return None;
+        return Vec::new();
     }
 
     let own_rounds: Vec<&Round> = rounds.iter().filter(|r| r.actor == own_id).collect();
@@ -113,96 +132,170 @@ fn evaluate(gs: &GameState, raw: &str) -> Option<Highlight> {
     let companion_big_hits = own_rounds.iter().filter(|r| r.typ == TYPE_COMPANION_BIG_HIT).count();
     let combo_run = longest_actor_run(&rounds, own_id);
 
-    // Revive: our life reads <= 0 at some point but we keep acting afterwards.
+    // Walk the fight tracking both fighters' life to get: how many times we revived (life <= 0, then positive
+    // again), how low our life got (excluding the very last round, which for a win is just the kill shot), and
+    // the biggest single hit we landed (damage as a fraction of the opponent's max life).
+    let own_max_life = i64::from(own.life).max(1);
+    let opp_max_life = i64::from(opp.life).max(1);
+    let mut life = [own_max_life, opp_max_life]; // index 0 = us, 1 = opponent
+    let idx = |id: i64| usize::from(id != own_id);
+    let mut revive_count = 0u32;
     let mut seen_down = false;
-    let mut revived = false;
-    for r in &rounds {
-        let our_life_here =
-            if r.actor == own_id { Some(r.own_life) } else if r.actor == opp.id { Some(r.target_life) } else { None };
-        if let Some(life) = our_life_here {
-            if life <= 0 {
-                seen_down = true;
-            } else if seen_down {
-                revived = true;
+    let mut low_point = own_max_life;
+    let mut best_hit_ratio = 0.0f64;
+    for (i, r) in rounds.iter().enumerate() {
+        let defender = 1 - idx(r.actor);
+        let dmg = life[defender] - r.target_life;
+        if r.actor == own_id && dmg > 0 {
+            best_hit_ratio = best_hit_ratio.max(dmg as f64 / opp_max_life as f64);
+        }
+        life[defender] = r.target_life;
+        life[idx(r.actor)] = r.own_life;
+        if i + 1 < rounds.len() {
+            // not the final, fatal round
+            if life[0] > 0 {
+                low_point = low_point.min(life[0]);
             }
+        }
+        if life[0] <= 0 {
+            seen_down = true;
+        } else if seen_down {
+            revive_count += 1;
+            seen_down = false;
         }
     }
 
-    // How low our life got relative to max, ignoring the very last round (just the kill shot).
-    let own_max_life = i64::from(own.life).max(1);
-    let low_point = rounds[..rounds.len().saturating_sub(1)]
-        .iter()
-        .filter_map(|r| if r.actor == own_id { Some(r.own_life) } else if r.actor == opp.id { Some(r.target_life) } else { None })
-        .filter(|&l| l > 0)
-        .min();
-
-    let level_gap = i64::from(opp.level).saturating_sub(i64::from(own.level));
+    let level_gap = f64::from(opp.level).max(0.0) - f64::from(own.level);
     let strength_ratio = {
         let own_s = crate::arena::strength(own.class, |a| f64::from(own.attributes[a]));
         let opp_s = crate::arena::strength(opp.class, |a| f64::from(opp.attributes[a]));
         if own_s > 0.0 { opp_s / own_s } else { 1.0 }
     };
+    let low_hp_ratio = low_point as f64 / own_max_life as f64;
 
-    let mut points = 0u32;
-    let mut reasons = Vec::new();
-    if crit_streak >= 3 {
-        points += 3;
-        reasons.push(format!("{crit_streak}x crit v řadě"));
-    }
-    if block_streak >= 3 {
-        points += 2;
-        reasons.push(format!("{block_streak}x blok v řadě"));
-    }
-    if evade_streak >= 3 {
-        points += 2;
-        reasons.push(format!("{evade_streak}x výhyb v řadě"));
-    }
-    if heal_blocks >= 3 {
-        points += 2;
-        reasons.push(format!("{heal_blocks}x blok+heal"));
-    }
-    if summons >= 2 {
-        points += 1;
-        reasons.push(format!("{summons}x vyvolání společníka"));
-    }
-    if companion_big_hits >= 2 {
-        points += 2;
-        reasons.push(format!("{companion_big_hits}x silný zásah společníka"));
-    }
-    if combo_run >= 3 {
-        points += 3;
-        reasons.push(format!("{combo_run}x akce v řadě (combo)"));
-    }
-    if revived {
-        points += 4;
-        reasons.push("oživení uprostřed zápasu".to_string());
-    }
-    if let Some(low) = low_point {
-        let ratio = low as f64 / own_max_life as f64;
-        if ratio <= 0.1 {
-            points += 3;
-            reasons.push(format!("přežití na {:.0} % života", ratio * 100.0));
-        }
-    }
-    if level_gap >= 5 {
-        points += 2;
-        reasons.push(format!("soupeř o {level_gap} levelů výš"));
-    }
-    if strength_ratio >= 1.5 {
-        points += 3;
-        reasons.push(format!("soupeř ~{:.0}% silnější", (strength_ratio - 1.0) * 100.0));
-    }
-
-    if reasons.is_empty() { None } else { Some(Highlight { points, reasons }) }
+    vec![
+        Metric {
+            category: "crit_streak",
+            value: f64::from(crit_streak),
+            threshold: 4.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x crit v řadě"),
+        },
+        Metric {
+            category: "block_streak",
+            value: f64::from(block_streak),
+            threshold: 5.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x blok v řadě"),
+        },
+        Metric {
+            category: "evade_streak",
+            value: f64::from(evade_streak),
+            threshold: 5.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x výhyb v řadě"),
+        },
+        Metric {
+            category: "heal_blocks",
+            value: heal_blocks as f64,
+            threshold: 4.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x blok+heal"),
+        },
+        Metric {
+            category: "summons",
+            value: summons as f64,
+            threshold: 3.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x vyvolání společníka"),
+        },
+        Metric {
+            category: "companion_big_hits",
+            value: companion_big_hits as f64,
+            threshold: 2.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x silný zásah společníka"),
+        },
+        Metric {
+            category: "combo_run",
+            value: f64::from(combo_run),
+            threshold: 4.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x akce v řadě (combo)"),
+        },
+        Metric {
+            category: "revives",
+            value: f64::from(revive_count),
+            threshold: 1.0,
+            lower_is_better: false,
+            describe: |v| format!("{v:.0}x oživení"),
+        },
+        Metric {
+            category: "low_hp",
+            value: low_hp_ratio,
+            threshold: 0.05,
+            lower_is_better: true,
+            describe: |v| format!("přežití na {:.1} % života", v * 100.0),
+        },
+        Metric {
+            category: "level_gap",
+            value: level_gap,
+            threshold: 6.0,
+            lower_is_better: false,
+            describe: |v| format!("soupeř o {v:.0} levelů výš"),
+        },
+        Metric {
+            category: "strength_ratio",
+            value: strength_ratio,
+            threshold: 1.6,
+            lower_is_better: false,
+            describe: |v| format!("soupeř ~{:.0}% silnější", (v - 1.0) * 100.0),
+        },
+        Metric {
+            category: "big_hit",
+            value: best_hit_ratio,
+            threshold: 0.35,
+            lower_is_better: false,
+            describe: |v| format!("jedna rána za {:.0} % soupeřova života", v * 100.0),
+        },
+    ]
 }
 
-/// Call after a won Arena fight (`raw` = the raw response of the `Fight` command). Scores it and, past the
-/// threshold, marks it via `PlayerCombatLogMark` so it shows up in Quarter → Mail – best-effort: if the fight
-/// cannot be found in `gs.mail.combat_log` yet (not verified whether the server includes it right away, see
-/// docs/arena-highlights.md), it just logs the miss instead of marking anything.
+/// `roster/<character>/arena_highlights.json`: this character's best value ever seen per category (never
+/// compared across characters – each has their own file and their own records).
+fn records_path() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("arena_highlights.json")
+}
+
+fn load_records() -> HashMap<String, f64> {
+    std::fs::read_to_string(records_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+}
+
+fn save_records(records: &HashMap<String, f64>) {
+    let path = records_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(s) = serde_json::to_string_pretty(records) {
+        let _ = std::fs::write(path, s);
+    }
+}
+
+/// Call after a won Arena fight (`raw` = the raw response of the `Fight` command). Marks it via
+/// `PlayerCombatLogMark` (so it shows up in Quarter → Mail) only if it beats this character's own previous best
+/// in at least one category – best-effort on the marking itself: if the fight cannot be found in
+/// `gs.mail.combat_log` yet (not verified whether the server includes it right away, see
+/// docs/arena-highlights.md), it just logs the miss instead of marking anything, but the new record is still
+/// saved either way (no point re-detecting the same record on a later fight that doesn't beat it).
 pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) {
-    let Some((points, reasons, msg_id)) = session.game_state().and_then(|gs| {
-        let highlight = evaluate(gs, raw)?;
+    let Some((new_records, msg_id)) = session.game_state().map(|gs| {
+        let records = load_records();
+        let new_records: Vec<(String, f64, String)> = measure(gs, raw)
+            .into_iter()
+            .filter(beats_threshold)
+            .filter(|m| records.get(m.category).is_none_or(|&prev| beats_record(m, prev)))
+            .map(|m| (m.category.to_string(), m.value, (m.describe)(m.value)))
+            .collect();
         let msg_id = gs
             .mail
             .combat_log
@@ -211,19 +304,27 @@ pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) 
             .max_by_key(|e| e.time)
             .filter(|e| (Local::now() - e.time).num_minutes() < 5)
             .map(|e| e.msg_id);
-        Some((highlight.points, highlight.reasons, msg_id))
+        (new_records, msg_id)
     }) else {
         return;
     };
-    report!("[arena] Highlight score {points}: {}", reasons.join(", "));
-    if points < MARK_THRESHOLD {
+    if new_records.is_empty() {
         return;
     }
+    let descriptions: Vec<&str> = new_records.iter().map(|(_, _, d)| d.as_str()).collect();
+    report!("[arena] New personal best: {}", descriptions.join(", "));
+
+    let mut records = load_records();
+    for (category, value, _) in &new_records {
+        records.insert(category.clone(), *value);
+    }
+    save_records(&records);
+
     let Some(msg_id) = msg_id else {
-        report!("[arena] Cool fight (score {points}) but no matching combat log entry to mark yet, skipping");
+        report!("[arena] New record but no matching combat log entry to mark yet, skipping the save");
         return;
     };
-    report!("[arena] Marking fight {msg_id} as saved (score {points})");
+    report!("[arena] Marking fight {msg_id} as saved");
     if let Err(e) = safe::send_raw_only(session, custom("PlayerCombatLogMark", &[&msg_id.to_string(), "1"])).await {
         report!("[arena] Could not mark fight {msg_id}: {e}");
     }
@@ -265,5 +366,18 @@ mod tests {
         let rounds = parse_rounds(WOLF_FIGHT, 23994, 21252);
         // The opponent (summon + wolf attack, or wolf + own attack) goes multiple rounds in a row several times.
         assert!(longest_actor_run(&rounds, 21252) >= 2);
+    }
+
+    #[test]
+    fn record_keeping_is_strictly_better_only() {
+        // bigger-is-better category: equal or smaller does not count as a new record
+        let m = Metric { category: "x", value: 5.0, threshold: 3.0, lower_is_better: false, describe: |v| v.to_string() };
+        assert!(beats_record(&m, 4.0));
+        assert!(!beats_record(&m, 5.0));
+        assert!(!beats_record(&m, 6.0));
+        // lower-is-better category (low_hp): smaller beats a bigger previous record
+        let m = Metric { category: "low_hp", value: 0.02, threshold: 0.05, lower_is_better: true, describe: |v| v.to_string() };
+        assert!(beats_record(&m, 0.04));
+        assert!(!beats_record(&m, 0.01));
     }
 }

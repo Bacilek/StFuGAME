@@ -89,40 +89,56 @@ necromancer "wolf" fight (round 19: `type=12`, `result=6`).
 - **Druid bear form / swoop**: never observed live either (no Druid opponent found). Covered only by the generic
   crit-streak / big-hit signals, not a dedicated detector.
 
-## Scoring (`src/arena_highlights.rs::evaluate`)
+## Scoring: per-character, per-category personal bests (`src/arena_highlights.rs::measure`)
 
-Only runs on a **won** fight (the user's examples were all about winning, see `docs/precedents.md`). Additive
-point system, current weights (all **unverified**, tune after seeing real scores in `logs/progress.log`):
+**Changed 2026-10-09 (user, after seeing the first design):** not an additive score. The user does not want to
+re-review a pile of "decent" fights per character at the end of the challenge – thresholds should be high (a
+genuinely rare fight, not just a good one), and at most **one saved fight per character per category**: a
+paladin can have one record for its best block streak *and* a separate one for its best heal count; a plague
+doctor one for evades and a separate one for poison damage; records are never compared **across** characters
+(Filminy evading 7× in a row and some other character's assassin evading 6× are two unrelated records – one per
+character, in `roster/<character>/arena_highlights.json`).
 
-| Signal | Threshold | Points |
-|---|---|---|
-| Crit streak (own) | ≥ 3 in a row | 3 |
-| Block streak (opponent's hits on us) | ≥ 3 in a row | 2 |
-| Evade streak (opponent's hits on us) | ≥ 3 in a row | 2 |
-| Block+heal count | ≥ 3 in the fight | 2 |
-| Companion summoned | ≥ 2 times | 1 |
-| Companion big hit (`type=15`) | ≥ 2 times | 2 |
-| Longest same-actor run (own side) | ≥ 3 | 3 |
-| Mid-fight revive | happened | 4 |
-| Survived at ≤ 10 % max life (excl. the final blow) | happened | 3 |
-| Opponent ≥ 5 levels higher | — | 2 |
-| Opponent ~50 %+ "stronger" (`arena::strength()` ratio) | — | 3 |
+Only runs on a **won** fight (the user's examples were all about winning). Every category below is measured on
+every win; a fight gets marked only if it **beats this character's own previous best** in at least one category
+(or is the first time that category's threshold was ever reached by this character) – a later, better fight of
+the same category updates the record but we don't currently un-mark the earlier, inferior one in-game (see Open
+questions).
 
-`MARK_THRESHOLD = 5`. Every evaluated fight (even below threshold) logs its score and reasons
-(`[arena] Highlight score N: …`) so the thresholds can be tuned from real data without needing a rebuild loop.
+| Category | What it measures | Threshold to even qualify | Direction |
+|---|---|---|---|
+| `crit_streak` | Longest run of our own consecutive crits | ≥ 4 | bigger better |
+| `block_streak` | Longest run of the opponent's hits on us blocked (incl. blocked+healed) | ≥ 5 | bigger better |
+| `evade_streak` | Longest run of the opponent's hits on us evaded | ≥ 5 | bigger better |
+| `heal_blocks` | Count of blocked-and-healed hits (paladin shield) in the fight | ≥ 4 | bigger better |
+| `summons` | Count of companion summons (necromancer/druid) in the fight | ≥ 3 | bigger better |
+| `companion_big_hits` | Count of companion crit hits (`type=15`) in the fight | ≥ 2 | bigger better |
+| `combo_run` | Longest run of consecutive actions by us in one go (berserker rage, dual weapon, summon+attack) | ≥ 4 | bigger better |
+| `revives` | How many times our life recovered from ≤ 0 mid-fight (demon hunter) | ≥ 1 | bigger better |
+| `low_hp` | Lowest our life got relative to max, excl. the final (kill) round | ≤ 5 % | **smaller** better |
+| `level_gap` | Opponent's level minus ours | ≥ 6 | bigger better |
+| `strength_ratio` | Opponent's `arena::strength()` ÷ ours | ≥ 1.6 (60 %+ stronger) | bigger better |
+| `big_hit` | Biggest single hit we landed, as a fraction of the opponent's max life (covers bard notes, battle mage blast, mage/assassin one-shots – no dedicated code needed, see below) | ≥ 35 % | bigger better |
+
+All thresholds are **first guesses, unverified** – raise/lower them once real fights start producing records (or
+too many/too few). Every new record logs `[arena] New personal best: …`; nothing is logged for an ordinary fight
+that doesn't beat a record (kept deliberately quiet, per the project's general log-noise precedent).
 
 ## Mechanism
 
 1. `arena::run` sends `Fight` via `safe::send_raw` (not `safe::send`) so both the parsed `GameState` *and* the
-   raw response string are available – `arena_highlights::evaluate` needs the raw string for `fight.r`; nothing
+   raw response string are available – `arena_highlights::measure` needs the raw string for `fight.r`; nothing
    else in `arena.rs` changed.
-2. `arena_highlights::maybe_mark` scores the fight, then looks for a matching entry in `gs.mail.combat_log`
-   (`CombatLogEntry`, matched by opponent name + most recent within 5 min) to get the `msg_id` to mark.
-3. If found and the score clears the threshold, sends `Command::Custom { "PlayerCombatLogMark", [msg_id, "1"] }` –
-   the exact command/params captured live from the user's own browser Network tab (`params` = base64 of
-   `"<msg_id>/1"`, which sf-api's session layer already base64-encodes automatically for every `Custom` command –
-   no manual encoding needed). Whitelisted in `safe.rs::custom_allowed` only for an id already present in our own
-   combat log.
+2. `arena_highlights::maybe_mark` measures every category, loads `roster/<character>/arena_highlights.json`
+   (this character's best value per category so far), and keeps only the categories that both clear their
+   threshold and beat (or are new compared to) the stored record. If any exist, updates and saves the JSON file
+   immediately (so a later fight is compared against the latest record even if the in-game mark below fails).
+3. Looks for a matching entry in `gs.mail.combat_log` (`CombatLogEntry`, matched by opponent name + most recent
+   within 5 min) to get the `msg_id` to mark.
+4. If found, sends `Command::Custom { "PlayerCombatLogMark", [msg_id, "1"] }` – the exact command/params captured
+   live from the user's own browser Network tab (`params` = base64 of `"<msg_id>/1"`, which sf-api's session
+   layer already base64-encodes automatically for every `Custom` command – no manual encoding needed).
+   Whitelisted in `safe.rs::custom_allowed` only for an id already present in our own combat log.
 
 ## Verification status
 
@@ -147,3 +163,9 @@ point system, current weights (all **unverified**, tune after seeing real scores
   stronger opponent) ever be marked too, or strictly wins only, as implemented? Current behaviour: wins only.
 - If more class samples turn up (Demon Hunter revive, Druid bear form/swoop, a cleaner Plague Doctor poison
   sequence), update the tables above and `src/arena_highlights.rs` accordingly.
+- **Un-marking the old, beaten record:** when a category's record improves, the previous (now inferior) fight
+  stays marked in-game – we only ever send `PlayerCombatLogMark` with `/1`. Whether `/0` un-marks (symmetrical to
+  `/1`) is untested; risky to try blind since marking is cheap/reversible-feeling but we don't actually know the
+  server accepts `0` as a value there. Until tried and confirmed, old beaten records just accumulate in Quarter →
+  Mail (bounded by the number of categories per character, not by every fight that ever qualified – much better
+  than the original additive-score design, but not literally "only ever 1 fight saved per category" yet).

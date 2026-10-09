@@ -3,29 +3,34 @@
 Updated: 2026-10-09. Rewrite after every bigger change.
 
 - **Arena fight highlights implemented (2026-10-09, new `src/arena_highlights.rs`, user request):** after a won
-  Arena fight, scores how "cool" it was (crit/block/evade streaks, paladin block+heal, companion summon/crit,
-  combo/rampage turns, mid-fight revive, winning at very low HP, a much stronger opponent) and, past a point
-  threshold, marks it via `PlayerCombatLogMark` so it shows up in Quarter → Mail – like clicking "save" on a
-  fight in-game. The whole thing rests on a raw per-round combat-log format (`fight.r`) that sf-api does not
-  parse at all for the server's current `fightversion` (silent `// TODO: Actually parse this` stub) – reverse-
-  engineered field-by-field from 9 of the user's own real saved fights across 7 classes (necromancer ×2, plague
-  doctor, berserker, bard, battle mage, assassin, paladin as our own side) over this session, each matched
-  against the user's own blow-by-blow description of what happened. Full writeup, confirmed code table, and the
-  session-chat reconstruction: `docs/arena-highlights.md`. `PlayerCombatLogMark` is a `Command::Custom` sf-api
-  doesn't know either (same base64-params mechanism as guild/daily), whitelisted in `safe.rs::custom_allowed`
-  only for an id already present in our own `gs.mail.combat_log` – free UI action, no mushroom risk.
-  `arena::run` now uses `safe::send_raw` (not `safe::send`) for the `Fight` command so both the parsed
-  `GameState` and the raw response string are available. New unit tests (`arena_highlights::tests`) replay one
-  of the captured fights verbatim as a parser regression test. `cargo check`/`clippy`/`cargo test` all pass (49
-  tests now, was 46). **Nothing verified live yet**: does `PlayerCombatLogMark` actually mark the fight (does the
+  Arena fight, measures a set of categories (crit/block/evade streaks, paladin block+heal, companion summon/crit,
+  combo/rampage turns, mid-fight revive, winning at very low HP, a much stronger opponent, a single huge hit) and
+  marks it via `PlayerCombatLogMark` (shows up in Quarter → Mail, like clicking "save" in-game) only when it
+  beats that **character's own previous personal best** in at least one category – not an additive score above a
+  fixed bar (first design, rejected by the user after seeing it: "nepotřebuju na každé postavě 10 záznamů").
+  Thresholds are high on purpose and records are tracked **per character per category**
+  (`roster/<character>/arena_highlights.json`), never compared across characters. The whole thing rests on a raw
+  per-round combat-log format (`fight.r`) that sf-api does not parse at all for the server's current
+  `fightversion` (silent `// TODO: Actually parse this` stub) – reverse-engineered field-by-field from 9 of the
+  user's own real saved fights across 7 classes (necromancer ×2, plague doctor, berserker, bard, battle mage,
+  assassin, paladin as our own side) over this session, each matched against the user's own blow-by-blow
+  description of what happened. Full writeup, confirmed code table, category list and open questions:
+  `docs/arena-highlights.md`. `PlayerCombatLogMark` is a `Command::Custom` sf-api doesn't know either (same
+  base64-params mechanism as guild/daily), whitelisted in `safe.rs::custom_allowed` only for an id already
+  present in our own `gs.mail.combat_log` – free UI action, no mushroom risk. `arena::run` now uses
+  `safe::send_raw` (not `safe::send`) for the `Fight` command so both the parsed `GameState` and the raw response
+  string are available. New unit tests (`arena_highlights::tests`) replay one of the captured fights verbatim as
+  a parser regression test, plus a record-comparison test. `cargo check`/`clippy`/`cargo test` all pass (50 tests
+  now, was 46). **Nothing verified live yet**: does `PlayerCombatLogMark` actually mark the fight (does the
   server accept it, does it actually show up in Quarter → Mail)? Is `gs.mail.combat_log` populated right after a
   `Fight` response, or does it need a separate fetch (`maybe_mark` degrades gracefully and just logs a miss if
-  not – watch for "no matching combat log entry to mark yet" in the log)? Are the point thresholds
-  (`MARK_THRESHOLD` = 5, per-signal points) reasonable, or do they mark too much/too little? Demon hunter revive
-  and druid bear form/swoop were never confirmed against a real sample (no opponent of those classes found) –
-  covered only by the generic signals (revive-from-≤0-life, crit streak), not verified to actually fire for them.
-  **Needs a release rebuild** before any of this takes effect; user to report back once more class samples (or a
-  live fight) are available to tune against.
+  not – watch for "no matching combat log entry to mark yet" in the log)? Are the per-category thresholds
+  reasonable, or do they mark too much/too little? Demon hunter revive and druid bear form/swoop were never
+  confirmed against a real sample (no opponent of those classes found) – covered only by the generic signals
+  (revive-from-≤0-life, crit streak), not verified to actually fire for them. Un-marking a beaten record (so only
+  the single best fight per category actually stays saved in-game) is untested – see `docs/arena-highlights.md`'s
+  open questions. **Needs a release rebuild** before any of this takes effect; user to report back once more
+  class samples (or a live fight) are available to tune against.
 
 - **Chart-day card now shows that day's own stats, not today's live ones (2026-10-09, user report):** the
   roster dashboard's charts tab already pinned *equipment* to the selected chart day's end-of-day snapshot, but
