@@ -69,6 +69,10 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 .pdlevel{flex:none;height:24px;border-radius:6px;background:var(--line);color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
 .pdslot{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center}
 .pdslot.empty{opacity:.35}
+.pdslot.nohand{opacity:1;background:transparent}
+.pdslot.nohand::before{content:"";position:absolute;inset:6px;pointer-events:none;background:
+  linear-gradient(to top right,transparent calc(50% - 2px),#d6342c calc(50% - 2px),#d6342c calc(50% + 2px),transparent calc(50% + 2px)),
+  linear-gradient(to bottom right,transparent calc(50% - 2px),#d6342c calc(50% - 2px),#d6342c calc(50% + 2px),transparent calc(50% + 2px))}
 .pdslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
 .pdslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
 .pdslot img{width:56px;height:56px;object-fit:contain;image-rendering:pixelated}
@@ -352,7 +356,10 @@ function legend(){
 // ---- character tiles and the card (current state, refreshed every ~10 min by the bot)
 function tiles(){
   const box = $("tiles"); box.replaceChildren();
-  DATA.chars.forEach((c,i)=>{
+  // Best Hall of Fame rank of the selected day first (user 2026-10-09); characters without a rank go last
+  const day = DATA.dates[upto-1], rk = i => DATA.chars[i].rows?.[day]?.rank;
+  DATA.chars.map((_,i)=>i).sort((a,b)=>(rk(a)??Infinity)-(rk(b)??Infinity) || a-b).forEach(i=>{
+    const c = DATA.chars[i];
     // Shows the selected chart day's end-of-day snapshot (`c.rows[day]`), not today's live state (user 2026-10-09)
     const n = (c.rows||{})[DATA.dates[upto-1]] || {}, b = document.createElement("button"); b.className = "tile"; b.style.setProperty("--c", style(i).color);
     const add = (cls, text) => { const d=document.createElement("div"); d.className=cls; d.textContent=text; b.appendChild(d); return d; };
@@ -394,10 +401,12 @@ function charPanel(parent, o){
     Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
   Object.entries(SLOT_AREA).forEach(([slot,area])=>{
     const it = (o.equip||{})[slot];
-    const s = mk("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
+    // Nothing in the second hand (no shield / second weapon): crossed out in red (user 2026-10-09); needs a known loadout
+    const noHand = slot === "Shield" && !it && Object.keys(o.equip || {}).length > 0;
+    const s = mk("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty")+(noHand ? " nohand" : ""), null, doll);
     s.style.gridArea = area;
     if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
-    const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : "empty", tip);
+    const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : noHand ? "nothing in the second hand" : "empty", tip);
   });
   const at = mk("div","pdattrs",null,gp), dv = o.derived || legacyDerived(o);
   const fmt = n => n==null ? "–" : Math.round(n).toLocaleString();

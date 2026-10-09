@@ -69,6 +69,10 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .pdlevel{flex:none;height:24px;border-radius:6px;background:var(--line);color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
 .pdslot{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center}
 .pdslot.empty{opacity:.35}
+.pdslot.nohand{opacity:1;background:transparent}
+.pdslot.nohand::before{content:"";position:absolute;inset:6px;pointer-events:none;background:
+  linear-gradient(to top right,transparent calc(50% - 2px),#d6342c calc(50% - 2px),#d6342c calc(50% + 2px),transparent calc(50% + 2px)),
+  linear-gradient(to bottom right,transparent calc(50% - 2px),#d6342c calc(50% - 2px),#d6342c calc(50% + 2px),transparent calc(50% + 2px))}
 .pdslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
 .pdslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
 .pdslot img{width:56px;height:56px;object-fit:contain;image-rendering:pixelated}
@@ -225,6 +229,10 @@ function renderTiles(){
     el.aluFill.style.width = pct + "%";
     el.aluFill.parentElement.title = n.thirst_sec != null ? `Thirst for Adventure: ${Math.round(n.thirst_sec/60)} / ${Math.round(n.thirst_max_sec/60)} min` : "";
   });
+  // Best Hall of Fame rank first (user 2026-10-09); touch the DOM only when the order really changed
+  const rank = c => (c.now || {}).rank || Infinity;
+  const want = [...STATUS].sort((a,b)=>rank(a)-rank(b)).map(c=>tileEls.get(c.name).tile);
+  if (want.some((t,i)=>box.children[i] !== t)) want.forEach(t=>box.appendChild(t));
 }
 
 // A countdown ("Xh Ym" / "Ym Zs") for the character's current activity, ticking every second between status
@@ -251,10 +259,12 @@ function charPanel(parent, o){
     Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
   Object.entries(SLOT_AREA).forEach(([slot,area])=>{
     const it = (o.equip||{})[slot];
-    const s = mk("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
+    // Nothing in the second hand (no shield / second weapon): crossed out in red (user 2026-10-09); needs a known loadout
+    const noHand = slot === "Shield" && !it && Object.keys(o.equip || {}).length > 0;
+    const s = mk("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty")+(noHand ? " nohand" : ""), null, doll);
     s.style.gridArea = area;
     if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
-    const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : "empty", tip);
+    const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : noHand ? "nothing in the second hand" : "empty", tip);
   });
   const at = mk("div","pdattrs",null,gp), dv = o.derived || {};
   const fmt = n => n==null ? "–" : Math.round(n).toLocaleString();
