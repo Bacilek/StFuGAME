@@ -417,6 +417,15 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
     let c = &gs.character;
     let attrs: serde_json::Map<String, serde_json::Value> =
         ATTRS.iter().map(|(a, n)| ((*n).to_string(), c.attribute_basis[*a].into())).collect();
+    // Base + equipment/potion bonus, for the dashboard's end-of-day stat card (the bare `attrs` above stays
+    // basis-only, as `tournament::fighter_from_day0` relies on that to build an unequipped Day 0 fighter).
+    let attrs_total: serde_json::Map<String, serde_json::Value> = ATTRS
+        .iter()
+        .map(|(a, n)| {
+            let (b, add) = (c.attribute_basis[*a], c.attribute_additions[*a]);
+            ((*n).to_string(), serde_json::json!({ "base": b, "bonus": add, "total": b + add }))
+        })
+        .collect();
     let equip: serde_json::Map<String, serde_json::Value> = SLOTS
         .iter()
         .filter_map(|(slot, n)| {
@@ -442,6 +451,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
     serde_json::json!({
         "level": c.level,
         "attrs": attrs,
+        "attrs_total": attrs_total,
         "equip": equip,
         "potions": potions,
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
@@ -711,8 +721,7 @@ fn write_dashboard(demo: bool) {
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
         let days = read_days(&e.path());
         let changes = daily_changes(&days);
-        let equip_by_date: BTreeMap<&str, &serde_json::Value> =
-            days.iter().map(|(date, snap)| (date.as_str(), &snap["equip"])).collect();
+        let snap_by_date: BTreeMap<&str, &serde_json::Value> = days.iter().map(|(date, snap)| (date.as_str(), snap)).collect();
         for r in &rows {
             let Some(date) = r.get("date") else { continue };
             gold += num(r, "gold_gained").unwrap_or(0.0);
@@ -723,6 +732,8 @@ fn write_dashboard(demo: bool) {
                 class.clone_from(c);
             }
             dates.insert(date.clone());
+            let snap = snap_by_date.get(date.as_str()).copied();
+            let get = |field: &str| snap.map_or(serde_json::Value::Null, |s| s[field].clone());
             by_date.insert(
                 date.clone(),
                 serde_json::json!({
@@ -730,7 +741,12 @@ fn write_dashboard(demo: bool) {
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "strength": num(r, "strength"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                     "changes": changes.get(date).cloned().unwrap_or_default(),
-                    "equip": equip_by_date.get(date.as_str()).copied().cloned().unwrap_or(serde_json::Value::Null),
+                    "equip": get("equip"),
+                    // End-of-day stat card (user 2026-10-09): everything below is what the character actually
+                    // had *on this date*, not today's live state – e.g. Day 0 must show no equipment bonus.
+                    "level": num(r, "level"), "honor": num(r, "honor"),
+                    "gold_now": num(r, "gold"), "mushrooms_now": num(r, "mushrooms"), "lucky_coins_now": num(r, "lucky_coins"),
+                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "guild_day": get("guild"),
                 }),
             );
         }

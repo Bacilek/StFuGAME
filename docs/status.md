@@ -2,6 +2,29 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Chart-day card now shows that day's own stats, not today's live ones (2026-10-09, user report):** the
+  roster dashboard's charts tab already pinned *equipment* to the selected chart day's end-of-day snapshot, but
+  the rest of the character card (Hall of Fame rank, Honor, Strength, Gold, Mushrooms, Lucky coins, the
+  Attributes base/bonus/total table, Potions, Guild) still read live `now.json` regardless of which day was
+  selected — so Day 0 showed today's current armor-bonus attributes, which makes no sense (Day 0 should be
+  stat-wise bare). Fixed in two places:
+  - `src/roster.rs`'s `snapshot()` (written to `days/<date>.json` every day) now also stores `attrs_total`
+    (base + equipment/potion bonus per attribute, same shape as the live card's table) alongside the existing
+    basis-only `attrs` (kept bare for `tournament::fighter_from_day0`, which needs the unequipped Day 0 baseline
+    — not touched). `write_dashboard` now also forwards `level`/`honor`/current `gold`/`mushrooms`/`lucky_coins`
+    (from each day's `history.csv` row) and `attrs_total`/`potions`/`guild` (from each day's `days/<date>.json`)
+    into the dashboard JSON's per-date `rows[date]`, next to the existing `equip`.
+  - `src/dashboard.html`'s `openCard()` now reads all of the above from `c.rows[dayDate]` (the day picked by the
+    chart's day stepper) instead of `c.now`. Only what has no daily history at all — achievements, collection,
+    XP progress, the dungeon list, "updated" timestamp — still falls back to live `now.json`, and is now labelled
+    "(now)" in the card so it's not mistaken for that day's value. The main dashboard's tiles (outside the charts
+    tab) are intentionally unaffected — they still show live current stats, per the original design.
+  - Old `days/<date>.json` files written before this change lack `attrs_total`, so the Attributes table shows
+    "No snapshot for this day yet." for dates already recorded before the fix; every day from today's report
+    onward will have it. `cargo build`/`cargo test` pass (46 passed, 2 ignored; `changes_between_snapshots` and
+    `fighter_from_day0`'s underlying `attrs` format untouched). **Not yet visually confirmed in a browser** —
+    ask the user to check the charts tab (Day 0 particularly) after the next dashboard regen.
+
 - **Attribute-purchase weighting + surplus-gold buying (2026-10-09, new `src/attributes.rs`):** when a task lets
   the bot choose freely which attribute to buy (`UpgradeAnyAttribute`/`SpendGoldOnUpgrades`), it no longer always
   picks the main attribute – it picks whichever of the 5 attributes is currently the best weight-per-gold (weight

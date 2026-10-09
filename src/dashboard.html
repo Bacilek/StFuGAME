@@ -59,10 +59,10 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)} .epic{color:#9b6be0} .legendary{color:#e08a1a}
 .paperdoll{display:grid;grid-template-columns:58px 130px 58px;grid-template-rows:58px 58px 58px 58px 58px 58px;
-  grid-template-areas:". hat ." "weapon portrait shield" "amulet portrait breast" "belt portrait gloves" "ring portrait boots" ". talisman .";
+  grid-template-areas:". hat ." "amulet portrait breast" "belt portrait gloves" "ring portrait boots" "talisman portrait ." "weapon . shield";
   gap:4px;margin:6px auto 10px;justify-content:center}
-.pdportrait{grid-area:portrait;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--line);overflow:hidden}
-.pdportrait img{width:100%;height:100%;object-fit:contain}
+.pdportrait{grid-area:portrait;width:130px;height:130px;align-self:center;justify-self:center;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--line);overflow:hidden}
+.pdportrait img{width:100%;height:100%;object-fit:cover}
 .pdslot{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center}
 .pdslot.empty{opacity:.35}
 .pdslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
@@ -359,43 +359,65 @@ function tiles(){
 }
 function openCard(i){
   const c = DATA.chars[i], n = c.now, body = $("cardbody"); body.replaceChildren();
+  // Everything in this card reflects the selected chart day's end-of-day snapshot (`c.rows[dayDate]`), not
+  // today's live state – e.g. Day 0 must show no equipment bonus (user 2026-10-09). Only what has no daily
+  // history at all (achievements, collection, XP progress, dungeon list, activity, "updated") falls back to
+  // the live "now" data, and is labelled "now" below so it isn't mistaken for that day's value.
+  const dayDate = DATA.dates[upto-1];
+  const d = (c.rows||{})[dayDate] || null;
   const el2 = (tag, cls, text, parent=body) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; parent.appendChild(e); return e; };
   const head = el2("div","ch"); head.style.setProperty("--c", style(i).color); el2("div","bar",null,head);
-  const t = el2("div",null,null,head); el2("h2",null,c.nick,t); el2("div","c",`${pretty(c.cls)}${n?" · level "+n.level+" · updated "+n.updated:""}`,t);
-  if (!n){ el2("p","muted","No current data yet – the bot writes it every ~10 minutes while it plays this character."); $("card").showModal(); return; }
+  const lvl = d?.level ?? n?.level;
+  const t = el2("div",null,null,head); el2("h2",null,c.nick,t);
+  el2("div","c",`${pretty(c.cls)}${lvl!=null?" · level "+lvl:""}${" · "+dayDate}`,t);
+  if (!n && !d){ el2("p","muted","No data yet – the bot writes it every ~10 minutes while it plays this character."); $("card").showModal(); return; }
   const kv = el2("div","kv");
-  const stat = (k,v) => { const d=el2("div",null,null,kv); el2("div","k",k,d); el2("div","v",v,d); };
-  stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Strength", Math.round(n.strength).toLocaleString());
-  stat("Gold", n.gold.toFixed(2)); stat("Mushrooms", n.mushrooms); stat("Lucky coins", n.lucky_coins);
-  const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
-  stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");
-  stat("XP", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
+  const stat = (k,v) => { const e=el2("div",null,null,kv); el2("div","k",k,e); el2("div","v",v??"–",e); };
+  stat("Hall of Fame", d?.rank!=null ? "#"+Math.round(d.rank).toLocaleString() : null);
+  stat("Honor", d?.honor!=null ? Math.round(d.honor).toLocaleString() : null);
+  stat("Strength", d?.strength!=null ? Math.round(d.strength).toLocaleString() : null);
+  stat("Gold", d?.gold_now!=null ? d.gold_now.toFixed(2) : null);
+  stat("Mushrooms", d?.mushrooms_now); stat("Lucky coins", d?.lucky_coins_now);
+  if (n){
+    const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
+    stat("Achievements (now)", ach); stat("Collection (now)", n.scrapbook != null ? `${n.scrapbook} items` : "–");
+    stat("XP (now)", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
+  }
   el2("div","sec","Attributes");
-  const at = el2("table","mini"); const hr = at.insertRow(); ["","base","bonus","total"].forEach(h=>{ const c2=hr.insertCell(); c2.textContent=h; c2.className="k"; });
-  ["STR","DEX","INT","CON","LCK"].filter(k=>n.attrs[k]).map(k=>[k,n.attrs[k]]).forEach(([k,v])=>{ const r=at.insertRow(); [k,v.base,"+"+v.bonus,v.total].forEach((x,j)=>{ const c2=r.insertCell(); c2.textContent=x; if(j===3) c2.style.fontWeight="700"; }); });
+  const attrsTotal = d?.attrs_total;
+  if (!attrsTotal) el2("div","muted","No snapshot for this day yet.");
+  else {
+    const at = el2("table","mini"); const hr = at.insertRow(); ["","base","bonus","total"].forEach(h=>{ const c2=hr.insertCell(); c2.textContent=h; c2.className="k"; });
+    ["STR","DEX","INT","CON","LCK"].filter(k=>attrsTotal[k]).map(k=>[k,attrsTotal[k]]).forEach(([k,v])=>{ const r=at.insertRow(); [k,v.base,"+"+v.bonus,v.total].forEach((x,j)=>{ const c2=r.insertCell(); c2.textContent=x; if(j===3) c2.style.fontWeight="700"; }); });
+  }
   el2("div","sec","Potions");
-  el2("div",null, n.potions.length ? n.potions.map(p=>`${p.t}${p.until?" (until "+p.until+")":""}`).join(", ") : "–");
-  el2("div","sec","Dungeons");
-  const dt = el2("table","mini");
-  if (!n.dungeons.length) el2("div","muted","–");
-  n.dungeons.forEach(d=>{ const r=dt.insertRow(); r.insertCell().textContent = d.name.replace(/([a-z])([A-Z])/g,"$1 $2");
-    const c2=r.insertCell(); c2.textContent = d.finished ? "done" : `${d.done}/10`; const pr=document.createElement("span"); pr.className="prog";
-    const fill=document.createElement("i"); fill.style.width=Math.min(100,d.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
-  el2("div","sec","Equipment");
+  const potions = d?.potions_day;
+  el2("div",null, potions && potions.length ? potions.join(", ") : "–");
+  if (n){
+    el2("div","sec","Dungeons (now)");
+    const dt = el2("table","mini");
+    if (!n.dungeons.length) el2("div","muted","–");
+    n.dungeons.forEach(dg=>{ const r=dt.insertRow(); r.insertCell().textContent = dg.name.replace(/([a-z])([A-Z])/g,"$1 $2");
+      const c2=r.insertCell(); c2.textContent = dg.finished ? "done" : `${dg.done}/10`; const pr=document.createElement("span"); pr.className="prog";
+      const fill=document.createElement("i"); fill.style.width=Math.min(100,dg.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
+  }
+  const equip = d?.equip || null;
+  el2("div","sec", equip ? `Equipment (end of ${dayDate})` : "Equipment");
   const doll = el2("div","paperdoll");
   const port = el2("div","pdportrait",null,doll);
   const pimg = el2("img",null,null,port); pimg.src = encodeURIComponent(c.nick)+"/portrait.png";
   pimg.onerror = () => { port.replaceChildren(); };
   const SLOT_AREA = { Weapon:"weapon", Shield:"shield", Helmet:"hat", "Chest plate":"breast",
     Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
+  if (!equip) el2("div","muted","No snapshot for this day yet.");
   Object.entries(SLOT_AREA).forEach(([slot,area])=>{
-    const it = (n.equip||{})[slot];
+    const it = (equip||{})[slot];
     const s = el2("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
     s.style.gridArea = area;
     if (it && it.icon){ const img=el2("img",null,null,s); img.src = it.icon; img.onerror=()=>{img.style.visibility="hidden"}; }
     const tip = el2("div","tip",null,s); el2("b",null,slot,tip); el2("div",null, it ? (it.d||"–") : "empty", tip);
   });
-  el2("div","sec","Guild"); el2("div",null,n.guild||"–");
+  el2("div","sec","Guild"); el2("div",null,d?.guild_day||"–");
   $("card").showModal();
 }
 
