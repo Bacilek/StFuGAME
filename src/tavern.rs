@@ -866,7 +866,7 @@ mod tests {
         // same length: suckling pig (8/round) is easier than the fire (4/round)
         assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000, &[]), Some(1));
         // same length: an unmapped mission wins
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Barkeeper, 20)], 6000, &[]), Some(1));
+        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Merman, 20)], 6000, &[]), Some(1));
         // same length: a mission with an unverified bonus also wins
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000, &[]), Some(1));
         // not enough Thirst for Adventure for the longer one

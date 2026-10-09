@@ -69,6 +69,12 @@ const fn unknown(name: &'static str, chain: &'static [(ExpeditionThing, i32)], l
     Mission { name, chain, bonus: UNKNOWN_BONUS, bonus_known: false, fail_penalty: 0, count: 1, limit, final_repeats: false }
 }
 
+/// Mission that deducts heroism when not completed (user data "[+bonus,-penalty]").
+const fn penalty(mut m: Mission, p: i32) -> Mission {
+    m.fail_penalty = p;
+    m
+}
+
 const fn repeats(mut m: Mission) -> Mission {
     m.final_repeats = true;
     m
@@ -111,7 +117,10 @@ pub const MISSIONS: &[Mission] = &[
     )),
     unknown("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], 1),
     // sf-api: Well = cauldron, Girl = witch, Balloons = witch's brew
-    unknown("Bewitched Stew", &[(Well, 2), (Girl, -5), (Balloons, 15)], 1),
+    // user 2026-10-10: cauldron -2, witch -5, brew +10, bonus +5 on completion, -5 when failed
+    penalty(known("Bewitched Stew", &[(Well, -2), (Girl, -5), (Balloons, 10)], Bonus::OnComplete(5), 1), 5),
+    // user 2026-10-10: mugs 0, draft beer +6, tapping bartender +6, bonus +5 on completion, -5 when failed
+    penalty(known("Running Dry", &[(Mugs, 0), (DraftBeer, 6), (Barkeeper, 6)], Bonus::OnComplete(5), 1), 5),
     // sf-api: Prince = fairy fountain, RoyalFrog = polluted fairy fountain
     repeats(unknown("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], 1)),
     unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),

@@ -529,7 +529,7 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 
 ## Open questions for the user
 - Epic items are never sold → the backpack fills up over time (in the TODO, no decision yet).
-- Unmapped expedition missions: barkeeper, merman, riding, lovebirds (`docs/expeditions.md`).
+- Unmapped expedition missions: merman, riding, lovebirds (`docs/expeditions.md`).
 - Attribute-purchase key for the challenge (which stats, how split) – not decided yet.
 - `Chlamydie` (Druid): whose character is this (Bacilek/Novotné/Radek/other)? `roster/roster.md`.
 

@@ -43,7 +43,8 @@ Verified from runs:
 | Podium Climber | 2× | small hurdle (−1) → big hurdle (−2) → winner's podium (15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | +10 / piece |
 | Revealing Lady | 1× | socks (0) → cloth pile (0) → couple (12) | `Socks` → `ClothPile` → `RevealingCouple` | ? |
 | The Sword Trial | 1×, permanent end | sword in stone (6) → bent sword (3) → broken sword (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / piece |
-| Bewitched Stew | 1× | cauldron (2) → witch (−5) → witch's brew (15) | `Well` → `Girl` → `Balloons` | ? |
+| Bewitched Stew | 1× | cauldron (−2) → witch (−5) → witch's brew (10) (user 2026-10-10) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
+| Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
 | Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | ? |
 | Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
@@ -74,13 +75,14 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 | Revealing Lady: task bonus | ⏳ hypothesis +10 | 2026-10-07 (target, with a poster): 3 → 30 (+27). Fits "couple really +7, poster +10, bonus +10"; the alternative "couple +12, bonus +5" does not fit the Barkeeper run |
 | Sword Trial +8 / piece (user) | ✅ | 2026-10-07: 4 broken swords, +32 after the pick in round 10 |
 | A poster works only once (used up) | ✅ | 2026-10-07: the second broken sword got no +10 |
-| Bewitched Stew: witch −5, brew +15 | ✅ | 2026-10-07: Sword Trial rounds 6–7 |
+| Bewitched Stew: witch −5, brew +15 | ⚠ superseded | 2026-10-07 server showed brew +15; the user's 2026-10-10 update says cauldron −2, brew +10 – verify in a run (`checks`) |
 | Other task bonuses, Sanitary +20 / −5 | ⏳ | pending |
 
 ## Unmapped
-- Missions from sf-api the FAQ does not know: barkeeper (`Mugs` → `DraftBeer` → `Barkeeper`), merman (`FishingRod` → `FishingBait` → `Merman`),
+- Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
+- Missions from sf-api the FAQ does not know: merman (`FishingRod` → `FishingBait` → `Merman`),
   riding (`Chicken` → `Tiger` → `RidingStan`), lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
-- Missing task bonuses: Revealing Lady, Bewitched Stew, Toxic Fountain Cure, Build A Friend (the bot estimates +5 on completion for now).
+- Missing task bonuses: Revealing Lady, Toxic Fountain Cure, Build A Friend (the bot estimates +5 on completion for now).
 
 The bot does not stop on unknown things. It prints them and logs them to the journal (`unmapped`).
 For an unmapped mission it treats items from the same tens range as the target as chain steps (e.g. 151 → 152 → 153).
