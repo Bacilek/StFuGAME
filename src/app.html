@@ -189,7 +189,7 @@ function renderTiles(){
       st.append(dot, dotText); tile.appendChild(st);
       const s = document.createElement("div"); s.className = "s";
       s.addEventListener("click", ()=>openCard(STATUS.find(x=>x.name===c.name)));
-      const r = document.createElement("span"); const g = document.createElement("b"); g.title = "Strength";
+      const r = document.createElement("span"); const g = document.createElement("b"); g.title = "Power";
       s.append(r, g); tile.appendChild(s);
       const alu = document.createElement("div"); alu.className = "alu"; const aluFill = document.createElement("i"); alu.appendChild(aluFill);
       tile.appendChild(alu);
@@ -235,7 +235,7 @@ function openCard(c){
   if (!n){ el("p",null,"No data yet – it appears a few minutes after the character logs in."); $("card").showModal(); return; }
   const kv = el("div","kv");
   const stat = (k,v) => { const d=el("div",null,null,kv); el("div","k",k,d); el("div","v",v,d); };
-  stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Strength", Math.round(n.strength).toLocaleString());
+  stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Power", Math.round(n.strength).toLocaleString());
   stat("Gold", n.gold.toFixed(2)); stat("Mushrooms", n.mushrooms); stat("Lucky coins", n.lucky_coins); stat("Hourglasses", n.hourglasses);
   const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
   stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");

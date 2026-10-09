@@ -676,7 +676,7 @@ fn write_shared(date: NaiveDate) {
     // Leaderboard by level, then Hall of Fame rank
     let num = |l: &str, i: usize| l.split(',').nth(i).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
     rows.sort_by(|a, b| num(&b.1, 1).total_cmp(&num(&a.1, 1)).then(num(&a.1, 2).total_cmp(&num(&b.1, 2))));
-    let mut lb = format!("# Leaderboard – {date}\n\n| # | Character | Date | Level | HoF rank | Honor | Strength | Gold |\n|---|---|---|---|---|---|---|---|\n");
+    let mut lb = format!("# Leaderboard – {date}\n\n| # | Character | Date | Level | HoF rank | Honor | Power | Gold |\n|---|---|---|---|---|---|---|---|\n");
     for (i, (nick, l)) in rows.iter().enumerate() {
         let f: Vec<&str> = l.split(',').collect();
         let g = |i: usize| f.get(i).copied().unwrap_or("?");
