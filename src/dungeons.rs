@@ -72,12 +72,33 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
+/// The pending-unlock ident of a dungeon (user 2026-10-09: captured from the game client, `UnlockFeature` `30/1`).
+/// Other pending idents (seen: 9/1, 5/1, 40/1) are unknown and left alone.
+const DUNGEON_UNLOCK_IDENT: i64 = 30;
+
 /// One Dungeons fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     // The Dungeons timer is only refreshed by UpdateDungeons (neither Update nor a fight refreshes it)
     let gs = match safe::send(session, Command::UpdateDungeons).await {
         Ok(gs) => gs,
         Err(e) => return fail(&e),
+    };
+    // A pending dungeon unlock (ident 30) must be accepted first, otherwise the dungeon stays Locked (the game client
+    // does the same when the Dungeons screen is opened); then the Dungeons state is refreshed
+    let todo: Vec<_> = gs.pending_unlocks.iter().filter(|u| u.main_ident == DUNGEON_UNLOCK_IDENT).copied().collect();
+    let gs = if todo.is_empty() {
+        gs
+    } else {
+        for u in todo {
+            report!("[dungeons] Unlocking a dungeon ({}/{})", u.main_ident, u.sub_ident);
+            if let Err(e) = safe::send(session, Command::UnlockFeature { unlockable: u }).await {
+                return fail(&e);
+            }
+        }
+        match safe::send(session, Command::UpdateDungeons).await {
+            Ok(gs) => gs,
+            Err(e) => return fail(&e),
+        }
     };
     if !safe::dungeon_is_free(gs) {
         return Outcome::Done;

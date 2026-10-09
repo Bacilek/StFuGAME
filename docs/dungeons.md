@@ -29,3 +29,15 @@
 | A win is "accepted" by itself (no extra command) | ✅ 2026-10-07: Training Camp, xp +280 |
 | Fighting during City Guard works | ✅ 2026-10-07 18:01 (win, xp +360, +1 g 90 s) |
 | Fighting during an expedition works | ⏳ not verified |
+
+## Unlocking dungeons (user 2026-10-09)
+- Pending unlocks arrive in the `unlockfeature` key (`GameState::pending_unlocks`, pairs `main/sub`) at login and after
+  `PlayerDungeonOpen`. The game client sends `UnlockFeature:<main>/<sub>` (command via `GET cmd.php?req=UnlockFeature&params=<base64 "30/1">`)
+  when the Dungeons tab is opened with `30/1` pending → Desecrated Catacombs go from `-1` (locked) to `0` (open) in `dungeonprogresslight`.
+- The bot does the same in `dungeons::run` (`DUNGEON_UNLOCK_IDENT = 30`), only this ident is whitelisted in `safe.rs`
+  (`UnlockFeature { main_ident: 30, .. }`). `9/1`, `5/1`, `40/1` are unknown features (not dungeons as far as we know), never sent.
+- Light World unlock conditions (user, from memory, in the game's order): levels 10, 20, 30, 40, 50, 70, 80, 95, 110, then a mix
+  of "after dungeon N cleared" (1–9, 10, 11, monster 5 of 11, 12, …) and levels 180, 200, 210, 240, 270, 280, 340, 480, 500, 520,
+  540, 560, 580. Keys for further dungeons are found on expeditions (after reaching the level) or in the Gem Mine (Fortress, from level 25).
+  Not implemented: only the level-10 unlock (ident 30) is known to work so far.
+- Fight reward sample (Mimimimi11, first Catacombs fight, win): `battlereward` 650 gold / 1287 xp.

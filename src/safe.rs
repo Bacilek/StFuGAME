@@ -47,6 +47,10 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::ViewPlayer { .. }
             | Command::Fight { use_mushroom: false, .. }
             | Command::UpdateDungeons
+            // Dungeon unlock (user 2026-10-09: the game client itself sends `UnlockFeature` `30/1` when a character
+            // with a pending dungeon unlock opens the Dungeons screen; nothing to pay), see dungeons::unlock_pending.
+            // Other idents stay forbidden until the user says what they are.
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30, .. } }
             | Command::FightDungeon { use_mushroom: false, .. }
             | Command::SellShop { .. }
             | Command::BuyShop { .. }
