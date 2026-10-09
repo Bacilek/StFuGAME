@@ -41,3 +41,7 @@
   540, 560, 580. Keys for further dungeons are found on expeditions (after reaching the level) or in the Gem Mine (Fortress, from level 25).
   Not implemented: only the level-10 unlock (ident 30) is known to work so far.
 - Fight reward sample (Mimimimi11, first Catacombs fight, win): `battlereward` 650 gold / 1287 xp.
+- **Pending ident 5 = Scrapbook (Collection), inferred (user 2026-10-09, Mimimimi11):** right after the dungeon unlock the pending list
+  shrank from `9/1/5/1/40/1` to `9/1/40/1` and the response carried `scrapbook.r:<base64>` (the character's collection, which the
+  bot reads into `scrapbook` for the card). The request that unlocked it was not captured, so `UnlockFeature 5/x` is NOT
+  whitelisted yet. Every character should have it (collection gives bonus; user: "hodí se to pro bonus xp"). `9/1`, `40/1` still unknown.
