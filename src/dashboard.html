@@ -373,7 +373,7 @@ function legacyDerived(o){
   const A = o.attrs, cls = o.cls, lvl = o.level; if (!A || !cls || !lvl) return {};
   const MAIN = {Paladin:"STR",BattleMage:"STR",Berserker:"STR",Warrior:"STR",Assassin:"DEX",DemonHunter:"DEX",Scout:"DEX",PlagueDoctor:"DEX",
     Druid:"INT",Bard:"INT",Necromancer:"INT",Mage:"INT"};
-  const HPM = {Warrior:5,BattleMage:5,Druid:5,Paladin:6,PlagueDoctor:4,Scout:4,Assassin:4,Berserker:4,DemonHunter:4,Necromancer:4,Mage:2,Bard:2};
+  const HPM = {Warrior:5,BattleMage:5,Druid:5,Paladin:6,PlagueDoctor:4,Scout:4,Assassin:4,Berserker:4,DemonHunter:4,Necromancer:6,Mage:2,Bard:2};
   const FAC = {Berserker:1.25,DemonHunter:1.25,Paladin:.83,Mage:.83,Necromancer:.56,Bard:1.125,Druid:.33,Assassin:.625};
   const main = MAIN[cls], out = { main };
   if (A.LCK) out.crit_pct = Math.min(50, A.LCK.total*5/(lvl*2));

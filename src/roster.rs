@@ -497,13 +497,28 @@ fn derived(gs: &GameState) -> serde_json::Value {
         ),
     };
     let damage = weapon * factor * (1.0 + f64::from(attrs[main]) / 10.0);
-    let reduction = (f.class.armor_multiplier() * f64::from(fighter.armor) / level / 100.0)
-        .min(f64::from(f.class.max_armor_reduction()) / 100.0);
+    // Armor multiplier and cap per class: the user's table from the game (2026-10-09); differs from sf-api for
+    // Plague Doctor and Druid (0.5, 25 %).
+    let (armor_mod, armor_cap) = match f.class {
+        Class::Berserker => (0.5, 25.0),
+        Class::Scout => (1.0, 25.0),
+        Class::Paladin => (1.0, 45.0),
+        Class::Mage => (1.0, 10.0),
+        Class::PlagueDoctor | Class::Druid => (0.5, 25.0),
+        Class::Necromancer => (2.0, 20.0),
+        Class::DemonHunter | Class::Warrior => (1.0, 50.0),
+        Class::Bard => (2.0, 50.0),
+        Class::Assassin => (1.0, 25.0),
+        Class::BattleMage => (5.0, 50.0),
+    };
+    let reduction = (armor_mod * f64::from(fighter.armor) / level).min(armor_cap) / 100.0;
+    // Hit-point multiplier: the user's table says Necromancer 6 (sf-api: 4); the rest agrees.
+    let hp = if f.class == Class::Necromancer { f.hit_points(&attrs) * 3 / 2 } else { f.hit_points(&attrs) };
     let crit = (f64::from(attrs[AttributeType::Luck]) * 5.0 / (level * 2.0)).min(50.0);
     serde_json::json!({
         "main": ATTRS.iter().find(|(a, _)| *a == main).map(|(_, n)| *n),
         "damage": damage.round(),
-        "hp": f.hit_points(&attrs),
+        "hp": hp,
         "crit_pct": (crit * 100.0).round() / 100.0,
         "armor": fighter.armor,
         "reduction_pct": (reduction * 1000.0).round() / 10.0,
