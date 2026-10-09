@@ -264,10 +264,13 @@ enum RoomStep {
     Sell(BagPosition),
 }
 
-fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
+/// A target potion waits in the backpack (its type not active) while a less important removable one is active:
+/// remove that one and drink the target. `only_secondary`: the removed one must be a non-target (secondary stat)
+/// potion – that is the swap done at once, without waiting for a full backpack (user 2026-10-09).
+fn target_swap(gs: &GameState, only_secondary: bool) -> Option<(RoomStep, String)> {
     let act = active(gs);
-    // 1. A better target potion waits in the backpack while a removable (non-target, or smaller same-type) one is active
-    for t in targets(gs) {
+    let tg = targets(gs);
+    for t in tg {
         if act.iter().any(|(_, p)| p.typ == t) {
             continue;
         }
@@ -275,14 +278,25 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
         let Some(new) = potion(item) else { continue };
         let removable = act
             .iter()
-            .filter(|(slot, p)| removal_ok(gs, *slot) && importance(gs, p) < importance(gs, new))
+            .filter(|(slot, p)| {
+                removal_ok(gs, *slot)
+                    && importance(gs, p) < importance(gs, new)
+                    && (!only_secondary || !tg.contains(&p.typ))
+            })
             .min_by(|a, b| importance(gs, a.1).total_cmp(&importance(gs, b.1)));
         if let Some((slot, old)) = removable {
-            return Some((
-                RoomStep::Swap(*slot, pos),
-                format!("backpack full: removing the active {:?}, drinking {}", old.typ, describe(item)),
-            ));
+            let why = if only_secondary { "better target potion in the backpack" } else { "backpack full" };
+            return Some((RoomStep::Swap(*slot, pos), format!("{why}: removing the active {:?}, drinking {}", old.typ, describe(item))));
         }
+    }
+    None
+}
+
+fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
+    let act = active(gs);
+    // 1. A better target potion waits in the backpack while a removable (non-target, or smaller same-type) one is active
+    if let Some(step) = target_swap(gs, false) {
+        return Some(step);
     }
     // 2. The least important potion in the backpack: drink it if it stacks; a useful one (main/CON/Luck) rather replaces a
     // less useful active potion than gets sold (user 2026-10-09); anything else is sold
@@ -316,6 +330,19 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
     let Some((step, what)) = room_step(gs) else { return Ok(false) };
+    execute(session, step, &what).await
+}
+
+/// Replaces a drunk secondary-stat potion with a better target potion from the backpack at once, no full backpack
+/// needed (user 2026-10-09). Returns true when a swap was made.
+async fn swap_secondary(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    let Some((step, what)) = target_swap(gs, true) else { return Ok(false) };
+    execute(session, step, &what).await
+}
+
+async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
     let pos = match step {
         RoomStep::Swap(_, pos) | RoomStep::Drink(pos) | RoomStep::Sell(pos) => pos,
     };
@@ -357,6 +384,9 @@ pub async fn trim_stock(session: &mut SimpleSession) -> Outcome {
 /// Every pass of the main loop: drink missing target potions; with a full backpack free one slot via a potion.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Outcome::SessionLost = drink_from_bag(session).await {
+        return Outcome::SessionLost;
+    }
+    if let Err(Outcome::SessionLost) = swap_secondary(session).await {
         return Outcome::SessionLost;
     }
     if session.game_state().is_some_and(|gs| gs.character.inventory.free_slot().is_none())

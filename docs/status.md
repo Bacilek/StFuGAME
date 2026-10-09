@@ -2,6 +2,8 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Potions: secondary-stat swap without a full backpack (2026-10-09, user request):** new `potions::swap_secondary` (called from `potions::run`) replaces a drunk non-target potion with a better target potion waiting in the backpack at once. Compiles (`cargo check`); not run live – needs a release rebuild, then look for `[potions] better target potion in the backpack: removing the active …` (Chlamydie: Dex/Str out, INT/Eternal Life in). Rule in `docs/potions.md`.
+
 - **"Run end of day now" no longer re-runs Day 0 (2026-10-09, user: unnecessary now):** `main.rs` manual end-of-day = today's
   duel round + preview report only. `tournament::run_day0` still runs once on a character's first login (line ~458), so
   the older note below about the manual button re-running it is superseded. Needs a release rebuild.

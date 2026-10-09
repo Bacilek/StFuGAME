@@ -24,6 +24,11 @@
 - With a full backpack it is better to remove an active non-target potion and drink a better one than to keep it.
 - Replacing a smaller active potion with a bigger one (same type) only with a full backpack — immediately once full,
   not gated by days left on the active one; otherwise store the bigger one.
+- A drunk secondary-stat (non-target) potion is swapped for a better one at once, without a full backpack (user 2026-10-09):
+  when a target potion (main attribute, CON, Eternal Life / Luck) waits in the backpack and its type is not active, the
+  less important non-target active potion is removed and the target drunk (`potions::swap_secondary`, every `run` pass).
+  Found with Chlamydie (Druid): CON/Dex/Str active, Eternal Life/INT waiting because swaps used to happen only on a full backpack.
+  Smaller-vs-bigger of the same type and target-vs-target swaps still follow the full-backpack rule above.
 - A free active slot with no target potion to fill it: drink the best non-target one from the backpack instead of
   leaving it there (user 2026-10-08: even a secondary attribute helps in a fight against another class; better
   active and later swapped out than rotting in the backpack or eventually sold).
