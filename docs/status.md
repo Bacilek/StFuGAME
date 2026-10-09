@@ -2,6 +2,16 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Card shows the game's derived stats + potion icons (2026-10-09, user request):** `roster::derived()` computes damage
+  (avg weapon hit × (1 + main attr/10), pre-armor, like the game's "~"), hit points (`UpgradeableFighter::hit_points`),
+  crit % (LCK×5/(2×own level)), armor and damage reduction (sf-api formula); non-main STR/DEX/INT show "defense" =
+  total/2 (matches the user's screenshot: 94→47, 99→49). Stored in `now.json` and in the daily snapshot (`days/<date>.json`
+  → `derived`, `potion_items`), forwarded to the dashboard rows. Potion icons = `assets/items/12_<id>_1_1.png`
+  (id = size 0/5/10 + STR 1, DEX 2, INT 3, CON 4, LCK 5; Eternal Life 16, inverse of sf-api's parse), with the remaining
+  time ("3D 07H"). **Earlier days have no `derived`/`potion_items`** (shown as "–"/text) – only snapshots written after
+  the next release build get them (the 23:50 report, or "Run end of day now"). Unverified against the game:
+  armor reduction (screenshot showed 45 % for armor 987 at level 21, sf-api's formula gives ~47 % for a warrior
+  – maybe an item/rune detail), unarmed damage. Needs a release build + visual check.
 - **Character card redesigned like the game's own screen + diacritic portraits fixed (2026-10-09, user request, reference `my_input/image.png`):**
   both cards (Characters tab `app.html`, Charts `dashboard.html`, shared `charPanel()` copied into each) now show a 4×4 grid:
   hat/chest/gloves/boots left, amulet/belt/ring/talisman right, portrait in the middle (name + [guild] overlaid, level bar

@@ -76,14 +76,14 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
   background:#111;color:#fff;font-size:12px;line-height:1.4;padding:6px 9px;border-radius:6px;white-space:nowrap;z-index:5;box-shadow:0 2px 8px #0005}
 .pdslot .tip b{display:block;font-size:12px}
 .pdslot:hover .tip{display:block}
-.pdattrs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.pdattrs{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:auto;gap:6px;margin-top:8px}
 .pdattr{border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--surface)}
 .pdattr .k{font-weight:700;font-size:12px;letter-spacing:.02em;display:flex;justify-content:space-between;gap:8px}
 .pdattr .k b{font-size:16px}
-.pdattr .s{color:var(--muted);font-size:11px}
-.pdpotions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.pdpot{border:1px solid var(--line);border-radius:14px;padding:2px 10px;font-size:12px;background:var(--surface)}
-.pdpot small{color:var(--muted);margin-left:4px}
+.pdattr .s{color:var(--muted);font-size:11px;min-height:14px}
+.pdpotions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;justify-content:center}
+.pdpot{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--ink2);text-align:center}
+.pdpot img{width:48px;height:48px;object-fit:contain}
 </style>
 </head>
 <body>
@@ -256,15 +256,33 @@ function charPanel(parent, o){
     if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
     const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : "empty", tip);
   });
-  const at = mk("div","pdattrs",null,gp);
+  const at = mk("div","pdattrs",null,gp), dv = o.derived || {};
+  const fmt = n => n==null ? "–" : Math.round(n).toLocaleString();
   if (!o.attrs) mk("div","muted","No snapshot for this day yet.",at);
-  else [["STR","Strength"],["CON","Constitution"],["DEX","Dexterity"],["LCK","Luck"],["INT","Intelligence"]].forEach(([k,label])=>{
-    const v = o.attrs[k]; if (!v) return;
-    const a = mk("div","pdattr"), h = mk("div","k",label.toUpperCase(),a); mk("b",null,String(v.total),h);
-    mk("div","s",`${v.base} +${v.bonus}`,a); at.appendChild(a); });
+  else {
+    const half = k => o.attrs[k] ? "DEFENSE " + Math.floor(o.attrs[k].total/2) : "";
+    const sub = { STR: dv.main==="STR" ? "DAMAGE ~"+fmt(dv.damage) : half("STR"),
+      DEX: dv.main==="DEX" ? "DAMAGE ~"+fmt(dv.damage) : half("DEX"),
+      INT: dv.main==="INT" ? "DAMAGE ~"+fmt(dv.damage) : half("INT"),
+      CON: dv.hp!=null ? "HIT POINTS "+fmt(dv.hp) : "",
+      LCK: dv.crit_pct!=null ? "CRITICAL HIT "+dv.crit_pct.toFixed(2)+" %" : "" };
+    const cells = [["STR","Strength"],["DEX","Dexterity"],["INT","Intelligence"],["CON","Constitution"],["LCK","Luck"]];
+    cells.forEach(([k,label])=>{
+      const v = o.attrs[k]; if (!v) return;
+      const a = mk("div","pdattr"), h = mk("div","k",label.toUpperCase(),a); mk("b",null,String(v.total),h);
+      mk("div","s",sub[k],a); a.title = `${v.base} base +${v.bonus}`; a.style.gridColumn = k==="CON"||k==="LCK" ? 2 : 1;
+      a.style.gridRow = {STR:1,DEX:2,INT:3,CON:1,LCK:2}[k]; at.appendChild(a); });
+    if (dv.armor!=null){ const a = mk("div","pdattr"), h = mk("div","k","ARMOR",a); mk("b",null,fmt(dv.armor),h);
+      mk("div","s","DAMAGE RED. "+Math.round(dv.reduction_pct)+" %",a); a.style.gridColumn = 2; a.style.gridRow = 3; at.appendChild(a); }
+  }
   const pots = o.potions || [];
   if (pots.length){ const pp = mk("div","pdpotions",null,gp);
-    pots.forEach(p=>{ const c = mk("span","pdpot",p.t); if (p.until) mk("small",null,p.until,c); }); }
+    pots.forEach(p=>{
+      let left = p.left_sec; if (p.until_ts) left = Math.max(0, (new Date(p.until_ts).getTime()-Date.now())/1000);
+      const d = Math.floor(left/86400), h = Math.floor(left%86400/3600), m = Math.floor(left%3600/60);
+      const c = mk("div","pdpot",null,pp); c.title = p.t;
+      mk("div","pdleft", left==null ? "" : d>0 ? `${d}D ${String(h).padStart(2,"0")}H` : `${h}H ${String(m).padStart(2,"0")}M`, c);
+      if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); c.append(p.t); }; } else c.append(p.t); }); }
 }
 
 function openCard(c){
@@ -283,7 +301,7 @@ function openCard(c){
   stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");
   stat("XP", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
   charPanel(body, {name:c.name, guild:n.guild, level:n.level, portrait:encodeURIComponent(c.name)+"/portrait.png",
-    equip:n.equip, attrs:n.attrs, potions:n.potions});
+    equip:n.equip, attrs:n.attrs, potions:n.potions, derived:n.derived});
   el("div","sec","Dungeons");
   const dt = el("table","mini");
   if (!n.dungeons.length) el("div",null,"–");

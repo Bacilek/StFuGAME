@@ -412,6 +412,71 @@ fn item_icon(i: &Item) -> String {
     }
 }
 
+/// A potion for the character card: its sprite (`12_<id>_1_1.png`, where the id is the inverse of sf-api's
+/// `PotionType::parse`/`PotionSize::parse`: size 0/5/10 + attribute 1 STR, 2 DEX, 3 INT, 4 CON, 5 LCK; Eternal Life 16),
+/// a label and how long it still lasts (`until_ts` for a live countdown, `left_sec` as of this write for snapshots).
+fn potion_json(p: &sf_api::gamestate::items::Potion) -> serde_json::Value {
+    use sf_api::gamestate::items::{PotionSize, PotionType};
+    let id = match p.typ {
+        PotionType::EternalLife => 16,
+        t => {
+            let base = match p.size {
+                PotionSize::Small => 0,
+                PotionSize::Medium => 5,
+                PotionSize::Large => 10,
+            };
+            base + match t {
+                PotionType::Strength => 1,
+                PotionType::Dexterity => 2,
+                PotionType::Intelligence => 3,
+                PotionType::Constitution => 4,
+                _ => 5,
+            }
+        }
+    };
+    serde_json::json!({
+        "t": format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0),
+        "icon": format!("assets/items/12_{id}_1_1.png"),
+        "until_ts": p.expires.map(|e| e.to_rfc3339()),
+        "left_sec": p.expires.map(|e| (e - Local::now()).num_seconds().max(0)),
+    })
+}
+
+/// The derived values the game's character screen shows (damage, hit points, crit chance, armor), computed with
+/// sf-api's own simulator formulas (`UpgradeableFighter::hit_points`, `damage.rs`); crit chance against an enemy
+/// of our own level, like the game's tooltip. Damage is the average weapon hit × the main attribute bonus (the
+/// game's "~" figure, before the enemy's armor).
+fn derived(gs: &GameState) -> serde_json::Value {
+    use sf_api::simulate::{Fighter, PlayerFighterSquad};
+    let f = PlayerFighterSquad::new(gs).character;
+    let attrs = f.attributes();
+    let fighter = Fighter::from(&f);
+    let level = f64::from(f.level.max(1));
+    let main = f.class.main_attribute();
+    let hand = {
+        let m = if f.class == Class::Assassin { 0.875 } else { 0.7 };
+        let d = m * (level - 9.0) * f.class.weapon_multiplier();
+        if f.level <= 10 { (1.0, 2.0) } else { ((d * 2.0 / 3.0).ceil().max(1.0), (d * 4.0 / 3.0).round().max(2.0)) }
+    };
+    let (min, max) = match &fighter.first_weapon {
+        Some(w) if !(w.damage.min < hand.0 && w.damage.max < hand.1) => (w.damage.min, w.damage.max),
+        _ => hand,
+    };
+    let main_total = attrs[main];
+    let damage = (min + max) / 2.0 * (1.0 + f64::from(main_total) / 10.0);
+    let reduction = (f.class.armor_multiplier() * f64::from(fighter.armor) / level / 100.0)
+        .min(f64::from(f.class.max_armor_reduction()) / 100.0);
+    let crit = (f64::from(attrs[AttributeType::Luck]) * 5.0 / (level * 2.0)).min(50.0);
+    serde_json::json!({
+        "main": ATTRS.iter().find(|(a, _)| *a == main).map(|(_, n)| *n),
+        "damage": damage.round(),
+        "hp": f.hit_points(&attrs),
+        "crit_pct": (crit * 100.0).round() / 100.0,
+        "armor": fighter.armor,
+        "reduction_pct": (reduction * 1000.0).round() / 10.0,
+    })
+}
+
 /// What the dashboard compares day to day: level, bought attributes, equipment, potions, guild.
 fn snapshot(gs: &GameState) -> serde_json::Value {
     let c = &gs.character;
@@ -454,6 +519,8 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "attrs_total": attrs_total,
         "equip": equip,
         "potions": potions,
+        "potion_items": c.active_potions.iter().flatten().map(potion_json).collect::<Vec<_>>(),
+        "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
     })
 }
@@ -502,10 +569,9 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         .iter()
         .flatten()
         .map(|p| {
-            serde_json::json!({
-                "t": format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0),
-                "until": p.expires.map(|e| e.format("%d.%m. %H:%M").to_string()),
-            })
+            let mut j = potion_json(p);
+            j["until"] = p.expires.map(|e| e.format("%d.%m. %H:%M").to_string()).into();
+            j
         })
         .collect();
     let dungeons: Vec<serde_json::Value> = gs
@@ -537,6 +603,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "strength": (crate::hunt::own_strength(gs)).round(),
         "attrs": attrs,
         "potions": potions,
+        "derived": derived(gs),
         "scrapbook": scrapbook,
         "achievements": { "owned": ach.owned(), "total": ach.0.len() },
         "dungeons": dungeons,
@@ -746,7 +813,7 @@ fn write_dashboard(demo: bool) {
                     // had *on this date*, not today's live state – e.g. Day 0 must show no equipment bonus.
                     "level": num(r, "level"), "honor": num(r, "honor"),
                     "gold_now": num(r, "gold"), "mushrooms_now": num(r, "mushrooms"), "lucky_coins_now": num(r, "lucky_coins"),
-                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "guild_day": get("guild"),
+                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "potion_items": get("potion_items"), "derived": get("derived"), "guild_day": get("guild"),
                 }),
             );
         }
