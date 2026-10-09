@@ -1,5 +1,5 @@
 //! Potions (user 2026-10-07). At most 3 active potions. Target set: main attribute + Constitution + Eternal Life
-//! (+25 % HP, 7 days); without an Eternal Life potion the third one is Luck. Stat potions last 3 days, sizes 10/15/25 %.
+//! (+25 % HP, 7 days); without an Eternal Life potion the third one is Luck (unless Luck is at the crit cap, then the bigger secondary attribute). Stat potions last 3 days, sizes 10/15/25 %. Importance = strength gained by the 100/80/40/10 formula (size × attribute without potions × weight), see `importance`.
 //! Drinking the same type again extends it by its full duration. Only for gold (Eternal Life usually costs mushrooms).
 //! - A target potion is missing and a slot is free → drink one from the backpack, otherwise buy the biggest for gold.
 //! - Stock: keep up to `MAX_STOCK` potions of any type in the backpack (better some than none, they are cheap, buying
@@ -82,27 +82,67 @@ fn in_shop(gs: &GameState, typ: PotionType) -> Option<(ShopPosition, &Item)> {
         .map(|(pos, i, _)| (pos, i))
 }
 
-/// The 3 potion types we want active, in priority order.
+/// Attributes without any potion (base + equipment, what the potion bonus is a percentage of), the class and level.
+fn bare_attributes(gs: &GameState) -> (enum_map::EnumMap<sf_api::command::AttributeType, u32>, sf_api::gamestate::character::Class, u16) {
+    let mut f = sf_api::simulate::PlayerFighterSquad::new(gs).character;
+    f.active_potions = Default::default();
+    (f.attributes(), f.class, f.level)
+}
+
+/// Luck is at the crit cap already (50 % crit = Luck ≥ 20 × level, see `derived()` in roster.rs): a Luck potion is useless.
+fn luck_capped(gs: &GameState) -> bool {
+    let (pre, _, level) = bare_attributes(gs);
+    f64::from(pre[sf_api::command::AttributeType::Luck]) >= 20.0 * f64::from(level)
+}
+
+/// The 3 potion types we want active, in priority order: main attribute, CON, then Eternal Life; without it Luck – unless
+/// Luck is at the crit cap (user 2026-10-09), then the bigger of the two secondary attributes.
 pub fn targets(gs: &GameState) -> [PotionType; 3] {
+    use sf_api::command::AttributeType as A;
     let life = active(gs).iter().any(|(_, p)| p.typ == PotionType::EternalLife)
         || in_bag(gs, PotionType::EternalLife).is_some()
         || in_shop(gs, PotionType::EternalLife).is_some();
-    let main = PotionType::from(gs.character.class.main_attribute());
-    [main, PotionType::Constitution, if life { PotionType::EternalLife } else { PotionType::Luck }]
+    let main_attr = gs.character.class.main_attribute();
+    let main = PotionType::from(main_attr);
+    let third = if life {
+        PotionType::EternalLife
+    } else if !luck_capped(gs) {
+        PotionType::Luck
+    } else {
+        let (pre, _, _) = bare_attributes(gs);
+        let side = [A::Strength, A::Dexterity, A::Intelligence].into_iter().filter(|a| *a != main_attr).max_by_key(|a| pre[*a]);
+        side.map_or(PotionType::Luck, PotionType::from)
+    };
+    [main, PotionType::Constitution, third]
 }
 
-/// How important a potion is for us: target rank (main 3, CON 2, third 1, other 0) + size; Eternal Life highest.
+/// How much a potion is worth to us: the strength it adds by the user's formula (main 100 %, CON 80 %, Luck 40 %, the two
+/// other attributes 10 %; user 2026-10-09) = potion size × the attribute without potions (base + equipment, which is
+/// what the game's potion bonus is a percentage of) × that weight. So a small main-attribute potion (10 % × 100) and a big
+/// Luck one (25 % × 40) compare by what the character really has. Luck stops counting at the crit cap (50 % crit =
+/// Luck ≥ 20 × level; only the part below the cap is worth anything). Eternal Life is always the most valuable.
 fn importance(gs: &GameState, p: &Potion) -> f64 {
+    use sf_api::command::AttributeType;
     if p.typ == PotionType::EternalLife {
-        return 10.0;
+        return 1e6;
     }
-    let mut rank = targets(gs).iter().position(|t| *t == p.typ).map_or(0.0, |i| 3.0 - i as f64);
-    // Luck is worth keeping even when Eternal Life holds the third target slot (user 2026-10-09: main/CON/Luck are
-    // "useful", secondary attributes are nearly useless)
-    if p.typ == PotionType::Luck {
-        rank = f64::max(rank, 1.0);
+    let (pre, class, level) = bare_attributes(gs);
+    let Some(attr) = [
+        AttributeType::Strength,
+        AttributeType::Dexterity,
+        AttributeType::Intelligence,
+        AttributeType::Constitution,
+        AttributeType::Luck,
+    ]
+    .into_iter()
+    .find(|a| PotionType::from(*a) == p.typ) else {
+        return 0.0;
+    };
+    let mut gain = f64::from(pre[attr]) * p.size.effect();
+    if attr == AttributeType::Luck {
+        gain = gain.min((20.0 * f64::from(level) - f64::from(pre[attr])).max(0.0));
     }
-    rank + p.size.effect()
+    gain * crate::arena::weight(class, attr)
 }
 
 fn describe(item: &Item) -> String {
@@ -253,7 +293,7 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
     }
     // A bigger active one of the same type makes this one redundant (sold below); otherwise look for a worse active potion
     if p.typ != PotionType::EternalLife
-        && importance(gs, p) >= 1.0
+        && importance(gs, p) > 0.0
         && !act.iter().any(|(_, a)| a.typ == p.typ)
         && let Some((slot, old)) = act
             .iter()

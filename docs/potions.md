@@ -58,3 +58,11 @@
 | Drinking a bigger potion of an active type (replace vs. stack) | ⏳ not seen yet |
 | Drinking the same type while active extends it (stacking) | ✅ 2026-10-07 per the user; bot behaviour not verified |
 | Selling a potion via `SellShop` | ✅ possible in either shop per the user; bot not verified |
+
+## Importance = strength gained (user 2026-10-09)
+Ranking of potions (what to keep, sell, swap in, buy) is `potions::importance` = the potion's real gain in the Arena strength formula:
+`size (10/15/25 %) × the attribute without potions (base + equipment) × weight` with the weights main 100 %, CON 80 %, Luck 40 %, the
+other two attributes 10 % each (`arena::weight`). So a small main-attribute potion (10 % × 100) and a big Luck one (25 % × 40) are compared
+by the attribute values the character really has. Luck only counts below the crit cap (50 % crit = Luck ≥ 20 × level); at the cap a Luck potion is worth 0
+and the third target (without Eternal Life) becomes the bigger secondary attribute instead of Luck (`targets`, `luck_capped`). Eternal Life is always on top.
+"Useful" (worth swapping in instead of selling) = importance > 0. Bonus of potion is assumed to be a percentage of base + equipment attributes (sf-api `attributes()`), pet bonus ignored.
