@@ -254,12 +254,17 @@ fn fighter_from_day0(nick: &str) -> Option<Fighter> {
     ] {
         attrs[a] = u32::try_from(snap["attrs"][key].as_u64().unwrap_or(0)).unwrap_or(0);
     }
-    let mut weapon_dmg = None;
-    for item in snap["equip"].as_object().into_iter().flat_map(serde_json::Map::values) {
+    let (mut weapon_dmg, mut second_dmg) = (None, None);
+    for (slot, item) in snap["equip"].as_object().into_iter().flatten() {
         if let Some(d) = item["d"].as_str()
             && let Some(dmg) = parse_item_desc(d, &mut attrs)
         {
-            weapon_dmg = Some(dmg);
+            // An Assassin's second weapon sits in the Shield slot of the snapshot
+            if slot == "Shield" && class == Class::Assassin {
+                second_dmg = Some(dmg);
+            } else {
+                weapon_dmg = Some(dmg);
+            }
         }
     }
     let con = attrs[AttributeType::Constitution];
@@ -273,7 +278,7 @@ fn fighter_from_day0(nick: &str) -> Option<Fighter> {
         max_health,
         armor: 0,
         first_weapon: weapon_dmg.map(|(min, max)| Weapon { rune_value: 0, rune_type: None, damage: DamageRange { min, max } }),
-        second_weapon: None,
+        second_weapon: second_dmg.map(|(min, max)| Weapon { rune_value: 0, rune_type: None, damage: DamageRange { min, max } }),
         has_reaction_enchant: false,
         crit_dmg_multi: 2.0,
         resistances: EnumMap::default(),

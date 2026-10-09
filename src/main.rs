@@ -215,7 +215,16 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             if let tavern::Outcome::SessionLost = tournament::run(session, today, chrono::Local::now().date_naive()).await {
                 return tavern::Outcome::SessionLost;
             }
-            // The Day 0 baseline round is no longer re-run here (user 2026-10-09: unnecessary now).
+            // The Day 0 baseline round is no longer re-run here by default (user 2026-10-09: unnecessary now) –
+            // only once when `roster/tournament/rerun-day0` exists (deleted afterwards), e.g. after editing the
+            // Day 0 snapshots by hand.
+            let marker = std::path::Path::new("roster/tournament/rerun-day0");
+            if marker.exists() {
+                let _ = std::fs::remove_file(marker);
+                if let tavern::Outcome::SessionLost = tournament::run_day0(session, roster::day0_date()).await {
+                    return tavern::Outcome::SessionLost;
+                }
+            }
         }
         let overdue = roster::overdue_days();
         if !overdue.is_empty() || manual {

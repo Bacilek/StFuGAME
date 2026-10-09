@@ -2,6 +2,8 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Day 0 redefined: level 1, base stats + starting weapon (2026-10-09, user dictated the values):** all 11 characters' `roster/<nick>/days/2026-10-07.json` + the Day 0 row in `history.csv` (level 1, `strength` = Arena formula on base attrs, no items except the starting weapon; Assassin Sanek has two weapons, stored as Weapon + Shield slot) were rewritten by hand (local, gitignored). Pjotr INT was dictated as "188", taken as 18 (typo; same as the other demon mage). No shields yet (Paladin etc. have none; `Fighter` has no shield field anyway). `tournament::fighter_from_day0` now also builds the Assassin's second weapon. "Run end of day now" re-runs `run_day0` only when `roster/tournament/rerun-day0` exists (deleted after use); I created that marker, so the next click regenerates `tournament/2026-10-07.json`. Needs a release rebuild first. Other history rows (rank, honor, gold, hourglasses) of Day 0 were left as they were.
+
 - **Potions: secondary-stat swap without a full backpack (2026-10-09, user request):** new `potions::swap_secondary` (called from `potions::run`) replaces a drunk non-target potion with a better target potion waiting in the backpack at once. Compiles (`cargo check`); not run live – needs a release rebuild, then look for `[potions] better target potion in the backpack: removing the active …` (Chlamydie: Dex/Str out, INT/Eternal Life in). Rule in `docs/potions.md`.
 
 - **"Run end of day now" no longer re-runs Day 0 (2026-10-09, user: unnecessary now):** `main.rs` manual end-of-day = today's
