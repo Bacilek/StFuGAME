@@ -52,9 +52,9 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::ClaimableClaim { .. }
             // Dungeon unlock (user 2026-10-09: the game client itself sends `UnlockFeature` `30/1` when a character
             // with a pending dungeon unlock opens the Dungeons screen; nothing to pay), see dungeons::unlock_pending.
-            // Ident 5 = Scrapbook (user 2026-10-09, wanted on every character).
+            // Ident 5 = Scrapbook, 9 = beginners task list (user 2026-10-09, wanted on every character).
             // Other idents stay forbidden until the user says what they are.
-            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5, .. } }
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9, .. } }
             | Command::FightDungeon { use_mushroom: false, .. }
             | Command::SellShop { .. }
             | Command::BuyShop { .. }

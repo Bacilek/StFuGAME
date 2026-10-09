@@ -28,7 +28,7 @@ on every character; chose full automation (precedents.md).
 |---|---|
 | POST format and `status: ok` | ✅ captured by the user on 3 characters |
 | `paymentstring` composition | ✅ two samples; the trailing `1` assumed constant |
-| Bot's own POST accepted by the service | ⏳ not run yet (needs a release build) |
-| Claim via `ClaimablePreview` + `ClaimableClaim` | ⏳ not run yet (format captured from the browser) |
+| Bot's own POST accepted by the service | ✅ 2026-10-09 18:44 (TestChar1, Filminy, Mrožik, Wecros, Květoš, Chlamydie, Pjotr: `Redeemed`); Mimimimi11 and PajaRizz got `rejected:error` (redeemed by hand earlier) |
+| Claim via `ClaimablePreview` + `ClaimableClaim` | ✅ 2026-10-09 18:45 (`Claimed the reward of N3UTR4L-EU31 from the Mail`) |
 | What happens with a full backpack/stable (mount, potion item) | ⏳ unknown |
 | Characters that already redeemed by hand get `rejected:<status>` | ⏳ status text unknown |

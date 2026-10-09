@@ -74,8 +74,8 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 
 /// Pending unlocks the bot accepts: 30 = the dungeons (captured from the game client, `UnlockFeature` `30/1`) and
 /// 5 = the Scrapbook (user 2026-10-09: wants it on every character; inferred from its `scrapbook.r` arriving when `5/1`
-/// left the pending list). Other pending idents (seen: 9/1, 40/1) are unknown and left alone.
-const ACCEPTED_UNLOCK_IDENTS: [i64; 2] = [30, 5];
+/// 9 = the beginners task list (user 2026-10-09: wants it on every character, needed for better quests; request not captured). Other pending idents (seen: 40/1) are unknown and left alone.
+const ACCEPTED_UNLOCK_IDENTS: [i64; 3] = [30, 5, 9];
 
 /// One Dungeons fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
