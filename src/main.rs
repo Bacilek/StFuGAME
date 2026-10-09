@@ -215,11 +215,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             if let tavern::Outcome::SessionLost = tournament::run(session, today, chrono::Local::now().date_naive()).await {
                 return tavern::Outcome::SessionLost;
             }
-            // Also re-runs the Day 0 baseline round (e.g. after fixing Chlamydie's synthetic fighter) – cheap
-            // and idempotent, so just always piggybacking it on this already-manual trigger is simplest.
-            if let tavern::Outcome::SessionLost = tournament::run_day0(session, roster::day0_date()).await {
-                return tavern::Outcome::SessionLost;
-            }
+            // The Day 0 baseline round is no longer re-run here (user 2026-10-09: unnecessary now).
         }
         let overdue = roster::overdue_days();
         if !overdue.is_empty() || manual {

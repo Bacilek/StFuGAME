@@ -2,6 +2,10 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **"Run end of day now" no longer re-runs Day 0 (2026-10-09, user: unnecessary now):** `main.rs` manual end-of-day = today's
+  duel round + preview report only. `tournament::run_day0` still runs once on a character's first login (line ~458), so
+  the older note below about the manual button re-running it is superseded. Needs a release rebuild.
+
 - **Mushroom chart fixed + saved-fights text log (2026-10-09, user request):** (1) the Mushrooms chart is the cumulative
   total gained over the character's whole life (like gold/XP, it already was); `roster::write_day` now takes
   `max(notes ledger, balance growth since the previous history row)` as the day's `mushrooms_gained`, because the ledger
