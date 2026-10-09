@@ -45,7 +45,7 @@ Verified from runs:
 | The Sword Trial | 1×, permanent end | sword in stone (6) → bent sword (3) → broken sword (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / piece |
 | Bewitched Stew | 1× | cauldron (−2) → witch (−5) → witch's brew (15) (user 2026-10-10; brew +15 server-verified) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
 | Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
-| Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | ? |
+| Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 on completion, failure 0 (user 2026-10-10, not yet verified) |
 | Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
 Sanitary: the FAQ says "at the end +5 if you have 3 toilet papers, otherwise −5". The user is sure about +20 / −5; their version applies (not yet verified in a run).
@@ -82,7 +82,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
 - Missions from sf-api the FAQ does not know: merman (`FishingRod` → `FishingBait` → `Merman`),
   riding (`Chicken` → `Tiger` → `RidingStan`), lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
-- Missing task bonuses: Revealing Lady, Toxic Fountain Cure, Build A Friend (the bot estimates +5 on completion for now).
+- Missing task bonuses: Revealing Lady, Build A Friend (the bot estimates +5 on completion for now).
 
 The bot does not stop on unknown things. It prints them and logs them to the journal (`unmapped`).
 For an unmapped mission it treats items from the same tens range as the target as chain steps (e.g. 151 → 152 → 153).
