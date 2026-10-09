@@ -58,20 +58,32 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
 .epic{color:#9b6be0} .legendary{color:#e08a1a}
-.paperdoll{display:grid;grid-template-columns:58px 130px 58px;grid-template-rows:58px 58px 58px 58px 58px 58px;
-  grid-template-areas:". hat ." "amulet portrait breast" "belt portrait gloves" "ring portrait boots" "talisman portrait ." "weapon . shield";
-  gap:4px;margin:6px auto 10px;justify-content:center}
-.pdportrait{grid-area:portrait;width:130px;height:130px;align-self:center;justify-self:center;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--line);overflow:hidden}
-.pdportrait img{width:100%;height:100%;object-fit:cover}
+.gp{width:334px;margin:8px auto 12px}
+.paperdoll{display:grid;grid-template-columns:repeat(4,76px);grid-template-rows:repeat(4,76px);gap:6px;
+  grid-template-areas:"hat portrait portrait amulet" "breast portrait portrait belt" "gloves portrait portrait ring" "boots weapon shield talisman"}
+.pdportrait{grid-area:portrait;display:flex;flex-direction:column;gap:6px;min-height:0}
+.pdimg{flex:1;min-height:0;position:relative;border-radius:8px;background:var(--line);overflow:hidden}
+.pdimg img{width:100%;height:100%;object-fit:cover;display:block}
+.pdname{position:absolute;left:0;right:0;bottom:0;padding:14px 4px 4px;text-align:center;font-weight:700;font-size:13px;line-height:1.2;color:#fff;background:linear-gradient(transparent,#000c);text-shadow:0 1px 2px #000}
+.pdname small{display:block;font-weight:600;color:#e8c766;font-size:11px}
+.pdlevel{flex:none;height:24px;border-radius:6px;background:var(--line);color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
 .pdslot{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center}
 .pdslot.empty{opacity:.35}
 .pdslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
 .pdslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
-.pdslot img{width:40px;height:40px;object-fit:contain;image-rendering:pixelated}
+.pdslot img{width:56px;height:56px;object-fit:contain;image-rendering:pixelated}
 .pdslot .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
   background:#111;color:#fff;font-size:12px;line-height:1.4;padding:6px 9px;border-radius:6px;white-space:nowrap;z-index:5;box-shadow:0 2px 8px #0005}
 .pdslot .tip b{display:block;font-size:12px}
 .pdslot:hover .tip{display:block}
+.pdattrs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.pdattr{border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--surface)}
+.pdattr .k{font-weight:700;font-size:12px;letter-spacing:.02em;display:flex;justify-content:space-between;gap:8px}
+.pdattr .k b{font-size:16px}
+.pdattr .s{color:var(--muted);font-size:11px}
+.pdpotions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pdpot{border:1px solid var(--line);border-radius:14px;padding:2px 10px;font-size:12px;background:var(--surface)}
+.pdpot small{color:var(--muted);margin-left:4px}
 </style>
 </head>
 <body>
@@ -225,6 +237,36 @@ function updateTimer(el){
 }
 setInterval(()=>{ for (const el of tileEls.values()) updateTimer(el); }, 1000);
 
+// Character panel laid out like the game's own character screen (user 2026-10-09): item slots around the portrait
+// (name + guild overlaid, level bar below), then the five attributes in two columns, then the potions. The same
+// function renders the live card (Characters tab) and the end-of-day snapshot (Charts tab).
+function charPanel(parent, o){
+  const mk = (tag, cls, text, p=parent) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; p.appendChild(e); return e; };
+  const gp = mk("div","gp"), doll = mk("div","paperdoll",null,gp);
+  const port = mk("div","pdportrait",null,doll), box = mk("div","pdimg",null,port);
+  const img = mk("img",null,null,box); img.src = o.portrait; img.onerror = () => { img.remove(); };
+  const nm = mk("div","pdname",o.name,box); if (o.guild) mk("small",null,"["+o.guild+"]",nm);
+  mk("div","pdlevel",o.level!=null ? "Level "+o.level : "–",port);
+  const SLOT_AREA = { Weapon:"weapon", Shield:"shield", Helmet:"hat", "Chest plate":"breast",
+    Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
+  Object.entries(SLOT_AREA).forEach(([slot,area])=>{
+    const it = (o.equip||{})[slot];
+    const s = mk("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
+    s.style.gridArea = area;
+    if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
+    const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : "empty", tip);
+  });
+  const at = mk("div","pdattrs",null,gp);
+  if (!o.attrs) mk("div","muted","No snapshot for this day yet.",at);
+  else [["STR","Strength"],["CON","Constitution"],["DEX","Dexterity"],["LCK","Luck"],["INT","Intelligence"]].forEach(([k,label])=>{
+    const v = o.attrs[k]; if (!v) return;
+    const a = mk("div","pdattr"), h = mk("div","k",label.toUpperCase(),a); mk("b",null,String(v.total),h);
+    mk("div","s",`${v.base} +${v.bonus}`,a); at.appendChild(a); });
+  const pots = o.potions || [];
+  if (pots.length){ const pp = mk("div","pdpotions",null,gp);
+    pots.forEach(p=>{ const c = mk("span","pdpot",p.t); if (p.until) mk("small",null,p.until,c); }); }
+}
+
 function openCard(c){
   const n = c.now, body = $("cardbody"); body.replaceChildren();
   const el = (tag, cls, text, parent=body) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; parent.appendChild(e); return e; };
@@ -240,32 +282,14 @@ function openCard(c){
   const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
   stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");
   stat("XP", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
-  el("div","sec","Attributes");
-  const at = el("table","mini"); const hr = at.insertRow(); ["","base","bonus","total"].forEach(h=>{ const c2=hr.insertCell(); c2.textContent=h; c2.className="k"; });
-  ["STR","DEX","INT","CON","LCK"].filter(k=>n.attrs[k]).forEach(k=>{ const v=n.attrs[k]; const r=at.insertRow(); [k,v.base,"+"+v.bonus,v.total].forEach((x,j)=>{ const c2=r.insertCell(); c2.textContent=x; if(j===3) c2.style.fontWeight="700"; }); });
-  el("div","sec","Potions");
-  el("div",null, n.potions.length ? n.potions.map(p=>`${p.t}${p.until?" (until "+p.until+")":""}`).join(", ") : "–");
+  charPanel(body, {name:c.name, guild:n.guild, level:n.level, portrait:encodeURIComponent(c.name)+"/portrait.png",
+    equip:n.equip, attrs:n.attrs, potions:n.potions});
   el("div","sec","Dungeons");
   const dt = el("table","mini");
   if (!n.dungeons.length) el("div",null,"–");
   n.dungeons.forEach(d=>{ const r=dt.insertRow(); r.insertCell().textContent = d.name.replace(/([a-z])([A-Z])/g,"$1 $2");
     const c2=r.insertCell(); c2.textContent = d.finished ? "done" : `${d.done}/10`; const pr=document.createElement("span"); pr.className="prog";
     const fill=document.createElement("i"); fill.style.width=Math.min(100,d.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
-  el("div","sec","Equipment");
-  const doll = el("div","paperdoll");
-  const port = el("div","pdportrait",null,doll);
-  const pimg = el("img",null,null,port); pimg.src = encodeURIComponent(c.name)+"/portrait.png";
-  pimg.onerror = () => { port.replaceChildren(); };
-  const SLOT_AREA = { Weapon:"weapon", Shield:"shield", Helmet:"hat", "Chest plate":"breast",
-    Gloves:"gloves", Boots:"boots", Amulet:"amulet", Belt:"belt", Ring:"ring", Talisman:"talisman" };
-  Object.entries(SLOT_AREA).forEach(([slot,area])=>{
-    const it = (n.equip||{})[slot];
-    const s = el("div","pdslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, doll);
-    s.style.gridArea = area;
-    if (it && it.icon){ const img=el("img",null,null,s); img.src = it.icon; img.onerror=()=>{img.style.visibility="hidden"}; }
-    const tip = el("div","tip",null,s); el("b",null,slot,tip); el("div",null, it ? (it.d||"–") : "empty", tip);
-  });
-  el("div","sec","Guild"); el("div",null,n.guild||"–");
   $("card").showModal();
 }
 

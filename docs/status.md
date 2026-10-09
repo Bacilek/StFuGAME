@@ -2,6 +2,15 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Character card redesigned like the game's own screen + diacritic portraits fixed (2026-10-09, user request, reference `my_input/image.png`):**
+  both cards (Characters tab `app.html`, Charts `dashboard.html`, shared `charPanel()` copied into each) now show a 4×4 grid:
+  hat/chest/gloves/boots left, amulet/belt/ring/talisman right, portrait in the middle (name + [guild] overlaid, level bar
+  below), weapon+shield between boots and talisman; then the 5 attributes in two columns (STR/CON/DEX/LCK/INT, total +
+  base/bonus underneath), then potion chips. The Charts card feeds it the selected day's snapshot, the app card live data.
+  Not done: the game's derived values (damage, hit points, defense, crit %, armor) and potion icons / countdown – not in
+  our data. **Portrait bug:** `app::serve_asset` did not percent-decode the URL, so `Květoš`/`Novotné` (and any non-ASCII
+  name) 404'd; now decoded (`percent_decode`, `..` rejected). All characters except TestChar1 have `portrait.png`.
+  Needs a release build (bot was running → exe locked) and the user's visual check.
 - **Charts tab opens on the latest day (2026-10-09, user request):** `src/dashboard.html` now defaults `upto` to the
   last date instead of Day 0 (`#day=N` in the URL still overrides). Also the Charts **tiles** (level, rank, power) now show the selected day's snapshot (`rows[date]`) and refresh on day change (tiles() runs from render()), not live `now`. UI label "Strength" renamed to "Power" everywhere (dashboard, app, leaderboard.md header); data keys unchanged. Pending: user confirms after next dashboard regen.
 - **Arena fight highlights implemented (2026-10-09, new `src/arena_highlights.rs`, user request):** after a won

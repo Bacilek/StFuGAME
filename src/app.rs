@@ -30,10 +30,35 @@ enum AppEvent {
     Tick,
 }
 
+/// Decodes `%XX` sequences (UTF-8) in a URL path, so character names with diacritics (Květoš, Novotné) resolve to
+/// their folders. Invalid sequences are left as they are.
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = |c: u8| (c as char).to_digit(16);
+        let pair = if b[i] == b'%' && i + 2 < b.len() { hex(b[i + 1]).zip(hex(b[i + 2])) } else { None };
+        if let Some((h, l)) = pair {
+            out.push((h * 16 + l) as u8);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// Serves files from `roster/` over the `app://` custom protocol (see module doc for why not `file://`).
 fn serve_asset(_id: wry::WebViewId, request: http::Request<Vec<u8>>) -> http::Response<Cow<'static, [u8]>> {
-    let path = request.uri().path().trim_start_matches('/');
+    // The page requests e.g. `Kv%C4%9Bto%C5%A1/portrait.png` (encodeURIComponent), so decode before touching the disk
+    let decoded = percent_decode(request.uri().path().trim_start_matches('/'));
+    let path = decoded.as_str();
     let path = if path.is_empty() { "app.html" } else { path };
+    if path.split(['/', '\\']).any(|p| p == "..") {
+        return http::Response::builder().status(404).body(Cow::Borrowed(&[] as &[u8])).unwrap_or_default();
+    }
     let content_type = if path.ends_with(".html") {
         "text/html; charset=utf-8"
     } else if path.ends_with(".js") {
