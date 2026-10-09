@@ -445,7 +445,7 @@ fn potion_json(p: &sf_api::gamestate::items::Potion) -> serde_json::Value {
 /// The derived values the game's character screen shows (damage, hit points, crit chance, armor), computed with
 /// sf-api's own simulator formulas (`UpgradeableFighter::hit_points`, `damage.rs`); crit chance against an enemy
 /// of our own level, like the game's tooltip. Damage is the average weapon hit × the main attribute bonus (the
-/// game's "~" figure, before the enemy's armor) × the class's damage multiplier (sf-api; 1.0 for e.g. Paladin/Warrior).
+/// game's "~" figure, before the enemy's armor) × the game's per-class factor (see below).
 /// Armor cap and crit cap: armor reduction is capped per class (`max_armor_reduction`, Paladin 45 %), crit at 50 %.
 fn derived(gs: &GameState) -> serde_json::Value {
     use sf_api::simulate::{Fighter, PlayerFighterSquad};
@@ -454,17 +454,38 @@ fn derived(gs: &GameState) -> serde_json::Value {
     let fighter = Fighter::from(&f);
     let level = f64::from(f.level.max(1));
     let main = f.class.main_attribute();
-    let hand = {
-        let m = if f.class == Class::Assassin { 0.875 } else { 0.7 };
+    // Unarmed damage, used when a hand holds no weapon or a weaker one (sf-api `get_hand_damage`)
+    let hand = |second: bool| {
+        let m = if f.class == Class::Assassin { if second { 1.25 } else { 0.875 } } else { 0.7 };
         let d = m * (level - 9.0) * f.class.weapon_multiplier();
         if f.level <= 10 { (1.0, 2.0) } else { ((d * 2.0 / 3.0).ceil().max(1.0), (d * 4.0 / 3.0).round().max(2.0)) }
     };
-    let (min, max) = match &fighter.first_weapon {
-        Some(w) if !(w.damage.min < hand.0 && w.damage.max < hand.1) => (w.damage.min, w.damage.max),
-        _ => hand,
+    let avg = |w: &Option<sf_api::simulate::Weapon>, second: bool| {
+        let h = hand(second);
+        let (min, max) = match w {
+            Some(w) if !(w.damage.min < h.0 && w.damage.max < h.1) => (w.damage.min, w.damage.max),
+            _ => h,
+        };
+        (min + max) / 2.0
     };
-    let main_total = attrs[main];
-    let damage = (min + max) / 2.0 * (1.0 + f64::from(main_total) / 10.0) * f.class.damage_multiplier();
+    // The game's own per-class factor on the character screen (user 2026-10-09, differs from sf-api's
+    // `damage_multiplier`, which is about the simulator's per-hit scaling): weapon × factor × (1 + main/10);
+    // the Assassin adds both hands first.
+    let (weapon, factor) = match f.class {
+        Class::Assassin => (avg(&fighter.first_weapon, false) + avg(&fighter.second_weapon, true), 0.625),
+        c => (
+            avg(&fighter.first_weapon, false),
+            match c {
+                Class::Berserker | Class::DemonHunter => 1.25,
+                Class::Paladin | Class::Mage => 0.83,
+                Class::Necromancer => 0.56,
+                Class::Bard => 1.125,
+                Class::Druid => 0.33,
+                _ => 1.0,
+            },
+        ),
+    };
+    let damage = weapon * factor * (1.0 + f64::from(attrs[main]) / 10.0);
     let reduction = (f.class.armor_multiplier() * f64::from(fighter.armor) / level / 100.0)
         .min(f64::from(f.class.max_armor_reduction()) / 100.0);
     let crit = (f64::from(attrs[AttributeType::Luck]) * 5.0 / (level * 2.0)).min(50.0);
