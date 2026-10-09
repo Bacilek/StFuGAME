@@ -367,6 +367,22 @@ function tiles(){
 // Character panel laid out like the game's own character screen (user 2026-10-09): item slots around the portrait
 // (name + guild overlaid, level bar below), then the five attributes in two columns, then the potions. The same
 // function renders the live card (Characters tab) and the end-of-day snapshot (Charts tab).
+// Snapshots saved before the bot recorded `derived` have none: rebuild an approximation from the day's total
+// attributes, level, class and weapon text (same formulas as `derived()` in roster.rs, minus portal/rune bonuses).
+function legacyDerived(o){
+  const A = o.attrs, cls = o.cls, lvl = o.level; if (!A || !cls || !lvl) return {};
+  const MAIN = {Paladin:"STR",BattleMage:"STR",Berserker:"STR",Warrior:"STR",Assassin:"DEX",DemonHunter:"DEX",Scout:"DEX",PlagueDoctor:"DEX",
+    Druid:"INT",Bard:"INT",Necromancer:"INT",Mage:"INT"};
+  const HPM = {Warrior:5,BattleMage:5,Druid:5,Paladin:6,PlagueDoctor:4,Scout:4,Assassin:4,Berserker:4,DemonHunter:4,Necromancer:4,Mage:2,Bard:2};
+  const FAC = {Berserker:1.25,DemonHunter:1.25,Paladin:.83,Mage:.83,Necromancer:.56,Bard:1.125,Druid:.33,Assassin:.625};
+  const main = MAIN[cls], out = { main };
+  if (A.LCK) out.crit_pct = Math.min(50, A.LCK.total*5/(lvl*2));
+  if (A.CON && HPM[cls]){ let hp = Math.trunc(A.CON.total*HPM[cls])*(lvl+1);
+    if ((o.potions||[]).some(p=>/EternalLife/.test(p.t))) hp = Math.trunc(hp*1.25); out.hp = hp; }
+  const w = ((o.equip||{}).Weapon||{}).d, m = w && /(\d+)\D+(\d+)\s*dmg/.exec(w);
+  if (m && main && A[main]) out.damage = (+m[1] + +m[2])/2 * (FAC[cls]||1) * (1 + A[main].total/10);
+  return out;
+}
 function charPanel(parent, o){
   const mk = (tag, cls, text, p=parent) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; p.appendChild(e); return e; };
   const gp = mk("div","gp"), doll = mk("div","paperdoll",null,gp);
@@ -383,7 +399,7 @@ function charPanel(parent, o){
     if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
     const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : "empty", tip);
   });
-  const at = mk("div","pdattrs",null,gp), dv = o.derived || {};
+  const at = mk("div","pdattrs",null,gp), dv = o.derived || legacyDerived(o);
   const fmt = n => n==null ? "–" : Math.round(n).toLocaleString();
   if (!o.attrs) mk("div","muted","No snapshot for this day yet.",at);
   else {
@@ -405,8 +421,11 @@ function charPanel(parent, o){
   const pots = o.potions || [];
   if (pots.length){ const pp = mk("div","pdpotions",null,gp);
     pots.forEach(p=>{
+      const ab = {Strength:"STR",Dexterity:"DEX",Intelligence:"INT",Constitution:"CON",Luck:"LCK",EternalLife:"LIFE"};
+      const short = String(p.t).replace(/^(\w+)\s+(\d+)\s*%/, (_,n,v)=>(ab[n]||n)+" "+v+"%");
       const c = mk("div","pdpot",null,pp); c.title = p.t;
-      if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); c.append(p.t); }; } else c.append(p.t); }); }
+      if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); }; }
+      c.append(short); }); }
 }
 
 function openCard(i){
@@ -435,7 +454,7 @@ function openCard(i){
     stat("Achievements (now)", ach); stat("Collection (now)", n.scrapbook != null ? `${n.scrapbook} items` : "–");
     stat("XP (now)", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
   }
-  charPanel(body, {name:c.nick, guild:d?.guild_day, level:lvl, portrait:encodeURIComponent(c.nick)+"/portrait.png",
+  charPanel(body, {cls:c.cls, name:c.nick, guild:d?.guild_day, level:lvl, portrait:encodeURIComponent(c.nick)+"/portrait.png",
     equip:d?.equip, attrs:d?.attrs_total, potions:d?.potion_items || (d?.potions_day||[]).map(t=>({t})), derived:d?.derived});
   if (n){
     el2("div","sec","Dungeons (now)");

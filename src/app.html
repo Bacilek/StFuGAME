@@ -278,8 +278,11 @@ function charPanel(parent, o){
   const pots = o.potions || [];
   if (pots.length){ const pp = mk("div","pdpotions",null,gp);
     pots.forEach(p=>{
+      const ab = {Strength:"STR",Dexterity:"DEX",Intelligence:"INT",Constitution:"CON",Luck:"LCK",EternalLife:"LIFE"};
+      const short = String(p.t).replace(/^(\w+)\s+(\d+)\s*%/, (_,n,v)=>(ab[n]||n)+" "+v+"%");
       const c = mk("div","pdpot",null,pp); c.title = p.t;
-      if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); c.append(p.t); }; } else c.append(p.t); }); }
+      if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); }; }
+      c.append(short); }); }
 }
 
 function openCard(c){
