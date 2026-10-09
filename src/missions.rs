@@ -117,8 +117,8 @@ pub const MISSIONS: &[Mission] = &[
     )),
     unknown("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], 1),
     // sf-api: Well = cauldron, Girl = witch, Balloons = witch's brew
-    // user 2026-10-10: cauldron -2, witch -5, brew +10, bonus +5 on completion, -5 when failed
-    penalty(known("Bewitched Stew", &[(Well, -2), (Girl, -5), (Balloons, 10)], Bonus::OnComplete(5), 1), 5),
+    // user 2026-10-10: cauldron -2, witch -5, brew +15 (server-verified), bonus +5 on completion, -5 when failed
+    penalty(known("Bewitched Stew", &[(Well, -2), (Girl, -5), (Balloons, 15)], Bonus::OnComplete(5), 1), 5),
     // user 2026-10-10: mugs 0, draft beer +6, tapping bartender +6, bonus +5 on completion, -5 when failed
     penalty(known("Running Dry", &[(Mugs, 0), (DraftBeer, 6), (Barkeeper, 6)], Bonus::OnComplete(5), 1), 5),
     // sf-api: Prince = fairy fountain, RoyalFrog = polluted fairy fountain
