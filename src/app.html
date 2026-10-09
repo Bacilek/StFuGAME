@@ -278,10 +278,7 @@ function charPanel(parent, o){
   const pots = o.potions || [];
   if (pots.length){ const pp = mk("div","pdpotions",null,gp);
     pots.forEach(p=>{
-      let left = p.left_sec; if (p.until_ts) left = Math.max(0, (new Date(p.until_ts).getTime()-Date.now())/1000);
-      const d = Math.floor(left/86400), h = Math.floor(left%86400/3600), m = Math.floor(left%3600/60);
       const c = mk("div","pdpot",null,pp); c.title = p.t;
-      mk("div","pdleft", left==null ? "" : d>0 ? `${d}D ${String(h).padStart(2,"0")}H` : `${h}H ${String(m).padStart(2,"0")}M`, c);
       if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); c.append(p.t); }; } else c.append(p.t); }); }
 }
 

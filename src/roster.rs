@@ -445,7 +445,8 @@ fn potion_json(p: &sf_api::gamestate::items::Potion) -> serde_json::Value {
 /// The derived values the game's character screen shows (damage, hit points, crit chance, armor), computed with
 /// sf-api's own simulator formulas (`UpgradeableFighter::hit_points`, `damage.rs`); crit chance against an enemy
 /// of our own level, like the game's tooltip. Damage is the average weapon hit × the main attribute bonus (the
-/// game's "~" figure, before the enemy's armor).
+/// game's "~" figure, before the enemy's armor) × the class's damage multiplier (sf-api; 1.0 for e.g. Paladin/Warrior).
+/// Armor cap and crit cap: armor reduction is capped per class (`max_armor_reduction`, Paladin 45 %), crit at 50 %.
 fn derived(gs: &GameState) -> serde_json::Value {
     use sf_api::simulate::{Fighter, PlayerFighterSquad};
     let f = PlayerFighterSquad::new(gs).character;
@@ -463,7 +464,7 @@ fn derived(gs: &GameState) -> serde_json::Value {
         _ => hand,
     };
     let main_total = attrs[main];
-    let damage = (min + max) / 2.0 * (1.0 + f64::from(main_total) / 10.0);
+    let damage = (min + max) / 2.0 * (1.0 + f64::from(main_total) / 10.0) * f.class.damage_multiplier();
     let reduction = (f.class.armor_multiplier() * f64::from(fighter.armor) / level / 100.0)
         .min(f64::from(f.class.max_armor_reduction()) / 100.0);
     let crit = (f64::from(attrs[AttributeType::Luck]) * 5.0 / (level * 2.0)).min(50.0);
