@@ -102,8 +102,8 @@ character, in `roster/<character>/arena_highlights.json`).
 Only runs on a **won** fight (the user's examples were all about winning). Every category below is measured on
 every win; a fight gets marked only if it **beats this character's own previous best** in at least one category
 (or is the first time that category's threshold was ever reached by this character) – a later, better fight of
-the same category updates the record but we don't currently un-mark the earlier, inferior one in-game (see Open
-questions).
+the same category also **un-marks** the earlier, inferior one (`PlayerCombatLogMark <id>/0`), so only the single
+best fight per category stays saved in-game.
 
 | Category | What it measures | Threshold to even qualify | Direction |
 |---|---|---|---|
@@ -129,16 +129,21 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 1. `arena::run` sends `Fight` via `safe::send_raw` (not `safe::send`) so both the parsed `GameState` *and* the
    raw response string are available – `arena_highlights::measure` needs the raw string for `fight.r`; nothing
    else in `arena.rs` changed.
-2. `arena_highlights::maybe_mark` measures every category, loads `roster/<character>/arena_highlights.json`
-   (this character's best value per category so far), and keeps only the categories that both clear their
-   threshold and beat (or are new compared to) the stored record. If any exist, updates and saves the JSON file
-   immediately (so a later fight is compared against the latest record even if the in-game mark below fails).
+2. `arena_highlights::maybe_mark` measures every category and loads `roster/<character>/arena_highlights.json`
+   – this character's record per category so far, stored as `{value, msg_id}` (the `msg_id` of the fight that
+   currently holds that record). Keeps only the categories that both clear their threshold and beat (or are new
+   compared to) the stored record.
 3. Looks for a matching entry in `gs.mail.combat_log` (`CombatLogEntry`, matched by opponent name + most recent
-   within 5 min) to get the `msg_id` to mark.
-4. If found, sends `Command::Custom { "PlayerCombatLogMark", [msg_id, "1"] }` – the exact command/params captured
-   live from the user's own browser Network tab (`params` = base64 of `"<msg_id>/1"`, which sf-api's session
-   layer already base64-encodes automatically for every `Custom` command – no manual encoding needed).
-   Whitelisted in `safe.rs::custom_allowed` only for an id already present in our own combat log.
+   within 5 min) to get the `msg_id` of *this* fight to mark. If not found, logs the miss and leaves the stored
+   records untouched (so a later fight beating the same old record gets a fresh chance).
+4. For every beaten category, un-marks the old record's fight (`PlayerCombatLogMark <old_msg_id>/0`) – deduped,
+   since several categories can share the same old record. Then marks the new fight
+   (`PlayerCombatLogMark <msg_id>/1`). Both are `Command::Custom` + base64-params, the exact mechanism captured
+   live from the user's own browser Network tab (sf-api's session layer base64-encodes the joined args
+   automatically for every `Custom` command – no manual encoding needed). Whitelisted in
+   `safe.rs::custom_allowed` only for an id already present in our own combat log, flag `0` or `1`.
+5. Only after that does it update and save `arena_highlights.json` with the new `{value, msg_id}` per beaten
+   category.
 
 ## Verification status
 
@@ -153,8 +158,9 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 | "several actions in one turn" = consecutive same-actor rows | ✅ berserker (5 in a row), assassin (dual weapon), necromancer (summon+attack) |
 | Demon Hunter revive | ⏳ not observed live, logic untested against a real case |
 | Druid bear form/swoop | ⏳ not observed live, no dedicated detection |
-| `PlayerCombatLogMark` actually marks the fight server-side | ⏳ not sent live yet |
-| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ⏳ unverified assumption |
+| `PlayerCombatLogMark <id>/1` marks a fight (sets `combatloglist`'s last field to `3`, settling to `2`) | ✅ 2026-10-09, both via our own API call and the user's in-game click, same effect |
+| `PlayerCombatLogMark <id>/0` un-marks a fight (sets last field to `0`) | ✅ 2026-10-09, confirmed by diffing the user's own pin/unpin in-game clicks (clean single-row `3→0`) – inferred from the resulting list, the raw unmark request itself wasn't captured, but high confidence |
+| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ⏳ unverified assumption, still untested by our own code sending `Fight` |
 | Point thresholds reasonable (mark too much / too little) | ⏳ pending real scores in the log |
 
 ## Open questions
@@ -163,9 +169,9 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
   stronger opponent) ever be marked too, or strictly wins only, as implemented? Current behaviour: wins only.
 - If more class samples turn up (Demon Hunter revive, Druid bear form/swoop, a cleaner Plague Doctor poison
   sequence), update the tables above and `src/arena_highlights.rs` accordingly.
-- **Un-marking the old, beaten record:** when a category's record improves, the previous (now inferior) fight
-  stays marked in-game – we only ever send `PlayerCombatLogMark` with `/1`. Whether `/0` un-marks (symmetrical to
-  `/1`) is untested; risky to try blind since marking is cheap/reversible-feeling but we don't actually know the
-  server accepts `0` as a value there. Until tried and confirmed, old beaten records just accumulate in Quarter →
-  Mail (bounded by the number of categories per character, not by every fight that ever qualified – much better
-  than the original additive-score design, but not literally "only ever 1 fight saved per category" yet).
+- **Un-marking the old, beaten record (2026-10-09, resolved):** user confirmed `/0` un-marks by pinning then
+  un-pinning a fight in-game and sending both `combatloglist` dumps – a clean single-row `3→0` diff, nothing else
+  changed. `maybe_mark` now sends `PlayerCombatLogMark <old_msg_id>/0` for every record it supersedes, right
+  before marking the new one with `/1`, so only the single best fight per category should stay saved. Still
+  worth double-checking the very first time this actually fires live (own API call, not an in-game click) that
+  the old fight really disappears from Quarter → Mail.

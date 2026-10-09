@@ -186,10 +186,11 @@ fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) 
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
         ("ShopCatalog", [shop, mid, page]) => shop == "1" && mid.is_empty() && page == "1",
         ("ShopCheckout", [shop, identifier, suffix]) => shop == "1" && suffix.is_empty() && !identifier.is_empty(),
-        // Marks a fight as saved (shows up in Quarter -> Mail), free UI action. Only ever an id already present
-        // in our own combat log (src/arena_highlights.rs), never an arbitrary id.
+        // Marks/un-marks a fight as saved (shows up in Quarter -> Mail), free UI action, both directions
+        // confirmed from real captured responses (docs/arena-highlights.md: "1" = mark, "0" = un-mark). Only
+        // ever an id already present in our own combat log (src/arena_highlights.rs), never an arbitrary id.
         ("PlayerCombatLogMark", [id, flag]) => {
-            flag == "1" && gs.is_some_and(|gs| gs.mail.combat_log.iter().any(|e| e.msg_id.to_string() == *id))
+            (flag == "1" || flag == "0") && gs.is_some_and(|gs| gs.mail.combat_log.iter().any(|e| e.msg_id.to_string() == *id))
         }
         _ => false,
     }

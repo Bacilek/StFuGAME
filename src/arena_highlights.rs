@@ -261,17 +261,23 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
     ]
 }
 
+/// One category's best-ever record for this character: `(value, msg_id)` – which saved fight it belongs to, so a
+/// later, better fight can un-mark it (see `maybe_mark`). A plain tuple rather than a named struct so it gets
+/// `serde`'s `Serialize`/`Deserialize` for free from `serde_json` without adding `serde` itself as a direct
+/// dependency just for this.
+type Record = (f64, i64);
+
 /// `roster/<character>/arena_highlights.json`: this character's best value ever seen per category (never
 /// compared across characters – each has their own file and their own records).
 fn records_path() -> std::path::PathBuf {
     std::path::Path::new("roster").join(crate::ctx::name()).join("arena_highlights.json")
 }
 
-fn load_records() -> HashMap<String, f64> {
+fn load_records() -> HashMap<String, Record> {
     std::fs::read_to_string(records_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
 }
 
-fn save_records(records: &HashMap<String, f64>) {
+fn save_records(records: &HashMap<String, Record>) {
     let path = records_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -281,20 +287,28 @@ fn save_records(records: &HashMap<String, f64>) {
     }
 }
 
+async fn mark(session: &mut SimpleSession, msg_id: i64, flag: &str) {
+    if let Err(e) = safe::send_raw_only(session, custom("PlayerCombatLogMark", &[&msg_id.to_string(), flag])).await {
+        report!("[arena] Could not {} fight {msg_id}: {e}", if flag == "1" { "mark" } else { "un-mark" });
+    }
+}
+
 /// Call after a won Arena fight (`raw` = the raw response of the `Fight` command). Marks it via
 /// `PlayerCombatLogMark` (so it shows up in Quarter → Mail) only if it beats this character's own previous best
-/// in at least one category – best-effort on the marking itself: if the fight cannot be found in
-/// `gs.mail.combat_log` yet (not verified whether the server includes it right away, see
-/// docs/arena-highlights.md), it just logs the miss instead of marking anything, but the new record is still
-/// saved either way (no point re-detecting the same record on a later fight that doesn't beat it).
+/// in at least one category, and un-marks whichever earlier fight(s) it just superseded (user 2026-10-09: old,
+/// beaten records should not keep piling up in Quarter → Mail) – both `/1` (mark) and `/0` (un-mark) confirmed
+/// from real captured responses, see docs/arena-highlights.md. Best-effort on the marking itself: if the fight
+/// cannot be found in `gs.mail.combat_log` yet (not verified whether the server includes it right away), it logs
+/// the miss and leaves the stored record untouched, so a later fight beating the same old record gets a fresh
+/// chance to find and mark it.
 pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) {
     let Some((new_records, msg_id)) = session.game_state().map(|gs| {
         let records = load_records();
-        let new_records: Vec<(String, f64, String)> = measure(gs, raw)
+        let new_records: Vec<(String, f64, String, Option<i64>)> = measure(gs, raw)
             .into_iter()
             .filter(beats_threshold)
-            .filter(|m| records.get(m.category).is_none_or(|&prev| beats_record(m, prev)))
-            .map(|m| (m.category.to_string(), m.value, (m.describe)(m.value)))
+            .filter(|m| records.get(m.category).is_none_or(|prev| beats_record(m, prev.0)))
+            .map(|m| (m.category.to_string(), m.value, (m.describe)(m.value), records.get(m.category).map(|r| r.1)))
             .collect();
         let msg_id = gs
             .mail
@@ -311,23 +325,30 @@ pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) 
     if new_records.is_empty() {
         return;
     }
-    let descriptions: Vec<&str> = new_records.iter().map(|(_, _, d)| d.as_str()).collect();
+    let descriptions: Vec<&str> = new_records.iter().map(|(_, _, d, _)| d.as_str()).collect();
     report!("[arena] New personal best: {}", descriptions.join(", "));
-
-    let mut records = load_records();
-    for (category, value, _) in &new_records {
-        records.insert(category.clone(), *value);
-    }
-    save_records(&records);
 
     let Some(msg_id) = msg_id else {
         report!("[arena] New record but no matching combat log entry to mark yet, skipping the save");
         return;
     };
-    report!("[arena] Marking fight {msg_id} as saved");
-    if let Err(e) = safe::send_raw_only(session, custom("PlayerCombatLogMark", &[&msg_id.to_string(), "1"])).await {
-        report!("[arena] Could not mark fight {msg_id}: {e}");
+
+    let mut superseded: Vec<i64> = new_records.iter().filter_map(|(_, _, _, old)| *old).collect();
+    superseded.sort_unstable();
+    superseded.dedup();
+    for old_id in superseded {
+        report!("[arena] Un-marking superseded fight {old_id}");
+        mark(session, old_id, "0").await;
     }
+
+    report!("[arena] Marking fight {msg_id} as saved");
+    mark(session, msg_id, "1").await;
+
+    let mut records = load_records();
+    for (category, value, _, _) in &new_records {
+        records.insert(category.clone(), (*value, msg_id));
+    }
+    save_records(&records);
 }
 
 #[cfg(test)]
