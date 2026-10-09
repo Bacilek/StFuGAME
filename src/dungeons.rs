@@ -72,9 +72,10 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
-/// The pending-unlock ident of a dungeon (user 2026-10-09: captured from the game client, `UnlockFeature` `30/1`).
-/// Other pending idents (seen: 9/1, 5/1, 40/1) are unknown and left alone.
-const DUNGEON_UNLOCK_IDENT: i64 = 30;
+/// Pending unlocks the bot accepts: 30 = the dungeons (captured from the game client, `UnlockFeature` `30/1`) and
+/// 5 = the Scrapbook (user 2026-10-09: wants it on every character; inferred from its `scrapbook.r` arriving when `5/1`
+/// left the pending list). Other pending idents (seen: 9/1, 40/1) are unknown and left alone.
+const ACCEPTED_UNLOCK_IDENTS: [i64; 2] = [30, 5];
 
 /// One Dungeons fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
@@ -85,12 +86,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     };
     // A pending dungeon unlock (ident 30) must be accepted first, otherwise the dungeon stays Locked (the game client
     // does the same when the Dungeons screen is opened); then the Dungeons state is refreshed
-    let todo: Vec<_> = gs.pending_unlocks.iter().filter(|u| u.main_ident == DUNGEON_UNLOCK_IDENT).copied().collect();
+    let todo: Vec<_> = gs.pending_unlocks.iter().filter(|u| ACCEPTED_UNLOCK_IDENTS.contains(&u.main_ident)).copied().collect();
     let gs = if todo.is_empty() {
         gs
     } else {
         for u in todo {
-            report!("[dungeons] Unlocking a dungeon ({}/{})", u.main_ident, u.sub_ident);
+            report!("[dungeons] Unlocking feature ({}/{})", u.main_ident, u.sub_ident);
             if let Err(e) = safe::send(session, Command::UnlockFeature { unlockable: u }).await {
                 return fail(&e);
             }
