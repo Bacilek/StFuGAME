@@ -44,7 +44,7 @@
   full backpack + a bigger one for gold than the active stat target → buy, `RemovePotion`, drink (any days left);
   stock: the most important gold potion (any type) when the stock (all potions in the backpack) is below 4, or when it is
   more important than the least important one in the stock (then the stock is trimmed back to 4).
-  Max 4 such purchases a day. Spinning: gold potions are spin candidates while the stock is below 4 (kept, not sold).
+  Max 4 such purchases a day. Spinning: gold potions are always spin candidates (user 2026-10-09: even with a full stock of 4, they are the cheapest spin items); right after such a purchase `trim_stock` drinks/sells the least important potion, so the stock stays at 4.
 - `safe.rs`: `UsePotion` only for a potion in the backpack, `RemovePotion` only per `potions::removal_ok`.
 
 - Stock purchases confirmed 2026-10-08 (`[shops] Potion: buying … for the stock (0 in the backpack)`, count rising).

@@ -68,20 +68,17 @@ fn gold_hourglass(item: &Item) -> bool {
 }
 
 /// Gold items that can be used to spin the shop: equipment (sold right away), hourglasses (kept) and potions
-/// while the potion stock has room (kept, user 2026-10-07: cheap, spin the shop, can be sold any time).
+/// (user 2026-10-07: cheap, spin the shop, can be sold any time). With a full potion stock a bought potion is
+/// trimmed right after the purchase (`spin`: the least important one is drunk or sold), user 2026-10-09: Pagan did not
+/// spin with cheap small DEX potions because the stock was full.
 fn spin_offers(gs: &GameState) -> Vec<(ShopPosition, &Item)> {
-    let potions = crate::potions::stock_has_room(gs);
     gs.shops
         .values()
         .flat_map(|s| s.iter())
         .filter(|(_, i)| {
             gold_only(i)
                 || gold_hourglass(i)
-                || (potions
-                    && crate::potions::potion(i).is_some()
-                    && i.mushroom_price == 0
-                    && i.price > 0
-                    && i.price != u32::MAX)
+                || (crate::potions::potion(i).is_some() && i.mushroom_price == 0 && i.price > 0 && i.price != u32::MAX)
         })
         .collect()
 }
@@ -306,6 +303,10 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
                 return Outcome::Done;
             }
             Err(o) => return o,
+        }
+        // A potion bought for spinning may push the stock over its limit: drink/sell the least important one
+        if let Outcome::SessionLost = crate::potions::trim_stock(session).await {
+            return Outcome::SessionLost;
         }
         spins += 1;
         if let Some(gs) = session.game_state() {
