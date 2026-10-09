@@ -5,6 +5,7 @@
 mod report;
 mod app;
 mod arena;
+mod arena_highlights;
 mod attributes;
 mod control;
 mod ctx;

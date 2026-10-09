@@ -9,6 +9,9 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Reklamy – rozhodnuto NEIMPLEMENTOVAT (`docs/shops.md`): `AdvertisementsCompleted` vrací `trust_counter`, nejspíš antifraud metrika reklamní sítě proti přesně tomuhle druhu automatizace. Riziko přesahuje jen houbičku.
 - [x] Questy u Goblin Gleemana + eventové úkoly (`docs/tasks.md`): truhly, atributy, cechovní upgrade, nákupy, Training Camp, skořápky jen když body chybí
 - [ ] Event game loop (piva?)
+- [x] Arena fight highlights – ukládání cool zápasů (`PlayerCombatLogMark`), naimplementováno 2026-10-09
+  (`src/arena_highlights.rs`, `docs/arena-highlights.md`). Čeká na release build + živé ověření (ukládá se to
+  opravdu? škálování bodů sedí?).
 - [x] Cech – automatický vstup do nejlepšího cechu ze seznamu rychlého vstupu (Instructor > Treasure > síla), 1× denně přechod do výrazně lepšího (`docs/guild.md`)
 - [x] Stáj (`docs/stable.md`)
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
@@ -27,6 +30,11 @@ Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá be
 - [x] Cechovní souboje: přihlásit se k útoku/obraně (`GuildJoinAttack`/`GuildJoinDefense`, zdarma)
 - [ ] Vylepšování atributů za zlato (sf-api: `UpgradeSkill`) – jeden pevný klíč pro všechny classy, hlavní atribut zjistit z postavy (klíč ještě domluvit)
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
+- [ ] `WinFightsNoEpicsLegendaries`/`WinFightsNoGear` (Gleeman/event úkol, user 2026-10-09): sf-api je má v `TaskType`,
+  `src/hunt.rs` je ale nemapuje (`wanted_hunt` zná jen `WinFightsAgainst`/`WinFightsBareHands`/`WinFightsNoChestplate`) –
+  úkol se dnes jen přeskočí, nic nespadne. Odloženo na dobu, až bude mít postava epicy: sundání 5-10 slotů najednou
+  najednou narazí na plný batoh (lektvary + věci k prodeji) mnohem snáz než dnešní 1-2 sloty u bare-hands, viz
+  `docs/tasks.md`. Řešit zároveň s "Epické předměty plní batoh" výše – možná to vyřeší to samé rozšíření inventáře.
 - [x] Denní odměna za přihlášení (kalendář, `docs/daily-rewards.md`)
 - [ ] Záchod (sf-api: `tavern.toilet`) – házení předmětů do záchodu místo prodeje?
 - [ ] Věž, mazlíčci, pevnost, podsvětí – až budou na postavě odemčené

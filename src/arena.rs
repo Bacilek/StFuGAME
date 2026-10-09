@@ -180,11 +180,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     report!("[arena] Challenging: {name} (simulated win chance {:.0}%)", win_chance * 100.0);
     let fight_of_day = fights_today() + 1;
     let opponent = name.clone();
-    let gs = match safe::send(session, Command::Fight { name, use_mushroom: false }).await {
-        Ok(gs) => gs,
+    let raw = match safe::send_raw(session, Command::Fight { name, use_mushroom: false }).await {
+        Ok(raw) => raw,
         Err(e) => return fail(&e),
     };
+    let Some(gs) = session.game_state() else { return Outcome::Done };
     let fights_for_xp = gs.arena.fights_for_xp;
+    let next_free_fight = gs.arena.next_free_fight;
     match &gs.last_fight {
         Some(f) => {
             report!(
@@ -212,9 +214,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     } else {
         report!("[arena] Wins for XP today: {wins}/{MAX_WINS_PER_DAY}");
     }
-    if let Some(next) = gs.arena.next_free_fight {
+    if let Some(next) = next_free_fight {
         report!("[arena] Next free fight at {}", next.format("%H:%M:%S"));
     }
+    crate::arena_highlights::maybe_mark(session, &raw, &opponent).await;
     Outcome::Done
 }
 

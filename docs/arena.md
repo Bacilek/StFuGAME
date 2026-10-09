@@ -1,5 +1,8 @@
 # Arena
 
+See also `docs/arena-highlights.md`: after a win, scores how "cool" the fight was from the raw combat log and
+marks standout ones via `PlayerCombatLogMark` (shows up in Quarter → Mail). Not yet verified live.
+
 ## Rules (from the user)
 - Fight whenever the Arena is **off cooldown**, even during an expedition (the Tavern does not get in the way).
 - **At most 10 wins per day**, after that the Arena gives no rewards. Driven by the server counter `fights_for_xp`
