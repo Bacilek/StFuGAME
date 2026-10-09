@@ -95,7 +95,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[dungeons] Task: defeat monsters in {:?}", w.dungeon);
     }
     let Some(pick) = wanted.or_else(|| choose(&cands)).cloned() else {
-        report!("[dungeons] No open dungeon");
+        // Diagnostics (user 2026-10-09: every character is level 16 but only Training Camp shows up): the server lists
+        // features waiting for an explicit unlock in `pending_unlocks`; this bot never sends UnlockFeature yet.
+        let pending: Vec<String> = gs.pending_unlocks.iter().map(|u| format!("{}/{}", u.main_ident, u.sub_ident)).collect();
+        report!("[dungeons] No open dungeon (pending unlocks: {})", if pending.is_empty() { "none".to_string() } else { pending.join(", ") });
         return Outcome::Done;
     };
     report!("[dungeons] Fighting: {:?} – {} (lvl {})", pick.dungeon, pick.name, pick.level);
