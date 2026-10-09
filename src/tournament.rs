@@ -146,6 +146,16 @@ fn rounds(demo: bool) -> Vec<serde_json::Value> {
         })
         .unwrap_or_default();
     v.sort_by_key(|r| r["day"].as_i64().unwrap_or(0));
+    // Older rounds may spell a nick with different capitals than roster.md (MimiMimi11 vs Mimimimi11); the dashboard
+    // matches characters by the roster spelling, so a mismatch made the character vanish from the charts
+    let canon = participants();
+    for r in &mut v {
+        for p in r["players"].as_array_mut().into_iter().flatten() {
+            if let Some(c) = p["nick"].as_str().and_then(|n| canon.iter().find(|(c, _)| c.eq_ignore_ascii_case(n))) {
+                p["nick"] = serde_json::Value::String(c.0.clone());
+            }
+        }
+    }
     v
 }
 
@@ -304,7 +314,8 @@ async fn simulate(
         } else if nick.eq_ignore_ascii_case(&own) {
             session.game_state().map(|gs| Fighter::from(&PlayerFighterSquad::new(gs).character))
         } else {
-            let gs = match safe::send(session, Command::ViewPlayer { ident: nick.clone() }).await {
+            let name = crate::roster::game_name(nick);
+            let gs = match safe::send(session, Command::ViewPlayer { ident: name.clone() }).await {
                 Ok(gs) => gs,
                 Err(e) if crate::tavern::is_session_error(&e) => return Err(fail(&e)),
                 Err(e) => {
@@ -313,7 +324,7 @@ async fn simulate(
                     continue;
                 }
             };
-            gs.lookup.lookup_name(nick).map(|p| Fighter::from(&UpgradeableFighter::from_other(p)))
+            gs.lookup.lookup_name(&name).map(|p| Fighter::from(&UpgradeableFighter::from_other(p)))
         };
         match fighter {
             Some(f) => fighters.push((nick.clone(), class.clone(), f)),

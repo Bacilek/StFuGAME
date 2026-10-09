@@ -667,6 +667,17 @@ fn card_data(gs: &GameState) -> serde_json::Value {
     })
 }
 
+/// The character's exact in-game name (`roster/<nick>/game_name.txt`, written by `write_now`), falling back to the nick:
+/// `.env`/`roster.md` may spell it with different capitals (Mimimimi11 vs MimiMimi11), but `ViewPlayer` lookups in `sf-api`
+/// are exact-case (`Lookup::lookup_name`).
+pub fn game_name(nick: &str) -> String {
+    fs::read_to_string(Path::new(ROOT).join(nick).join("game_name.txt"))
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| nick.to_string())
+}
+
 /// Writes the character's current state (`now.json`) and rebuilds the dashboard, at most every `NOW_EVERY`.
 pub fn write_now(gs: &GameState) {
     const NOW_EVERY: std::time::Duration = std::time::Duration::from_secs(10 * 60);
@@ -680,6 +691,9 @@ pub fn write_now(gs: &GameState) {
     let Some(d) = dir() else { return };
     let _ = fs::create_dir_all(&d);
     let _ = fs::write(d.join("now.json"), card_data(gs).to_string());
+    if fs::read_to_string(d.join("game_name.txt")).ok().as_deref().map(str::trim) != Some(gs.character.name.as_str()) {
+        let _ = fs::write(d.join("game_name.txt"), &gs.character.name);
+    }
 
     // The dashboard rebuild scans every character's folder (O(all characters)); only actually do it once per
     // `NOW_EVERY` window for the whole process, not once per character on its own independent timer – with ~10
