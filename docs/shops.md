@@ -75,3 +75,11 @@
 | Spin cost (purchase vs sale price) | ✅ seen (e.g. 2026-10-07 spin cost 1.03–6.59 g) |
 | A bought hourglass: backpack item or straight to the hourglass counter? | ⏳ not verified |
 | Shopping works during City Guard | ✅ 2026-10-07 per the user (everything works during a shift); bot run not seen yet |
+
+## Reserve survives restarts (2026-10-09, user)
+Bug found: the reserve (most expensive gold item for our class seen today) lived only in memory and a new day/restart started at 0. After the 18:44
+restart all 12 characters ran the shop with offers that were already spun empty ("All items cost mushrooms"), so the reserve stayed 0 and
+`tasks::buy_surplus_attributes` (floor = 5 × reserve = 0) spent almost all gold on attributes (Květoš 7.5 g, Filminy ~25 g, Mimimimi11 ~27 g, PajaRizz ~46 g left).
+Now: `roster/<character>/shop_reserve.json` (`{date, seen, carry}`) is loaded on start; a new day starts from yesterday's `seen` as `carry`
+(effective reserve = max(seen today, carry)); and when no gold item was ever seen, the gold price of the class's mushroom-priced equipment is the estimate.
+Not run live yet. The `need more gold` error from the surplus loop (price estimate = last price) is separate and still there.

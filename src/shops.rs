@@ -31,18 +31,51 @@ const MAX_POTION_BUYS: usize = 4;
 /// Today's shopping: the reserve and whether shopping is done.
 struct Day {
     date: NaiveDate,
+    /// Effective reserve: the most expensive gold item seen today, but at least what yesterday saw (`carry`)
     reserve: u32,
+    /// Most expensive gold item seen today (stored on disk, becomes tomorrow's `carry`)
+    seen: u32,
+    carry: u32,
     done: bool,
 }
 
 static DAY: crate::ctx::PerChar<Option<Day>> = crate::ctx::PerChar::new();
 
-/// Runs `f` on today's state (a new day starts with a zero reserve).
+/// `roster/<character>/shop_reserve.json` – `{date, seen, carry}`: the reserve must survive a bot restart and a new day
+/// (user 2026-10-09: after a restart every character spent all its gold on attributes because the in-memory reserve was 0
+/// and the shops had already been spun empty).
+fn reserve_path() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("shop_reserve.json")
+}
+
+fn load_reserve(today: NaiveDate) -> (u32, u32) {
+    let v: serde_json::Value =
+        std::fs::read_to_string(reserve_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let num = |k: &str| u32::try_from(v[k].as_u64().unwrap_or(0)).unwrap_or(u32::MAX);
+    if v["date"].as_str() == Some(&today.to_string()) {
+        (num("seen"), num("carry"))
+    } else {
+        // a new day: what yesterday saw is today's starting estimate
+        (0, num("seen"))
+    }
+}
+
+fn save_reserve(d: &Day) {
+    let path = reserve_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let v = serde_json::json!({ "date": d.date.to_string(), "seen": d.seen, "carry": d.carry });
+    let _ = std::fs::write(path, v.to_string());
+}
+
+/// Runs `f` on today's state (a new day starts from yesterday's reserve, not from zero).
 fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     let mut guard = DAY.lock().ok()?;
     let today = Local::now().date_naive();
     if guard.as_ref().is_none_or(|d| d.date != today) {
-        *guard = Some(Day { date: today, reserve: 0, done: false });
+        let (seen, carry) = load_reserve(today);
+        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false });
     }
     guard.as_mut().map(f)
 }
@@ -88,7 +121,9 @@ fn gold_offers(gs: &GameState) -> Vec<(ShopPosition, &Item)> {
     gs.shops.values().flat_map(|s| s.iter()).filter(|(_, i)| gold_only(i)).collect()
 }
 
-/// Raises the reserve to the most expensive gold item for our class in the current offer.
+/// Raises the reserve to the most expensive gold item for our class in the current offer. With no gold item seen at all
+/// (today or yesterday) the gold price of the class's mushroom items is the estimate (user 2026-10-09: they carry a gold
+/// price too, and a reserve of 0 made the bot spend everything).
 fn update_reserve(gs: &GameState) -> u32 {
     let class = gs.character.class;
     let max = gold_offers(gs)
@@ -97,8 +132,25 @@ fn update_reserve(gs: &GameState) -> u32 {
         .map(|(_, i)| i.price)
         .max()
         .unwrap_or(0);
+    let fallback = gs
+        .shops
+        .values()
+        .flat_map(|s| s.iter())
+        .filter(|(_, i)| {
+            i.price > 0 && i.price != u32::MAX && !i.is_unique() && i.typ.equipment_slot().is_some() && i.can_be_equipped_by(class)
+        })
+        .map(|(_, i)| i.price)
+        .max()
+        .unwrap_or(0);
     with_day(|d| {
+        if max > d.seen {
+            d.seen = max;
+            save_reserve(d);
+        }
         d.reserve = d.reserve.max(max);
+        if d.reserve == 0 {
+            d.reserve = fallback;
+        }
         d.reserve
     })
     .unwrap_or(u32::MAX)
