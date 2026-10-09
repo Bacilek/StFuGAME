@@ -96,7 +96,12 @@ fn importance(gs: &GameState, p: &Potion) -> f64 {
     if p.typ == PotionType::EternalLife {
         return 10.0;
     }
-    let rank = targets(gs).iter().position(|t| *t == p.typ).map_or(0.0, |i| 3.0 - i as f64);
+    let mut rank = targets(gs).iter().position(|t| *t == p.typ).map_or(0.0, |i| 3.0 - i as f64);
+    // Luck is worth keeping even when Eternal Life holds the third target slot (user 2026-10-09: main/CON/Luck are
+    // "useful", secondary attributes are nearly useless)
+    if p.typ == PotionType::Luck {
+        rank = f64::max(rank, 1.0);
+    }
     rank + p.size.effect()
 }
 
@@ -239,12 +244,28 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
             ));
         }
     }
-    // 2. The least important potion in the backpack: drink it if it stacks, otherwise sell it
+    // 2. The least important potion in the backpack: drink it if it stacks; a useful one (main/CON/Luck) rather replaces a
+    // less useful active potion than gets sold (user 2026-10-09); anything else is sold
     let (pos, item, p) =
         bag_potions(gs).into_iter().min_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))?;
     if act.iter().any(|(_, a)| a.typ == p.typ && p.size.effect() >= a.size.effect()) {
-        Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (replaces the active one)", describe(item))))
-    } else if p.typ != PotionType::EternalLife {
+        return Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (replaces the active one)", describe(item))));
+    }
+    // A bigger active one of the same type makes this one redundant (sold below); otherwise look for a worse active potion
+    if p.typ != PotionType::EternalLife
+        && importance(gs, p) >= 1.0
+        && !act.iter().any(|(_, a)| a.typ == p.typ)
+        && let Some((slot, old)) = act
+            .iter()
+            .filter(|(slot, a)| removal_ok(gs, *slot) && importance(gs, a) < importance(gs, p))
+            .min_by(|a, b| importance(gs, a.1).total_cmp(&importance(gs, b.1)))
+    {
+        return Some((
+            RoomStep::Swap(*slot, pos),
+            format!("backpack full: removing the active {:?}, drinking {} instead of selling it", old.typ, describe(item)),
+        ));
+    }
+    if p.typ != PotionType::EternalLife {
         Some((RoomStep::Sell(pos), format!("backpack full: selling {}", describe(item))))
     } else {
         None
