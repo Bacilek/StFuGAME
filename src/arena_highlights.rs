@@ -38,6 +38,9 @@ struct Round {
 /// `type` field values we understand (docs/arena-highlights.md has the full table and examples).
 const TYPE_CRIT: i64 = 1;
 const TYPE_SUMMON: i64 = 11;
+/// Demon Hunter revive: a row of its own, `actor` = the reviving fighter, `own_life` = life it comes back with
+/// (confirmed 2026-10-09, an opponent DH who revived 2× in one fight: 90 % then 80 % of max life).
+const TYPE_REVIVE: i64 = 14;
 const TYPE_COMPANION_BIG_HIT: i64 = 15;
 /// `result` field values (always refers to the outcome on the *defending* side, whichever row it is attached to).
 const RESULT_BLOCKED: i64 = 3;
@@ -132,15 +135,12 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
     let companion_big_hits = own_rounds.iter().filter(|r| r.typ == TYPE_COMPANION_BIG_HIT).count();
     let combo_run = longest_actor_run(&rounds, own_id);
 
-    // Walk the fight tracking both fighters' life to get: how many times we revived (life <= 0, then positive
-    // again), how low our life got (excluding the very last round, which for a win is just the kill shot), and
+    // Walk the fight tracking both fighters' life to get: how low our life got (excluding the very last round, which for a win is just the kill shot), and
     // the biggest single hit we landed (damage as a fraction of the opponent's max life).
     let own_max_life = i64::from(own.life).max(1);
     let opp_max_life = i64::from(opp.life).max(1);
     let mut life = [own_max_life, opp_max_life]; // index 0 = us, 1 = opponent
     let idx = |id: i64| usize::from(id != own_id);
-    let mut revive_count = 0u32;
-    let mut seen_down = false;
     let mut low_point = own_max_life;
     let mut best_hit_ratio = 0.0f64;
     for (i, r) in rounds.iter().enumerate() {
@@ -157,13 +157,9 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
                 low_point = low_point.min(life[0]);
             }
         }
-        if life[0] <= 0 {
-            seen_down = true;
-        } else if seen_down {
-            revive_count += 1;
-            seen_down = false;
-        }
     }
+    let revive_count = own_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
+    let opp_revive_count = opp_rounds.iter().filter(|r| r.typ == TYPE_REVIVE).count();
 
     let level_gap = f64::from(opp.level).max(0.0) - f64::from(own.level);
     let strength_ratio = {
@@ -225,10 +221,18 @@ fn measure(gs: &GameState, raw: &str) -> Vec<Metric> {
         },
         Metric {
             category: "revives",
-            value: f64::from(revive_count),
+            value: revive_count as f64,
             threshold: 1.0,
             lower_is_better: false,
             describe: |v| format!("{v:.0}x oživení"),
+        },
+        // Beating a Demon Hunter who kept coming back (user 2026-10-09: a fight where the opponent revived 2×)
+        Metric {
+            category: "opp_revives",
+            value: opp_revive_count as f64,
+            threshold: 2.0,
+            lower_is_better: false,
+            describe: |v| format!("soupeř se oživil {v:.0}x"),
         },
         Metric {
             category: "low_hp",
@@ -373,6 +377,19 @@ mod tests {
         assert_eq!(blocked_heal.actor, 21252);
         assert_eq!(blocked_heal.result, RESULT_BLOCKED_HEALED);
         assert!(blocked_heal.target_life > rounds[8].own_life);
+    }
+
+    /// Real response (2026-10-09): our Paladin (23994) beats a Demon Hunter (23926) who revives twice
+    /// (`type=14` rows with 11700 then 10400 life) – first confirmed revive sample, docs/arena-highlights.md.
+    const DH_FIGHT: &str = "fight.r:23926/0/0/0/0/13000/38930/0/0/23994/20/0/0/0/38930/12670/0/0/23926/0/0/6/20/12670/39140/0/0/23994/20/1/0/0/39140/11653/0/0/23926/0/0/6/20/11653/39270/0/0/23994/20/0/0/0/39270/10970/0/0/23926/0/0/6/20/10970/39270/0/0/23994/21/1/0/0/39270/7651/0/0/23926/0/0/0/21/7651/38048/0/0/23994/21/0/0/0/38048/6189/0/0/23926/0/0/0/21/6189/36694/0/0/23994/21/1/0/0/36694/2739/0/0/23926/0/0/0/21/2739/34720/0/0/23994/0/0/0/0/34720/1210/0/0/23926/0/0/3/0/1210/34720/0/0/23994/20/0/0/0/34720/227/0/0/23926/0/0/6/20/227/35319/0/0/23994/21/1/0/0/35319/-4173/0/0/23926/0/14/0/21/11700/35319/0/0/23926/0/1/0/21/11700/29236/0/0/23994/0/0/0/0/29236/9794/0/0/23926/0/0/3/0/9794/29236/0/0/23994/0/0/0/0/29236/7690/0/0/23926/0/0/0/0/7690/26694/0/0/23994/20/0/0/0/26694/6085/0/0/23926/0/0/6/20/6085/27465/0/0/23994/20/1/0/0/27465/2224/0/0/23926/0/0/0/20/2224/25485/0/0/23994/21/0/0/0/25485/-1238/0/0/23926/0/14/0/21/10400/25485/0/0/23926/0/0/0/21/10400/21345/0/0/23994/0/0/0/0/21345/7995/0/0/23926/0/0/0/0/7995/18350/0/0/23994/0/0/0/0/18350/4648/0/0/23926/0/0/0/0/4648/15044/0/0/23994/20/0/0/0/15044/2920/0/0/23926/0/0/6/20/2920/15835/0/0/23994/20/0/0/0/15835/455/0/0/23926/0/1/0/20/455/9543/0/0/23994/20/0/0/0/9543/-1502/0/0/&winnerid:23994";
+
+    #[test]
+    fn counts_opponent_demon_hunter_revives() {
+        let rounds = parse_rounds(DH_FIGHT, 23994, 23926);
+        let revives: Vec<_> = rounds.iter().filter(|r| r.typ == TYPE_REVIVE).collect();
+        assert_eq!(revives.len(), 2);
+        assert!(revives.iter().all(|r| r.actor == 23926));
+        assert_eq!([revives[0].own_life, revives[1].own_life], [11700, 10400]);
     }
 
     #[test]

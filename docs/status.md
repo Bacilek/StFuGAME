@@ -2,6 +2,7 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Demon Hunter revive decoded (2026-10-09, user pasted a fight where the opponent revived 2×):** `type=14` row (see `docs/arena-highlights.md`). `arena_highlights` now counts revives by that type for both sides: `revives` (ours, ≥1) and new `opp_revives` (opponent revived ≥2× and we still won; threshold my pick, tell me if it should be different). Unit test added. Needs a release build.
 - **Card shows the game's derived stats + potion icons (2026-10-09, user request):** `roster::derived()` computes damage
   (avg weapon hit × (1 + main attr/10), pre-armor, like the game's "~"), hit points (`UpgradeableFighter::hit_points`),
   crit % (LCK×5/(2×own level)), armor and damage reduction (sf-api formula); non-main STR/DEX/INT show "defense" =

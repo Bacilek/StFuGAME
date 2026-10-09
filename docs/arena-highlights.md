@@ -50,6 +50,7 @@ The next round starts wherever `actor` (field 0) is one of the two fighter ids a
 | 10 | Battle Mage Blast (big single hit) | battle-mage fight, round 1 |
 | 11 | Summon companion (no damage) | necromancer (golem, skeleton, wolf) |
 | 12 | Companion attack (normal) | necromancer, plague-doctor skeleton |
+| 14 | Demon Hunter **revive** (no damage; `own_life` = life after reviving) | DH opponent, 2× in one fight |
 | 15 | Companion **big/crit** hit | necromancer wolf (2×, dmg 15241/21607 vs its normal ~850-6500) |
 | 17 | Plague Doctor special attack (seen once, result was `3` = blocked) | plague-doctor fight |
 | 18 | Plague Doctor poison bolt/application (deals direct damage too) | plague-doctor fight |
@@ -83,9 +84,11 @@ necromancer "wolf" fight (round 19: `type=12`, `result=6`).
 - **"Several actions in one turn"** (berserker rampage, golem/wolf attacking right after its owner, assassin's
   second weapon): shows up as **multiple consecutive rows with the same `actor` id**. Generic across classes –
   detect by counting the longest run of same-actor rows, no class-specific logic needed.
-- **Revive** (Demon Hunter): would show as our life reading `≤ 0` in some row, then positive again in a later row
-  while the fight (and our turns) continue. Never observed live (no Demon Hunter opponent found this session) –
-  implemented from first principles off the life-sequence data, not yet confirmed against a real revive.
+- **Revive** (Demon Hunter) – **confirmed 2026-10-09** (user's fight vs a DH opponent who revived 2×): its own row,
+  `type=14`, `actor` = the reviving fighter, `own_life` = life it comes back with (11700 then 10400 of 13000, i.e.
+  90 % then 80 %), `target_life` = the other side's life unchanged; the previous row ends with the reviver's
+  `target_life` ≤ 0 (−4173, −1238), and the reviver acts again right after (same actor twice in a row). Counted by
+  `type=14` per actor, no longer from the life sequence.
 - **Druid bear form / swoop**: never observed live either (no Druid opponent found). Covered only by the generic
   crit-streak / big-hit signals, not a dedicated detector.
 
@@ -114,7 +117,8 @@ best fight per category stays saved in-game.
 | `summons` | Count of companion summons (necromancer/druid) in the fight | ≥ 3 | bigger better |
 | `companion_big_hits` | Count of companion crit hits (`type=15`) in the fight | ≥ 2 | bigger better |
 | `combo_run` | Longest run of consecutive actions by us in one go (berserker rage, dual weapon, summon+attack) | ≥ 4 | bigger better |
-| `revives` | How many times our life recovered from ≤ 0 mid-fight (demon hunter) | ≥ 1 | bigger better |
+| `revives` | How many times WE revived mid-fight (we are a demon hunter; `type=14` rows of our id) | ≥ 1 | bigger better |
+| `opp_revives` | How many times the opponent (a demon hunter) revived before we still won | ≥ 2 | bigger better |
 | `low_hp` | Lowest our life got relative to max, excl. the final (kill) round | ≤ 5 % | **smaller** better |
 | `level_gap` | Opponent's level minus ours | ≥ 6 | bigger better |
 | `strength_ratio` | Opponent's `arena::strength()` ÷ ours | ≥ 1.6 (60 %+ stronger) | bigger better |
@@ -156,7 +160,7 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 | `type` 17/18/19/20 (Plague Doctor poison) | ⚠️ codes seen, exact tick-vs-crit distinction not fully nailed down |
 | `result` 3/4/6 (blocked/evaded/blocked+healed) | ✅ confirmed across 5+ fights |
 | "several actions in one turn" = consecutive same-actor rows | ✅ berserker (5 in a row), assassin (dual weapon), necromancer (summon+attack) |
-| Demon Hunter revive | ⏳ not observed live, logic untested against a real case |
+| Demon Hunter revive | ✅ format confirmed from a saved fight (unit test `counts_opponent_demon_hunter_revives`); not yet seen live in the bot |
 | Druid bear form/swoop | ⏳ not observed live, no dedicated detection |
 | `PlayerCombatLogMark <id>/1` marks a fight (sets `combatloglist`'s last field to `3`, settling to `2`) | ✅ 2026-10-09, both via our own API call and the user's in-game click, same effect |
 | `PlayerCombatLogMark <id>/0` un-marks a fight (sets last field to `0`) | ✅ 2026-10-09, confirmed by diffing the user's own pin/unpin in-game clicks (clean single-row `3→0`) – inferred from the resulting list, the raw unmark request itself wasn't captured, but high confidence |
