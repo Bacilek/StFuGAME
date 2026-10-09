@@ -337,22 +337,71 @@ pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) 
         return;
     };
 
-    let mut superseded: Vec<i64> = new_records.iter().filter_map(|(_, _, _, old)| *old).collect();
-    superseded.sort_unstable();
-    superseded.dedup();
-    for old_id in superseded {
-        report!("[arena] Un-marking superseded fight {old_id}");
-        mark(session, old_id, "0").await;
-    }
-
     report!("[arena] Marking fight {msg_id} as saved");
     mark(session, msg_id, "1").await;
 
     let mut records = load_records();
+    let superseded: Vec<(i64, String)> =
+        new_records.iter().filter_map(|(cat, _, _, old)| old.map(|id| (id, cat.clone()))).collect();
     for (category, value, _, _) in &new_records {
         records.insert(category.clone(), (*value, msg_id));
     }
     save_records(&records);
+
+    // Un-mark an older fight only once it no longer holds the record in ANY category (one fight can be the best
+    // in several; beating just one of them must not throw it out of Quarter → Mail).
+    let mut stale: Vec<i64> = superseded.iter().map(|(id, _)| *id).filter(|id| !records.values().any(|r| r.1 == *id)).collect();
+    stale.sort_unstable();
+    stale.dedup();
+    for old_id in stale {
+        report!("[arena] Un-marking superseded fight {old_id}");
+        mark(session, old_id, "0").await;
+    }
+
+    let entries: Vec<(&str, &str)> = new_records.iter().map(|(c, _, d, _)| (c.as_str(), d.as_str())).collect();
+    update_log(&crate::ctx::name(), opponent, msg_id, &entries, &superseded);
+}
+
+/// Human-readable list of the fights currently saved by the bot, one line per fight (user 2026-10-09):
+/// `time | character | vs opponent | msg id | category: why; category: why`. A line shrinks when the character beats
+/// one of its records and disappears when none is left (that fight was un-marked in the game).
+const LOG_FILE: &str = "roster/arena_highlights.txt";
+
+fn update_log(character: &str, opponent: &str, msg_id: i64, entries: &[(&str, &str)], superseded: &[(i64, String)]) {
+    // All characters run in their own task but share this one file
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let Ok(_guard) = LOCK.lock() else { return };
+    let text = std::fs::read_to_string(LOG_FILE).unwrap_or_default();
+    let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
+    lines = lines.into_iter().filter_map(|l| strip_beaten(l, character, superseded)).collect();
+    let why: Vec<String> = entries.iter().map(|(c, d)| format!("{c}: {d}")).collect();
+    lines.push(format!(
+        "{} | {character} | vs {opponent} | msg {msg_id} | {}",
+        Local::now().format("%Y-%m-%d %H:%M:%S"),
+        why.join("; ")
+    ));
+    let _ = std::fs::write(LOG_FILE, lines.join("
+") + "
+");
+}
+
+/// Removes the beaten categories from one log line; `None` when nothing is left of it. Lines of other characters
+/// or in an unknown format are kept untouched.
+fn strip_beaten(line: String, character: &str, superseded: &[(i64, String)]) -> Option<String> {
+    let parts: Vec<&str> = line.splitn(5, " | ").collect();
+    if parts.len() < 5 || parts[1] != character {
+        return Some(line);
+    }
+    let Some(id) = parts[3].strip_prefix("msg ").and_then(|v| v.parse::<i64>().ok()) else { return Some(line) };
+    let kept: Vec<&str> = parts[4]
+        .split("; ")
+        .filter(|e| !superseded.iter().any(|(old, cat)| *old == id && e.starts_with(&format!("{cat}: "))))
+        .collect();
+    if kept.is_empty() {
+        None
+    } else {
+        Some(format!("{} | {} | {} | {} | {}", parts[0], parts[1], parts[2], parts[3], kept.join("; ")))
+    }
 }
 
 #[cfg(test)]
@@ -390,6 +439,17 @@ mod tests {
         assert_eq!(revives.len(), 2);
         assert!(revives.iter().all(|r| r.actor == 23926));
         assert_eq!([revives[0].own_life, revives[1].own_life], [11700, 10400]);
+    }
+
+    #[test]
+    fn log_line_shrinks_then_disappears() {
+        let line = "2026-10-09 17:03:11 | Bacilek31 | vs Oleg | msg 7 | revives: 2x; crit_streak: 4x".to_string();
+        let beaten = |c: &str| vec![(7, c.to_string())];
+        let one = strip_beaten(line.clone(), "Bacilek31", &beaten("revives")).unwrap();
+        assert!(one.ends_with("msg 7 | crit_streak: 4x"));
+        assert_eq!(strip_beaten(one, "Bacilek31", &beaten("crit_streak")), None);
+        // another character's line is never touched
+        assert_eq!(strip_beaten(line.clone(), "Filminy", &beaten("revives")), Some(line));
     }
 
     #[test]

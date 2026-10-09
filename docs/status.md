@@ -2,6 +2,15 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Mushroom chart fixed + saved-fights text log (2026-10-09, user request):** (1) the Mushrooms chart is the cumulative
+  total gained over the character's whole life (like gold/XP, it already was); `roster::write_day` now takes
+  `max(notes ledger, balance growth since the previous history row)` as the day's `mushrooms_gained`, because the ledger
+  missed ~10 on Sanek's day 1 (14 in the chart vs 28 balance like everyone else; cause not provable, that day's notes are
+  gone; NOT the Gleeman chest 3 – it only gives gold). Sanek's 2026-10-08 row was corrected by hand to 23. (2) `roster/arena_highlights.txt`
+  (local, gitignored): one line per saved fight `time | character | vs opponent | msg id | category: why; …`; written by
+  `arena_highlights::update_log`; when a character beats a record the category disappears from the old line and the line
+  is deleted when none is left. Side fix: an older fight is un-marked in the game only when it no longer holds ANY record
+  (before, beating one category un-marked it even if it still held others). Needs a release build.
 - **Demon Hunter revive decoded (2026-10-09, user pasted a fight where the opponent revived 2×):** `type=14` row (see `docs/arena-highlights.md`). `arena_highlights` now counts revives by that type for both sides: `revives` (ours, ≥1) and new `opp_revives` (opponent revived ≥2× and we still won; threshold my pick, tell me if it should be different). Unit test added. Needs a release build.
 - **Card shows the game's derived stats + potion icons (2026-10-09, user request):** `roster::derived()` computes damage
   (avg weapon hit × (1 + main attr/10), pre-armor, like the game's "~"), hit points (`UpgradeableFighter::hit_points`),

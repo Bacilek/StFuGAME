@@ -328,6 +328,17 @@ pub fn write_day(gs: &GameState, date: NaiveDate, fin: bool) -> String {
     let mut s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
     s.date = date;
     let history = d.join("history.csv");
+    // Mushrooms gained = at least the growth of the balance since the previous day's row. The notes ledger only sees
+    // income of commands it wraps and missed ~10 on Sanek's day 1 (user 2026-10-09: the chart must count every
+    // mushroom ever gained); mushrooms are (almost) never spent, so `max` keeps the ledger when a few were spent.
+    let prev_mushrooms = read_history(&history)
+        .iter()
+        .filter(|r| r.get("date").is_some_and(|d| d.as_str() < s.date.to_string().as_str()))
+        .filter_map(|r| r.get("mushrooms")?.parse::<u64>().ok())
+        .next_back();
+    if let Some(prev) = prev_mushrooms {
+        s.mushrooms_gained = s.mushrooms_gained.max(u64::from(s.mushrooms).saturating_sub(prev));
+    }
 
     // Biggest success + issues grouped by message (with a count and the first time) → days/<date>.issues
     let best = notes.iter().filter(|n| n.1 == "WIN").max_by_key(|n| n.2).map(|n| n.3.clone());

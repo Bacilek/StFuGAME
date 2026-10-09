@@ -179,3 +179,8 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
   before marking the new one with `/1`, so only the single best fight per category should stay saved. Still
   worth double-checking the very first time this actually fires live (own API call, not an in-game click) that
   the old fight really disappears from Quarter → Mail.
+
+## Text log of saved fights (user 2026-10-09)
+`roster/arena_highlights.txt` lists every fight the bot currently has saved, one per line: `time | character | vs opponent |
+msg id | category: why; category: why`. Beaten categories are removed from a line, the line is deleted with its last one
+(`update_log`/`strip_beaten`, unit-tested). An un-mark in the game happens only when a fight holds no record any more.
