@@ -5,6 +5,7 @@
 mod report;
 mod app;
 mod arena;
+mod attributes;
 mod control;
 mod ctx;
 mod daily;

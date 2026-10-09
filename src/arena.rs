@@ -36,6 +36,21 @@ pub fn strength(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
     stat(main) + 0.8 * stat(AttributeType::Constitution) + 0.4 * stat(AttributeType::Luck) + 0.1 * side
 }
 
+/// This attribute's weight in the strength formula above: main 100 %, CON 80 %, LCK 40 %, the other two side
+/// attributes 10 % each (used by `attributes.rs` to pick which attribute is the best value for gold).
+pub fn weight(class: Class, a: AttributeType) -> f64 {
+    let main = class.main_attribute();
+    if a == main {
+        1.0
+    } else if a == AttributeType::Constitution {
+        0.8
+    } else if a == AttributeType::Luck {
+        0.4
+    } else {
+        0.1
+    }
+}
+
 /// After this many wins per day the Arena gives no rewards.
 pub const MAX_WINS_PER_DAY: usize = 10;
 /// Simulated fights per candidate opponent (sf-api's own battle simulator – the same one `tournament.rs` uses for

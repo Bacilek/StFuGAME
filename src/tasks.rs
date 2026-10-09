@@ -2,7 +2,9 @@
 //! only gold or nothing (user 2026-10-07). Never anything with mushrooms (beer, paid wheel spins, hourglasses, skips).
 //! - chests: claimed as soon as there are enough points,
 //! - Upgrade guild skill: the cheaper of Treasure/Instructor (Instructor on a tie), gold only,
-//! - Increase attribute X / any attribute / spend gold on upgrades: buy attributes for gold (main attribute when any),
+//! - Increase attribute X / any attribute / spend gold on upgrades: buy attributes for gold (the best weight-per-gold
+//!   one from `attributes.rs` when the task lets us choose freely), plus the same choice for genuinely surplus gold
+//!   (`buy_surplus_attributes`, no task needed, above 5× the shop reserve),
 //! - Win the shell game: smallest bet, only after the Tavern and the shops (gold is low then) and only when its points
 //!   are needed to reach a chest that the remaining "natural" tasks (Arena, Dungeons, City Guard) would not reach.
 //!
@@ -99,11 +101,15 @@ async fn upgrade_guild(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
-/// Attribute to buy for an open task, if any.
+/// Attribute to buy for an open task, if any. A task that lets us pick freely (`UpgradeAnyAttribute`/
+/// `SpendGoldOnUpgrades`) picks whichever attribute is currently the best weight-per-gold (user 2026-10-09),
+/// not always the main one.
 fn attribute_for_task(gs: &GameState) -> Option<AttributeType> {
     open_tasks(gs).find_map(|t| match t.typ {
         TaskType::Upgrade(a) => Some(a),
-        TaskType::UpgradeAnyAttribute | TaskType::SpendGoldOnUpgrades => Some(gs.character.class.main_attribute()),
+        TaskType::UpgradeAnyAttribute | TaskType::SpendGoldOnUpgrades => {
+            Some(crate::attributes::best_attribute(gs.character.class))
+        }
         _ => None,
     })
 }
@@ -132,7 +138,45 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         last_price = silver.saturating_sub(gs.character.silver);
+        crate::attributes::record_purchase(attribute, last_price as u32);
         report!("[tasks] Buying {attribute:?} {current} → {} for a task, paid {}", current + 1, crate::report::gold(last_price));
+    }
+    Outcome::Done
+}
+
+/// Gold above this multiple of the shop reserve is "a lot" (user 2026-10-09): rather than let it just pile up
+/// (spinning the shop burns gold on the buy/sell spread), spend the surplus on whichever attribute is currently
+/// the best weight-per-gold. No task needed - unlike `buy_attributes`, this never runs just because a task asks
+/// for it, only when gold is genuinely abundant.
+const SURPLUS_RESERVE_MULTIPLE: u64 = 5;
+
+/// Spends gold on attributes once it piles up far above the shop reserve, even with no open attribute task.
+/// Keeps at least `SURPLUS_RESERVE_MULTIPLE × reserve` in gold, same floor logic as `buy_attributes`.
+pub async fn buy_surplus_attributes(session: &mut SimpleSession) -> Outcome {
+    let mut last_price = 0;
+    for _ in 0..MAX_ACTIONS {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let floor = SURPLUS_RESERVE_MULTIPLE * crate::shops::reserve();
+        if gs.character.silver <= floor + last_price {
+            return Outcome::Done;
+        }
+        let attribute = crate::attributes::best_attribute(gs.character.class);
+        let current = gs.character.attribute_basis[attribute];
+        let silver = gs.character.silver;
+        send_or_return!(session, Command::UpgradeSkill { attribute, next_attribute: current + 1 });
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        if gs.character.attribute_basis[attribute] == current {
+            report!("[tasks] Surplus attribute buy did not increase the attribute (not enough gold?), stopping");
+            return Outcome::Done;
+        }
+        last_price = silver.saturating_sub(gs.character.silver);
+        crate::attributes::record_purchase(attribute, last_price as u32);
+        report!(
+            "[tasks] Buying {attribute:?} {current} → {} from surplus gold (above {}× reserve), paid {}",
+            current + 1,
+            SURPLUS_RESERVE_MULTIPLE,
+            crate::report::gold(last_price)
+        );
     }
     Outcome::Done
 }
@@ -463,6 +507,9 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             return Outcome::SessionLost;
         }
         if let Outcome::SessionLost = buy_attributes(session).await {
+            return Outcome::SessionLost;
+        }
+        if let Outcome::SessionLost = buy_surplus_attributes(session).await {
             return Outcome::SessionLost;
         }
         // Costly tasks, cheapest first; each is done only when the plan needs it for a chest

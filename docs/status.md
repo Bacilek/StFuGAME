@@ -2,6 +2,27 @@
 
 Updated: 2026-10-09. Rewrite after every bigger change.
 
+- **Attribute-purchase weighting + surplus-gold buying (2026-10-09, new `src/attributes.rs`):** when a task lets
+  the bot choose freely which attribute to buy (`UpgradeAnyAttribute`/`SpendGoldOnUpgrades`), it no longer always
+  picks the main attribute – it picks whichever of the 5 attributes is currently the best weight-per-gold (weight
+  = the Arena strength formula's weights: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 10 %
+  each; divided by that attribute's next purchase price). Also new: `tasks::buy_surplus_attributes` spends gold
+  on attributes even with **no open task**, but only once gold piles up past 5× the shop reserve (the user's
+  reasoning: attribute cost is fixed regardless of character level/income, so there's no rush to buy them, but
+  letting gold just pile up is wasteful too since spinning the shop burns some of it on the buy/sell spread).
+  The tricky part: the price of an attribute's next gold-bought point depends only on how many times *that*
+  attribute has ever been bought with gold (never its value or character level), and the server doesn't expose
+  this lifetime counter – so it's tracked ourselves, persisted per character
+  (`roster/<nick>/attribute_levels.json`), advanced after every purchase and self-corrected (`[check] MISMATCH`
+  log line, searches ±50 levels) if the price actually paid doesn't match what was expected. Prices come from a
+  lookup table (`attributes::COST_TABLE`, levels 1..=216, 1 gold = 100 silver) sourced from
+  sf.kalais.net/english/attributes.html (user-provided link) – **truncated at 216** because the site's own table
+  turns unreliable higher up (blank/`"?"` cells past that point); beyond it the price is extrapolated with the
+  table's last step. Builds and unit-tests pass (`cargo test attributes`: price table non-decreasing,
+  extrapolation sane). **Not yet verified live** – no character has bought enough attribute points yet to
+  exercise the self-correction path or hit the 216-level truncation boundary; watch for `[check] MISMATCH`
+  lines and `[tasks] Buying … from surplus gold` after the next release rebuild.
+
 - **Potion swap rule fixed (2026-10-09, user correction):** removed the `REPLACE_WITHIN` (≤ 3 days left) gate from
   `src/potions.rs` (`removal_ok`, `shop_step`'s `Replace` branch) — swapping a smaller active potion for a bigger
   same-type one now triggers purely on backpack pressure (full backpack + strictly better available), not on how
@@ -390,6 +411,7 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 | City Guard 23:00 checkpoint actually caps a shift there + bridging shift starts on a no-beer day | next full day the bot runs, after a release rebuild | `docs/city-guard.md` |
 | Staleness fix: beer drunk near the checkpoint lets the Tavern run before a new shift starts | next time beer lands close to 23:00 | `docs/city-guard.md` |
 | Hourglass skip (`ExpeditionSkipWait{Glass}`) fires only in a genuine midnight-crunch case | next time bonus ALU is stranded late in the day | `docs/city-guard.md` |
+| Attribute cost table/self-correction (`src/attributes.rs`) against real purchases; surplus-gold buying actually triggering | next character that buys several attribute points, or piles up 5×+ the shop reserve | `docs/tasks.md` |
 
 ## Open questions for the user
 - Epic items are never sold → the backpack fills up over time (in the TODO, no decision yet).
@@ -464,5 +486,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
   fixed; PajaRizz capitalization confirmed as `PajaRizz`).
 - Start characters one at a time from the app (TestChar1 first, already proven tonight), watch each for issues
   before adding the next.
-- Decide the attribute-purchase key, then implement general (non-task) attribute buying.
 - Write `roster/start.txt` (day 1 of the challenge) once all characters are confirmed stable.

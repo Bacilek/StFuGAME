@@ -13,6 +13,11 @@
 
 - More rules (user 2026-10-07):
   - Attributes for tasks yes, but never so that a better item cannot be bought → only after the shops, keep the shop reserve.
+  - Attribute cost is fixed (depends only on how many times that attribute was ever bought with gold, never on
+    character level or the attribute's own value, user 2026-10-09) and we keep earning more gold over time, so
+    attributes effectively get *cheaper relative to our income* the longer we wait – no reason to spend on them
+    without a task forcing it. Only when gold is genuinely surplus (spinning the shop otherwise just burns it on
+    the buy/sell spread) does the bot spend on attributes with no open task, see below.
   - Drink beer costs a mushroom. Default: only when it is the last task missing for the max reward (10 mushrooms)
     and no other task can be completed anymore – 1 mushroom for 10 is worth it. During events (later) more may be allowed.
   - Tasks for specific expedition locations (each expedition shows 2 locations): prefer such an expedition even when it
@@ -34,8 +39,25 @@
 - sf-api parses `dailytasklist` / `eventtasklist` (`gs.specials.tasks`), chests `CollectDailyQuestReward` /
   `CollectEventTaskReward` (`DailyTaskClaim:1|2/<n>`).
 - Every pass of the main loop: log the tasks once a day (`[tasks] daily tasks (chests at a/b/c points): …`), claim chests.
-  After the Tavern and the shops: guild skill (`UpgradeAnyGuildSkill`, price + shop reserve ≤ gold), attributes (`Upgrade(X)`,
-  `UpgradeAnyAttribute` / `SpendGoldOnUpgrades` → main attribute) via `UpgradeSkill` while gold > reserve + last price.
+  After the Tavern and the shops: guild skill (`UpgradeAnyGuildSkill`, price + shop reserve ≤ gold), attributes
+  (`Upgrade(X)` → that attribute; `UpgradeAnyAttribute` / `SpendGoldOnUpgrades` → whichever attribute is currently
+  the best weight-per-gold, `attributes::best_attribute`) via `UpgradeSkill` while gold > reserve + last price.
+- **Attribute cost & choice (`src/attributes.rs`, user 2026-10-09):** the price of the next gold-bought point for
+  an attribute depends only on how many times *that* attribute has ever been bought with gold (the "attribute
+  increasement level"), never on its current value or the character's level. The server does not expose this
+  lifetime counter, so the bot tracks it itself per character (`roster/<nick>/attribute_levels.json`, local only),
+  advancing it after every purchase and self-correcting (`[check] MISMATCH`, searches ±50 levels) if the price
+  actually paid does not match what we expected (e.g. a manual purchase outside the bot). Prices come from a
+  lookup table (`COST_TABLE`, levels 1..=216, source: sf.kalais.net/english/attributes.html, 1 gold = 100 silver) –
+  truncated there because the site's own table turns unreliable higher up (blank/`"?"` cells); beyond level 216
+  the price is extrapolated with the table's last step, **not yet verified live** (no character has gotten an
+  attribute that high yet). `attributes::best_attribute` picks whichever of the 5 attributes gives the best
+  weight-per-gold, weight = the same as the Arena strength formula (`arena::weight`: main 100 %, CON 80 %,
+  LCK 40 %, the other two side attributes 10 % each) divided by the next purchase's price.
+- **Surplus attribute buying (`tasks::buy_surplus_attributes`, no task needed, user 2026-10-09):** once gold piles
+  up past 5× the shop reserve (`SURPLUS_RESERVE_MULTIPLE`), the bot spends the excess on whichever attribute is
+  currently the best weight-per-gold, keeping at least that 5× floor. Runs every pass, right after the task-driven
+  `buy_attributes`, only when there's no open attribute task to handle it instead. Not yet verified live.
 - Expeditions (`choose_expedition`): an affordable expedition through a `TravelTo(location)` location wins over shorter ones.
   A task for an expedition type is not known in sf-api yet – when it shows up (Unknown in the task log), map it.
 - Arena: `WinFightsAgainst(class)` → among the 3 opponents one of that class weaker than us is chosen.
