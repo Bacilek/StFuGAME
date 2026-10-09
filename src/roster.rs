@@ -551,6 +551,9 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
                     "epic": i.is_epic(),
                     "legendary": i.is_legendary(),
                     "icon": item_icon(i),
+                    // Raw ids for debugging wrong sprites (epic icons, 2026-10-10)
+                    "raw_model": i.full_model_id,
+                    "item_class": format!("{:?}", i.class),
                 }),
             ))
         })
