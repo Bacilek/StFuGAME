@@ -42,14 +42,16 @@ impl Hunt {
     }
 }
 
-fn wanted_hunt(gs: &GameState) -> Option<Hunt> {
-    crate::tasks::open_tasks(gs).find_map(|t| match t.typ {
+/// Every kind of hunt an open task asks for, in task order (the first one that fits in the backpack is fought).
+fn wanted_hunts(gs: &GameState) -> Vec<Hunt> {
+    crate::tasks::open_tasks(gs).filter_map(|t| match t.typ {
         TaskType::WinFightsAgainst(c) => Some(Hunt::Class(c)),
         TaskType::WinFightsBareHands => Some(Hunt::Without(EquipmentSlot::Weapon)),
         TaskType::WinFightsNoChestplate => Some(Hunt::Without(EquipmentSlot::BreastPlate)),
         TaskType::WinFightsNoEpicsLegendaries => Some(Hunt::NoEpics),
         _ => None,
     })
+    .collect()
 }
 
 /// Our own power by the Arena formula.
@@ -130,13 +132,48 @@ fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>>
     }
 }
 
+/// Makes sure the items this hunt takes off fit into the backpack, freeing slots with potions when short (drink a
+/// better/stacking one or sell the least important, `potions::make_room`). `false` = does not fit, try another hunt.
+async fn ensure_room(session: &mut SimpleSession, hunt: Hunt) -> Result<bool, Outcome> {
+    let Some(slots) = strip_slots(session.game_state(), hunt) else { return Ok(true) };
+    let count = |s: &SimpleSession| s.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+    let mut free = count(session);
+    // E.g. an Assassin needs 2 slots for bare hands; Sanek's fight tasks stayed blocked all day with 1 free slot
+    while free < slots.len() {
+        if !crate::potions::make_room(session).await? {
+            break;
+        }
+        free = count(session);
+    }
+    if free < slots.len() {
+        let held = session.game_state().map_or_else(String::new, |gs| {
+            gs.character.inventory.backpack.iter().flatten().map(crate::inventory::detail).collect::<Vec<_>>().join("; ")
+        });
+        report!("[hunt] {hunt:?}: backpack has {free} free slot(s), {} needed to take the items off, skipping (holding: {held})", slots.len());
+        return Ok(false);
+    }
+    Ok(true)
+}
+
 /// One hunt fight if a fight task is open and the Arena is free (tasks go before the XP fights, user 2026-10-10).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    let Some(hunt) = wanted_hunt(gs) else { return Outcome::Done };
-    if !safe::arena_is_free(gs) {
+    let hunts = wanted_hunts(gs);
+    if hunts.is_empty() || !safe::arena_is_free(gs) {
         return Outcome::Done;
     }
+    let mut chosen = None;
+    for hunt in hunts {
+        match ensure_room(session, hunt).await {
+            Ok(true) => {
+                chosen = Some(hunt);
+                break;
+            }
+            Ok(false) => {}
+            Err(o) => return o,
+        }
+    }
+    let Some(hunt) = chosen else { return Outcome::Done };
     report!("[hunt] Task {hunt:?}: looking for a clearly weaker opponent in the Hall of Fame");
     let name = match find_opponent(session, hunt).await {
         Ok(Some(n)) => n,
@@ -153,24 +190,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let mut stripped: Vec<(EquipmentSlot, sf_api::gamestate::items::BagPosition, sf_api::gamestate::items::ItemCommandIdent)> =
         Vec::new();
     if let Some(slots) = strip_slots(session.game_state(), hunt) {
-        // Everything has to fit into the backpack BEFORE anything is taken off (several slots for NoEpics)
-        let mut free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
-        // Short of room (e.g. an Assassin needs 2 slots for bare hands): free slots with potions, as the shops do –
-        // Sanek's fight tasks stayed blocked all day with 1 free slot (user 2026-10-10)
-        while free < slots.len() {
-            match crate::potions::make_room(session).await {
-                Ok(true) => free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots()),
-                Ok(false) => break,
-                Err(o) => return o,
-            }
-        }
-        if free < slots.len() {
-            let held = session.game_state().map_or_else(String::new, |gs| {
-                gs.character.inventory.backpack.iter().flatten().map(crate::inventory::detail).collect::<Vec<_>>().join("; ")
-            });
-            report!("[hunt] Backpack has {free} free slot(s), {} needed to take the items off, skipping (holding: {held})", slots.len());
-            return Outcome::Done;
-        }
+        // (room for all of them was made in `ensure_room` before the opponent search)
         for slot in slots {
             let Some(gs) = session.game_state() else { return Outcome::Done };
             let Some(item) = gs.character.equipment.0[slot].as_ref() else { continue };
