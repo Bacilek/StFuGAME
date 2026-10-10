@@ -2,6 +2,8 @@
 
 Updated: 2026-10-10. Rewrite after every bigger change.
 
+- **Lucky-coin ad experiment written (2026-10-10, user):** `roster/TestChar1/ad_test` = `lucky` sends `AdvertisementsCompleted:1` (user's capture of the flying TV, 3 lucky coins) after a simulated 11–16 s watch and logs lucky coins before/after + the raw response to `ad_test.log`; whitelisted only in that mode (`adtest::custom_allowed`). Not run – needs a release rebuild; user creates the flag file while a TV is visible in the game. See `docs/shops.md`.
+
 - **Travel beer (2026-10-10, user):** new mushroom exception in CLAUDE.md (3): one beer when the last Gleeman chest lacks one `TravelTo` visit, no ALU, and an offered expedition passes that location (Mrožik missed a 125 g chest that way). `tasks::travel_beer_needed` + unit test; once per day; a beer gives 20 min ALU (`BEER_ALU_SEC`, confirmed by the user); only from 22:00, once per day (marker `roster/<char>/travel_beer.txt`). Not live yet – needs a release rebuild; first real use: check that the beer's ALU really covers the expedition and that the visit counted.
 
 - **Late spin round (2026-10-10, user agreed):** TestChar1 had 59 g when the daily shop pass ran (reserve 52.36 g → "Not spinning"), then the Gleeman chest etc. brought it to 252 g, but shopping runs once a day so the 43.6 g Magic Shop item was never spun. New `shops::respin`: after the day's pass is done, whenever gold ≥ cheapest non-epic spin item + reserve, a spin-only round runs (no upgrades/potions/tasks/attributes/ad refresh; log `[shops] Gold … is above the reserve … again, spinning once more` and the usual `Spun Nx` summary); a failed buy (full backpack) blocks further rounds that day. Compiles, not live – needs a release rebuild. Details: `docs/shops.md`.

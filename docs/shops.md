@@ -120,3 +120,6 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
 
 ## Late spin round (2026-10-10, user)
 The shop pass runs once a day (after the Tavern), but gold can arrive afterwards (Gleeman chests are opened after the shops). `shops::respin` runs whenever the pass is done and gold ≥ cheapest non-epic spin item + reserve: spin only, nothing else, no ad refresh. Not verified live.
+
+## Lucky coin ad – the flying TV (2026-10-10, user: "try it on TestChar1")
+The TV with wings sometimes appears in the Tavern or at Dr. Abawuwu; clicking it plays an ad and gives 3 lucky coins. The user's capture (`my_input/tv.png`): `Poll`s and ayetstudios `sdk_event`s while the ad plays, then ONE `AdvertisementsCompleted` with params `MQ==` (= `1`), then `Poll`s again – no follow-up command. Implemented as the one-shot flag experiment `roster/TestChar1/ad_test` = `lucky` (`adtest::lucky_ad`, TestChar1 only): logs the login ad keys, lucky coins + mushrooms before/after, the raw response, in `roster/TestChar1/logs/ad_test.log`. Put the flag file in place while the TV is visible in the game (availability is not visible to the bot – whether the server rejects the call without a TV is exactly what is tested). NOT run yet; needs a release rebuild. No automation until the user has seen the result (how often the TV appears, any `trust_counter`).

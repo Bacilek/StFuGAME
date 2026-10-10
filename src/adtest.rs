@@ -4,7 +4,9 @@
 //! - `daily_refresh` (called by `shops::shop` once spinning has run dry): at most ONE ad per shop per day (user
 //!   2026-10-10, resets at midnight), tracked in `roster/TestChar1/ad_refresh.json`, marked BEFORE sending so a
 //!   failure never leads to a repeat. Weapon Shop first, then Magic Shop.
-//! - Manual experiment: `roster/TestChar1/ad_test` = `probe`/`weapon`/`magic` (one shot per process, file removed after).
+//! - Manual experiment: `roster/TestChar1/ad_test` = `probe`/`weapon`/`magic`/`lucky` (one shot per process, file removed
+//!   after). `lucky` = the flying TV (Tavern / Dr. Abawuwu): 3 lucky coins for an ad, captured by the user 2026-10-10 as
+//!   a single `AdvertisementsCompleted:1` (base64 `MQ==`), no follow-up command.
 //! Each refresh pretends to watch the ad (11–16 s), then sends `AdvertisementsCompleted:<4|5>` and
 //! `PlayerNewWares:<1|2>/2`. Everything goes to `roster/TestChar1/logs/ad_test.log` (session keys redacted).
 
@@ -64,6 +66,7 @@ pub fn custom_allowed(cmd_name: &str, arguments: &[String]) -> bool {
     let (ad, shop) = match current_mode().as_deref() {
         Some("weapon") => ("4", "1"),
         Some("magic") => ("5", "2"),
+        Some("lucky") => return cmd_name == "AdvertisementsCompleted" && arguments == ["1"],
         _ => return false,
     };
     match (cmd_name, arguments) {
@@ -165,6 +168,30 @@ async fn refresh_inner(session: &mut SimpleSession, shop_name: &str, ad: &str, s
     if session.game_state().is_none() { Outcome::SessionLost } else { Outcome::Done }
 }
 
+/// The flying TV: pretend to watch the ad, claim it with `AdvertisementsCompleted:1` and log what changed (lucky
+/// coins before/after, the raw response). One shot, no follow-up command (user's capture 2026-10-10).
+async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
+    let coins = |s: &SimpleSession| s.game_state().map_or(-1, |gs| i64::from(gs.specials.wheel.lucky_coins));
+    log(&format!("lucky coin ad: ad-related keys of the login response: [{}]", session.login_ad()));
+    log(&format!("before: lucky coins {}, {}", coins(session), snapshot(session)));
+    let watch = fastrand::u64(11_000..16_000);
+    log(&format!("pretending to watch the ad for {} s", watch / 1000));
+    tokio::time::sleep(Duration::from_millis(watch)).await;
+    match safe::send_raw_only(session, custom("AdvertisementsCompleted", &["1"])).await {
+        Ok(raw) => log(&format!("AdvertisementsCompleted:1 → {}", redact(&raw))),
+        Err(e) => {
+            log(&format!("AdvertisementsCompleted:1 failed: {e}"));
+            return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+        }
+    }
+    tokio::time::sleep(Duration::from_millis(fastrand::u64(1500..3500))).await;
+    if let Err(e) = safe::send(session, Command::Update).await {
+        log(&format!("Update after the ad failed: {e}"));
+    }
+    log(&format!("after: lucky coins {}, {}", coins(session), snapshot(session)));
+    if session.game_state().is_none() { Outcome::SessionLost } else { Outcome::Done }
+}
+
 /// `{date, weapon, magic}`: which shops already used today's ad.
 fn used_today(today: NaiveDate) -> (bool, bool) {
     let v: serde_json::Value =
@@ -222,6 +249,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             mark_used(mode);
             refresh(session, mode).await
         }
+        "lucky" => lucky_ad(session).await,
         _ => {
             log(&format!("probe: ad-related keys of the login response: [{}]", session.login_ad()));
             Outcome::Done
