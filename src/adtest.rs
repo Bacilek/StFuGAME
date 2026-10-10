@@ -140,6 +140,7 @@ async fn refresh(session: &mut SimpleSession, mode: &'static str) -> Outcome {
 }
 
 async fn refresh_inner(session: &mut SimpleSession, shop_name: &str, ad: &str, shop: &str) -> Outcome {
+    wait_ad_gap().await;
     log(&format!("{shop_name} Shop: ad-related keys of the login response: [{}]", session.login_ad()));
     log(&format!("before: {} | {shop_name} Shop: {}", snapshot(session), offer(session, shop_name)));
 
@@ -148,6 +149,7 @@ async fn refresh_inner(session: &mut SimpleSession, shop_name: &str, ad: &str, s
     log(&format!("pretending to watch the ad for {} s", watch / 1000));
     tokio::time::sleep(Duration::from_millis(watch)).await;
 
+    mark_ad();
     match safe::send_raw_only(session, custom("AdvertisementsCompleted", &[ad])).await {
         Ok(raw) => log(&format!("AdvertisementsCompleted:{ad} → {}", redact(&raw))),
         Err(e) => {
@@ -172,11 +174,13 @@ async fn refresh_inner(session: &mut SimpleSession, shop_name: &str, ad: &str, s
 /// coins before/after, the raw response). One shot, no follow-up command (user's capture 2026-10-10).
 async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
     let coins = |s: &SimpleSession| s.game_state().map_or(-1, |gs| i64::from(gs.specials.wheel.lucky_coins));
+    wait_ad_gap().await;
     log(&format!("lucky coin ad: ad-related keys of the login response: [{}]", session.login_ad()));
     log(&format!("before: lucky coins {}, {}", coins(session), snapshot(session)));
     let watch = fastrand::u64(11_000..16_000);
     log(&format!("pretending to watch the ad for {} s", watch / 1000));
     tokio::time::sleep(Duration::from_millis(watch)).await;
+    mark_ad();
     match safe::send_raw_only(session, custom("AdvertisementsCompleted", &["1"])).await {
         Ok(raw) => {
             log(&format!("AdvertisementsCompleted:1 → {}", redact(&raw)));
@@ -193,6 +197,31 @@ async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
     }
     log(&format!("after: lucky coins {}, {}", coins(session), snapshot(session)));
     if session.game_state().is_none() { Outcome::SessionLost } else { Outcome::Done }
+}
+
+/// Minimum gap between ANY two ads of the character (shop refreshes and lucky coin ads share it): the game does not
+/// offer a new ad right after another one, even of a different kind (user 2026-10-10: after a shop ad no lucky coin
+/// ad could be found for a minute). 5 minutes plus up to a minute of jitter.
+const AD_GAP_SEC: u64 = 300;
+
+fn last_ad_path() -> std::path::PathBuf {
+    dir().join("last_ad.txt")
+}
+
+/// Waits until at least `AD_GAP_SEC` (+ jitter) have passed since the last ad claim (also across a restart).
+async fn wait_ad_gap() {
+    let last: i64 = std::fs::read_to_string(last_ad_path()).ok().and_then(|t| t.trim().parse().ok()).unwrap_or(0);
+    let wait = last + AD_GAP_SEC as i64 + fastrand::i64(0..60) - Local::now().timestamp();
+    if wait > 0 {
+        log(&format!("last ad was recently, waiting {wait} s before the next one"));
+        tokio::time::sleep(Duration::from_secs(wait as u64)).await;
+    }
+}
+
+/// Remembers that an ad was just claimed.
+fn mark_ad() {
+    let _ = std::fs::create_dir_all(dir());
+    let _ = std::fs::write(last_ad_path(), Local::now().timestamp().to_string());
 }
 
 /// One line per lucky coin ad in `roster/TestChar1/logs/lucky_ads.csv` for the week of observation (user 2026-10-10):
@@ -264,7 +293,7 @@ async fn daily_lucky(session: &mut SimpleSession) -> Outcome {
     // claiming them back to back
     if done < times.len() && minute > times[done] + LUCKY_LATE_MIN {
         let left = (times.len() - done) as u32;
-        let (from, to) = (minute + 3, LUCKY_TO_MIN.max(minute + 3 + left * 4));
+        let (from, to) = (minute + 3, LUCKY_TO_MIN.max(minute + 3 + left * 6));
         let window = (to - from) / left;
         for k in 0..left {
             times[done + k as usize] = fastrand::u32(from + k * window..from + (k + 1) * window);
