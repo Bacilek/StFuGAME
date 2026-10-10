@@ -217,6 +217,9 @@ const LUCKY_ADS_PER_DAY: usize = 3;
 /// The day is split into three equal windows from 00:05 to 23:55 (user 2026-10-10); one ad at a random minute of each.
 const LUCKY_FROM_MIN: u32 = 5;
 const LUCKY_WINDOW_MIN: u32 = 476;
+/// End of the allowed day (23:55) and how late a planned ad may be before the rest is re-planned.
+const LUCKY_TO_MIN: u32 = 23 * 60 + 55;
+const LUCKY_LATE_MIN: u32 = 30;
 
 fn lucky_plan_path() -> std::path::PathBuf {
     dir().join("lucky_ads.json")
@@ -255,8 +258,21 @@ async fn daily_lucky(session: &mut SimpleSession) -> Outcome {
     }
     let now = Local::now();
     let today = now.date_naive();
-    let (times, done) = lucky_plan(today);
+    let (mut times, done) = lucky_plan(today);
     let minute = chrono::Timelike::hour(&now) * 60 + chrono::Timelike::minute(&now);
+    // The bot was off (e.g. started in the evening): spread the ads still missing over the rest of the day instead of
+    // claiming them back to back
+    if done < times.len() && minute > times[done] + LUCKY_LATE_MIN {
+        let left = (times.len() - done) as u32;
+        let (from, to) = (minute + 3, LUCKY_TO_MIN.max(minute + 3 + left * 4));
+        let window = (to - from) / left;
+        for k in 0..left {
+            times[done + k as usize] = fastrand::u32(from + k * window..from + (k + 1) * window);
+        }
+        save_lucky_plan(today, &times, done);
+        log(&format!("late start: the {left} remaining ad(s) re-planned for minutes {:?} of the day", &times[done..]));
+        return Outcome::Done;
+    }
     if done >= times.len() || minute < times[done] {
         return Outcome::Done;
     }
