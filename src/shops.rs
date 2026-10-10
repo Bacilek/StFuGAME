@@ -37,6 +37,8 @@ struct Day {
     seen: u32,
     carry: u32,
     done: bool,
+    /// A later spin-only round failed to buy (full backpack, unchanged offer): no more of them today
+    respin_blocked: bool,
 }
 
 static DAY: crate::ctx::PerChar<Option<Day>> = crate::ctx::PerChar::new();
@@ -75,7 +77,7 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     let today = Local::now().date_naive();
     if guard.as_ref().is_none_or(|d| d.date != today) {
         let (seen, carry) = load_reserve(today);
-        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false });
+        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false, respin_blocked: false });
     }
     guard.as_mut().map(f)
 }
@@ -244,8 +246,13 @@ fn describe(pos: ShopPosition, item: &Item) -> String {
 
 /// Shopping once a day after the Tavern is done. Sends nothing when there is nothing to do.
 pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
-    if !tavern_done || with_day(|d| d.done).unwrap_or(true) {
+    if !tavern_done {
         return Outcome::Done;
+    }
+    match with_day(|d| d.done) {
+        None => return Outcome::Done,
+        Some(true) => return respin(session).await,
+        Some(false) => {}
     }
     with_day(|d| d.done = true);
     let outcome = shop(session).await;
@@ -260,6 +267,42 @@ fn finish_spins(spins: usize, cost: u64) {
     if spins > 0 {
         report!("[shops] Spun {spins}x, total cost {}", crate::report::gold(cost));
     }
+}
+
+/// Spin-only round after the day's shopping is done (user 2026-10-10: gold that arrives later, e.g. the Gleeman
+/// chest, which is opened after the shops, was never spun because shopping runs once a day). Only spins; no
+/// upgrades, potions, tasks, attributes or ad refresh. Sends nothing unless a spin is possible right now.
+async fn respin(session: &mut SimpleSession) -> Outcome {
+    if with_day(|d| d.respin_blocked).unwrap_or(true) {
+        return Outcome::Done;
+    }
+    let (mut spins, mut spin_cost) = (0, 0u64);
+    while spins < MAX_SPINS {
+        let Some(gs) = session.game_state() else { break };
+        let reserve = update_reserve(gs);
+        let Some((pos, _)) = spin_candidate(gs, reserve) else { break };
+        if spins == 0 {
+            report!("[shops] Gold {} is above the reserve {} again, spinning once more", crate::report::gold(gs.character.silver), crate::report::gold(u64::from(reserve)));
+        }
+        let silver_before = gs.character.silver;
+        match buy(session, pos).await {
+            Ok(true) => {}
+            Ok(false) => {
+                with_day(|d| d.respin_blocked = true);
+                break;
+            }
+            Err(o) => return o,
+        }
+        if let Outcome::SessionLost = crate::potions::trim_stock(session).await {
+            return Outcome::SessionLost;
+        }
+        spins += 1;
+        if let Some(gs) = session.game_state() {
+            spin_cost += silver_before.saturating_sub(gs.character.silver);
+        }
+    }
+    finish_spins(spins, spin_cost);
+    Outcome::Done
 }
 
 async fn shop(session: &mut SimpleSession) -> Outcome {

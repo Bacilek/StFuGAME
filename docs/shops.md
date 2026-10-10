@@ -116,3 +116,7 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
   (`{date, weapon, magic}`, written before sending, so no retry after an error; today's two manual uses were pre-filled).
   The manual flag file `ad_test` still works (and also marks the shop as used). Other characters: `NotApplicable`, nothing sent.
   First automatic run expected 2026-10-11 (needs a release rebuild + restart); check `roster/TestChar1/logs/ad_test.log`.
+
+
+## Late spin round (2026-10-10, user)
+The shop pass runs once a day (after the Tavern), but gold can arrive afterwards (Gleeman chests are opened after the shops). `shops::respin` runs whenever the pass is done and gold ≥ cheapest non-epic spin item + reserve: spin only, nothing else, no ad refresh. Not verified live.
