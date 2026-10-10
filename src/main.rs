@@ -259,11 +259,12 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = guild::battles(session).await {
             return tavern::Outcome::SessionLost;
         }
-        if let tavern::Outcome::SessionLost = arena::run(session).await {
+        // Gleeman fight tasks (class, bare hands, no chest plate, no epics) via the Hall of Fame go BEFORE the Arena XP fights
+        // (user 2026-10-10: quests first); they use the same Arena cooldown
+        if let tavern::Outcome::SessionLost = hunt::run(session).await {
             return tavern::Outcome::SessionLost;
         }
-        // Gleeman fight tasks (class, bare hands) via the Hall of Fame, after the XP wins or late
-        if let tavern::Outcome::SessionLost = hunt::run(session).await {
+        if let tavern::Outcome::SessionLost = arena::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         let dungeon_due = session.game_state().is_some_and(|gs| dungeons::secs_until_ready(gs) == 0);

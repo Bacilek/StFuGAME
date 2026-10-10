@@ -2,6 +2,8 @@
 
 Updated: 2026-10-10. Rewrite after every bigger change.
 
+- **Hunt priority + bottom search (2026-10-10, user):** Gleeman fight tasks now run BEFORE the Arena XP fights (no 21:00/10-wins gate) and the Hall of Fame opponent is searched from the very bottom upwards (6 pages). Not verified live; same release rebuild as the TestChar1 ad refresh. Side effect to watch: XP wins now wait while a fight task is open (each hunt fight uses an Arena cooldown).
+
 - **Hunt: `WinFightsNoEpicsLegendaries` implemented (2026-10-10, user)** – `hunt::Hunt::NoEpics` strips all epics (needs enough free backpack slots), fights a weaker Hall of Fame player, re-equips. Not verified live; needs the same release rebuild as the TestChar1 ad refresh. Check TestChar1 `[hunt]` log lines afterwards (Taking off / Win / Putting back on).
 
 - **Ad refresh now runs DAILY on TestChar1 only (2026-10-10, user)** – `adtest::daily_refresh` from the shop pass (Weapon, then Magic; marker `roster/TestChar1/ad_refresh.json`; today already used). Needs a release rebuild + restart to take effect; first automatic run 2026-10-11. OBSERVE TestChar1 for a few days: server warnings/errors, odd account behaviour, `trust_counter` (see `ad_test.log`); never more than 1 ad per shop per day. Only afterwards decide on other characters (ask the user).

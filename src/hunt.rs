@@ -1,10 +1,9 @@
 //! Hall of Fame hunt for Gleeman/event fight tasks (user 2026-10-07): "win N fights against <class>",
 //! "win fights bare-handed" (weapon off), "win fights without a chest plate" (chest plate off).
-//! Hall of Fame fights do not count towards the 10 Arena wins for XP, so the hunt runs only when those are done,
-//! or late in the evening when the task would otherwise stay open. It uses the Arena cooldown like any fight.
-//! Opponent: far below us in the Hall of Fame (rank + offset), lowest honor, of the wanted class, clearly weaker.
+//! Hall of Fame fights do not count towards the 10 Arena wins for XP, but the tasks come first (user 2026-10-10): the hunt
+//! runs BEFORE the Arena XP fights whenever such a task is open and the Arena is free (same cooldown). Opponent: from the
+//! very bottom of the Hall of Fame upwards (level 1 players live there), lowest honor, wanted class, clearly weaker.
 
-use chrono::{Local, Timelike};
 use sf_api::{
     command::{AttributeType, Command},
     gamestate::{GameState, character::Class, items::EquipmentSlot, rewards::TaskType},
@@ -17,10 +16,8 @@ use crate::{
     tavern::Outcome,
 };
 
-/// From this hour the hunt runs even when the 10 XP wins are not done yet.
-const LATE_HOUR: u32 = 21;
-/// How far below our rank to look (tried in this order).
-const RANK_OFFSETS: [u32; 3] = [1500, 3000, 6000];
+/// How many Hall of Fame pages (51 players each) to look through, starting at the very bottom and going up.
+const BOTTOM_PAGES: u32 = 6;
 /// How many of the lowest-honor players of one page to inspect (each one is a `ViewPlayer`).
 const INSPECT: usize = 3;
 
@@ -70,10 +67,20 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option<String>, Outcome> {
     let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
     let (our_rank, our_level, ours) = (gs.character.rank, u32::from(gs.character.level), own_power(gs));
-    let total = gs.hall_of_fames.players_total.max(our_rank);
+    let mut total = gs.hall_of_fames.players_total;
     let limit = ours * hunt.max_ratio();
-    for offset in RANK_OFFSETS {
-        let target = (our_rank + offset).min(total.saturating_sub(25)).max(26);
+    if total <= our_rank {
+        // Size of the Hall of Fame not known yet: one page near our own rank tells it
+        let page = (our_rank.saturating_sub(26) / 51) as usize;
+        let gs = safe::send(session, Command::HallOfFamePage { page }).await.map_err(|e| fail(&e))?;
+        total = gs.hall_of_fames.players_total.max(our_rank);
+    }
+    // From the very bottom upwards: the lowest ranks are level 1 players, a clearly weaker opponent is always there
+    for k in 0..BOTTOM_PAGES {
+        let target = total.saturating_sub(25 + 51 * k);
+        if target <= our_rank || target < 26 {
+            break;
+        }
         let page = ((target - 26) / 51) as usize;
         let gs = safe::send(session, Command::HallOfFamePage { page }).await.map_err(|e| fail(&e))?;
         let mut list: Vec<_> = gs
@@ -123,12 +130,11 @@ fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>>
     }
 }
 
-/// One hunt fight if a fight task is open, the Arena is free and the XP wins are done (or it is late).
+/// One hunt fight if a fight task is open and the Arena is free (tasks go before the XP fights, user 2026-10-10).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(hunt) = wanted_hunt(gs) else { return Outcome::Done };
-    let late = Local::now().hour() >= LATE_HOUR;
-    if !safe::arena_is_free(gs) || (usize::from(gs.arena.fights_for_xp) < arena::MAX_WINS_PER_DAY && !late) {
+    if !safe::arena_is_free(gs) {
         return Outcome::Done;
     }
     report!("[hunt] Task {hunt:?}: looking for a clearly weaker opponent in the Hall of Fame");

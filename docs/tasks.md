@@ -61,9 +61,10 @@
 - Expeditions (`choose_expedition`): an affordable expedition through a `TravelTo(location)` location wins over shorter ones.
   A task for an expedition type is not known in sf-api yet – when it shows up (Unknown in the task log), map it.
 - Arena: `WinFightsAgainst(class)` → among the 3 opponents one of that class weaker than us is chosen.
-- Hunt (`hunt.rs`): `WinFightsAgainst`, `WinFightsBareHands`, `WinFightsNoChestplate` when the Arena is free and the 10 XP
-  wins are done or after 21:00. Hall of Fame page at our rank + 1500 / 3000 / 6000, players of our level or lower
-  (and the class), 3 lowest honor inspected via `ViewPlayer`, fight one with strength ≤ 60 % of ours (30 % bare hands,
+- Hunt (`hunt.rs`): `WinFightsAgainst`, `WinFightsBareHands`, `WinFightsNoChestplate`, `WinFightsNoEpicsLegendaries` whenever the Arena
+  is free – BEFORE the Arena XP fights (user 2026-10-10: quests first; `main.rs` runs `hunt::run` before `arena::run`). Hall of Fame pages
+  from the very BOTTOM upwards (max 6 pages; level 1 players live there, a weaker opponent is always found; user 2026-10-10), players of our level
+  or lower (and the class), 3 lowest honor inspected via `ViewPlayer`, fight one with strength ≤ 60 % of ours (30 % bare hands,
   50 % without chest plate). Item off via `PlayerItemMove` (equipment → backpack, whitelisted only this way), back via `Equip`.
 - **`WinFightsNoEpicsLegendaries` (hunt, user 2026-10-10, was deferred 2026-10-09):** the user saw TestChar1 miss this easy 4-point task
   while holding 1 epic and having a free backpack slot. `hunt::Hunt::NoEpics`: every equipped epic/legendary item (`is_epic`, >= model 50)
