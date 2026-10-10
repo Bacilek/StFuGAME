@@ -100,3 +100,10 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
   37 → 37, silver unchanged; the normal shop pass then bought an upgrade from the new offer. No error, no warning.
   Still open: does `skipvideo` flip to `0` after use (check the next login), does the second call the same day get rejected
   (and for free), Magic Shop (`magic`: ad 5, shop 2) not tried, `trust_counter` meaning (4 = ?, compare with a later value).
+- **Result 2026-10-10 10:11 (TestChar1, Magic Shop, after a bot restart): also works and is free.** `AdvertisementsCompleted:5` →
+  `trust_counter:3`, `PlayerNewWares:2/2` → new offer, mushrooms 37 → 37. NOTE: the fresh login still showed `skipvideo:1`
+  although the Weapon Shop ad had been used 3 min earlier, so `skipvideo` is NOT a reliable per-shop "ad still available"
+  flag (maybe "ads exist at all", or the client-side TV icon comes from elsewhere). `trust_counter` was 4 for ad 4 and 3
+  for ad 5 → looks like a per-ad-id value, not a global count. Still open: a second use of the same shop's ad the same day
+  (rejected? free?), whether the ads reset at midnight, and how a bot would know an ad is still available (probably just try
+  once a day per shop and treat an error/unchanged offer as "used").

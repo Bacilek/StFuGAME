@@ -8,7 +8,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Točení v obchodech
 - [x] Reklamy – rozhodnuto NEIMPLEMENTOVAT (`docs/shops.md`): `AdvertisementsCompleted` vrací `trust_counter`, nejspíš antifraud metrika reklamní sítě proti přesně tomuhle druhu automatizace. Riziko přesahuje jen houbičku.
   - Uživatel (2026-10-09): "někdy to zkusíme" – odloženo, ne zavrženo. Postup až na to dojde (jen na vedlejším účtu): (1) zachytit těla odpovědí `AdvertisementsCompleted` a `PlayerNewWares:x/2`, (2) najít příznak "reklama dnes dostupná" (klient ukazuje ikonu TV), (3) ověřit, že `PlayerNewWares:x/2` bez reklamy nestrhne houbičku, (4) uživatel přijme riziko `trust_counter`. Neimplementovat, dokud to uživatel výslovně nezadá.
-  - **2026-10-10: experiment PROŠEL** (TestChar1, Weapon Shop): reklama simulovaná 11 s, refresh zdarma, nová nabídka, houbičky beze změny, login měl `skipvideo:1`. Zbývá: Magic Shop, ověřit že `skipvideo` po použití přejde na 0, rozhodnout o automatizaci (ptát se uživatele).
+  - **2026-10-10: experiment PROŠEL pro Weapon i Magic Shop** (TestChar1, zdarma, houbičky beze změny). `skipvideo` zůstává 1 i po použití. Zbývá: druhé použití stejný den, rozhodnout o automatizaci (ptát se uživatele).
 - [x] Questy u Goblin Gleemana + eventové úkoly (`docs/tasks.md`): truhly, atributy, cechovní upgrade, nákupy, Training Camp, skořápky jen když body chybí
 - [ ] Event game loop (piva?)
 - [x] Arena fight highlights – ukládání cool zápasů (`PlayerCombatLogMark`), naimplementováno 2026-10-09
