@@ -369,8 +369,8 @@ fn gambling_is_open(tasks: &[Task]) -> bool {
     tasks.iter().any(|task| task.typ == TaskType::DefeatGambler && !task.is_completed())
 }
 
-/// Bonus Thirst for Adventure of one beer, as far as we assume (NOT verified live yet): the expedition we want the
-/// beer for must cost at most this much.
+/// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
+/// cost at most this much.
 const BEER_ALU_SEC: u32 = 20 * 60;
 
 /// "Last chest" travel beer (user 2026-10-10, Mrožik missed a 125 g chest by one BustedLands visit with 0 Thirst for
@@ -412,15 +412,32 @@ pub fn travel_beer_needed(
     })
 }
 
-static TRAVEL_BEER_DAY: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
+/// The travel beer is a last-minute task (user 2026-10-10): not before this local hour, when nothing else is left.
+const TRAVEL_BEER_FROM_HOUR: u32 = 22;
+
+/// Marker file with the date of the last travel beer – on disk so a restart cannot allow a second one the same day.
+fn travel_beer_path() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("travel_beer.txt")
+}
 
 fn travel_beer_used_today() -> bool {
-    TRAVEL_BEER_DAY.lock().is_ok_and(|d| *d == Some(chrono::Local::now().date_naive()))
+    let today = chrono::Local::now().date_naive().to_string();
+    std::fs::read_to_string(travel_beer_path()).is_ok_and(|t| t.trim() == today)
+}
+
+fn mark_travel_beer_used() {
+    let path = travel_beer_path();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(path, chrono::Local::now().date_naive().to_string());
 }
 
 /// `travel_beer_needed` for the daily and the event task list of the current game state (once per day).
 fn travel_beer_justified(gs: &GameState) -> bool {
-    if travel_beer_used_today() || gs.tavern.beer_drunk >= gs.tavern.beer_max || gs.tavern.current_action != CurrentAction::Idle {
+    if chrono::Timelike::hour(&chrono::Local::now()) < TRAVEL_BEER_FROM_HOUR
+        || travel_beer_used_today()
+        || gs.tavern.beer_drunk >= gs.tavern.beer_max || gs.tavern.current_action != CurrentAction::Idle {
         return false;
     }
     let AvailableTasks::Expeditions(list) = gs.tavern.available_tasks() else { return false };
@@ -450,9 +467,8 @@ async fn drink_beer(session: &mut SimpleSession) -> Outcome {
     let left = remaining(gs, |t| t == TaskType::DrinkBeer);
     if !planned(gs).contains(&Extra::Beer) {
         report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the last chest lacks one visit that an offered expedition provides");
-        if let Ok(mut d) = TRAVEL_BEER_DAY.lock() {
-            *d = Some(chrono::Local::now().date_naive());
-        }
+        // Marked BEFORE the purchase: never a second travel beer, whatever happens next
+        mark_travel_beer_used();
     } else {
         report!("[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom, {left} to go): needed for a chest with enough mushrooms");
     }
