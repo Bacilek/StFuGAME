@@ -154,9 +154,21 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Vec::new();
     if let Some(slots) = strip_slots(session.game_state(), hunt) {
         // Everything has to fit into the backpack BEFORE anything is taken off (several slots for NoEpics)
-        let free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+        let mut free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+        // Short of room (e.g. an Assassin needs 2 slots for bare hands): free slots with potions, as the shops do –
+        // Sanek's fight tasks stayed blocked all day with 1 free slot (user 2026-10-10)
+        while free < slots.len() {
+            match crate::potions::make_room(session).await {
+                Ok(true) => free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots()),
+                Ok(false) => break,
+                Err(o) => return o,
+            }
+        }
         if free < slots.len() {
-            report!("[hunt] Backpack has {free} free slot(s), {} needed to take the items off, skipping", slots.len());
+            let held = session.game_state().map_or_else(String::new, |gs| {
+                gs.character.inventory.backpack.iter().flatten().map(crate::inventory::detail).collect::<Vec<_>>().join("; ")
+            });
+            report!("[hunt] Backpack has {free} free slot(s), {} needed to take the items off, skipping (holding: {held})", slots.len());
             return Outcome::Done;
         }
         for slot in slots {
