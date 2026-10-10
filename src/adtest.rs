@@ -214,9 +214,9 @@ fn record_lucky(raw: &str, coins_before: i64) {
 /// Lucky coin ads per day (user 2026-10-10: three a day on TestChar1 only, spread over the day with random jitter,
 /// a week of observation of `trust_counter` and the account before anything more).
 const LUCKY_ADS_PER_DAY: usize = 3;
-/// The day is split into three equal windows from 09:00 to 22:30; one ad at a random minute of each.
-const LUCKY_FROM_MIN: u32 = 9 * 60;
-const LUCKY_WINDOW_MIN: u32 = 270;
+/// The day is split into three equal windows from 00:05 to 23:55 (user 2026-10-10); one ad at a random minute of each.
+const LUCKY_FROM_MIN: u32 = 5;
+const LUCKY_WINDOW_MIN: u32 = 476;
 
 fn lucky_plan_path() -> std::path::PathBuf {
     dir().join("lucky_ads.json")
