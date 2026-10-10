@@ -30,6 +30,8 @@ enum Hunt {
     Class(Class),
     /// Fight with these equipment slots empty
     Without(EquipmentSlot),
+    /// Fight with every epic/legendary item taken off (user 2026-10-10)
+    NoEpics,
 }
 
 impl Hunt {
@@ -38,7 +40,7 @@ impl Hunt {
         match self {
             Hunt::Class(_) => 0.6,
             Hunt::Without(EquipmentSlot::Weapon) => 0.3,
-            Hunt::Without(_) => 0.5,
+            Hunt::Without(_) | Hunt::NoEpics => 0.5,
         }
     }
 }
@@ -48,6 +50,7 @@ fn wanted_hunt(gs: &GameState) -> Option<Hunt> {
         TaskType::WinFightsAgainst(c) => Some(Hunt::Class(c)),
         TaskType::WinFightsBareHands => Some(Hunt::Without(EquipmentSlot::Weapon)),
         TaskType::WinFightsNoChestplate => Some(Hunt::Without(EquipmentSlot::BreastPlate)),
+        TaskType::WinFightsNoEpicsLegendaries => Some(Hunt::NoEpics),
         _ => None,
     })
 }
@@ -81,7 +84,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
                 p.level <= our_level
                     && match hunt {
                         Hunt::Class(c) => p.class == c,
-                        Hunt::Without(_) => true,
+                        Hunt::Without(_) | Hunt::NoEpics => true,
                     }
             })
             .map(|p| (p.honor, p.name.clone()))
@@ -98,6 +101,26 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
         }
     }
     Ok(None)
+}
+
+/// The equipment slots to empty for the fight (`None` = nothing to take off for this kind of hunt).
+/// An Assassin carries a weapon in both the Weapon and Shield slot (sf-api types the off-hand item as a Weapon too),
+/// so "bare hands" must take both off, not just the main hand.
+fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>> {
+    let gs = gs?;
+    match hunt {
+        Hunt::Class(_) => None,
+        Hunt::Without(slot) => {
+            let mut slots = vec![slot];
+            if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
+                slots.push(EquipmentSlot::Shield);
+            }
+            Some(slots)
+        }
+        Hunt::NoEpics => Some(
+            gs.character.equipment.0.iter().filter(|(_, i)| i.as_ref().is_some_and(|i| i.is_epic())).map(|(s, _)| s).collect(),
+        ),
+    }
 }
 
 /// One hunt fight if a fight task is open, the Arena is free and the XP wins are done (or it is late).
@@ -123,11 +146,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // take both off, not just the main hand.
     let mut stripped: Vec<(EquipmentSlot, sf_api::gamestate::items::BagPosition, sf_api::gamestate::items::ItemCommandIdent)> =
         Vec::new();
-    if let Hunt::Without(slot) = hunt {
-        let Some(gs) = session.game_state() else { return Outcome::Done };
-        let mut slots = vec![slot];
-        if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
-            slots.push(EquipmentSlot::Shield);
+    if let Some(slots) = strip_slots(session.game_state(), hunt) {
+        // Everything has to fit into the backpack BEFORE anything is taken off (several slots for NoEpics)
+        let free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+        if free < slots.len() {
+            report!("[hunt] Backpack has {free} free slot(s), {} needed to take the items off, skipping", slots.len());
+            return Outcome::Done;
         }
         for slot in slots {
             let Some(gs) = session.game_state() else { return Outcome::Done };

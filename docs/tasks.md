@@ -65,12 +65,11 @@
   wins are done or after 21:00. Hall of Fame page at our rank + 1500 / 3000 / 6000, players of our level or lower
   (and the class), 3 lowest honor inspected via `ViewPlayer`, fight one with strength ≤ 60 % of ours (30 % bare hands,
   50 % without chest plate). Item off via `PlayerItemMove` (equipment → backpack, whitelisted only this way), back via `Equip`.
-- **Not implemented (user 2026-10-09):** `TaskType::WinFightsNoEpicsLegendaries` / `WinFightsNoGear` exist in sf-api
-  but `hunt::wanted_hunt` doesn't map them – such a task is silently skipped today, nothing breaks. Deferred until
-  the character actually has epics equipped: unlike bare-hands/no-chestplate (1-2 slots), stripping every
-  epic/legendary could mean 5-10 slots at once, far more likely to hit a full backpack (potions + sell-fodder) than
-  today's fail-safe (`hunt.rs` just re-equips what it stripped and gives up). Revisit together with the "epics fill
-  the backpack" inventory question (`docs/todo.md`) – a bigger backpack might solve both at once.
+- **`WinFightsNoEpicsLegendaries` (hunt, user 2026-10-10, was deferred 2026-10-09):** the user saw TestChar1 miss this easy 4-point task
+  while holding 1 epic and having a free backpack slot. `hunt::Hunt::NoEpics`: every equipped epic/legendary item (`is_epic`, >= model 50)
+  is moved to the backpack, the Hall of Fame fight is done (opponent power <= 50 % of ours), everything is equipped back. It first
+  checks that the backpack has at least as many free slots as items to take off (`count_free_slots`) and otherwise skips
+  without touching anything. `WinFightsNoGear` is still not mapped. Not verified live yet.
 - Attribute tasks before spinning (`attributes_needed`, called from `shops.rs` before the first spin): when some unopened
   chest is above earned + natural points and within reach with the attribute tasks (+ affordable costly tasks).
   They still keep the shop reserve. Otherwise attributes come after the shops as before.
