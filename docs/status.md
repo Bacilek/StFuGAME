@@ -2,6 +2,8 @@
 
 Updated: 2026-10-10. Rewrite after every bigger change.
 
+- **Epic sprite mismatch explained (2026-10-10, user):** the class-specific epics that do not match the card previews are most likely Halloween-event epics – an event is running and only Halloween epics are dropping, whose sprites are not in the regular epic sprite range (50–68 per class variant) that `item_icon` assumes. So the "wrong sprite for epic items" point below is probably not a mapping bug but different event sprite ids; still to confirm from `raw_model` / `item_class` in `roster/<character>/now.json` after the next release build. Stats are correct, only the icon is off.
+
 - **Hunt priority + bottom search (2026-10-10, user):** Gleeman fight tasks now run BEFORE the Arena XP fights (no 21:00/10-wins gate) and the Hall of Fame opponent is searched from the very bottom upwards (6 pages). Not verified live; same release rebuild as the TestChar1 ad refresh. Side effect to watch: XP wins now wait while a fight task is open (each hunt fight uses an Arena cooldown).
 
 - **Hunt: `WinFightsNoEpicsLegendaries` implemented (2026-10-10, user)** – `hunt::Hunt::NoEpics` strips all epics (needs enough free backpack slots), fights a weaker Hall of Fame player, re-equips. Not verified live; needs the same release rebuild as the TestChar1 ad refresh. Check TestChar1 `[hunt]` log lines afterwards (Taking off / Win / Putting back on).
