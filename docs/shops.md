@@ -107,3 +107,6 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
   for ad 5 → looks like a per-ad-id value, not a global count. Still open: a second use of the same shop's ad the same day
   (rejected? free?), whether the ads reset at midnight, and how a bot would know an ad is still available (probably just try
   once a day per shop and treat an error/unchanged offer as "used").
+- **Decision (user 2026-10-10): the "second use the same day" test is cancelled.** Regular characters get exactly 1 ad refresh per shop per
+  day (resets at midnight); more attempts could look like abuse, so the bot must never try a repeat. If automated later, track
+  "used today" locally per shop and never rely on probing the server. Automation itself is not decided yet (ask the user).
