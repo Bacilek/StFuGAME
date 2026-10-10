@@ -709,13 +709,37 @@ pub fn write_now(gs: &GameState) {
     write_dashboard(false);
 }
 
-/// Human-readable changes between two snapshots (the reasons a win rate could jump).
-fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
-    let mut out = Vec::new();
-    let (l0, l1) = (prev["level"].as_u64().unwrap_or(0), cur["level"].as_u64().unwrap_or(0));
-    if l1 > l0 {
-        out.push(format!("Level {l0} → {l1}"));
+/// Average damage of a weapon description (`item_desc`, e.g. "26–28 dmg, STR +8"), if it is a weapon.
+fn weapon_avg(d: &str) -> Option<f64> {
+    let (min, max) = crate::tournament::parse_item_desc(d, &mut Default::default())?;
+    Some((min + max) / 2.0)
+}
+
+/// Potion setup is "best" when it is exactly main attribute + Constitution + Eternal Life, all at the maximum
+/// size (25 %). `potions` are the snapshot's "<Type> <n> %" labels.
+fn best_potion_setup(potions: &[&str], class: &str) -> bool {
+    let Some(main) = crate::tournament::parse_class(class).map(|c| format!("{:?}", c.main_attribute())) else { return false };
+    let want = [format!("{main} 25 %"), "Constitution 25 %".to_string(), "EternalLife 25 %".to_string()];
+    potions.len() == 3 && want.iter().all(|w| potions.contains(&w.as_str()))
+}
+
+/// A change that is worth a line in the dashboard's "Why up?" box: plain text, or text with an item icon.
+fn change_entry(text: String, icon: Option<&str>) -> serde_json::Value {
+    match icon {
+        Some(i) if !i.is_empty() => serde_json::json!({ "t": text, "icon": i }),
+        _ => serde_json::Value::String(text),
     }
+}
+
+/// Human-readable changes between two snapshots (the reasons a win rate could jump). Only what is notable
+/// (user 2026-10-10): bought attributes, epics/legendaries that dropped (with icon), a clearly better weapon
+/// (average damage before → after), a huge upgrade of any other slot, the best potion setup, a new guild.
+/// Level-ups and ordinary new items/potions are left out – everyone has them.
+fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Vec<serde_json::Value> {
+    /// Weapon damage must grow by at least this share to be mentioned; other slots by `BIG_UPGRADE` (value ratio).
+    const BETTER_WEAPON: f64 = 1.15;
+    const BIG_UPGRADE: f64 = 1.5;
+    let mut out = Vec::new();
     let bought: Vec<String> = ATTRS
         .iter()
         .filter_map(|(_, n)| {
@@ -724,7 +748,7 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
         })
         .collect();
     if !bought.is_empty() {
-        out.push(format!("Attributes bought: {}", bought.join(", ")));
+        out.push(change_entry(format!("Attributes bought: {}", bought.join(", ")), None));
     }
     for (_, slot) in SLOTS {
         let (a, b) = (&prev["equip"][slot], &cur["equip"][slot]);
@@ -738,23 +762,43 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value) -> Vec<String> {
         } else {
             ""
         };
-        let value = match (a["v"].as_f64(), b["v"].as_f64()) {
-            (Some(x), Some(y)) => format!(" (value {x} → {y})"),
-            (None, Some(y)) => format!(" (value {y})"),
-            _ => String::new(),
+        let (da, db) = (a["d"].as_str().unwrap_or(""), b["d"].as_str().unwrap_or(""));
+        let dmg = match (weapon_avg(da), weapon_avg(db)) {
+            (Some(x), Some(y)) if y >= x * BETTER_WEAPON => Some(format!("damage {x:.0} → {y:.0}")),
+            (None, Some(y)) => Some(format!("damage {y:.0}")),
+            _ => None,
         };
-        out.push(format!("New {rarity}{}: {}{value}", slot.to_lowercase(), b["d"].as_str().unwrap_or("?")));
-    }
-    let had: Vec<&str> = prev["potions"].as_array().map_or_else(Vec::new, |v| v.iter().filter_map(|p| p.as_str()).collect());
-    for p in cur["potions"].as_array().into_iter().flatten().filter_map(|p| p.as_str()) {
-        if !had.contains(&p) {
-            out.push(format!("Potion {p}"));
+        let icon = b["icon"].as_str();
+        if !rarity.is_empty() {
+            // An epic/legendary that was already worn (same item, stats unchanged) never reaches here
+            let was = a["epic"].as_bool() == Some(true) || a["legendary"].as_bool() == Some(true);
+            if !was || a["icon"] != b["icon"] {
+                let extra = dmg.map(|d| format!(" ({d})")).unwrap_or_default();
+                out.push(change_entry(format!("New {rarity}{}{extra}", slot.to_lowercase()), icon));
+            }
+        } else if let Some(d) = dmg {
+            out.push(change_entry(format!("Better {}: {d}", slot.to_lowercase()), icon));
+        } else if let (Some(x), Some(y)) = (a["v"].as_f64(), b["v"].as_f64())
+            && x > 0.0
+            && y >= x * BIG_UPGRADE
+        {
+            out.push(change_entry(format!("Huge {} upgrade (+{:.0} %)", slot.to_lowercase(), (y / x - 1.0) * 100.0), icon));
         }
+    }
+    let potions = |s: &serde_json::Value| -> Vec<String> {
+        s["potions"].as_array().map_or_else(Vec::new, |v| v.iter().filter_map(|p| p.as_str().map(str::to_string)).collect())
+    };
+    let (pp, cp) = (potions(prev), potions(cur));
+    fn refs(v: &[String]) -> Vec<&str> {
+        v.iter().map(String::as_str).collect()
+    }
+    if best_potion_setup(&refs(&cp), class) && !best_potion_setup(&refs(&pp), class) {
+        out.push(change_entry("Best potion setup (main attribute + Constitution + Eternal Life, all maximum size)".to_string(), None));
     }
     if cur["guild"] != prev["guild"]
         && let Some(g) = cur["guild"].as_str()
     {
-        out.push(format!("Joined the guild {g}"));
+        out.push(change_entry(format!("Joined the guild {g}"), None));
     }
     out
 }
@@ -777,8 +821,8 @@ fn read_days(char_dir: &Path) -> Vec<(String, serde_json::Value)> {
 }
 
 /// Changes per date for one character, from its daily snapshots (`days/<date>.json`).
-fn daily_changes(days: &[(String, serde_json::Value)]) -> BTreeMap<String, Vec<String>> {
-    days.windows(2).map(|w| (w[1].0.clone(), changes(&w[0].1, &w[1].1))).collect()
+fn daily_changes(days: &[(String, serde_json::Value)], class: &str) -> BTreeMap<String, Vec<serde_json::Value>> {
+    days.windows(2).map(|w| (w[1].0.clone(), changes(&w[0].1, &w[1].1, class))).collect()
 }
 
 /// `roster/issues.txt` and `roster/leaderboard.md` from all characters' folders.
@@ -852,7 +896,7 @@ fn write_dashboard(demo: bool) {
         let mut class = String::new();
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
         let days = read_days(&e.path());
-        let changes = daily_changes(&days);
+        let changes = daily_changes(&days, rows.last().and_then(|r| r.get("class")).map_or("", String::as_str));
         let snap_by_date: BTreeMap<&str, &serde_json::Value> = days.iter().map(|(date, snap)| (date.as_str(), snap)).collect();
         for r in &rows {
             let Some(date) = r.get("date") else { continue };
@@ -950,21 +994,30 @@ mod tests {
         let prev = serde_json::json!({"level": 12, "attrs": {"STR": 28, "CON": 29},
             "equip": {"Weapon": {"d": "14–22 dmg", "v": 59.7, "epic": false}}, "potions": [], "guild": null});
         let cur = serde_json::json!({"level": 13, "attrs": {"STR": 33, "CON": 29},
-            "equip": {"Weapon": {"d": "15–41 dmg, STR +9", "v": 99.0, "epic": true},
+            "equip": {"Weapon": {"d": "15–41 dmg, STR +9", "v": 99.0, "epic": true, "icon": "w.png"},
                       "Gloves": {"d": "STR +6", "v": 12.0, "epic": false}},
-            "potions": ["Strength 25 %"], "guild": "Artušova Garda"});
+            "potions": ["Strength 25 %", "Constitution 25 %", "EternalLife 25 %"], "guild": "Artušova Garda"});
         assert_eq!(
-            changes(&prev, &cur),
+            changes(&prev, &cur, "Warrior"),
             [
-                "Level 12 → 13",
-                "Attributes bought: STR +5",
-                "New epic weapon: 15–41 dmg, STR +9 (value 59.7 → 99)",
-                "New gloves: STR +6 (value 12)",
-                "Potion Strength 25 %",
-                "Joined the guild Artušova Garda",
+                serde_json::json!("Attributes bought: STR +5"),
+                serde_json::json!({"t": "New epic weapon (damage 18 → 28)", "icon": "w.png"}),
+                serde_json::json!("Best potion setup (main attribute + Constitution + Eternal Life, all maximum size)"),
+                serde_json::json!("Joined the guild Artušova Garda"),
             ]
         );
-        assert!(changes(&cur, &cur).is_empty());
+        assert!(changes(&cur, &cur, "Warrior").is_empty());
+    }
+
+    #[test]
+    fn ordinary_gear_and_level_are_not_mentioned() {
+        let prev = serde_json::json!({"level": 1, "attrs": {}, "equip": {"Ring": {"d": "INT +5", "v": 10.0},
+            "Weapon": {"d": "20–30 dmg", "v": 50.0}}, "potions": ["Luck 10 %"], "guild": null});
+        let cur = serde_json::json!({"level": 2, "attrs": {}, "equip": {"Ring": {"d": "INT +9", "v": 14.0},
+            "Weapon": {"d": "22–30 dmg", "v": 52.0}}, "potions": ["Luck 15 %"], "guild": null});
+        assert!(changes(&prev, &cur, "Mage").is_empty());
+        let huge = serde_json::json!({"attrs": {}, "equip": {"Ring": {"d": "INT +30", "v": 40.0}}});
+        assert_eq!(changes(&prev, &huge, "Mage"), [serde_json::json!("Huge ring upgrade (+300 %)")]);
     }
 
     #[test]

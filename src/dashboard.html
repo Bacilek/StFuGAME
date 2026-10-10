@@ -95,6 +95,7 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 .pdpotions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;justify-content:center}
 .pdpot{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--ink2);text-align:center}
 .pdpot img{width:48px;height:48px;object-fit:contain}
+.jump li .chicon{height:1.6em;vertical-align:middle;margin-right:.4em}
 </style>
 </head>
 <body>
@@ -292,7 +293,11 @@ function renderSide(m, days){
     head.append(dot, Object.assign(document.createElement("span"),{className:"who",textContent:o.c.nick}),
       Object.assign(document.createElement("span"),{className:"up",textContent:`+${o.d.toFixed(1)} pts`}));
     const ul = document.createElement("ul"), ch = o.c.rows[day]?.changes || [];
-    (ch.length ? ch : ["No recorded upgrade – others got weaker relatively, or a change not tracked"]).forEach(t=>ul.appendChild(Object.assign(document.createElement("li"),{textContent:t})));
+    (ch.length ? ch : ["No recorded upgrade – others got weaker relatively, or a change not tracked"]).forEach(t=>{
+      const li = document.createElement("li"), txt = typeof t === "string" ? t : t.t;
+      if (t.icon){ const im = Object.assign(document.createElement("img"),{src:t.icon,className:"chicon"}); im.onerror = ()=>im.remove(); li.append(im); }
+      li.append(txt); ul.appendChild(li);
+    });
     box.append(head, ul); body.appendChild(box);
   });
 }

@@ -193,7 +193,7 @@ fn health_multiplier(class: Class) -> f64 {
 }
 
 /// The exact `Class` Debug spelling (no spaces, e.g. "BattleMage") as stored in `history.csv`'s `class` column.
-fn parse_class(s: &str) -> Option<Class> {
+pub(crate) fn parse_class(s: &str) -> Option<Class> {
     use Class::{Assassin, Bard, BattleMage, Berserker, DemonHunter, Druid, Mage, Necromancer, Paladin, PlagueDoctor, Scout, Warrior};
     Some(match s {
         "Warrior" => Warrior,
@@ -215,7 +215,7 @@ fn parse_class(s: &str) -> Option<Class> {
 /// Parses an item's "d" description (built by `roster::item_desc`, e.g. "15–41 dmg, STR +9" or "CON +2") back
 /// into a weapon damage range (if any) and attribute bonuses (added into `attrs`), to rebuild a `Fighter` from a
 /// stored `days/<date>.json` snapshot instead of live data.
-fn parse_item_desc(d: &str, attrs: &mut EnumMap<AttributeType, u32>) -> Option<(f64, f64)> {
+pub(crate) fn parse_item_desc(d: &str, attrs: &mut EnumMap<AttributeType, u32>) -> Option<(f64, f64)> {
     let mut dmg = None;
     for part in d.split(", ") {
         if let Some(rest) = part.strip_suffix(" dmg")
