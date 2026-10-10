@@ -2,7 +2,8 @@
 
 Updated: 2026-10-10. Rewrite after every bigger change.
 
-- **OBSERVE TestChar1 for a few days (user 2026-10-10)** after the ad refreshes (Weapon + Magic Shop, 10:08/10:11): watch for server warnings/errors, odd account behaviour, `trust_counter` changes; no extra ad attempts. Only afterwards decide on automation (ask the user). See `docs/todo.md`.
+- **Ad refresh now runs DAILY on TestChar1 only (2026-10-10, user)** – `adtest::daily_refresh` from the shop pass (Weapon, then Magic; marker `roster/TestChar1/ad_refresh.json`; today already used). Needs a release rebuild + restart to take effect; first automatic run 2026-10-11. OBSERVE TestChar1 for a few days: server warnings/errors, odd account behaviour, `trust_counter` (see `ad_test.log`); never more than 1 ad per shop per day. Only afterwards decide on other characters (ask the user).
+
 
 - **Ad-refresh experiment (2026-10-10, user): WORKED for BOTH shops on TestChar1** (free, mushrooms 37→37, new offers; `trust_counter` 4 for Weapon / 3 for Magic; `skipvideo:1` at login even after use → not a reliable flag). Details + open points in `docs/shops.md`. Second-use test CANCELLED by the user (max 1 ad per shop per day, never probe more); automation is the user's call, not decided. Code `src/adtest.rs` stays flag-gated, TestChar1 only.
 

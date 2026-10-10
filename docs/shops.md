@@ -110,3 +110,9 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
 - **Decision (user 2026-10-10): the "second use the same day" test is cancelled.** Regular characters get exactly 1 ad refresh per shop per
   day (resets at midnight); more attempts could look like abuse, so the bot must never try a repeat. If automated later, track
   "used today" locally per shop and never rely on probing the server. Automation itself is not decided yet (ask the user).
+- **Automated for TestChar1 only (2026-10-10, user):** `adtest::daily_refresh`, called from `shops::shop` when spinning has run
+  dry (no gold item left to spin, or gold below the reserve). Weapon Shop first, then Magic Shop, one per call (the loop looks at the
+  new offer and buys/spins again before the next one). At most one ad per shop per day, marker `roster/TestChar1/ad_refresh.json`
+  (`{date, weapon, magic}`, written before sending, so no retry after an error; today's two manual uses were pre-filled).
+  The manual flag file `ad_test` still works (and also marks the shop as used). Other characters: `NotApplicable`, nothing sent.
+  First automatic run expected 2026-10-11 (needs a release rebuild + restart); check `roster/TestChar1/logs/ad_test.log`.

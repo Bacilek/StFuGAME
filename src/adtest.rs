@@ -1,14 +1,16 @@
-//! EXPERIMENT (user 2026-10-10, docs/shops.md "Shop refresh for an ad"): the daily "watch an ad → new Weapon/Magic Shop
-//! offer". Runs ONLY on `TestChar1` and ONLY when `roster/TestChar1/ad_test` exists; its content picks the step:
-//! - `probe`  – logs the ad-related keys of the login response (`skipvideo` …), sends nothing,
-//! - `weapon` / `magic` – simulates watching the ad (waits ~10–15 s like the real one), then sends
-//!   `AdvertisementsCompleted:<4|5>` and `PlayerNewWares:<1|2>/2` (the ad refresh) and logs mushrooms, gold and the
-//!   shop offer before/after, so it is visible whether the refresh was free (the user accepts losing at most ONE
-//!   mushroom here). The flag file is removed afterwards, the whole thing runs at most once per process.
-//! Everything goes to `roster/TestChar1/logs/ad_test.log` (session keys are never written).
+//! Shop ad refresh (user 2026-10-10, docs/shops.md "Shop refresh for an ad"): the daily "watch an ad → new Weapon/Magic
+//! Shop offer". Verified live on TestChar1: free (mushrooms unchanged), the whole offer is replaced.
+//! ONLY for `TestChar1` (user: observe it for a few days before any other character gets it):
+//! - `daily_refresh` (called by `shops::shop` once spinning has run dry): at most ONE ad per shop per day (user
+//!   2026-10-10, resets at midnight), tracked in `roster/TestChar1/ad_refresh.json`, marked BEFORE sending so a
+//!   failure never leads to a repeat. Weapon Shop first, then Magic Shop.
+//! - Manual experiment: `roster/TestChar1/ad_test` = `probe`/`weapon`/`magic` (one shot per process, file removed after).
+//! Each refresh pretends to watch the ad (11–16 s), then sends `AdvertisementsCompleted:<4|5>` and
+//! `PlayerNewWares:<1|2>/2`. Everything goes to `roster/TestChar1/logs/ad_test.log` (session keys redacted).
 
 use std::{io::Write, time::Duration};
 
+use chrono::{Local, NaiveDate};
 use sf_api::command::Command;
 
 use crate::{inventory, safe, session::SimpleSession, tavern::Outcome};
@@ -16,12 +18,31 @@ use crate::{inventory, safe, session::SimpleSession, tavern::Outcome};
 const CHARACTER: &str = "TestChar1";
 
 static TRIED: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
+/// The shop whose ad refresh is in progress right now (`weapon`/`magic`), set only inside `refresh`.
+static ACTIVE: crate::ctx::PerChar<Option<&'static str>> = crate::ctx::PerChar::new();
 
-fn flag_path() -> std::path::PathBuf {
-    std::path::Path::new("roster").join(CHARACTER).join("ad_test")
+/// What `shops::shop` should do after `daily_refresh`.
+pub enum Refresh {
+    /// Nothing happened (not this character, or both shops already refreshed today)
+    NotApplicable,
+    /// A shop was refreshed: new offer, look at it again
+    Refreshed,
+    SessionLost,
 }
 
-/// Content of the flag file (`probe`/`weapon`/`magic`), only for the test character.
+fn dir() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(CHARACTER)
+}
+
+fn flag_path() -> std::path::PathBuf {
+    dir().join("ad_test")
+}
+
+fn marker_path() -> std::path::PathBuf {
+    dir().join("ad_refresh.json")
+}
+
+/// Content of the manual flag file (`probe`/`weapon`/`magic`), only for the test character.
 fn flag() -> Option<String> {
     if crate::ctx::name() != CHARACTER {
         return None;
@@ -29,9 +50,18 @@ fn flag() -> Option<String> {
     std::fs::read_to_string(flag_path()).ok().map(|s| s.trim().to_string())
 }
 
-/// Whitelist for `safe::custom_allowed`: exactly the two commands of the chosen shop, nothing else.
+/// Which shop is allowed to send ad commands right now.
+fn current_mode() -> Option<String> {
+    if crate::ctx::name() != CHARACTER {
+        return None;
+    }
+    let active = ACTIVE.lock().ok().and_then(|a| *a);
+    active.map(str::to_string).or_else(flag)
+}
+
+/// Whitelist for `safe::custom_allowed`: exactly the two commands of the shop being refreshed, nothing else.
 pub fn custom_allowed(cmd_name: &str, arguments: &[String]) -> bool {
-    let (ad, shop) = match flag().as_deref() {
+    let (ad, shop) = match current_mode().as_deref() {
         Some("weapon") => ("4", "1"),
         Some("magic") => ("5", "2"),
         _ => return false,
@@ -43,7 +73,7 @@ pub fn custom_allowed(cmd_name: &str, arguments: &[String]) -> bool {
     }
 }
 
-/// Mushrooms the ad refresh may cost (the user accepts one for this experiment).
+/// Mushrooms the ad refresh may cost (the user accepts one, expected to be free).
 pub fn allowed_spend(cmd: &Command) -> u32 {
     match cmd {
         Command::Custom { cmd_name, arguments } if cmd_name == "PlayerNewWares" && custom_allowed(cmd_name, arguments) => 1,
@@ -62,7 +92,7 @@ fn log(msg: &str) {
         let _ = std::fs::create_dir_all(parent);
     }
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(f, "{} {msg}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+        let _ = writeln!(f, "{} {msg}", Local::now().format("%Y-%m-%d %H:%M:%S"));
     }
 }
 
@@ -92,20 +122,22 @@ fn snapshot(session: &SimpleSession) -> String {
         .map_or("no state".into(), |gs| format!("mushrooms {}, silver {}", gs.character.mushrooms, gs.character.silver))
 }
 
-pub async fn run(session: &mut SimpleSession) -> Outcome {
-    let Some(mode) = flag() else { return Outcome::Done };
-    if TRIED.lock().map_or(true, |mut t| std::mem::replace(&mut *t, true)) {
-        return Outcome::Done;
+/// Pretends to watch the ad of one shop and refreshes it. `mode` = `weapon`/`magic`; the caller made sure the
+/// whitelist allows it (`current_mode`). Never retries.
+async fn refresh(session: &mut SimpleSession, mode: &'static str) -> Outcome {
+    let (shop_name, ad, shop) = if mode == "weapon" { ("Weapon", "4", "1") } else { ("Magic", "5", "2") };
+    if let Ok(mut a) = ACTIVE.lock() {
+        *a = Some(mode);
     }
-    log(&format!("mode {mode}, ad-related keys of the login response: [{}]", session.login_ad()));
-    let (shop_name, ad, shop) = match mode.as_str() {
-        "weapon" => ("Weapon", "4", "1"),
-        "magic" => ("Magic", "5", "2"),
-        _ => {
-            let _ = std::fs::remove_file(flag_path());
-            return Outcome::Done;
-        }
-    };
+    let outcome = refresh_inner(session, shop_name, ad, shop).await;
+    if let Ok(mut a) = ACTIVE.lock() {
+        *a = None;
+    }
+    outcome
+}
+
+async fn refresh_inner(session: &mut SimpleSession, shop_name: &str, ad: &str, shop: &str) -> Outcome {
+    log(&format!("{shop_name} Shop: ad-related keys of the login response: [{}]", session.login_ad()));
     log(&format!("before: {} | {shop_name} Shop: {}", snapshot(session), offer(session, shop_name)));
 
     // Pretend to watch the ad like a human would (they last about 10 s), then claim it
@@ -117,8 +149,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Ok(raw) => log(&format!("AdvertisementsCompleted:{ad} → {}", redact(&raw))),
         Err(e) => {
             log(&format!("AdvertisementsCompleted:{ad} failed: {e}"));
-            let _ = std::fs::remove_file(flag_path());
-            return Outcome::Done;
+            return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
         }
     }
     tokio::time::sleep(Duration::from_millis(fastrand::u64(1500..3500))).await;
@@ -131,6 +162,71 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         log(&format!("Update after the refresh failed: {e}"));
     }
     log(&format!("after: {} | {shop_name} Shop: {}", snapshot(session), offer(session, shop_name)));
-    let _ = std::fs::remove_file(flag_path());
     if session.game_state().is_none() { Outcome::SessionLost } else { Outcome::Done }
+}
+
+/// `{date, weapon, magic}`: which shops already used today's ad.
+fn used_today(today: NaiveDate) -> (bool, bool) {
+    let v: serde_json::Value =
+        std::fs::read_to_string(marker_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    if v["date"].as_str() != Some(&today.to_string()) {
+        return (false, false);
+    }
+    (v["weapon"].as_bool().unwrap_or(false), v["magic"].as_bool().unwrap_or(false))
+}
+
+/// Records that today's ad of this shop (`weapon`/`magic`) is used.
+fn mark_used(mode: &str) {
+    let today = Local::now().date_naive();
+    let (w, m) = used_today(today);
+    let (weapon, magic) = (w || mode == "weapon", m || mode == "magic");
+    let _ = std::fs::create_dir_all(dir());
+    let v = serde_json::json!({ "date": today.to_string(), "weapon": weapon, "magic": magic });
+    let _ = std::fs::write(marker_path(), v.to_string());
+}
+
+/// Daily ad refresh for `TestChar1`, called when spinning ran dry (every item costs mushrooms or gold ran out):
+/// the next shop that has not used today's ad yet (Weapon, then Magic) – one per call. The shop pass looks at the
+/// new offer afterwards and may call this again for the other shop.
+pub async fn daily_refresh(session: &mut SimpleSession) -> Refresh {
+    if crate::ctx::name() != CHARACTER {
+        return Refresh::NotApplicable;
+    }
+    let today = Local::now().date_naive();
+    let (weapon, magic) = used_today(today);
+    let mode = if !weapon {
+        "weapon"
+    } else if !magic {
+        "magic"
+    } else {
+        return Refresh::NotApplicable;
+    };
+    // Marked BEFORE sending: whatever happens, never a second try the same day
+    mark_used(mode);
+    log(&format!("daily ad refresh: {mode} shop"));
+    match refresh(session, mode).await {
+        Outcome::SessionLost => Refresh::SessionLost,
+        Outcome::Done => Refresh::Refreshed,
+    }
+}
+
+/// Manual one-shot experiment behind the flag file (see the module docs).
+pub async fn run(session: &mut SimpleSession) -> Outcome {
+    let Some(mode) = flag() else { return Outcome::Done };
+    if TRIED.lock().map_or(true, |mut t| std::mem::replace(&mut *t, true)) {
+        return Outcome::Done;
+    }
+    let outcome = match mode.as_str() {
+        "weapon" | "magic" => {
+            let mode: &'static str = if mode == "weapon" { "weapon" } else { "magic" };
+            mark_used(mode);
+            refresh(session, mode).await
+        }
+        _ => {
+            log(&format!("probe: ad-related keys of the login response: [{}]", session.login_ad()));
+            Outcome::Done
+        }
+    };
+    let _ = std::fs::remove_file(flag_path());
+    outcome
 }
