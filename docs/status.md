@@ -2,6 +2,8 @@
 
 Updated: 2026-10-10. Rewrite after every bigger change.
 
+- **Daily lucky coin ads on TestChar1 (2026-10-10, user):** 3 per day, randomly spread (`adtest::daily_lucky`, plan `roster/TestChar1/lucky_ads.json`), log `roster/TestChar1/logs/lucky_ads.csv` with the `trust_counter` per claim. OBSERVE ~1 week (until about 2026-10-17): read the csv, check trust_counter trend + account behaviour, then ask the user about more. Compiles; needs a release rebuild + restart. Details: `docs/shops.md`.
+
 - **Lucky-coin ad experiment RAN (2026-10-10 14:51, TestChar1):** server accepted `AdvertisementsCompleted:1` (raw response said lucky coins 163), but the following `Update` and `now.json` still showed 160 – user CONFIRMED +3 credited (163 lucky coins) and the TV is still shown; the bot's `Update` did not show the coins (stale). Open: can the TV be claimed repeatedly / how often? The user measured it on their own account: 33 ads in a row, all gave 3 lucky coins, a new TV ~1 min after each, no limit seen. Decision pending: automate or not, daily cap, what to spend the coins on (see `docs/shops.md`).
 - **Lucky-coin ad experiment written (2026-10-10, user):** `roster/TestChar1/ad_test` = `lucky` sends `AdvertisementsCompleted:1` (user's capture of the flying TV, 3 lucky coins) after a simulated 11–16 s watch and logs lucky coins before/after + the raw response to `ad_test.log`; whitelisted only in that mode (`adtest::custom_allowed`). Not run – needs a release rebuild; user creates the flag file while a TV is visible in the game. See `docs/shops.md`.
 

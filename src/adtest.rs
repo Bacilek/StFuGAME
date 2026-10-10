@@ -178,7 +178,10 @@ async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
     log(&format!("pretending to watch the ad for {} s", watch / 1000));
     tokio::time::sleep(Duration::from_millis(watch)).await;
     match safe::send_raw_only(session, custom("AdvertisementsCompleted", &["1"])).await {
-        Ok(raw) => log(&format!("AdvertisementsCompleted:1 → {}", redact(&raw))),
+        Ok(raw) => {
+            log(&format!("AdvertisementsCompleted:1 → {}", redact(&raw)));
+            record_lucky(&raw, coins(session));
+        }
         Err(e) => {
             log(&format!("AdvertisementsCompleted:1 failed: {e}"));
             return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
@@ -190,6 +193,83 @@ async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
     }
     log(&format!("after: lucky coins {}, {}", coins(session), snapshot(session)));
     if session.game_state().is_none() { Outcome::SessionLost } else { Outcome::Done }
+}
+
+/// One line per lucky coin ad in `roster/TestChar1/logs/lucky_ads.csv` for the week of observation (user 2026-10-10):
+/// `date,time,trust_counter,coins_before,coins_in_response`. The coins in the raw response are the 4th field of
+/// `resources:` (the state after an `Update` stays stale, see docs/shops.md).
+fn record_lucky(raw: &str, coins_before: i64) {
+    let field = |key: &str| raw.split('&').find_map(|kv| kv.strip_prefix(key)).unwrap_or("?").to_string();
+    let coins_now = field("resources:").split('/').nth(3).unwrap_or("?").to_string();
+    let path = crate::ctx::log_path("lucky_ads.csv");
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let now = Local::now();
+        let _ = writeln!(f, "{},{},{},{coins_before},{coins_now}", now.format("%Y-%m-%d"), now.format("%H:%M:%S"), field("trust_counter:"));
+    }
+}
+
+/// Lucky coin ads per day (user 2026-10-10: three a day on TestChar1 only, spread over the day with random jitter,
+/// a week of observation of `trust_counter` and the account before anything more).
+const LUCKY_ADS_PER_DAY: usize = 3;
+/// The day is split into three equal windows from 09:00 to 22:30; one ad at a random minute of each.
+const LUCKY_FROM_MIN: u32 = 9 * 60;
+const LUCKY_WINDOW_MIN: u32 = 270;
+
+fn lucky_plan_path() -> std::path::PathBuf {
+    dir().join("lucky_ads.json")
+}
+
+/// Today's `(planned minutes of the day, ads already claimed)`; a new random plan on a new day.
+fn lucky_plan(today: NaiveDate) -> (Vec<u32>, usize) {
+    let v: serde_json::Value =
+        std::fs::read_to_string(lucky_plan_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    if v["date"].as_str() == Some(&today.to_string())
+        && let Some(times) = v["times"].as_array()
+    {
+        let times: Vec<u32> = times.iter().filter_map(|t| t.as_u64().map(|t| t as u32)).collect();
+        if times.len() == LUCKY_ADS_PER_DAY {
+            return (times, v["done"].as_u64().unwrap_or(0) as usize);
+        }
+    }
+    let times: Vec<u32> = (0..LUCKY_ADS_PER_DAY as u32)
+        .map(|k| fastrand::u32(LUCKY_FROM_MIN + k * LUCKY_WINDOW_MIN..LUCKY_FROM_MIN + (k + 1) * LUCKY_WINDOW_MIN))
+        .collect();
+    save_lucky_plan(today, &times, 0);
+    (times, 0)
+}
+
+fn save_lucky_plan(today: NaiveDate, times: &[u32], done: usize) {
+    let _ = std::fs::create_dir_all(dir());
+    let v = serde_json::json!({ "date": today.to_string(), "times": times, "done": done });
+    let _ = std::fs::write(lucky_plan_path(), v.to_string());
+}
+
+/// The daily lucky coin ads of `TestChar1`: claims the next planned one when its time has come (at most one per
+/// call). Marked as done BEFORE sending, so a failure never leads to a repeat.
+async fn daily_lucky(session: &mut SimpleSession) -> Outcome {
+    if crate::ctx::name() != CHARACTER {
+        return Outcome::Done;
+    }
+    let now = Local::now();
+    let today = now.date_naive();
+    let (times, done) = lucky_plan(today);
+    let minute = chrono::Timelike::hour(&now) * 60 + chrono::Timelike::minute(&now);
+    if done >= times.len() || minute < times[done] {
+        return Outcome::Done;
+    }
+    save_lucky_plan(today, &times, done + 1);
+    log(&format!("daily lucky coin ad {}/{LUCKY_ADS_PER_DAY} (planned for minute {} of the day)", done + 1, times[done]));
+    if let Ok(mut a) = ACTIVE.lock() {
+        *a = Some("lucky");
+    }
+    let outcome = lucky_ad(session).await;
+    if let Ok(mut a) = ACTIVE.lock() {
+        *a = None;
+    }
+    outcome
 }
 
 /// `{date, weapon, magic}`: which shops already used today's ad.
@@ -239,6 +319,9 @@ pub async fn daily_refresh(session: &mut SimpleSession) -> Refresh {
 
 /// Manual one-shot experiment behind the flag file (see the module docs).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
+    if let Outcome::SessionLost = daily_lucky(session).await {
+        return Outcome::SessionLost;
+    }
     let Some(mode) = flag() else { return Outcome::Done };
     if TRIED.lock().map_or(true, |mut t| std::mem::replace(&mut *t, true)) {
         return Outcome::Done;
