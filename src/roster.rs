@@ -732,24 +732,14 @@ fn change_entry(text: String, icon: Option<&str>) -> serde_json::Value {
 }
 
 /// Human-readable changes between two snapshots (the reasons a win rate could jump). Only what is notable
-/// (user 2026-10-10): bought attributes, epics/legendaries that dropped (with icon), a clearly better weapon
+/// (user 2026-10-10): epics/legendaries that dropped (with icon), a clearly better weapon
 /// (average damage before → after), a huge upgrade of any other slot, the best potion setup, a new guild.
-/// Level-ups and ordinary new items/potions are left out – everyone has them.
+/// Level-ups, bought attributes and ordinary new items/potions are left out – everyone has them.
 fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Vec<serde_json::Value> {
     /// Weapon damage must grow by at least this share to be mentioned; other slots by `BIG_UPGRADE` (value ratio).
     const BETTER_WEAPON: f64 = 1.15;
     const BIG_UPGRADE: f64 = 1.5;
     let mut out = Vec::new();
-    let bought: Vec<String> = ATTRS
-        .iter()
-        .filter_map(|(_, n)| {
-            let d = cur["attrs"][*n].as_i64().unwrap_or(0) - prev["attrs"][*n].as_i64().unwrap_or(0);
-            (d > 0).then(|| format!("{n} +{d}"))
-        })
-        .collect();
-    if !bought.is_empty() {
-        out.push(change_entry(format!("Attributes bought: {}", bought.join(", ")), None));
-    }
     for (_, slot) in SLOTS {
         let (a, b) = (&prev["equip"][slot], &cur["equip"][slot]);
         if b.is_null() || a["d"] == b["d"] {
@@ -1000,7 +990,6 @@ mod tests {
         assert_eq!(
             changes(&prev, &cur, "Warrior"),
             [
-                serde_json::json!("Attributes bought: STR +5"),
                 serde_json::json!({"t": "New epic weapon (damage 18 → 28)", "icon": "w.png"}),
                 serde_json::json!("Best potion setup (main attribute + Constitution + Eternal Life, all maximum size)"),
                 serde_json::json!("Joined the guild Artušova Garda"),
