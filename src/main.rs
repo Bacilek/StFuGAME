@@ -3,6 +3,7 @@
 
 #[macro_use]
 mod report;
+mod adtest;
 mod app;
 mod arena;
 mod arena_highlights;
@@ -295,6 +296,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 continue;
             }
             tavern_done = before.0 == CurrentAction::Idle;
+        }
+
+        // Shop-ad experiment, TestChar1 only and only with the flag file (src/adtest.rs)
+        if let tavern::Outcome::SessionLost = adtest::run(session).await {
+            return tavern::Outcome::SessionLost;
         }
 
         // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)

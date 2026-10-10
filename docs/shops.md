@@ -83,3 +83,14 @@ restart all 12 characters ran the shop with offers that were already spun empty 
 Now: `roster/<character>/shop_reserve.json` (`{date, seen, carry}`) is loaded on start; a new day starts from yesterday's `seen` as `carry`
 (effective reserve = max(seen today, carry)); and when no gold item was ever seen, the gold price of the class's mushroom-priced equipment is the estimate.
 Not run live yet. The `need more gold` error from the surplus loop (price estimate = last price) is separate and still there.
+
+## Ad-refresh experiment (2026-10-10, user: "try it on the test user")
+- Code: `src/adtest.rs`, hooked into the main loop before `shops::run`. Runs ONLY for `TestChar1` and ONLY while the flag
+  file `roster/TestChar1/ad_test` exists (content `weapon` = ad 4 / shop 1, `magic` = ad 5 / shop 2, `probe` = just log).
+  The file is removed afterwards; at most once per process.
+- Flow: log the ad-related keys of the login response (`skipvideo` …, `SimpleSession::login_ad`), log mushrooms/gold/offer, wait
+  11–16 s like a real ad, `AdvertisementsCompleted:<ad>`, 1.5–3.5 s later `PlayerNewWares:<shop>/2`, `Update`, log again.
+  Everything → `roster/TestChar1/logs/ad_test.log` (session keys redacted). Whitelisted by `adtest::custom_allowed` (exactly
+  these two commands for the chosen shop); the mushroom watchdog allows a decrease of 1 for that `PlayerNewWares` only.
+- Verification (⏳ after the first run): does the server accept the claim without an SDK? is the refresh free (mushrooms
+  unchanged)? does the offer change? what does `skipvideo` say before/after? any `trust_counter` change or warning?

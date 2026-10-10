@@ -12,6 +12,21 @@ pub struct SimpleSession {
     /// The raw `ownplayersavecharacter` numbers of the latest response that carried them (sf-api drops the first
     /// one; the coupon "payment string" needs it, see `coupons.rs`).
     char_save: Option<Vec<i64>>,
+    /// `key:value` pairs of the latest login response that might say whether the daily shop ad is still available
+    /// (`skipvideo` etc.; sf-api ignores them), see `adtest.rs`. Never contains session keys.
+    login_ad: String,
+}
+
+/// The `key:value` pairs of a raw response whose key looks ad-related (`skipvideo`, `skipallow`, …).
+fn ad_keys(raw: &str) -> String {
+    raw.split('&')
+        .filter(|kv| {
+            let key = kv.split(':').next().unwrap_or("");
+            key.contains("skip") || key.contains("video") || key.contains("advert")
+        })
+        .map(|kv| kv.chars().take(80).collect::<String>())
+        .collect::<Vec<_>>()
+        .join(" | ")
 }
 
 /// Picks the `ownplayersavecharacter` numbers out of a raw response (`key:value&key:value…`), if it has them.
@@ -30,7 +45,7 @@ impl SimpleSession {
             .await?
             .into_iter()
             .flatten()
-            .map(|session| Self { session, gamestate: None, char_save: None })
+            .map(|session| Self { session, gamestate: None, char_save: None, login_ad: String::new() })
             .collect())
     }
 
@@ -48,6 +63,11 @@ impl SimpleSession {
         self.char_save.as_deref()
     }
 
+    /// Ad-related keys of the latest login response (see `adtest.rs`).
+    pub fn login_ad(&self) -> &str {
+        &self.login_ad
+    }
+
     pub fn game_state(&self) -> Option<&GameState> {
         self.gamestate.as_ref()
     }
@@ -62,6 +82,7 @@ impl SimpleSession {
         if self.gamestate.is_none() {
             let resp = self.session.login().await?;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
+            self.login_ad = ad_keys(resp.raw_response());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
@@ -91,6 +112,7 @@ impl SimpleSession {
         if self.gamestate.is_none() {
             let resp = self.session.login().await?;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
+            self.login_ad = ad_keys(resp.raw_response());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }

@@ -200,6 +200,8 @@ fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) 
         ("PlayerCombatLogMark", [id, flag]) => {
             (flag == "1" || flag == "0") && gs.is_some_and(|gs| gs.mail.combat_log.iter().any(|e| e.msg_id.to_string() == *id))
         }
+        // Experiment on the test character only, behind a flag file (user 2026-10-10, src/adtest.rs)
+        ("AdvertisementsCompleted" | "PlayerNewWares", _) => crate::adtest::custom_allowed(cmd_name, arguments),
         _ => false,
     }
 }
@@ -279,6 +281,7 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     let allowed_spend = match &cmd {
         Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
         Command::BuyBeer => crate::tasks::BEER_MUSHROOMS,
+        Command::Custom { .. } => crate::adtest::allowed_spend(&cmd),
         _ => 0,
     };
 
