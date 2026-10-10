@@ -147,3 +147,6 @@ doesn't keep printing a misleading "0 points" line every 15 min either. Yesterda
 whole time, so this guard only ever suppresses the brief sync-lag window, not legitimate low/zero thresholds.
 **Needs a release rebuild + bot restart to take effect** – not yet verified live (the running bot still has the
 old behaviour until restarted).
+
+## Travel beer (2026-10-10, user)
+`tasks::travel_beer_needed`/`travel_beer_justified` (also checked by `safe.rs` via `beer_justified`): one beer a day when the highest unopened chest (daily or event) lacks only one `TravelTo(X)` visit, the Tavern has no Thirst for Adventure left, an offered expedition passes X with a cost of at most `BEER_ALU_SEC` (20 min, ASSUMED beer bonus, not verified live) and the free points (Arena/City Guard, shell game, attribute tasks) would not reach the chest. Then the normal Tavern flow starts that expedition (`choose_expedition` prefers wanted locations). Log: `Drinking ONE beer … the last chest lacks one visit`. Check the real bonus ALU of a beer the first time it happens.

@@ -18,6 +18,7 @@ use sf_api::{
         GameState,
         guild::GuildSkill,
         rewards::{RewardChest, RewardType, Task, TaskType},
+        tavern::{AvailableTasks, CurrentAction, Location},
     },
 };
 
@@ -368,9 +369,72 @@ fn gambling_is_open(tasks: &[Task]) -> bool {
     tasks.iter().any(|task| task.typ == TaskType::DefeatGambler && !task.is_completed())
 }
 
+/// Bonus Thirst for Adventure of one beer, as far as we assume (NOT verified live yet): the expedition we want the
+/// beer for must cost at most this much.
+const BEER_ALU_SEC: u32 = 20 * 60;
+
+/// "Last chest" travel beer (user 2026-10-10, Mrožik missed a 125 g chest by one BustedLands visit with 0 Thirst for
+/// Adventure): ONE beer (1 mushroom) is allowed when the highest unopened Gleeman chest (daily or event) lacks only
+/// one `TravelTo(location)` visit, the Tavern is out of Thirst for Adventure, one of the expeditions on offer passes
+/// that location (and costs at most one beer's worth), and nothing free (gold-only tasks, Arena, City Guard) would
+/// reach the chest anyway. `offered` = (location 1, location 2, Thirst for Adventure cost) of each expedition.
+pub fn travel_beer_needed(
+    tasks: &[Task],
+    chests: &[RewardChest],
+    gamble_possible: bool,
+    thirst_now: u32,
+    offered: &[(Location, Location, u32)],
+) -> bool {
+    if offered.iter().any(|o| o.2 <= thirst_now) {
+        return false; // can still start an expedition without a beer
+    }
+    let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
+    if last.opened {
+        return false;
+    }
+    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+    // Free ways to the chest: Arena/City Guard, the shell game (gold), attribute tasks (gold)
+    let free: u32 = natural_points(tasks)
+        + tasks
+            .iter()
+            .filter(|t| !t.is_completed())
+            .filter(|t| (t.typ == TaskType::DefeatGambler && gamble_possible) || is_attribute_task(t.typ))
+            .map(|t| t.point_reward)
+            .sum::<u32>();
+    if earned + free >= last.required_points {
+        return false;
+    }
+    tasks.iter().filter(|t| !t.is_completed()).any(|t| {
+        let TaskType::TravelTo(place) = t.typ else { return false };
+        t.target - t.current == 1
+            && earned + free + t.point_reward >= last.required_points
+            && offered.iter().any(|o| (o.0 == place || o.1 == place) && o.2 <= BEER_ALU_SEC)
+    })
+}
+
+static TRAVEL_BEER_DAY: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
+
+fn travel_beer_used_today() -> bool {
+    TRAVEL_BEER_DAY.lock().is_ok_and(|d| *d == Some(chrono::Local::now().date_naive()))
+}
+
+/// `travel_beer_needed` for the daily and the event task list of the current game state (once per day).
+fn travel_beer_justified(gs: &GameState) -> bool {
+    if travel_beer_used_today() || gs.tavern.beer_drunk >= gs.tavern.beer_max || gs.tavern.current_action != CurrentAction::Idle {
+        return false;
+    }
+    let AvailableTasks::Expeditions(list) = gs.tavern.available_tasks() else { return false };
+    let offered: Vec<_> = list.iter().map(|e| (e.location_1, e.location_2, e.thirst_for_adventure_sec)).collect();
+    let t = &gs.specials.tasks;
+    let gamble = Means::of(gs).gamble;
+    let thirst = gs.tavern.thirst_for_adventure_sec;
+    travel_beer_needed(&t.daily.tasks, &t.daily.rewards, gamble, thirst, &offered)
+        || travel_beer_needed(&t.event.tasks, &t.event.rewards, gamble, thirst, &offered)
+}
+
 /// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
 pub fn beer_justified(gs: &GameState) -> bool {
-    planned(gs).contains(&Extra::Beer)
+    planned(gs).contains(&Extra::Beer) || travel_beer_justified(gs)
 }
 
 /// May the bot spin the Wheel of Fortune for lucky coins now? (Also checked by `safe.rs`.)
@@ -384,7 +448,14 @@ async fn drink_beer(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let left = remaining(gs, |t| t == TaskType::DrinkBeer);
-    report!("[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom, {left} to go): needed for a chest with enough mushrooms");
+    if !planned(gs).contains(&Extra::Beer) {
+        report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the last chest lacks one visit that an offered expedition provides");
+        if let Ok(mut d) = TRAVEL_BEER_DAY.lock() {
+            *d = Some(chrono::Local::now().date_naive());
+        }
+    } else {
+        report!("[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom, {left} to go): needed for a chest with enough mushrooms");
+    }
     send_or_return!(session, Command::BuyBeer);
     claim_chests(session).await
 }
@@ -652,6 +723,43 @@ mod tests {
             task(TaskType::SpinWheelOfFortune, 1, 5, 2),
         ];
         assert_eq!(plan(&tasks, &chests, RICH), [Extra::Gamble, Extra::Wheel]);
+    }
+
+    #[test]
+    fn travel_beer_only_for_the_last_chest_when_nothing_free_helps() {
+        use Location::{BustedLands, SkullIsland};
+        let tasks = vec![
+            task(TaskType::WinFightsInArena, 10, 10, 2),
+            task(TaskType::DefeatGambler, 3, 3, 4),
+            task(TaskType::TravelTo(BustedLands), 1, 2, 4),
+            task(TaskType::DrinkBeer, 0, 10, 1),
+        ];
+        let chests = [chest(5), chest(6)];
+        let offered = [(BustedLands, SkullIsland, 900), (SkullIsland, SkullIsland, 600)];
+        // earned 6 (== last chest) is already enough: no beer needed
+        assert!(!travel_beer_needed(&tasks, &chests, false, 0, &offered));
+        let chests = [chest(5), chest(10)];
+        // 6 earned, the BustedLands visit (+4) reaches the last chest (10), offered expedition passes it
+        assert!(travel_beer_needed(&tasks, &chests, false, 0, &offered));
+        // still enough Thirst for Adventure: no beer
+        assert!(!travel_beer_needed(&tasks, &chests, false, 600, &offered));
+        // no offered expedition passes the place (or too long for one beer)
+        assert!(!travel_beer_needed(&tasks, &chests, false, 0, &[(SkullIsland, SkullIsland, 900)]));
+        assert!(!travel_beer_needed(&tasks, &chests, false, 0, &[(BustedLands, SkullIsland, 3000)]));
+        // the last chest already opened
+        let mut opened = chests;
+        opened[1].opened = true;
+        assert!(!travel_beer_needed(&tasks, &opened, false, 0, &offered));
+        // a free gold-only task (shell game, 8 points) would reach the chest anyway
+        let free = vec![
+            task(TaskType::WinFightsInArena, 10, 10, 2),
+            task(TaskType::DefeatGambler, 0, 3, 8),
+            task(TaskType::TravelTo(BustedLands), 1, 2, 4),
+        ];
+        assert!(!travel_beer_needed(&free, &[chest(10)], true, 0, &offered));
+        // two visits missing: one beer would not finish it
+        let two = vec![task(TaskType::WinFightsInArena, 10, 10, 6), task(TaskType::TravelTo(BustedLands), 0, 2, 4)];
+        assert!(!travel_beer_needed(&two, &[chest(10)], false, 0, &offered));
     }
 
     #[test]
