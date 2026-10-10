@@ -94,3 +94,9 @@ Not run live yet. The `need more gold` error from the surplus loop (price estima
   these two commands for the chosen shop); the mushroom watchdog allows a decrease of 1 for that `PlayerNewWares` only.
 - Verification (⏳ after the first run): does the server accept the claim without an SDK? is the refresh free (mushrooms
   unchanged)? does the offer change? what does `skipvideo` say before/after? any `trust_counter` change or warning?
+- **Result 2026-10-10 10:07 (TestChar1, Weapon Shop): it WORKS and is FREE.** Login response had `skipvideo:1` (ad-available flag, very
+  likely; `0` expected once used – not yet seen). After an 11 s simulated watch: `AdvertisementsCompleted:4` →
+  `trust_counter:4&resources:…`, 3 s later `PlayerNewWares:1/2` → full new offer (the whole Weapon Shop changed), mushrooms
+  37 → 37, silver unchanged; the normal shop pass then bought an upgrade from the new offer. No error, no warning.
+  Still open: does `skipvideo` flip to `0` after use (check the next login), does the second call the same day get rejected
+  (and for free), Magic Shop (`magic`: ad 5, shop 2) not tried, `trust_counter` meaning (4 = ?, compare with a later value).
