@@ -86,3 +86,6 @@ The user dictates the sequence; the bot builds the first entry below its target 
 **Reserve (user 2026-10-11): the shop reserve does NOT apply to the fortress** – a build may use all the gold (it still comes after the day's shop pass, so better items are bought first).
 
 The login response carries `maxupgradelevel:20` (buildings go up to level 20) and the whole `fortressprice` table, so building prices are known right after login (TestChar1, level 22, 2026-10-11, had no fortress yet).
+
+## Plan change (user 2026-10-11)
+New order: Fortress 2, **Quarry 2, Woodcutter's Hut 2, then Laborers' Quarters 2**, Treasury 1. Reason: the production buildings are cheaper and raise the income, while the Laborers' Quarters only shorten the build times – pointless while we wait for wood/stone anyway. General principle for every future plan entry: income buildings first, time savers after. (`PLAN` in `src/fortress.rs`.)

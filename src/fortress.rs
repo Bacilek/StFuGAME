@@ -27,9 +27,12 @@ const PLAN: &[(B, u16)] = &[
     (B::Quarry, 1),
     (B::LaborersQuarters, 1),
     (B::Fortress, 2),
-    (B::LaborersQuarters, 2),
-    (B::WoodcuttersHut, 2),
+    // User 2026-10-11: the production buildings go before the Laborers' Quarters – they are cheaper and raise the income,
+    // while the Laborers' Quarters only shorten build times, which is pointless when we wait for wood/stone anyway.
+    // Keep this in mind when the list grows: income first, time savers after.
     (B::Quarry, 2),
+    (B::WoodcuttersHut, 2),
+    (B::LaborersQuarters, 2),
     (B::Treasury, 1),
 ];
 
@@ -141,11 +144,15 @@ mod tests {
         assert_eq!(pick(at(&[]), 15), Some(B::Fortress));
         assert_eq!(pick(at(&[(B::Fortress, 1)]), 15), Some(B::WoodcuttersHut));
         assert_eq!(pick(at(&[(B::Fortress, 1), (B::WoodcuttersHut, 1)]), 15), Some(B::Quarry));
-        // the user's order: Fortress 2, then Laborers' Quarters 2, Woodcutter 2, Quarry 2, Treasury 1
+        // the user's order: Fortress 2, then Quarry 2, Woodcutter 2, Laborers' Quarters 2, Treasury 1 (income before time savers)
         let done = &[(B::Fortress, 1), (B::WoodcuttersHut, 1), (B::Quarry, 1), (B::LaborersQuarters, 1)];
         assert_eq!(pick(at(done), 15), Some(B::Fortress));
         let f2 = &[(B::Fortress, 2), (B::WoodcuttersHut, 1), (B::Quarry, 1), (B::LaborersQuarters, 1)];
-        assert_eq!(pick(at(f2), 15), Some(B::LaborersQuarters));
+        assert_eq!(pick(at(f2), 15), Some(B::Quarry));
+        let q2 = &[(B::Fortress, 2), (B::WoodcuttersHut, 1), (B::Quarry, 2), (B::LaborersQuarters, 1)];
+        assert_eq!(pick(at(q2), 15), Some(B::WoodcuttersHut));
+        let w2 = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 1)];
+        assert_eq!(pick(at(w2), 15), Some(B::LaborersQuarters));
         let all = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2)];
         assert_eq!(pick(at(all), 15), Some(B::Treasury));
         let end = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2), (B::Treasury, 1)];
