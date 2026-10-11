@@ -392,6 +392,11 @@ fn gambling_is_open(tasks: &[Task]) -> bool {
     tasks.iter().any(|task| task.typ == TaskType::DefeatGambler && !task.is_completed())
 }
 
+/// A chest that pays only gold (user 2026-10-11): never worth a mushroom, so no travel/quest beer for it.
+fn gold_only(c: &RewardChest) -> bool {
+    !c.rewards.is_empty() && c.rewards.iter().all(|r| r.typ == RewardType::Silver)
+}
+
 /// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
 /// cost at most this much.
 const BEER_ALU_SEC: u32 = 20 * 60;
@@ -412,7 +417,7 @@ pub fn travel_beer_needed(
         return false; // can still start an expedition without a beer
     }
     let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
-    if last.opened {
+    if last.opened || gold_only(last) {
         return false;
     }
     let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
@@ -479,7 +484,7 @@ fn travel_beer_justified(gs: &GameState) -> bool {
 /// budget with the travel beer (`mark_travel_beer_used`); a chest that pays mushrooms back is the `plan` path instead.
 pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible: bool) -> bool {
     let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
-    if last.opened || last.required_points == 0 {
+    if last.opened || last.required_points == 0 || gold_only(last) {
         return false;
     }
     let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
@@ -872,6 +877,10 @@ mod tests {
         let mut opened = [chest(2), chest(4)];
         opened[1].opened = true;
         assert!(!quest_beer_needed(&mk(1), &opened, false));
+        // a chest that pays only gold is never worth a mushroom
+        let mut gold = [chest(2), chest(4)];
+        gold[1].rewards = vec![sf_api::gamestate::rewards::Reward { typ: RewardType::Silver, amount: 16000 }];
+        assert!(!quest_beer_needed(&mk(1), &gold, false));
         // only the 10-beer task: never
         let ten = vec![task(TaskType::WinFightsInArena, 10, 10, 2), task(TaskType::DrinkBeer, 0, 10, 2)];
         assert!(!quest_beer_needed(&ten, &[chest(4)], false));
