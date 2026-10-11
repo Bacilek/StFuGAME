@@ -1,6 +1,5 @@
 //! Fortress (unlocked at level 25, user 2026-10-11, rules in `docs/fortress.md`): collect the resources, finish and start
-//! builds. Only Fortress, Laborers' Quarters, Woodcutter's Hut and Quarry for now (the user answers about the other buildings
-//! later); NEVER the Wall (fortifications: weak defence = more attackers = more counter-attacks) and no Gem Mine yet
+//! builds, strictly following `PLAN` below (the user dictates the sequence; nothing outside it is ever built); NEVER the Wall (fortifications: weak defence = more attackers = more counter-attacks) and no Gem Mine yet
 //! (only from character level 125). Never mushrooms or hourglasses to finish a build (`FortressBuildFinish` only with
 //! `mushrooms: 0`, which is also what the game wants after a build timer ran out).
 //!
@@ -18,29 +17,29 @@ use sf_api::{
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
+/// The build plan (user 2026-10-11): (building, level to reach), in this order. The bot builds the first entry whose
+/// building is below its level and WAITS for it (resources/gold) instead of skipping ahead. When the list is done it
+/// stops until the user dictates more. Wall and Gem Mine (only from character level 125) are not in it.
+const PLAN: &[(B, u16)] = &[
+    (B::Fortress, 1),
+    (B::WoodcuttersHut, 1),
+    (B::Quarry, 1),
+    (B::LaborersQuarters, 1),
+    (B::Fortress, 2),
+    (B::LaborersQuarters, 2),
+    (B::WoodcuttersHut, 2),
+    (B::Quarry, 2),
+    (B::Treasury, 1),
+];
+
 /// Buildings the bot may touch (the same list is enforced in `safe.rs`).
 pub fn building_allowed(b: B) -> bool {
-    matches!(b, B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry)
+    PLAN.iter().any(|(p, _)| *p == b)
 }
 
-/// Which building to build next: the Woodcutter's Hut right after the Fortress exists (user: its level 1 is the second
-/// upgrade, the wood has to come from somewhere), then the Quarry (the stone, user 2026-10-11), then the Fortress and the Laborers' Quarters together – whichever
-/// has the lower level, the Fortress on a tie (a building cannot be higher than the Fortress).
+/// The next building of the plan that is not at its target level yet.
 fn pick(level: impl Fn(B) -> u16, max_level: u16) -> Option<B> {
-    let (fortress, quarters) = (level(B::Fortress), level(B::LaborersQuarters));
-    if fortress == 0 {
-        return Some(B::Fortress);
-    }
-    if level(B::WoodcuttersHut) == 0 {
-        return Some(B::WoodcuttersHut);
-    }
-    if level(B::Quarry) == 0 {
-        return Some(B::Quarry);
-    }
-    if quarters < fortress {
-        return Some(B::LaborersQuarters);
-    }
-    (fortress < max_level).then_some(B::Fortress)
+    PLAN.iter().find(|(b, target)| level(*b) < (*target).min(max_level.max(1))).map(|(b, _)| *b)
 }
 
 /// Resources of one kind that can be collected right now (the server only recalculates them from time to time).
@@ -132,38 +131,31 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 mod tests {
     use super::*;
 
-    fn levels(f: u16, q: u16, w: u16) -> impl Fn(B) -> u16 {
-        levels4(f, q, w, 1)
-    }
-
-    fn levels4(f: u16, q: u16, w: u16, quarry: u16) -> impl Fn(B) -> u16 {
-        move |b| match b {
-            B::Fortress => f,
-            B::LaborersQuarters => q,
-            B::WoodcuttersHut => w,
-            B::Quarry => quarry,
-            _ => 0,
-        }
+    fn at(levels: &'static [(B, u16)]) -> impl Fn(B) -> u16 {
+        move |b| levels.iter().find(|(x, _)| *x == b).map_or(0, |(_, l)| *l)
     }
 
     #[test]
     fn build_order() {
-        assert_eq!(pick(levels(0, 0, 0), 15), Some(B::Fortress));
-        // Woodcutter's Hut 1 right after Fortress 1 (user 2026-10-11)
-        assert_eq!(pick(levels(1, 0, 0), 15), Some(B::WoodcuttersHut));
-        // then the Quarry (stone), user 2026-10-11
-        assert_eq!(pick(levels4(1, 0, 1, 0), 15), Some(B::Quarry));
-        assert_eq!(pick(levels(1, 0, 1), 15), Some(B::LaborersQuarters));
-        assert_eq!(pick(levels(1, 1, 1), 15), Some(B::Fortress));
-        assert_eq!(pick(levels(2, 1, 1), 15), Some(B::LaborersQuarters));
-        assert_eq!(pick(levels(15, 15, 1), 15), None);
-        assert_eq!(pick(levels(15, 14, 1), 15), Some(B::LaborersQuarters));
+        assert_eq!(pick(at(&[]), 15), Some(B::Fortress));
+        assert_eq!(pick(at(&[(B::Fortress, 1)]), 15), Some(B::WoodcuttersHut));
+        assert_eq!(pick(at(&[(B::Fortress, 1), (B::WoodcuttersHut, 1)]), 15), Some(B::Quarry));
+        // the user's order: Fortress 2, then Laborers' Quarters 2, Woodcutter 2, Quarry 2, Treasury 1
+        let done = &[(B::Fortress, 1), (B::WoodcuttersHut, 1), (B::Quarry, 1), (B::LaborersQuarters, 1)];
+        assert_eq!(pick(at(done), 15), Some(B::Fortress));
+        let f2 = &[(B::Fortress, 2), (B::WoodcuttersHut, 1), (B::Quarry, 1), (B::LaborersQuarters, 1)];
+        assert_eq!(pick(at(f2), 15), Some(B::LaborersQuarters));
+        let all = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2)];
+        assert_eq!(pick(at(all), 15), Some(B::Treasury));
+        let end = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2), (B::Treasury, 1)];
+        assert_eq!(pick(at(end), 15), None);
     }
 
     #[test]
-    fn only_the_agreed_buildings() {
-        assert!(building_allowed(B::Fortress) && building_allowed(B::LaborersQuarters) && building_allowed(B::WoodcuttersHut));
-        assert!(building_allowed(B::Quarry));
+    fn only_the_planned_buildings() {
+        for b in [B::Fortress, B::LaborersQuarters, B::WoodcuttersHut, B::Quarry, B::Treasury] {
+            assert!(building_allowed(b));
+        }
         assert!(!building_allowed(B::Wall) && !building_allowed(B::GemMine) && !building_allowed(B::Barracks));
     }
 }
