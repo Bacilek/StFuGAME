@@ -126,6 +126,9 @@ pub const MISSIONS: &[Mission] = &[
     // sf-api ids: Prince = fairy fountain, RoyalFrog = polluted fairy fountain
     // user 2026-10-10: fountain +8, polluted fountain -4, bonus +8 per piece (net +4 each), 0 when failed
     repeats(known("Toxic Fountain Cure", &[(Prince, 8), (RoyalFrog, -4)], Bonus::PerItem(8), 1)),
+    // user 2026-10-12: fishing rod 0, fishing bait 3, merman 9, bonus +5 on completion, -5 when failed.
+    // NB: `FishingBait` (worms) is NOT the dragon's `Bait` (princess, -2) – different sf-api items.
+    penalty(known("Plenty of Men in the Sea", &[(FishingRod, 0), (FishingBait, 3), (Merman, 9)], Bonus::OnComplete(5), 1), 5),
     unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),
 ];
 
