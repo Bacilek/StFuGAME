@@ -42,6 +42,10 @@ const PLAN: &[(B, u16)] = &[
     (B::Fortress, 3),
     (B::WoodcuttersHut, 3),
     (B::Quarry, 3),
+    // User 2026-10-11: then save straight for Fortress 4 – no Treasury, Gem Mine or Laborers' Quarters first, not even to
+    // shorten a wait – so the Barracks (very cheap, fast, many more resources) can be bought as soon as possible.
+    (B::Fortress, 4),
+    (B::Barracks, 1),
     (B::GemMine, 1),
     (B::Treasury, 2),
     (B::LaborersQuarters, 3),
@@ -52,7 +56,7 @@ const PLAN: &[(B, u16)] = &[
 /// character level 125 (user 2026-10-11); never the Wall, units or anything else.
 pub fn build_ok(gs: &GameState, b: B) -> bool {
     match b {
-        B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry | B::Treasury => true,
+        B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry | B::Treasury | B::Barracks => true,
         B::GemMine => {
             gs.character.level >= 125 || gs.fortress.as_ref().is_some_and(|f| f.buildings[B::GemMine].level == 0)
         }
@@ -233,7 +237,14 @@ mod tests {
         assert_eq!(pick(at(t1), 20), Some(B::LaborersQuarters));
         let end = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2), (B::Treasury, 1)];
         assert_eq!(pick(at(end), 20), Some(B::Fortress));
-        let all = &[(B::Fortress, 3), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::GemMine, 1), (B::Treasury, 2), (B::LaborersQuarters, 3)];
+        // after Fortress 3 + Woodcutter 3 + Quarry 3: Fortress 4 straight away, then the Barracks, only then the rest
+        let l3 = &[(B::Fortress, 3), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 2), (B::Treasury, 1)];
+        assert_eq!(pick(at(l3), 20), Some(B::Fortress));
+        let f4 = &[(B::Fortress, 4), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 2), (B::Treasury, 1)];
+        assert_eq!(pick(at(f4), 20), Some(B::Barracks));
+        let b1 = &[(B::Fortress, 4), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 2), (B::Treasury, 1), (B::Barracks, 1)];
+        assert_eq!(pick(at(b1), 20), Some(B::GemMine));
+        let all = &[(B::Fortress, 4), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::GemMine, 1), (B::Treasury, 2), (B::LaborersQuarters, 3), (B::Barracks, 1)];
         assert_eq!(pick(at(all), 20), None);
     }
 
