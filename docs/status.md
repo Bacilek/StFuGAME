@@ -2,6 +2,9 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Revealing Lady mapped (2026-10-11, user):** socks 0, cloth pile 0, couple +12, task bonus +5, failure −5 (`src/missions.rs`, `docs/expeditions.md`); the 2026-10-07 runs fit exactly (12 + 10 poster + 5 = 27; 12 − 5 = +7). Needs a release rebuild.
+- **OPEN question (2026-10-11, user: "max chest every day"):** Chlamydie (12 p, TravelTo 1/2) and Pagan (12 p, TravelTo 0/2) both have `DrinkBeer 0/1 (2 p)` open: ONE beer (1 mushroom) alone gives chest 3. The current rule forbids it because the chest has no mushrooms (`chest_worth`). Proposed: extend the 22:00 last-minute one-beer rule to "a 1-beer DrinkBeer task completes the last chest" (and a beer drunk for the travel rule counts for it too). Waiting for the user's yes.
+
 - **AD LIMIT FOUND (2026-10-11):** TestChar1's `trust_counter` counts ads LEFT (4,3,2,1,0 over the day's five ads), the sixth got `advertisement limit reached`; the limit was still active at 02:11–02:17 the next morning (reset time unknown – check when the first ad of a day succeeds). Plan 2 shop + 3 lucky = 5 uses it up exactly. Details in `docs/shops.md`. Lucky-ad week observation continues (update the user).
 - **Gleeman day summary + open Sanek question (2026-10-11, user asked how the last day ended):** nothing had recorded the final chest/task state (progress.log keeps 100 messages; attribute buying flooded it), so it could not be answered. `roster::snapshot` now stores `gleeman` {daily/event: points earned, every chest need/opened, tasks still open} in `days/<date>.json` (written by the 23:50 report). Open: Sanek's 2026-10-10 issues show `[hunt] Backpack full, cannot take off the Shield (12×)` at 23:51 even after the 16:32 build (bare hands for an Assassin = Weapon + Shield = 2 slots; the free-slot pre-check passed but the second take-off found none?) – the message now prints backpack size/free/stripped; check it next time. Needs a release rebuild.
 

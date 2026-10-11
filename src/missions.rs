@@ -115,7 +115,9 @@ pub const MISSIONS: &[Mission] = &[
         Bonus::PerItem(8),
         1,
     )),
-    unknown("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], 1),
+    // user 2026-10-11: socks 0, cloth pile 0, couple +12, bonus +5 on completion, -5 when failed (fits the 2026-10-07 runs:
+    // 12 + 10 poster + 5 bonus = 27; couple 12 - 5 failure = +7)
+    penalty(known("Revealing Lady", &[(Socks, 0), (ClothPile, 0), (RevealingCouple, 12)], Bonus::OnComplete(5), 1), 5),
     // sf-api: Well = cauldron, Girl = witch, Balloons = witch's brew
     // user 2026-10-10: cauldron -2, witch -5, brew +15 (server-verified), bonus +5 on completion, -5 when failed
     penalty(known("Bewitched Stew", &[(Well, -2), (Girl, -5), (Balloons, 15)], Bonus::OnComplete(5), 1), 5),

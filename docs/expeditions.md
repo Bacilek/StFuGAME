@@ -41,7 +41,7 @@ Verified from runs:
 | Extinguished Fire | 1×, permanent end | campfire (3) → phoenix (5) → burnt-out campfire (0) | `CampFire` → `Phoenix` → `BurntCampfire` | +4 / piece |
 | Unicorn Whisperer | 1× | horn (1) → donkey (3) → rainbow (5) → unicorn (7) | `UnicornHorn` → `Donkey` → `Rainbow` → `Unicorn` | +10 |
 | Podium Climber | 2× | small hurdle (−1) → big hurdle (−2) → winner's podium (15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | +10 / piece |
-| Revealing Lady | 1× | socks (0) → cloth pile (0) → couple (12) | `Socks` → `ClothPile` → `RevealingCouple` | ? |
+| Revealing Lady | 1× | socks (0) → cloth pile (0) → couple (12) | `Socks` → `ClothPile` → `RevealingCouple` | +5, failure −5 (user 2026-10-11) |
 | The Sword Trial | 1×, permanent end | sword in stone (6) → bent sword (3) → broken sword (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / piece |
 | Bewitched Stew | 1× | cauldron (−2) → witch (−5) → witch's brew (15) (user 2026-10-10; brew +15 server-verified) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
 | Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
@@ -71,8 +71,8 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 | Treasure chest appears after the key | ✅ | 2026-10-07: Barkeeper round 1 key, round 2 chest |
 | Hot Carnal Craving: pig → next crossroads 1 option, drumstick → 2 | ✅ | 2026-10-07: Barkeeper rounds 6 and 7 |
 | Sword Trial: 6 / 3 / −4 (FAQ 5 / 2 / −5, the user −4 for the broken one) | ✅ server | 2026-10-07: offer and credited heroism |
-| Revealing Lady: couple +12 | ❌ mismatch | 2026-10-07 (Barkeeper, couple not the target, no poster): the server showed +12, heroism 16 → 23 (+7) |
-| Revealing Lady: task bonus | ⏳ hypothesis +10 | 2026-10-07 (target, with a poster): 3 → 30 (+27). Fits "couple really +7, poster +10, bonus +10"; the alternative "couple +12, bonus +5" does not fit the Barkeeper run |
+| Revealing Lady: couple +12 | ✅ | 2026-10-07 (Barkeeper, couple not the target, no poster): heroism 16 → 23 = +12 − 5 failure penalty (explained by the user's 2026-10-11 data) |
+| Revealing Lady: task bonus +5, failure −5 | ✅ user 2026-10-11 | 2026-10-07 (target, with a poster): 3 → 30 (+27) = 12 + 10 poster + 5 bonus |
 | Sword Trial +8 / piece (user) | ✅ | 2026-10-07: 4 broken swords, +32 after the pick in round 10 |
 | A poster works only once (used up) | ✅ | 2026-10-07: the second broken sword got no +10 |
 | Bewitched Stew: witch −5, brew +15 | ✅ | 2026-10-07 server; user confirmed 2026-10-10 (cauldron −2 per user, not yet verified) |
@@ -82,7 +82,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
 - Missions from sf-api the FAQ does not know: merman (`FishingRod` → `FishingBait` → `Merman`),
   riding (`Chicken` → `Tiger` → `RidingStan`), lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
-- Missing task bonuses: Revealing Lady, Build A Friend (the bot estimates +5 on completion for now).
+- Missing task bonuses: Build A Friend (the bot estimates +5 on completion for now).
 
 The bot does not stop on unknown things. It prints them and logs them to the journal (`unmapped`).
 For an unmapped mission it treats items from the same tens range as the target as chain steps (e.g. 151 → 152 → 153).
