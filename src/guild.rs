@@ -1,25 +1,32 @@
-//! Guild: once a day load the quick-join list (`GroupJoinList`) and join the best guild (`GroupJoin`).
-//! Best = highest Instructor, then Treasure, then strength (members × average level) – user 2026-10-07.
-//! Already in a guild → switch only to a clearly better one (Instructor at least `SWITCH_MARGIN` higher), and only
-//! after `MIN_TENURE` in the current one (user 2026-10-08: otherwise the character could lose eligibility for
-//! guild battles – 24 h after joining – again and again before ever taking part).
+//! Guild: every `CHECK_EVERY` load the quick-join list (`GroupJoinList`, pages until nothing new) and join the best guild
+//! (`GroupJoin`). Best = weighted score, the Instructor slightly ahead of the Treasure (3:2, user 2026-10-11: "more weight,
+//! but not that much"), then strength (members × average level). Already in a guild → switch as soon as another one has
+//! BOTH Instructor and Treasure at least `SWITCH_MARGIN` higher (no minimum tenure since 2026-10-11) – except while an open
+//! daily/event task wants a guild fight (`GuildReadyFight`, hydra, portal): after it is done we leave. Guilds whose
+//! description asks for "N/M" skill levels we do not have are skipped (`unmet_requirement`).
 //! sf-api does not know these commands, they are sent as `Command::Custom` (captured from the browser, docs/guild.md).
 //! `battles`: signs up for every planned guild attack/defense (free, user 2026-10-07).
 
 
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{DateTime, Local};
 use sf_api::{
     command::Command,
-    gamestate::guild::{BattlesJoined, Guild},
+    gamestate::{
+        guild::{BattlesJoined, Guild},
+        rewards::TaskType,
+    },
     misc::from_sf_string,
 };
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
-/// How much higher the Instructor of another guild must be before we leave ours.
+/// How much higher BOTH the Instructor and the Treasure of another guild must be before we leave ours (user 2026-10-11).
 const SWITCH_MARGIN: u32 = 10;
-/// Minimum time in the current guild before another switch is even considered.
-const MIN_TENURE: chrono::Duration = chrono::Duration::days(3);
+/// How often the quick-join list is checked (a free guild with better bonuses can appear any time).
+const CHECK_EVERY: chrono::Duration = chrono::Duration::hours(6);
+/// Most list pages loaded per check (the page parameter of `GroupJoinList` is unverified: we stop at the first page that
+/// brings no new guild).
+const MAX_PAGES: u32 = 5;
 /// A guild has at most 50 members.
 const MAX_MEMBERS: u32 = 50;
 /// How many candidates to try when joining fails (requirements, full guild, …).
@@ -38,6 +45,7 @@ pub struct Offer {
     pub instructor: u32,
     pub raids: u32,
     pub avg_level: u32,
+    pub description: String,
 }
 
 impl Offer {
@@ -45,10 +53,58 @@ impl Offer {
         self.members * self.avg_level
     }
 
-    /// Sort key: Instructor, then Treasure, then strength.
-    fn key(&self) -> (u32, u32, u32) {
-        (self.instructor, self.treasure, self.strength())
+    /// Sort key: Instructor weighted 3, Treasure 2 (levels are similar everywhere, so Instructor leads only slightly),
+    /// then strength.
+    fn key(&self) -> (u32, u32) {
+        (self.instructor * 3 + self.treasure * 2, self.strength())
     }
+}
+
+/// Our own guild skill levels (what a description may demand).
+#[derive(Clone, Copy, Debug)]
+struct Own {
+    instructor: u32,
+    treasure: u32,
+}
+
+/// Does the description demand "N/M" skill levels (e.g. "5/5 Instructor/Treasure") that we do not reach? The order of the
+/// two numbers is unknown, so the larger one must be reached by both skills. Free text: a false hit only skips a guild.
+fn unmet_requirement(description: &str, own: Own) -> bool {
+    let b = description.as_bytes();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i].is_ascii_digit() {
+            let start = i;
+            while i < b.len() && b[i].is_ascii_digit() {
+                i += 1;
+            }
+            let a = description[start..i].parse::<u32>().unwrap_or(0);
+            let mut j = i;
+            while j < b.len() && b[j] == b' ' {
+                j += 1;
+            }
+            if j < b.len() && b[j] == b'/' {
+                j += 1;
+                while j < b.len() && b[j] == b' ' {
+                    j += 1;
+                }
+                let s = j;
+                while j < b.len() && b[j].is_ascii_digit() {
+                    j += 1;
+                }
+                if let Ok(m) = description[s..j].parse::<u32>() {
+                    let need = a.max(m);
+                    if (1..=100).contains(&need) && own.instructor.min(own.treasure) < need {
+                        return true;
+                    }
+                }
+                i = j.max(i);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    false
 }
 
 /// Parses `joinablegrouplist` from the raw response. 14 fields per guild separated by `/`
@@ -80,19 +136,29 @@ pub fn parse_list(raw: &str) -> Vec<Offer> {
             instructor,
             raids,
             avg_level,
+            description: from_sf_string(c[12]),
         });
     }
     offers
 }
 
-/// Candidates to join, best first: not full and (when we already have a guild) clearly better than it.
-fn candidates(mut offers: Vec<Offer>, current: Option<(&str, u32)>) -> Vec<Offer> {
-    offers.retain(|o| o.members < MAX_MEMBERS);
-    if let Some((name, instructor)) = current {
-        offers.retain(|o| o.name != name && o.instructor >= instructor + SWITCH_MARGIN);
+/// Candidates to join, best first: not full, no skill requirement we miss, and (when we already have a guild) clearly
+/// better than it: Instructor AND Treasure both at least `SWITCH_MARGIN` higher. `current` = (name, instructor, treasure).
+fn candidates(mut offers: Vec<Offer>, current: Option<(&str, u32, u32)>, own: Own) -> Vec<Offer> {
+    offers.retain(|o| o.members < MAX_MEMBERS && !unmet_requirement(&o.description, own));
+    if let Some((name, instructor, treasure)) = current {
+        offers.retain(|o| {
+            o.name != name && o.instructor >= instructor + SWITCH_MARGIN && o.treasure >= treasure + SWITCH_MARGIN
+        });
     }
     offers.sort_by_key(|o| std::cmp::Reverse(o.key()));
     offers
+}
+
+/// An open daily/event task that wants a guild fight: leaving now would lose it.
+fn guild_fight_task_open(gs: &sf_api::gamestate::GameState) -> bool {
+    crate::tasks::open_tasks(gs)
+        .any(|t| matches!(t.typ, TaskType::GuildReadyFight | TaskType::FightGuildHydra | TaskType::FightGuildPortal))
 }
 
 fn describe(o: &Offer) -> String {
@@ -102,7 +168,7 @@ fn describe(o: &Offer) -> String {
     )
 }
 
-static LAST_CHECK: crate::ctx::PerChar<Option<NaiveDate>> = crate::ctx::PerChar::new();
+static LAST_CHECK: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
     report!("[guild] Error: {e}");
@@ -113,54 +179,79 @@ fn custom(cmd_name: &str, arguments: &[&str]) -> Command {
     Command::Custom { cmd_name: cmd_name.to_string(), arguments: arguments.iter().map(|a| (*a).to_string()).collect() }
 }
 
-/// Once a day: join the best guild, or switch to a clearly better one.
+/// Loads the quick-join list: page 0, then further pages while they bring guilds we have not seen.
+async fn load_offers(session: &mut SimpleSession) -> Result<Vec<Offer>, sf_api::error::SFError> {
+    let mut all: Vec<Offer> = Vec::new();
+    for page in 0..MAX_PAGES {
+        let raw = safe::send_raw(session, custom("GroupJoinList", &[&page.to_string()])).await?;
+        let fresh: Vec<Offer> = parse_list(&raw).into_iter().filter(|o| all.iter().all(|a| a.raw_name != o.raw_name)).collect();
+        if fresh.is_empty() {
+            break;
+        }
+        if page > 0 {
+            report!("[guild] Quick-join list page {page} brought {} more guilds", fresh.len());
+        }
+        all.extend(fresh);
+    }
+    Ok(all)
+}
+
+/// Every `CHECK_EVERY`: join the best guild, or switch to a clearly better one.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
-    let today = Local::now().date_naive();
+    let now = Local::now();
     {
-        let Ok(mut last) = LAST_CHECK.lock() else { return Outcome::Done };
-        if *last == Some(today) {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        // A task wants a guild fight: stay (checked before the timer, so we leave right after the task is done)
+        if gs.guild.is_some() && guild_fight_task_open(gs) {
             return Outcome::Done;
         }
-        *last = Some(today);
+        let Ok(mut last) = LAST_CHECK.lock() else { return Outcome::Done };
+        if last.is_some_and(|t| now - t < CHECK_EVERY) {
+            return Outcome::Done;
+        }
+        *last = Some(now);
     }
 
-    let raw = match safe::send_raw(session, custom("GroupJoinList", &["0"])).await {
-        Ok(raw) => raw,
+    let offers = match load_offers(session).await {
+        Ok(o) => o,
         Err(e) => return fail(&e),
     };
-    let offers = parse_list(&raw);
     if offers.is_empty() {
         report!("[guild] The quick-join list is empty or could not be read");
         return Outcome::Done;
     }
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    let current = gs.guild.as_ref().map(|g| (g.name.clone(), u32::from(g.total_instructor_skill)));
+    let current = gs.guild.as_ref().map(|g| {
+        (g.name.clone(), u32::from(g.total_instructor_skill), u32::from(g.total_treasure_skill))
+    });
+    let own = gs.guild.as_ref().map_or(Own { instructor: 0, treasure: 0 }, |g| Own {
+        instructor: u32::from(g.own_instructor_skill),
+        treasure: u32::from(g.own_treasure_skill),
+    });
     let player_id = gs.character.player_id;
-    let tenure = gs.guild.as_ref().and_then(|g| g.joined).map(|j| Local::now() - j);
-    let too_new = tenure.is_some_and(|t| t < MIN_TENURE);
-    let list = if too_new { Vec::new() } else { candidates(offers.clone(), current.as_ref().map(|(n, i)| (n.as_str(), *i))) };
+    for o in offers.iter().filter(|o| o.members < MAX_MEMBERS && unmet_requirement(&o.description, own)) {
+        report!("[guild] Skipping {}: its description asks for skill levels we lack: {}", o.name, o.description);
+    }
+    let list = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own);
 
     match &current {
-        Some((name, instructor)) if too_new => {
+        Some((name, instructor, treasure)) if list.is_empty() => {
             report!(
-                "[guild] Staying in {name} (Instructor {instructor}): joined {}, waiting for the {} day minimum",
-                tenure.map_or("an unknown time ago".to_string(), |t| format!("{} h ago", t.num_hours())),
-                MIN_TENURE.num_days()
+                "[guild] Staying in {name} (Instructor {instructor}, Treasure {treasure}), no joinable guild is {SWITCH_MARGIN}/{SWITCH_MARGIN} better"
             );
             return Outcome::Done;
         }
-        Some((name, instructor)) if list.is_empty() => {
-            report!("[guild] Staying in {name} (Instructor {instructor}), no guild in the list is clearly better");
-            return Outcome::Done;
-        }
-        Some((name, instructor)) => {
-            report!("[guild] Leaving {name} (Instructor {instructor}) for a better guild: {}", describe(&list[0]));
+        Some((name, instructor, treasure)) => {
+            report!(
+                "[guild] Leaving {name} (Instructor {instructor}, Treasure {treasure}) for a better guild: {}",
+                describe(&list[0])
+            );
             if let Err(e) = safe::send(session, custom("GroupRemoveMember", &[&player_id.to_string()])).await {
                 return fail(&e);
             }
         }
         None if list.is_empty() => {
-            report!("[guild] No guild in the list can be joined ({} offers, all full)", offers.len());
+            report!("[guild] No guild in the list can be joined ({} offers, all full or with requirements)", offers.len());
             return Outcome::Done;
         }
         None => {}
@@ -178,7 +269,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             Err(e) => report!("[guild] Joining {} failed: {e}", offer.name),
         }
     }
-    report!("[guild] Could not join any guild today");
+    report!("[guild] Could not join any guild this time");
     Outcome::Done
 }
 
@@ -255,6 +346,7 @@ mod tests {
     use super::*;
 
     /// Shortened real response from 2026-10-07.
+    const OWN: Own = Own { instructor: 10, treasure: 10 };
     const RAW: &str = "joinablegrouplist.r:108/504/Artušova Garda/48/3/106/106/0/0000000000000000000000/10/33/17/- 5$s5 $b$b- Be active$b$bGood Luck $c)/xx/304/280/Venom/45/1/82/86/0/09030B090C030209090503/5/33/15//fr/253/307/EZM/25/3/31/26/0/03090F0610010202020203/1/37/13//xx/213/101/Autogrill/16/0/44/41/0//12/32/20//xx/";
 
     #[test]
@@ -270,16 +362,16 @@ mod tests {
 
     #[test]
     fn picks_by_instructor_then_treasure() {
-        let list = candidates(parse_list(RAW), None);
+        let list = candidates(parse_list(RAW), None, OWN);
         let names: Vec<_> = list.iter().map(|o| o.name.as_str()).collect();
         assert_eq!(names, ["Artušova Garda", "Venom", "Autogrill", "EZM"]);
     }
 
     #[test]
     fn switches_only_for_a_clearly_better_guild() {
-        // Venom has Instructor 86: from a guild with 80 not worth it, from 76 yes
-        assert!(candidates(parse_list(RAW), Some(("Artušova Garda", 100))).is_empty());
-        let list = candidates(parse_list(RAW), Some(("X", 80)));
+        // Venom is 86/82: from a guild with 80/80 not 10/10 better, Artušova Garda (106/106) is; Treasure must rise too
+        assert!(candidates(parse_list(RAW), Some(("Artušova Garda", 100, 100)), OWN).is_empty());
+        let list = candidates(parse_list(RAW), Some(("X", 80, 80)), OWN);
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].name, "Artušova Garda");
     }
@@ -287,6 +379,32 @@ mod tests {
     #[test]
     fn skips_full_guilds() {
         let raw = RAW.replace("Venom/45/", "Venom/50/");
-        assert!(candidates(parse_list(&raw), None).iter().all(|o| o.name != "Venom"));
+        assert!(candidates(parse_list(&raw), None, OWN).iter().all(|o| o.name != "Venom"));
+    }
+}
+
+#[cfg(test)]
+mod requirement_tests {
+    use super::*;
+
+    #[test]
+    fn descriptions_with_skill_requirements() {
+        let own = Own { instructor: 5, treasure: 7 };
+        assert!(unmet_requirement("Need 10/10 Instructor/Treasure", own));
+        assert!(unmet_requirement("min 6 / 5", own));
+        assert!(!unmet_requirement("min 5/5 please", own));
+        assert!(!unmet_requirement("- 5 5 Be active, 1 2 3", own));
+        assert!(!unmet_requirement("", own));
+    }
+
+    #[test]
+    fn instructor_leads_only_slightly() {
+        let o = |i, t| Offer {
+            raw_name: String::new(), name: String::new(), rank: 1, members: 10, knights: 0, treasure: t, instructor: i,
+            raids: 0, avg_level: 10, description: String::new(),
+        };
+        assert!(o(60, 50).key() > o(55, 55).key());
+        assert!(o(55, 60).key() > o(60, 50).key()); // 5 Instructor is outweighed by 10 Treasure
+        assert!(o(50, 80).key() > o(55, 50).key());
     }
 }

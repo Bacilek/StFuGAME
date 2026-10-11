@@ -108,7 +108,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Guild
 - Description and verification status: `docs/guild.md`.
-- Once a day the quick-join list: no guild → join the best (Instructor > Treasure > strength); in a guild → switch only
+- Quick-join list every 6 h (docs/guild.md): no guild → join the best (weighted 3×Instructor + 2×Treasure); in a guild → switch as soon as another has Instructor AND Treasure ≥ ours + 10, no minimum tenure, but stay while a guild-fight task is open; skip guilds whose description demands skill levels we lack.
   when another one has Instructor ≥ ours + 10. Commands via `Command::Custom`, allowed one by one in `safe.rs`.
 - Signs up for every planned guild attack/raid and defense (`GuildJoinAttack`/`GuildJoinDefense`, free).
 
