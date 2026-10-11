@@ -472,9 +472,51 @@ fn travel_beer_justified(gs: &GameState) -> bool {
         || travel_beer_needed(&t.event.tasks, &t.event.rewards, gamble, thirst, &offered)
 }
 
+/// "Quest beer" (user 2026-10-11): ONE beer (1 mushroom) for a "Drink beer" task that wants a single beer, when its
+/// points GUARANTEE the highest unopened chest on their own – i.e. earned + free points (Arena, City Guard, shell game,
+/// attributes) fall short of the chest and adding the beer task reaches it. If the chest would still lack a second
+/// mushroom afterwards (e.g. another beer for a location visit), nothing is drunk. Shares the one-mushroom-a-day
+/// budget with the travel beer (`mark_travel_beer_used`); a chest that pays mushrooms back is the `plan` path instead.
+pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible: bool) -> bool {
+    let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
+    if last.opened || last.required_points == 0 {
+        return false;
+    }
+    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+    let free: u32 = natural_points(tasks)
+        + tasks
+            .iter()
+            .filter(|t| !t.is_completed())
+            .filter(|t| (t.typ == TaskType::DefeatGambler && gamble_possible) || is_attribute_task(t.typ))
+            .map(|t| t.point_reward)
+            .sum::<u32>();
+    if earned + free >= last.required_points {
+        return false;
+    }
+    tasks.iter().any(|t| {
+        t.typ == TaskType::DrinkBeer
+            && !t.is_completed()
+            && t.target - t.current == 1
+            && earned + free + t.point_reward >= last.required_points
+    })
+}
+
+/// `quest_beer_needed` for the daily and the event list, last-minute like the travel beer (from 22:00, once a day).
+fn quest_beer_justified(gs: &GameState) -> bool {
+    if chrono::Timelike::hour(&chrono::Local::now()) < TRAVEL_BEER_FROM_HOUR
+        || travel_beer_used_today()
+        || gs.tavern.beer_drunk >= gs.tavern.beer_max
+    {
+        return false;
+    }
+    let t = &gs.specials.tasks;
+    let gamble = Means::of(gs).gamble;
+    quest_beer_needed(&t.daily.tasks, &t.daily.rewards, gamble) || quest_beer_needed(&t.event.tasks, &t.event.rewards, gamble)
+}
+
 /// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
 pub fn beer_justified(gs: &GameState) -> bool {
-    planned(gs).contains(&Extra::Beer) || travel_beer_justified(gs)
+    planned(gs).contains(&Extra::Beer) || travel_beer_justified(gs) || quest_beer_justified(gs)
 }
 
 /// May the bot spin the Wheel of Fortune for lucky coins now? (Also checked by `safe.rs`.)
@@ -489,7 +531,11 @@ async fn drink_beer(session: &mut SimpleSession) -> Outcome {
     }
     let left = remaining(gs, |t| t == TaskType::DrinkBeer);
     if !planned(gs).contains(&Extra::Beer) {
-        report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the last chest lacks one visit that an offered expedition provides");
+        if !travel_beer_justified(gs) {
+            report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the Drink beer task guarantees the last chest");
+        } else {
+            report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the last chest lacks one visit that an offered expedition provides");
+        }
         // Marked BEFORE the purchase: never a second travel beer, whatever happens next
         mark_travel_beer_used();
     } else {
@@ -804,6 +850,32 @@ mod tests {
         assert!(!travel_beer_needed(&two, &[chest(10)], false, 0, &offered));
     }
 
+
+    #[test]
+    fn quest_beer_only_when_it_guarantees_the_last_chest() {
+        use Location::BustedLands;
+        let mk = |travel_left: u64| {
+            vec![
+                task(TaskType::WinFightsInArena, 10, 10, 2),
+                task(TaskType::DrinkBeer, 0, 10, 1),
+                task(TaskType::DrinkBeer, 0, 1, 2),
+                task(TaskType::TravelTo(BustedLands), 2 - travel_left, 2, 4),
+            ]
+        };
+        // earned 2, chest at 4: the 1-beer task (+2) reaches it → beer
+        assert!(quest_beer_needed(&mk(1), &[chest(2), chest(4)], false));
+        // chest at 6 needs the beer AND the travel visit → a second mushroom would be needed, no beer
+        assert!(!quest_beer_needed(&mk(1), &[chest(2), chest(6)], false));
+        // chest already reached without the beer
+        assert!(!quest_beer_needed(&mk(1), &[chest(2)], false));
+        // opened chest
+        let mut opened = [chest(2), chest(4)];
+        opened[1].opened = true;
+        assert!(!quest_beer_needed(&mk(1), &opened, false));
+        // only the 10-beer task: never
+        let ten = vec![task(TaskType::WinFightsInArena, 10, 10, 2), task(TaskType::DrinkBeer, 0, 10, 2)];
+        assert!(!quest_beer_needed(&ten, &[chest(4)], false));
+    }
     #[test]
     fn beers_only_for_enough_mushrooms() {
         // 10 beers for a chest with 10 mushrooms: fine (+ Thirst for Adventure)
