@@ -2,6 +2,7 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **trust_counter: theory corrected (2026-10-11):** the main character's counter went 4 → 3 on a later real ad, so it falls on real views too (see `docs/shops.md`); open: why real views were never refused. Older text follows.
 - **trust_counter theory (2026-10-11):** the user's main character shows `trust_counter:4` after dozens of real ads, TestChar1 (simulated) counted 4→0 and is refused for 15+ h → it is a verification credit, not a daily quota (details in `docs/shops.md`). Next: a real view on TestChar1 to see if it restores; no more simulated ads meanwhile.
 
 - **Fortress generic rules (2026-10-11, user):** `PLAN` is now Fortress 2, Quarry 2, Woodcutter 2, Treasury 1, Laborers' Quarters 2; after it `pick_generic` continues alone (income → Treasury [also when the next level exceeds the storage] → Laborers' Quarters → Gem Mine 1 at Fortress 3 → next Fortress level). `fortress::build_ok` + a check in `safe.rs` (Gem Mine only to level 1 below character level 125). Tests pass; needs a release rebuild. Open: Hall of Knights (needs a capture), units, counter-attacks; the user keeps telling his own build order, the bot follows it.
