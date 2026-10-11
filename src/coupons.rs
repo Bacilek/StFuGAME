@@ -27,13 +27,20 @@ fn state_path() -> PathBuf {
     std::path::Path::new("roster").join(crate::ctx::name()).join("coupons.txt")
 }
 
-fn read_codes() -> Vec<String> {
+/// Codes with their minimum character level: a line is `CODE` or `CODE min_level=50` (the service rejects a code below
+/// the level for good, so the bot must not even try it before).
+fn read_codes() -> Vec<(String, u16)> {
     std::fs::read_to_string(CODES_FILE)
         .unwrap_or_default()
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(str::to_string)
+        .filter_map(|l| {
+            let mut parts = l.split_whitespace();
+            let code = parts.next()?.to_string();
+            let min = parts.find_map(|p| p.strip_prefix("min_level=")?.parse().ok()).unwrap_or(0);
+            Some((code, min))
+        })
         .collect()
 }
 
@@ -88,10 +95,13 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 
 /// Redeems the codes this character has not used yet and claims their rewards from the Mail.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
-    let codes = read_codes();
-    if codes.is_empty() {
+    let all_codes = read_codes();
+    if all_codes.is_empty() {
         return Outcome::Done;
     }
+    // codes whose level requirement this character does not meet yet are left alone entirely
+    let level = session.game_state().map_or(0, |gs| gs.character.level);
+    let codes: Vec<String> = all_codes.into_iter().filter(|(_, min)| level >= *min).map(|(c, _)| c).collect();
     let mut state = load_state();
 
     // 1. Redeem
