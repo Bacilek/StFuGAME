@@ -38,6 +38,13 @@ const PLAN: &[(B, u16)] = &[
     // User 2026-10-11: the Treasury 1 will probably come before the Laborers' Quarters 2 as well
     (B::Treasury, 1),
     (B::LaborersQuarters, 2),
+    // User 2026-10-11: after Fortress 3
+    (B::Fortress, 3),
+    (B::WoodcuttersHut, 3),
+    (B::Quarry, 3),
+    (B::GemMine, 1),
+    (B::Treasury, 2),
+    (B::LaborersQuarters, 3),
 ];
 
 /// May the bot build/finish this building right now? The same rule is enforced in `safe.rs`. Fortress, Laborers'
@@ -225,7 +232,9 @@ mod tests {
         let t1 = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 1), (B::Treasury, 1)];
         assert_eq!(pick(at(t1), 20), Some(B::LaborersQuarters));
         let end = &[(B::Fortress, 2), (B::WoodcuttersHut, 2), (B::Quarry, 2), (B::LaborersQuarters, 2), (B::Treasury, 1)];
-        assert_eq!(pick(at(end), 20), None);
+        assert_eq!(pick(at(end), 20), Some(B::Fortress));
+        let all = &[(B::Fortress, 3), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::GemMine, 1), (B::Treasury, 2), (B::LaborersQuarters, 3)];
+        assert_eq!(pick(at(all), 20), None);
     }
 
     /// Cheap Woodcutter's Hut / expensive Quarry etc. for the generic rules.

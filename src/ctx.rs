@@ -52,9 +52,16 @@ pub fn eod_done_one() {
     });
 }
 
+static SEEN: PerChar<u64> = PerChar::new();
+
+/// Is a manual request waiting for the current character (without marking it handled)?
+pub fn end_of_day_waiting() -> bool {
+    let now = EOD_REQUESTS.load(std::sync::atomic::Ordering::SeqCst);
+    SEEN.lock().is_ok_and(|seen| *seen < now)
+}
+
 /// Has the current character not handled the latest manual request yet? Marks it handled.
 pub fn take_end_of_day_request() -> bool {
-    static SEEN: PerChar<u64> = PerChar::new();
     let now = EOD_REQUESTS.load(std::sync::atomic::Ordering::SeqCst);
     let Ok(mut seen) = SEEN.lock() else { return false };
     let new = *seen < now;

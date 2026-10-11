@@ -622,7 +622,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             sleep = dungeon + fastrand::u64(5..20);
                             report!("[tavern] The Dungeons become free while waiting, waking up in {sleep} s");
                         }
-                        tokio::time::sleep(Duration::from_secs(sleep)).await;
+                        // A manual "end of day now" interrupts the wait (main loop handles it, then comes back here)
+                        tokio::select! {
+                            () = tokio::time::sleep(Duration::from_secs(sleep)) => {}
+                            () = crate::ctx::EOD_WAKE.notified() => return Outcome::Done,
+                        }
                         Command::Update
                     }
                 }

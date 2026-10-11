@@ -335,7 +335,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let roster_due = roster::secs_until_due().unwrap_or(30 * 60).min(tournament::secs_until_due().unwrap_or(30 * 60));
         let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
-        // A manual "end of day now" from the icon wakes the loop up early
+        // A manual "end of day now" from the icon wakes the loop up early (or is already waiting: the wake-up may
+        // have been consumed inside the Tavern wait)
+        if ctx::end_of_day_waiting() {
+            continue;
+        }
         tokio::select! {
             () = tokio::time::sleep(std::time::Duration::from_secs(wait)) => {}
             () = ctx::EOD_WAKE.notified() => {}
