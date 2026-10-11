@@ -11,8 +11,9 @@ Unlocked at character level 25 (user 2026-10-11). Nothing is automated yet – t
   it the gems) is swapped quickly anyway.
 - **Focus the upgrades on the Fortress itself (main building) and, together with it, the Laborers' Quarters** (they
   shorten the build/upgrade times). A building cannot go above the Fortress level (`Fortress::can_build`).
-- Never spend mushrooms or hourglasses on finishing a build (`FortressBuildFinish { mushrooms }` stays out of the
-  whitelist, like every command with mushrooms).
+- NEVER cancel a build and never speed up a construction/upgrade with mushrooms or hourglasses (user 2026-10-11). Only
+  `FortressBuildFinish { mushrooms: 0 }` is whitelisted; `FortressBuildCancel` and every command with mushrooms stay out
+  (unit test `safe::fortress_tests`).
 
 ## First capture (user, the very first Fortress upgrade, 15 min)
 ```
@@ -75,3 +76,6 @@ Storage after the Woodcutter: wood limit 900, stone limit 300, wood production l
 
 ## Third and fourth capture (user 2026-10-11)
 Quarry started: `fortress:1/0/1/0/…/4/1791729001/1791728101/…` (target 4 = Quarry, 900 s). The Woodcutter's collect (`FortressGather`) answered with `fortressstorage:0/0/0/375/…` (collectable back to 0) and `resources:…/17/0/13/…`: the starting stock is tiny (17 wood, 13 stone), so the bot now also gathers when the collectable amount covers what the next build still misses (not only at half of the production limit).
+
+## Fifth/sixth/seventh capture (user 2026-10-11)
+Quarry finished (`fortress:1/0/1/1/…`, `stoneperhournextlevel:70`), the Laborers' Quarters level 1 started right after (target 2, 900 s) – exactly the order the bot uses – and the first stone was collected from the Quarry (stone 13 → 14, the Quarry had just been built). The Quarry level 2 costs 6 gold + 90 wood + 16 stone, 1895 s.

@@ -338,3 +338,23 @@ pub async fn send_raw_only(session: &mut SimpleSession, cmd: Command) -> Result<
     human_pause().await;
     res
 }
+
+#[cfg(test)]
+mod fortress_tests {
+    use super::*;
+    use sf_api::gamestate::fortress::{FortressBuildingType as B, FortressResourceType as R};
+
+    #[test]
+    fn fortress_commands_never_cancel_or_pay_with_mushrooms() {
+        // allowed: the agreed buildings, finishing with 0 mushrooms, collecting
+        assert!(is_allowed(&Command::FortressBuild { f_type: B::Fortress }));
+        assert!(is_allowed(&Command::FortressBuildFinish { f_type: B::Quarry, mushrooms: 0 }));
+        assert!(is_allowed(&Command::FortressGather { resource: R::Wood }));
+        // never: skipping with mushrooms, cancelling, the Wall, buildings nobody agreed to, gem search finish
+        assert!(!is_allowed(&Command::FortressBuildFinish { f_type: B::Fortress, mushrooms: 1 }));
+        assert!(!is_allowed(&Command::FortressBuildCancel { f_type: B::Fortress }));
+        assert!(!is_allowed(&Command::FortressBuild { f_type: B::Wall }));
+        assert!(!is_allowed(&Command::FortressBuild { f_type: B::GemMine }));
+        assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
+    }
+}
