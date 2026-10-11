@@ -2,6 +2,8 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Fortress: Quarry added (2026-10-11, user built it by hand):** build order Fortress → Woodcutter's Hut 1 → Quarry 1 → Fortress/Laborers' Quarters together; gathering also when the collectable amount covers what the next build misses (starting stock 17 wood / 13 stone). Quarry whitelisted in `safe.rs`. Tests pass; needs a release rebuild.
+
 - **Fortress follow-ups (2026-10-11, user):** (1) tell the user if TestChar1 reaches level 25 and the Fortress does not unlock by itself (memory `fortress-testchar1-unlock`); (2) price table + internet tips recorded in `docs/fortress.md` (tips NOT adopted yet – ask: Quarry/Woodcutter to 3–4, Barracks 3–4, Hall of Knights 6, 1 soldier + counter-attacks, fortress buddy among our characters).
 
 - **Fortress v1 written (2026-10-11, user: level 25 unlocked it):** `src/fortress.rs` (finish builds with 0 mushrooms, gather Wood/Stone/Experience, build Fortress → Woodcutter's Hut 1 → Fortress + Laborers' Quarters together, gold above the shop reserve after the day's shop pass), whitelisted in `safe.rs` for exactly these three buildings. Rules/captures in `docs/fortress.md`. Compiles + 2 unit tests; NOT run live – needs a release rebuild; TestChar1 reaches level 25 first. Watch: `[fortress]` log lines, mushrooms unchanged, whether `FortressBuildFinish` is accepted, whether other characters need an `UnlockFeature` for the Fortress at level 25 (unknown ident). Open: the Quarry/other buildings (user answers later).

@@ -1,5 +1,5 @@
 //! Fortress (unlocked at level 25, user 2026-10-11, rules in `docs/fortress.md`): collect the resources, finish and start
-//! builds. Only Fortress, Laborers' Quarters and Woodcutter's Hut for now (the user answers about the other buildings
+//! builds. Only Fortress, Laborers' Quarters, Woodcutter's Hut and Quarry for now (the user answers about the other buildings
 //! later); NEVER the Wall (fortifications: weak defence = more attackers = more counter-attacks) and no Gem Mine yet
 //! (only from character level 125). Never mushrooms or hourglasses to finish a build (`FortressBuildFinish` only with
 //! `mushrooms: 0`, which is also what the game wants after a build timer ran out).
@@ -20,11 +20,11 @@ use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 /// Buildings the bot may touch (the same list is enforced in `safe.rs`).
 pub fn building_allowed(b: B) -> bool {
-    matches!(b, B::Fortress | B::LaborersQuarters | B::WoodcuttersHut)
+    matches!(b, B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry)
 }
 
 /// Which building to build next: the Woodcutter's Hut right after the Fortress exists (user: its level 1 is the second
-/// upgrade, the wood has to come from somewhere), then the Fortress and the Laborers' Quarters together – whichever
+/// upgrade, the wood has to come from somewhere), then the Quarry (the stone, user 2026-10-11), then the Fortress and the Laborers' Quarters together – whichever
 /// has the lower level, the Fortress on a tie (a building cannot be higher than the Fortress).
 fn pick(level: impl Fn(B) -> u16, max_level: u16) -> Option<B> {
     let (fortress, quarters) = (level(B::Fortress), level(B::LaborersQuarters));
@@ -33,6 +33,9 @@ fn pick(level: impl Fn(B) -> u16, max_level: u16) -> Option<B> {
     }
     if level(B::WoodcuttersHut) == 0 {
         return Some(B::WoodcuttersHut);
+    }
+    if level(B::Quarry) == 0 {
+        return Some(B::Quarry);
     }
     if quarters < fortress {
         return Some(B::LaborersQuarters);
@@ -71,13 +74,22 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
 
-    // 2. Collect what has piled up (free)
+    // 2. Collect what has piled up (free): when half of the production limit is ready, or when it covers what the next
+    // build is still missing (the stock is tiny at the start: 17 wood, 13 stone)
     for r in [R::Wood, R::Stone, R::Experience] {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
         let (limit, ready) = (f.resources[r].production.limit, collectable(gs, r));
         let room = r == R::Experience || f.resources[r].current < f.resources[r].limit;
-        if limit > 0 && ready * 2 >= limit && room {
+        let missing = pick(|b| f.buildings[b].level, u16::from(f.building_max_lvl)).map_or(0, |next| {
+            let c = f.buildings[next].upgrade_cost;
+            match r {
+                R::Wood => c.wood.saturating_sub(f.resources[r].current),
+                R::Stone => c.stone.saturating_sub(f.resources[r].current),
+                R::Experience => 0,
+            }
+        });
+        if limit > 0 && ready > 0 && (ready * 2 >= limit || (missing > 0 && ready >= missing)) && room {
             report!("[fortress] Collecting {r:?} (about {ready} of {limit})");
             if let Err(e) = safe::send(session, Command::FortressGather { resource: r }).await {
                 return fail(&e);
@@ -121,10 +133,15 @@ mod tests {
     use super::*;
 
     fn levels(f: u16, q: u16, w: u16) -> impl Fn(B) -> u16 {
+        levels4(f, q, w, 1)
+    }
+
+    fn levels4(f: u16, q: u16, w: u16, quarry: u16) -> impl Fn(B) -> u16 {
         move |b| match b {
             B::Fortress => f,
             B::LaborersQuarters => q,
             B::WoodcuttersHut => w,
+            B::Quarry => quarry,
             _ => 0,
         }
     }
@@ -134,6 +151,8 @@ mod tests {
         assert_eq!(pick(levels(0, 0, 0), 15), Some(B::Fortress));
         // Woodcutter's Hut 1 right after Fortress 1 (user 2026-10-11)
         assert_eq!(pick(levels(1, 0, 0), 15), Some(B::WoodcuttersHut));
+        // then the Quarry (stone), user 2026-10-11
+        assert_eq!(pick(levels4(1, 0, 1, 0), 15), Some(B::Quarry));
         assert_eq!(pick(levels(1, 0, 1), 15), Some(B::LaborersQuarters));
         assert_eq!(pick(levels(1, 1, 1), 15), Some(B::Fortress));
         assert_eq!(pick(levels(2, 1, 1), 15), Some(B::LaborersQuarters));
@@ -144,6 +163,7 @@ mod tests {
     #[test]
     fn only_the_agreed_buildings() {
         assert!(building_allowed(B::Fortress) && building_allowed(B::LaborersQuarters) && building_allowed(B::WoodcuttersHut));
-        assert!(!building_allowed(B::Wall) && !building_allowed(B::GemMine) && !building_allowed(B::Quarry));
+        assert!(building_allowed(B::Quarry));
+        assert!(!building_allowed(B::Wall) && !building_allowed(B::GemMine) && !building_allowed(B::Barracks));
     }
 }

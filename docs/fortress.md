@@ -37,7 +37,7 @@ finish `…3940` − start `…3040` = 900 s = 15 min. The `resources` silver fi
 
 ## Implementation (src/fortress.rs)
 - `fortress::run` (main loop after the shops, before the Gleeman tasks; also in the shop pass before spinning and in the late spin round): (1) finish a build whose timer ran out (`FortressBuildFinish` with `mushrooms: 0` – the game wants it after every build, not only when skipping), (2) `FortressGather` for Wood/Stone/Experience when at least half of the production limit is collectable and there is room, (3) start the next build when `Fortress::can_build` says yes with gold ABOVE the shop reserve and the day's shop pass is done.
-- Order: Fortress → Woodcutter's Hut level 1 (second upgrade, user capture 2026-10-11) → then Fortress and Laborers' Quarters together (the lower level first, Fortress on a tie). ONLY these three buildings (also enforced in `safe.rs`); no Wall, no Gem Mine yet (character level 125, not implemented), nothing else until the user answers question 1.
+- Order: Fortress → Woodcutter's Hut level 1 (second upgrade, user capture 2026-10-11) → Quarry level 1 (stone; user 2026-10-11: he built it by hand as the third upgrade, waiting for wood) → then Fortress and Laborers' Quarters together (the lower level first, Fortress on a tie). ONLY these four buildings (Fortress, Woodcutter's Hut, Quarry, Laborers' Quarters; also enforced in `safe.rs`); no Wall, no Gem Mine yet (character level 125, not implemented), nothing else until the user answers question 1.
 - Gold priority (user 2026-10-11): better items > fortress > spinning the shops > attributes.
 - Not handled yet: counter-attacks, units, the unlock of the Fortress feature itself for characters hitting level 25 (an `UnlockFeature` ident is probably pending like the dungeons' – unknown), waking up exactly when a build finishes (the main loop's ≤ 30 min cadence applies).
 
@@ -72,3 +72,6 @@ Storage after the Woodcutter: wood limit 900, stone limit 300, wood production l
 - Fortress, Laborers' Quarters and Hall of Knights to level 6; Barracks 3–4; Gem Mine to 1 and keep it there until about character level 125 and dungeon 9 finished; Quarry/Woodcutter to 3–4.
 - Farm resources with 1 soldier always, do not use gold to reshuffle the opponents, ALWAYS counter-attack (use a "fortress buddy" – the user's characters could attack each other).
 - Do not build defences (Wall) – a waste. Archers and Mages are defence only; level 1 of each only to unlock the Smithy (needed to upgrade soldiers) – optional, especially with a buddy.
+
+## Third and fourth capture (user 2026-10-11)
+Quarry started: `fortress:1/0/1/0/…/4/1791729001/1791728101/…` (target 4 = Quarry, 900 s). The Woodcutter's collect (`FortressGather`) answered with `fortressstorage:0/0/0/375/…` (collectable back to 0) and `resources:…/17/0/13/…`: the starting stock is tiny (17 wood, 13 stone), so the bot now also gathers when the collectable amount covers what the next build still misses (not only at half of the production limit).
