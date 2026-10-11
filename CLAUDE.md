@@ -151,3 +151,6 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Fortress
 - Description, captures and open questions: `docs/fortress.md`, code `src/fortress.rs` (only Fortress, Laborers' Quarters, Woodcutter's Hut for now; enforced in `safe.rs`). Rules (user 2026-10-11): NEVER upgrade the Wall (fortifications); Gem Mine only from character level 125; focus upgrades on the Fortress and the Laborers' Quarters; never cancel a build and never speed up a build/upgrade with mushrooms or hourglasses (user 2026-10-11; only `FortressBuildFinish` with `mushrooms: 0`, a test in `safe.rs` pins it). Gold priority: better items > fortress > spinning the shops > attributes (the shop reserve does NOT apply to the fortress; it starts builds after the day's shop pass; guild upgrades without a task must leave 5× the reserve).
+
+## Ads
+- No ad automation (user 2026-10-11): never send `AdvertisementsCompleted` or imitate the ad network's view verification; ads are watched by hand. See `docs/shops.md`.

@@ -395,11 +395,6 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
         let Some(gs) = session.game_state() else { return Outcome::Done };
 
         if spin_offers(gs).is_empty() {
-            match crate::adtest::daily_refresh(session).await {
-                crate::adtest::Refresh::Refreshed => continue,
-                crate::adtest::Refresh::SessionLost => return Outcome::SessionLost,
-                crate::adtest::Refresh::NotApplicable => {}
-            }
             finish_spins(spins, spin_cost);
             report!("[shops] All items cost mushrooms, nothing more to buy");
             return Outcome::Done;
@@ -420,11 +415,6 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
         }
         let silver_now = gs.character.silver;
         let Some((pos, _item)) = spin_candidate(gs, reserve) else {
-            match crate::adtest::daily_refresh(session).await {
-                crate::adtest::Refresh::Refreshed => continue,
-                crate::adtest::Refresh::SessionLost => return Outcome::SessionLost,
-                crate::adtest::Refresh::NotApplicable => {}
-            }
             finish_spins(spins, spin_cost);
             report!(
                 "[shops] Not spinning: gold {}, reserve {} (most expensive item seen today)",

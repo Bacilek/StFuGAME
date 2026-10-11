@@ -2,6 +2,8 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Ad automation removed (2026-10-11, user agreed):** `src/adtest.rs` deleted, no `AdvertisementsCompleted`/`PlayerNewWares` in `safe.rs`, no shop ad refresh, no lucky coin ads. TestChar1's `trust_counter` stays drained until it recovers by itself / real views. The memory note `lucky-ads-week-updates` is obsolete. Needs a release rebuild.
+
 - **trust_counter refills (2026-10-11):** the main character showed 4, 3, then 4 again → a refilling credit, probably restored by verified (real) views; TestChar1 (simulated only) never refilled. Need: the time gap 3 → 4 and a real view on TestChar1 (see `docs/shops.md`).
 - **trust_counter: theory corrected (2026-10-11):** the main character's counter went 4 → 3 on a later real ad, so it falls on real views too (see `docs/shops.md`); open: why real views were never refused. Older text follows.
 - **trust_counter theory (2026-10-11):** the user's main character shows `trust_counter:4` after dozens of real ads, TestChar1 (simulated) counted 4→0 and is refused for 15+ h → it is a verification credit, not a daily quota (details in `docs/shops.md`). Next: a real view on TestChar1 to see if it restores; no more simulated ads meanwhile.
