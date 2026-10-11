@@ -84,8 +84,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // Lucky coins only when a task chest needs the spins (user 2026-10-07), see `tasks::plan`
             | Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins }
             // Fortress (user 2026-10-11, src/fortress.rs): only the agreed buildings, never mushrooms
-            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury }
-            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury, mushrooms: 0 }
+            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine }
+            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine, mushrooms: 0 }
             | Command::FortressGather { .. }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
@@ -246,6 +246,12 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("only the reward of a coupon mail may be viewed or claimed"));
     }
+    // Fortress buildings: the Gem Mine only to level 1 until character level 125 (user 2026-10-11), see fortress::build_ok
+    if let Command::FortressBuild { f_type } | Command::FortressBuildFinish { f_type, .. } = &cmd
+        && !session.game_state().is_some_and(|gs| crate::fortress::build_ok(gs, *f_type))
+    {
+        return Err(SFError::InvalidRequest("this fortress building may not be built now"));
+    }
     if let Command::GuildIncreaseSkill { skill, current } = &cmd
         && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))
     {
@@ -354,7 +360,9 @@ mod fortress_tests {
         assert!(!is_allowed(&Command::FortressBuildFinish { f_type: B::Fortress, mushrooms: 1 }));
         assert!(!is_allowed(&Command::FortressBuildCancel { f_type: B::Fortress }));
         assert!(!is_allowed(&Command::FortressBuild { f_type: B::Wall }));
-        assert!(!is_allowed(&Command::FortressBuild { f_type: B::GemMine }));
+        // the Gem Mine passes the whitelist but `fortress::build_ok` limits it to level 1 below character level 125
+        assert!(is_allowed(&Command::FortressBuild { f_type: B::GemMine }));
+        assert!(!is_allowed(&Command::FortressBuild { f_type: B::Barracks }));
         assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
     }
 }

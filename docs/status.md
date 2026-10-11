@@ -2,6 +2,8 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Fortress generic rules (2026-10-11, user):** `PLAN` is now Fortress 2, Quarry 2, Woodcutter 2, Treasury 1, Laborers' Quarters 2; after it `pick_generic` continues alone (income → Treasury [also when the next level exceeds the storage] → Laborers' Quarters → Gem Mine 1 at Fortress 3 → next Fortress level). `fortress::build_ok` + a check in `safe.rs` (Gem Mine only to level 1 below character level 125). Tests pass; needs a release rebuild. Open: Hall of Knights (needs a capture), units, counter-attacks; the user keeps telling his own build order, the bot follows it.
+
 - **Fortress plan reordered (2026-10-11, user):** Fortress 2, Quarry 2, Woodcutter's Hut 2, Laborers' Quarters 2, Treasury 1 (income before time savers). Tests pass; needs a release rebuild.
 
 - **Reserve rules (2026-10-11, user):** guild upgrades without a task keep 5× the shop reserve afterwards; the fortress ignores the reserve entirely (`fortress::run` uses all the gold, after the day's shop pass). Compiles; needs a release rebuild.
