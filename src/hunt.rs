@@ -47,10 +47,19 @@ impl Hunt {
     }
 }
 
-/// Every kind of hunt an open task asks for, in task order – daily tasks first, then event tasks, because `open_tasks`
-/// chains them (user 2026-10-12: the 4-day event weighs more, but only once the daily ones are done/waiting) (the first one that fits in the backpack is fought).
+/// Event hunts count as urgent when the event ends within this many hours; before that the Arena XP wins go first.
+const EVENT_URGENT_HOURS: i64 = 24;
+
+/// Every kind of hunt an open task asks for, in task order – daily tasks first, then event tasks (the first one that
+/// fits in the backpack is fought). Event tasks step aside for the Arena XP wins while those are still due, unless the
+/// event ends soon (user 2026-10-12: "if the event tasks are not burning, Arena XP comes first").
 fn wanted_hunts(gs: &GameState) -> Vec<Hunt> {
-    crate::tasks::open_tasks(gs).filter_map(|t| match t.typ {
+    let t = &gs.specials.tasks;
+    let urgent = t.event.end.is_some_and(|e| (e - chrono::Local::now()).num_hours() < EVENT_URGENT_HOURS);
+    let event_goes = urgent || !arena::ready(gs);
+    let daily = t.daily.tasks.iter();
+    let event = t.event.tasks.iter().filter(|_| event_goes);
+    daily.chain(event).filter(|t| !t.is_completed()).filter_map(|t| match t.typ {
         TaskType::WinFightsAgainst(c) => Some(Hunt::Class(c)),
         TaskType::WinFightsBareHands => Some(Hunt::Without(EquipmentSlot::Weapon)),
         TaskType::WinFightsNoChestplate => Some(Hunt::Without(EquipmentSlot::BreastPlate)),
