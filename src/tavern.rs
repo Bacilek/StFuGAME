@@ -343,20 +343,33 @@ const REDUCED_EXPEDITION_SEC: u32 = 3 * 60;
 
 /// Picks a reward: mushrooms > gold > hourglasses > anything.
 /// For a leftover expedition (the rest of the Thirst for Adventure) mushrooms > hourglasses > gold.
-fn choose_reward(rewards: &[Reward], reduced: bool) -> usize {
+/// Fortress wood/stone are worth less than gold (the Guild Treasure/Instructor bonus applies to gold only) but more than
+/// hourglasses, unless the storage is already full or there is no Fortress (user 2026-10-12): `room` = (wood, stone).
+fn choose_reward(rewards: &[Reward], reduced: bool, room: (bool, bool)) -> usize {
     let rank = |t: &RewardType| match t {
         RewardType::Mushrooms => 0,
         RewardType::Silver if reduced => 2,
         RewardType::Silver => 1,
         RewardType::QuicksandGlass if reduced => 1,
-        RewardType::QuicksandGlass => 2,
-        _ => 3,
+        RewardType::QuicksandGlass => 3,
+        RewardType::Wood if room.0 => if reduced { 3 } else { 2 },
+        RewardType::Stone if room.1 => if reduced { 3 } else { 2 },
+        RewardType::Wood | RewardType::Stone => 5,
+        _ => 4,
     };
     rewards
         .iter()
         .enumerate()
         .min_by_key(|(i, r)| (rank(&r.typ), *i))
         .map_or(0, |(i, _)| i)
+}
+
+/// Is there room in the Fortress storage for (wood, stone)? No Fortress = no room.
+fn fortress_room(gs: &sf_api::gamestate::GameState) -> (bool, bool) {
+    use sf_api::gamestate::fortress::FortressResourceType as R;
+    gs.fortress.as_ref().map_or((false, false), |f| {
+        (f.resources[R::Wood].current < f.resources[R::Wood].limit, f.resources[R::Stone].current < f.resources[R::Stone].limit)
+    })
 }
 
 /// Is the expedition past the waiting (travel after the boss) and waiting for "continue"?
@@ -580,7 +593,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 }
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
-                    let pos = choose_reward(&rewards, reduced_expedition);
+                    let pos = choose_reward(&rewards, reduced_expedition, fortress_room(gs));
                     let reward_text = |r: &Reward| crate::report::reward(&format!("{:?}", r.typ), i64::try_from(r.amount).unwrap_or(i64::MAX));
                     let opts: Vec<String> = rewards.iter().map(reward_text).collect();
                     report!("[tavern] Rewards: {} → taking {:?}", opts.join(", "), rewards[pos].typ);
@@ -679,7 +692,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     if rewards.is_empty() {
                         Command::ExpeditionContinue
                     } else {
-                        Command::ExpeditionPickReward { pos: choose_reward(&rewards, reduced_expedition) }
+                        Command::ExpeditionPickReward { pos: choose_reward(&rewards, reduced_expedition, fortress_room(gs)) }
                     }
                 }
                 CurrentAction::Idle if played => return Outcome::Done,
@@ -964,11 +977,16 @@ mod tests {
     #[test]
     fn reward_order() {
         let r = |typ| Reward { typ, amount: 1 };
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], false), 2);
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], false), 1);
-        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], false), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], false, (true, true)), 2);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], false, (true, true)), 1);
+        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], false, (true, true)), 1);
         // leftover expedition: hourglasses before gold, mushrooms still first
-        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::QuicksandGlass)], true), 1);
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Mushrooms)], true), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::QuicksandGlass)], true, (true, true)), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Mushrooms)], true, (true, true)), 1);
+        // Fortress resources (user 2026-10-12): gold > wood/stone with room > hourglasses > wood/stone in a full storage
+        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::Silver)], false, (true, true)), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Wood)], false, (true, true)), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Wood)], false, (false, true)), 0);
+        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::Stone)], false, (false, true)), 1);
     }
 }

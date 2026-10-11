@@ -47,6 +47,7 @@ Verified from runs:
 | Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
 | Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 / piece (polluted fountain keeps appearing to the end, net +4 each), failure 0 (user 2026-10-10, not yet verified) |
 | Plenty of Men in the Sea | 1× | fishing rod (0) → fishing bait/worms (3) → merman (9) (user 2026-10-12; NOT the dragon's `Bait`, which is the princess −2) | `FishingRod` → `FishingBait` → `Merman` | +5, failure −5 (user, not yet verified) |
+| Beak to Tail | 1× | chicken (0) → tiger (9) → riding Stan (3) (user 2026-10-12) | `Chicken` → `Tiger` → `RidingStan` | +5, failure −5 (not yet verified) |
 | Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
 
 Sanitary: the FAQ says "at the end +5 if you have 3 toilet papers, otherwise −5". The user is sure about +20 / −5; their version applies (not yet verified in a run).
@@ -82,7 +83,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 ## Unmapped
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
 - Missions from sf-api the FAQ does not know: (merman is mapped since 2026-10-12, see the table),
-  riding (`Chicken` → `Tiger` → `RidingStan`), lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
+  lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
 - Missing task bonuses: Build A Friend (the bot estimates +5 on completion for now).
 
 The bot does not stop on unknown things. It prints them and logs them to the journal (`unmapped`).
