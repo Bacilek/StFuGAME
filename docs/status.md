@@ -2,6 +2,7 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **AD LIMIT FOUND (2026-10-11):** TestChar1's `trust_counter` counts ads LEFT (4,3,2,1,0 over the day's five ads), the sixth got `advertisement limit reached`; the limit was still active at 02:11–02:17 the next morning (reset time unknown – check when the first ad of a day succeeds). Plan 2 shop + 3 lucky = 5 uses it up exactly. Details in `docs/shops.md`. Lucky-ad week observation continues (update the user).
 - **Gleeman day summary + open Sanek question (2026-10-11, user asked how the last day ended):** nothing had recorded the final chest/task state (progress.log keeps 100 messages; attribute buying flooded it), so it could not be answered. `roster::snapshot` now stores `gleeman` {daily/event: points earned, every chest need/opened, tasks still open} in `days/<date>.json` (written by the 23:50 report). Open: Sanek's 2026-10-10 issues show `[hunt] Backpack full, cannot take off the Shield (12×)` at 23:51 even after the 16:32 build (bare hands for an Assassin = Weapon + Shield = 2 slots; the free-slot pre-check passed but the second take-off found none?) – the message now prints backpack size/free/stripped; check it next time. Needs a release rebuild.
 
 - **Ad gap (2026-10-10, user):** every ad claim on TestChar1 (shop refresh or lucky coin) waits for ≥ 5 min (+ ≤ 60 s jitter) since the previous one (`adtest::wait_ad_gap`, `roster/TestChar1/last_ad.txt`). Compiles; needs the release rebuild. See `docs/shops.md`.

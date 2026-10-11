@@ -188,6 +188,12 @@ async fn lucky_ad(session: &mut SimpleSession) -> Outcome {
         }
         Err(e) => {
             log(&format!("AdvertisementsCompleted:1 failed: {e}"));
+            if e.to_string().contains("advertisement limit reached") {
+                // The server's daily ad limit: no point in trying the rest of today's plan
+                let today = Local::now().date_naive();
+                let (times, _) = lucky_plan(today);
+                save_lucky_plan(today, &times, times.len());
+            }
             return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
         }
     }
