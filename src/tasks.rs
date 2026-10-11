@@ -102,6 +102,21 @@ async fn upgrade_guild(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
+/// Gold-only guild upgrades without any task (user 2026-10-11: priority shops > fortress > spinning > guild upgrades >
+/// stats): the cheaper of Treasure/Instructor (Instructor on a tie), only while the price has no mushrooms (the ladder
+/// is 5, 10, 25, 100, 250 gold, then mushrooms – never) and the gold stays above the shop reserve.
+async fn upgrade_guild_surplus(session: &mut SimpleSession) -> Outcome {
+    for _ in 0..MAX_ACTIONS {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some((skill, current)) = guild_skill_to_upgrade(gs) else { return Outcome::Done };
+        let price = gs.guild.as_ref().map_or(0, |g| g.upgrade_price[skill].silver);
+        report!("[guild] Upgrading {skill:?} {current} → {} for {} (no task, spare gold)", current + 1, crate::report::gold(price));
+        send_or_return!(session, Command::GuildIncreaseSkill { skill, current });
+        send_or_return!(session, Command::Update);
+    }
+    Outcome::Done
+}
+
 /// Attribute to buy for an open task, if any. A task that lets us pick freely (`UpgradeAnyAttribute`/
 /// `SpendGoldOnUpgrades`) picks whichever attribute is currently the best weight-per-gold (user 2026-10-09),
 /// not always the main one.
@@ -594,6 +609,9 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             return Outcome::SessionLost;
         }
         if let Outcome::SessionLost = buy_attributes(session).await {
+            return Outcome::SessionLost;
+        }
+        if let Outcome::SessionLost = upgrade_guild_surplus(session).await {
             return Outcome::SessionLost;
         }
         if let Outcome::SessionLost = buy_surplus_attributes(session).await {

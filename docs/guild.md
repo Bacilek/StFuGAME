@@ -77,3 +77,6 @@
 | Join command + response | ✅ captured 2026-10-07 |
 | `gs.guild.total_instructor_skill` = Instructor from the list (106 for Artušova Garda) | ⏳ not verified |
 | Sign-up for attack/defense (`[guild] Signing up`), whether `Poll` refreshes planned battles | ⏳ not verified |
+
+## Guild skill upgrades without a task (2026-10-11, user)
+Gold-only upgrades of Treasure/Instructor happen even with no Gleeman task (`tasks::upgrade_guild_surplus`, before the surplus attribute buying): the cheaper of the two (Instructor on a tie), only while the price has no mushrooms and the gold stays above the shop reserve. The price ladder per skill (user, from `groupskillprice`): 5, 10, 25, 100, 250 gold, afterwards mushrooms (then it stops, never mushrooms). Capture: after an Instructor upgrade `groupskillprice(6):2500/0/10000/0/250/0` (Treasure 25 g, Instructor 100 g, a third skill 2.5 g), after the Treasure upgrade `10000/0/10000/0/250/0`. Gold priority: shop purchases > fortress > spinning the shops > guild upgrades > attributes.

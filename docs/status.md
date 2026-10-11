@@ -2,6 +2,8 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Guild upgrades without a task (2026-10-11, user):** `tasks::upgrade_guild_surplus` (gold-only Treasure/Instructor, ladder 5/10/25/100/250 gold then mushrooms = stop) runs before the surplus attribute buying; gold priority shops > fortress > spinning > guild > stats. Compiles; needs a release rebuild (log line `[guild] Upgrading …`).
+
 - **Fortress build plan (2026-10-11, user):** `PLAN` list in `src/fortress.rs`: Fortress 2, Laborers' Quarters 2, Woodcutter's Hut 2, Quarry 2, Treasury 1 (waiting for resources, no skipping), then stop until the user dictates more; Treasury whitelisted in `safe.rs`. Tests pass; needs a release rebuild.
 
 - **Fortress: Quarry added (2026-10-11, user built it by hand):** build order Fortress → Woodcutter's Hut 1 → Quarry 1 → Fortress/Laborers' Quarters together; gathering also when the collectable amount covers what the next build misses (starting stock 17 wood / 13 stone). Quarry whitelisted in `safe.rs`. Tests pass; needs a release rebuild.
