@@ -148,3 +148,6 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 ## Controls
 - The bot is controlled with the icon next to the clock (src/tray.rs); the "StFuGAME bot" desktop shortcut runs `target/release/stfugame.exe`. Details in `docs/controls.md`.
 - The bot must be exited before a release build (locked exe). Do not run `cargo run` while the bot from the icon is running (single instance).
+
+## Fortress
+- Description and open questions: `docs/fortress.md` (not implemented yet). Rules (user 2026-10-11): NEVER upgrade the Wall (fortifications); Gem Mine only from level 125; focus upgrades on the Fortress and the Laborers' Quarters; never mushrooms/hourglasses to finish a build.

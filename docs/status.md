@@ -2,6 +2,8 @@
 
 Updated: 2026-10-11. Rewrite after every bigger change.
 
+- **Fortress (2026-10-11, user: level 25 unlocked it):** rules + first capture + `sf-api` overview in `docs/fortress.md`, rules in `docs/precedents.md` and `CLAUDE.md`. NOT implemented; waiting for the user's answers (Woodcutter/Quarry etc., gold budget, Gem Mine level meaning, which characters).
+
 - **Revealing Lady mapped (2026-10-11, user):** socks 0, cloth pile 0, couple +12, task bonus +5, failure −5 (`src/missions.rs`, `docs/expeditions.md`); the 2026-10-07 runs fit exactly (12 + 10 poster + 5 = 27; 12 − 5 = +7). Needs a release rebuild.
 - **OPEN question (2026-10-11, user: "max chest every day"):** Chlamydie (12 p, TravelTo 1/2) and Pagan (12 p, TravelTo 0/2) both have `DrinkBeer 0/1 (2 p)` open: ONE beer (1 mushroom) alone gives chest 3. The current rule forbids it because the chest has no mushrooms (`chest_worth`). Proposed: extend the 22:00 last-minute one-beer rule to "a 1-beer DrinkBeer task completes the last chest" (and a beer drunk for the travel rule counts for it too). Waiting for the user's yes.
 
