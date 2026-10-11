@@ -80,3 +80,4 @@
 
 ## Guild skill upgrades without a task (2026-10-11, user)
 Gold-only upgrades of Treasure/Instructor happen even with no Gleeman task (`tasks::upgrade_guild_surplus`, before the surplus attribute buying): the cheaper of the two (Instructor on a tie), only while the price has no mushrooms and the gold stays above the shop reserve. The price ladder per skill (user, from `groupskillprice`): 5, 10, 25, 100, 250 gold, afterwards mushrooms (then it stops, never mushrooms). Capture: after an Instructor upgrade `groupskillprice(6):2500/0/10000/0/250/0` (Treasure 25 g, Instructor 100 g, a third skill 2.5 g), after the Treasure upgrade `10000/0/10000/0/250/0`. Gold priority: shop purchases > fortress > spinning the shops > guild upgrades > attributes.
+**Reserve (user 2026-10-11): after a guild upgrade without a task 5× the most expensive shop item must remain** (same floor as the surplus attributes, `SURPLUS_RESERVE_MULTIPLE`).

@@ -3,8 +3,9 @@
 //! (only from character level 125). Never mushrooms or hourglasses to finish a build (`FortressBuildFinish` only with
 //! `mushrooms: 0`, which is also what the game wants after a build timer ran out).
 //!
-//! Gold priority (user 2026-10-11): better items > fortress > spinning the shops > attributes, so a build is only paid
-//! from gold ABOVE the shop reserve and only after the day's shop pass (`shops::pass_done`).
+//! Gold priority (user 2026-10-11): better items > fortress > spinning the shops > guild upgrades > attributes, so a build
+//! is only started after the day's shop pass (`shops::pass_done`). The shop reserve does NOT apply to the fortress
+//! (user 2026-10-11): the build may use all the gold.
 
 use chrono::Local;
 use sf_api::{
@@ -51,7 +52,7 @@ fn collectable(gs: &GameState, r: R) -> u64 {
 }
 
 /// One pass: finish a build whose timer ran out, collect resources worth collecting, start the next build when
-/// everything is affordable (gold above the shop reserve).
+/// everything is affordable (all of the gold, no reserve kept).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
@@ -105,8 +106,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(next) = pick(|b| f.buildings[b].level, u16::from(f.building_max_lvl)) else { return Outcome::Done };
     let cost = f.buildings[next].upgrade_cost;
     let silver = gs.character.silver;
-    if !f.can_build(next, silver.saturating_sub(crate::shops::reserve())) {
-        return Outcome::Done; // not enough wood/stone/gold above the reserve (or level cap)
+    if !f.can_build(next, silver) {
+        return Outcome::Done; // not enough wood/stone/gold (or level cap)
     }
     report!(
         "[fortress] Building {next:?} level {} ({} min, wood {}, stone {}, {})",

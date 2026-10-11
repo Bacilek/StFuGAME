@@ -77,12 +77,17 @@ async fn claim_chests(session: &mut SimpleSession) -> Outcome {
 
 /// Guild skill to upgrade for a task: the cheaper of Treasure/Instructor, Instructor on a tie; gold only and affordable.
 pub fn guild_skill_to_upgrade(gs: &GameState) -> Option<(GuildSkill, u16)> {
+    guild_skill_keeping(gs, crate::shops::reserve())
+}
+
+/// Same, but `keep` silver must be left after the purchase.
+fn guild_skill_keeping(gs: &GameState, keep: u64) -> Option<(GuildSkill, u16)> {
     let g = gs.guild.as_ref()?;
     [(GuildSkill::Instructor, g.own_instructor_skill), (GuildSkill::Treasure, g.own_treasure_skill)]
         .into_iter()
         .filter(|(s, _)| {
             g.upgrade_price[*s].mushrooms == 0
-                && g.upgrade_price[*s].silver + crate::shops::reserve() <= gs.character.silver
+                && g.upgrade_price[*s].silver + keep <= gs.character.silver
         })
         .min_by_key(|(s, _)| g.upgrade_price[*s].silver)
 }
@@ -104,11 +109,14 @@ async fn upgrade_guild(session: &mut SimpleSession) -> Outcome {
 
 /// Gold-only guild upgrades without any task (user 2026-10-11: priority shops > fortress > spinning > guild upgrades >
 /// stats): the cheaper of Treasure/Instructor (Instructor on a tie), only while the price has no mushrooms (the ladder
-/// is 5, 10, 25, 100, 250 gold, then mushrooms – never) and the gold stays above the shop reserve.
+/// is 5, 10, 25, 100, 250 gold, then mushrooms – never) and 5× the shop reserve remains after the purchase.
 async fn upgrade_guild_surplus(session: &mut SimpleSession) -> Outcome {
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        let Some((skill, current)) = guild_skill_to_upgrade(gs) else { return Outcome::Done };
+        // After the upgrade 5× the most expensive shop item must remain (user 2026-10-11), like the surplus attributes
+        let Some((skill, current)) = guild_skill_keeping(gs, SURPLUS_RESERVE_MULTIPLE * crate::shops::reserve()) else {
+            return Outcome::Done;
+        };
         let price = gs.guild.as_ref().map_or(0, |g| g.upgrade_price[skill].silver);
         report!("[guild] Upgrading {skill:?} {current} → {} for {} (no task, spare gold)", current + 1, crate::report::gold(price));
         send_or_return!(session, Command::GuildIncreaseSkill { skill, current });
