@@ -392,9 +392,10 @@ fn gambling_is_open(tasks: &[Task]) -> bool {
     tasks.iter().any(|task| task.typ == TaskType::DefeatGambler && !task.is_completed())
 }
 
-/// A chest that pays only gold (user 2026-10-11): never worth a mushroom, so no travel/quest beer for it.
-fn gold_only(c: &RewardChest) -> bool {
-    !c.rewards.is_empty() && c.rewards.iter().all(|r| r.typ == RewardType::Silver)
+/// Travel/quest beers (1 mushroom) only for a chest that pays at least a mushroom back (user 2026-10-11: gold, XP or
+/// anything else is not worth a mushroom long-term).
+fn pays_mushrooms(c: &RewardChest) -> bool {
+    chest_mushrooms(c) >= u64::from(BEER_MUSHROOMS)
 }
 
 /// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
@@ -417,7 +418,7 @@ pub fn travel_beer_needed(
         return false; // can still start an expedition without a beer
     }
     let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
-    if last.opened || gold_only(last) {
+    if last.opened || !pays_mushrooms(last) {
         return false;
     }
     let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
@@ -484,7 +485,7 @@ fn travel_beer_justified(gs: &GameState) -> bool {
 /// budget with the travel beer (`mark_travel_beer_used`); a chest that pays mushrooms back is the `plan` path instead.
 pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible: bool) -> bool {
     let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
-    if last.opened || last.required_points == 0 || gold_only(last) {
+    if last.opened || last.required_points == 0 || !pays_mushrooms(last) {
         return false;
     }
     let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
@@ -698,6 +699,10 @@ mod tests {
         RewardChest { opened: false, required_points, rewards: Vec::new() }
     }
 
+    fn mchest(required_points: u32) -> RewardChest {
+        chest_with(required_points, 1)
+    }
+
     fn chest_with(required_points: u32, mushrooms: u64) -> RewardChest {
         RewardChest {
             opened: false,
@@ -827,11 +832,11 @@ mod tests {
             task(TaskType::TravelTo(BustedLands), 1, 2, 4),
             task(TaskType::DrinkBeer, 0, 10, 1),
         ];
-        let chests = [chest(5), chest(6)];
+        let chests = [mchest(5), mchest(6)];
         let offered = [(BustedLands, SkullIsland, 900), (SkullIsland, SkullIsland, 600)];
         // earned 6 (== last chest) is already enough: no beer needed
         assert!(!travel_beer_needed(&tasks, &chests, false, 0, &offered));
-        let chests = [chest(5), chest(10)];
+        let chests = [mchest(5), mchest(10)];
         // 6 earned, the BustedLands visit (+4) reaches the last chest (10), offered expedition passes it
         assert!(travel_beer_needed(&tasks, &chests, false, 0, &offered));
         // still enough Thirst for Adventure: no beer
@@ -849,15 +854,15 @@ mod tests {
             task(TaskType::DefeatGambler, 0, 3, 8),
             task(TaskType::TravelTo(BustedLands), 1, 2, 4),
         ];
-        assert!(!travel_beer_needed(&free, &[chest(10)], true, 0, &offered));
+        assert!(!travel_beer_needed(&free, &[mchest(10)], true, 0, &offered));
         // two visits missing: one beer would not finish it
         let two = vec![task(TaskType::WinFightsInArena, 10, 10, 6), task(TaskType::TravelTo(BustedLands), 0, 2, 4)];
-        assert!(!travel_beer_needed(&two, &[chest(10)], false, 0, &offered));
+        assert!(!travel_beer_needed(&two, &[mchest(10)], false, 0, &offered));
     }
 
 
     #[test]
-    fn quest_beer_only_when_it_guarantees_the_last_chest() {
+    fn quest_beer_only_when_it_guarantees_the_last_mchest() {
         use Location::BustedLands;
         let mk = |travel_left: u64| {
             vec![
@@ -868,22 +873,24 @@ mod tests {
             ]
         };
         // earned 2, chest at 4: the 1-beer task (+2) reaches it → beer
-        assert!(quest_beer_needed(&mk(1), &[chest(2), chest(4)], false));
+        assert!(quest_beer_needed(&mk(1), &[mchest(2), mchest(4)], false));
         // chest at 6 needs the beer AND the travel visit → a second mushroom would be needed, no beer
-        assert!(!quest_beer_needed(&mk(1), &[chest(2), chest(6)], false));
+        assert!(!quest_beer_needed(&mk(1), &[mchest(2), mchest(6)], false));
         // chest already reached without the beer
-        assert!(!quest_beer_needed(&mk(1), &[chest(2)], false));
+        assert!(!quest_beer_needed(&mk(1), &[mchest(2)], false));
         // opened chest
-        let mut opened = [chest(2), chest(4)];
+        let mut opened = [mchest(2), mchest(4)];
         opened[1].opened = true;
         assert!(!quest_beer_needed(&mk(1), &opened, false));
-        // a chest that pays only gold is never worth a mushroom
-        let mut gold = [chest(2), chest(4)];
-        gold[1].rewards = vec![sf_api::gamestate::rewards::Reward { typ: RewardType::Silver, amount: 16000 }];
-        assert!(!quest_beer_needed(&mk(1), &gold, false));
+        // a chest paying XP/gold only is never worth a mushroom
+        let mut xp = [mchest(2), mchest(4)];
+        xp[1].rewards = vec![sf_api::gamestate::rewards::Reward { typ: RewardType::XP, amount: 700 }];
+        assert!(!quest_beer_needed(&mk(1), &xp, false));
+        xp[1].rewards = vec![sf_api::gamestate::rewards::Reward { typ: RewardType::Mushrooms, amount: 2 }];
+        assert!(quest_beer_needed(&mk(1), &xp, false));
         // only the 10-beer task: never
         let ten = vec![task(TaskType::WinFightsInArena, 10, 10, 2), task(TaskType::DrinkBeer, 0, 10, 2)];
-        assert!(!quest_beer_needed(&ten, &[chest(4)], false));
+        assert!(!quest_beer_needed(&ten, &[mchest(4)], false));
     }
     #[test]
     fn beers_only_for_enough_mushrooms() {
