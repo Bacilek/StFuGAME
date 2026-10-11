@@ -29,6 +29,9 @@ enum Hunt {
     Without(EquipmentSlot),
     /// Fight with every epic/legendary item taken off (user 2026-10-10)
     NoEpics,
+    /// Any clearly weaker Hall of Fame opponent: "win N fights in the Hall of Fame" and "win back to back"
+    /// (Ruffian event, user 2026-10-12). Back to back = the very weakest ones, a loss would reset the streak.
+    Any { streak: bool },
 }
 
 impl Hunt {
@@ -38,17 +41,22 @@ impl Hunt {
             Hunt::Class(_) => 0.6,
             Hunt::Without(EquipmentSlot::Weapon) => 0.3,
             Hunt::Without(_) | Hunt::NoEpics => 0.5,
+            Hunt::Any { streak: true } => 0.3,
+            Hunt::Any { streak: false } => 0.6,
         }
     }
 }
 
-/// Every kind of hunt an open task asks for, in task order (the first one that fits in the backpack is fought).
+/// Every kind of hunt an open task asks for, in task order – daily tasks first, then event tasks, because `open_tasks`
+/// chains them (user 2026-10-12: the 4-day event weighs more, but only once the daily ones are done/waiting) (the first one that fits in the backpack is fought).
 fn wanted_hunts(gs: &GameState) -> Vec<Hunt> {
     crate::tasks::open_tasks(gs).filter_map(|t| match t.typ {
         TaskType::WinFightsAgainst(c) => Some(Hunt::Class(c)),
         TaskType::WinFightsBareHands => Some(Hunt::Without(EquipmentSlot::Weapon)),
         TaskType::WinFightsNoChestplate => Some(Hunt::Without(EquipmentSlot::BreastPlate)),
         TaskType::WinFightsNoEpicsLegendaries => Some(Hunt::NoEpics),
+        TaskType::WinFightsInHoF => Some(Hunt::Any { streak: false }),
+        TaskType::WinFightsBackToBack => Some(Hunt::Any { streak: true }),
         _ => None,
     })
     .collect()
@@ -93,7 +101,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
                 p.level <= our_level
                     && match hunt {
                         Hunt::Class(c) => p.class == c,
-                        Hunt::Without(_) | Hunt::NoEpics => true,
+                        Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } => true,
                     }
             })
             .map(|p| (p.honor, p.name.clone()))
@@ -118,7 +126,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
 fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>> {
     let gs = gs?;
     match hunt {
-        Hunt::Class(_) => None,
+        Hunt::Class(_) | Hunt::Any { .. } => None,
         Hunt::Without(slot) => {
             let mut slots = vec![slot];
             if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
