@@ -6,10 +6,8 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Nákup ve zbrojírně (`docs/shops.md`, čeká na ověření)
 - [x] Nákup v čarovném obchodě
 - [x] Točení v obchodech
-- [x] Reklamy – rozhodnuto NEIMPLEMENTOVAT (`docs/shops.md`): `AdvertisementsCompleted` vrací `trust_counter`, nejspíš antifraud metrika reklamní sítě proti přesně tomuhle druhu automatizace. Riziko přesahuje jen houbičku.
-  - Uživatel (2026-10-09): "někdy to zkusíme" – odloženo, ne zavrženo. Postup až na to dojde (jen na vedlejším účtu): (1) zachytit těla odpovědí `AdvertisementsCompleted` a `PlayerNewWares:x/2`, (2) najít příznak "reklama dnes dostupná" (klient ukazuje ikonu TV), (3) ověřit, že `PlayerNewWares:x/2` bez reklamy nestrhne houbičku, (4) uživatel přijme riziko `trust_counter`. Neimplementovat, dokud to uživatel výslovně nezadá.
-  - **2026-10-10: experiment PROŠEL pro Weapon i Magic Shop** (TestChar1, zdarma, houbičky beze změny). `skipvideo` zůstává 1 i po použití. Druhé použití stejný den NEZKOUŠET (uživatel: max 1 reklama na obchod a den). Zbývá jen rozhodnout o automatizaci (ptát se uživatele).
-  - [ ] **POZOROVÁNÍ (od 2026-10-10, user): TestChar1 jen pár dní sledovat po použití reklam** (Weapon + Magic Shop refresh dnes 10:08 / 10:11). Co hlídat: žádné varování/chyba od serveru, účet funguje normálně (login, boj, nákupy), `trust_counter` při příštích loginech/odpovědích, zda se reklama další den dá použít znovu (ale max 1× na obchod a den – nic nezkoušet navíc). Teprve po pár dnech klidu se rozhodne o automatizaci na ostatních postavách (ptát se uživatele).
+- [x] ~~Reklamy~~ – **NEPLÁNUJEME** (user 2026-10-11: žádná automatizace reklam, `AdvertisementsCompleted` se nikdy neposílá, reklamy se koukají ručně; kód `adtest.rs` smazán, `docs/shops.md`). Důvod: `trust_counter` je nejspíš antifraud metrika reklamní sítě. Experiment z 2026-10-10 (TestChar1, refresh obchodů zdarma) prošel, ale nepoužije se.
+  - [x] ~~Pozorování TestChar1 po reklamách~~ – zrušeno spolu s automatizací reklam.
 - [x] Questy u Goblin Gleemana + eventové úkoly (`docs/tasks.md`): truhly, atributy, cechovní upgrade, nákupy, Training Camp, skořápky jen když body chybí
 - [ ] Event game loop (piva?)
 - [x] Arena fight highlights – ukládání cool zápasů (`PlayerCombatLogMark`), naimplementováno 2026-10-09
@@ -33,7 +31,7 @@ Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá be
 
 - [x] Free deal u Mushroom Dealera – naimplementováno 2026-10-08 (`daily::claim_welcome_pack`), zachyceno živě přes DevTools. Čeká na živé ověření (`docs/daily-rewards.md`).
 - [x] Cechovní souboje: přihlásit se k útoku/obraně (`GuildJoinAttack`/`GuildJoinDefense`, zdarma)
-- [ ] Vylepšování atributů za zlato (sf-api: `UpgradeSkill`) – jeden pevný klíč pro všechny classy, hlavní atribut zjistit z postavy (klíč ještě domluvit)
+- [x] Vylepšování atributů za zlato (`UpgradeSkill`; úkoly + přebytek nad 5× rezervou, `docs/tasks.md`, `src/attributes.rs`)
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
 - [ ] `WinFightsNoEpicsLegendaries`/`WinFightsNoGear` (Gleeman/event úkol, user 2026-10-09): sf-api je má v `TaskType`,
   `src/hunt.rs` je ale nemapuje (`wanted_hunt` zná jen `WinFightsAgainst`/`WinFightsBareHands`/`WinFightsNoChestplate`) –
