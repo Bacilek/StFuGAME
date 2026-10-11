@@ -109,12 +109,12 @@ async fn upgrade_guild(session: &mut SimpleSession) -> Outcome {
 
 /// Gold-only guild upgrades without any task (user 2026-10-11: priority shops > fortress > spinning > guild upgrades >
 /// stats): the cheaper of Treasure/Instructor (Instructor on a tie), only while the price has no mushrooms (the ladder
-/// is 5, 10, 25, 100, 250 gold, then mushrooms – never) and 5× the shop reserve remains after the purchase.
+/// is 5, 10, 25, 100, 250 gold, then mushrooms – never) and 1× the shop reserve remains after the purchase.
 async fn upgrade_guild_surplus(session: &mut SimpleSession) -> Outcome {
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        // After the upgrade 5× the most expensive shop item must remain (user 2026-10-11), like the surplus attributes
-        let Some((skill, current)) = guild_skill_keeping(gs, SURPLUS_RESERVE_MULTIPLE * crate::shops::reserve()) else {
+        // After the upgrade 1× the most expensive shop item must remain (user 2026-10-11, lowered from 5×; the surplus attributes keep 5×)
+        let Some((skill, current)) = guild_skill_keeping(gs, crate::shops::reserve()) else {
             return Outcome::Done;
         };
         let price = gs.guild.as_ref().map_or(0, |g| g.upgrade_price[skill].silver);
