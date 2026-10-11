@@ -33,11 +33,8 @@ Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá be
 - [x] Cechovní souboje: přihlásit se k útoku/obraně (`GuildJoinAttack`/`GuildJoinDefense`, zdarma)
 - [x] Vylepšování atributů za zlato (`UpgradeSkill`; úkoly + přebytek nad 5× rezervou, `docs/tasks.md`, `src/attributes.rs`)
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
-- [ ] `WinFightsNoEpicsLegendaries`/`WinFightsNoGear` (Gleeman/event úkol, user 2026-10-09): sf-api je má v `TaskType`,
-  `src/hunt.rs` je ale nemapuje (`wanted_hunt` zná jen `WinFightsAgainst`/`WinFightsBareHands`/`WinFightsNoChestplate`) –
-  úkol se dnes jen přeskočí, nic nespadne. Odloženo na dobu, až bude mít postava epicy: sundání 5-10 slotů najednou
-  najednou narazí na plný batoh (lektvary + věci k prodeji) mnohem snáz než dnešní 1-2 sloty u bare-hands, viz
-  `docs/tasks.md`. Řešit zároveň s "Epické předměty plní batoh" výše – možná to vyřeší to samé rozšíření inventáře.
+- [x] `WinFightsNoEpicsLegendaries` – naimplementováno 2026-10-10 (`hunt::Hunt::NoEpics`, `docs/tasks.md`); v logu 2026-10-11 splněno 5/5 u více postav.
+- [ ] `WinFightsNoGear` – zatím nemapováno v `src/hunt.rs` (úkol se přeskočí, nic nespadne); sundat celou výbavu najednou naráží na plný batoh, viz "Epické předměty plní batoh" výše.
 - [x] Denní odměna za přihlášení (kalendář, `docs/daily-rewards.md`)
 - [ ] Záchod (sf-api: `tavern.toilet`) – házení předmětů do záchodu místo prodeje?
 - [ ] Věž, mazlíčci, pevnost, podsvětí – až budou na postavě odemčené
