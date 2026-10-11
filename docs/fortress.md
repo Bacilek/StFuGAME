@@ -49,3 +49,26 @@ finish `…3940` − start `…3040` = 900 s = 15 min. The `resources` silver fi
 
 ## Open questions (asked 2026-10-11, answers go to `docs/precedents.md`)
 1. Wood and stone come from the Woodcutter's Hut and the Quarry – may the Quarry and other buildings (Treasury, Academy, units, Smithy, Hall of Knights) be upgraded too? The user will answer later.
+
+## Price table (user capture 2026-10-11, after the Woodcutter's Hut was built)
+`fortressprice` = 4 numbers per building in `FortressBuildingType` order: build time (s), silver (÷100 = gold), wood, stone, for the NEXT level. At Fortress level 1 / Woodcutter 1:
+| Building | time | gold | wood | stone |
+|---|---|---|---|---|
+| Fortress (→2) | 1895 s | 20 | 150 | 50 |
+| Laborers' Quarters | 900 s | 5 | 35 | 12 |
+| Woodcutter's Hut | 1895 s | 4 | 30 | 20 |
+| Quarry | 900 s | 3 | 22 | 0 |
+| Gem Mine | 900 s | 15 | 50 | 17 |
+| Academy | 900 s | 7 | 7 | 9 |
+| Archery Guild | 900 s | 5 | 41 | 7 |
+| Barracks | 900 s | 4 | 20 | 14 |
+| Mages' Tower | 900 s | 6 | 61 | 20 |
+| Treasury | 900 s | 25 | 40 | 13 |
+| Smithy | 900 s | 4 | 25 | 8 |
+| Wall | 900 s | 150 | 30 | 13 |
+Storage after the Woodcutter: wood limit 900, stone limit 300, wood production limit 375, `woodperhournextlevel:220`, `stoneperhournextlevel:50` (no Quarry yet, so no stone production). Gold costs are tiny at these levels; wood/stone are the bottleneck.
+
+## Tips from the internet (pasted by the user 2026-10-11, NOT decided yet)
+- Fortress, Laborers' Quarters and Hall of Knights to level 6; Barracks 3–4; Gem Mine to 1 and keep it there until about character level 125 and dungeon 9 finished; Quarry/Woodcutter to 3–4.
+- Farm resources with 1 soldier always, do not use gold to reshuffle the opponents, ALWAYS counter-attack (use a "fortress buddy" – the user's characters could attack each other).
+- Do not build defences (Wall) – a waste. Archers and Mages are defence only; level 1 of each only to unlock the Smithy (needed to upgrade soldiers) – optional, especially with a buddy.
