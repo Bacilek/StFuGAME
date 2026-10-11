@@ -13,6 +13,7 @@ mod coupons;
 mod ctx;
 mod daily;
 mod dungeons;
+mod fortress;
 mod guard;
 mod guild;
 mod hunt;
@@ -306,6 +307,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
 
         // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)
         if let tavern::Outcome::SessionLost = shops::run(session, tavern_done).await {
+            return tavern::Outcome::SessionLost;
+        }
+
+        // Fortress (user 2026-10-11): after the items (shops), before spinning/attributes – see src/fortress.rs
+        if let tavern::Outcome::SessionLost = fortress::run(session).await {
             return tavern::Outcome::SessionLost;
         }
 

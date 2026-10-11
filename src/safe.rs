@@ -83,6 +83,10 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn }
             // Lucky coins only when a task chest needs the spins (user 2026-10-07), see `tasks::plan`
             | Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins }
+            // Fortress (user 2026-10-11, src/fortress.rs): only the agreed buildings, never mushrooms
+            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut }
+            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut, mushrooms: 0 }
+            | Command::FortressGather { .. }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )

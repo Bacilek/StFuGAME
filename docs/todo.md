@@ -19,7 +19,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [x] Stáj (`docs/stable.md`)
 - [x] Skip fights? – není co skipovat, server vrací výsledek souboje hned (`docs/architecture.md`)
 
-- [ ] Pevnost (Fortress, odemčená od levelu 25, `docs/fortress.md`): pravidla od uživatele zapsaná (nikdy Wall; Gem Mine až od levelu 125; upgrade soustředit na Fortress + Laborers' Quarters). Čeká na odpovědi (ostatní budovy na dřevo/kámen, rozpočet zlata, kterým postavám) a pak implementace: sběr surovin, stavba, později protiútoky.
+- [ ] Pevnost (Fortress, odemčená od levelu 25, `docs/fortress.md`): pravidla od uživatele zapsaná (nikdy Wall; Gem Mine až od levelu 125; upgrade soustředit na Fortress + Laborers' Quarters). Základ naimplementován 2026-10-11 (`src/fortress.rs`: sběr surovin, dokončení + stavba Fortress / Woodcutter's Hut / Laborers' Quarters). Čeká na živé ověření a na odpověď ohledně dalších budov (Quarry atd.); později Gem Mine od levelu 125, jednotky, protiútoky.
 
 ## Soutěž postav s kamarády
 - Vše o soutěži (plán, soupiska, reporty) je jen lokálně v `roster/` (`roster/plan.md`, `roster/README.md`).

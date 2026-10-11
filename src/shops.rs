@@ -82,6 +82,11 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     guard.as_mut().map(f)
 }
 
+/// Has today's shop pass run (better items come before the fortress, user 2026-10-11)?
+pub fn pass_done() -> bool {
+    with_day(|d| d.done).unwrap_or(false)
+}
+
 /// Today's reserve in silver: the most expensive gold item for our class seen today. Other gold spending
 /// (attributes, guild skill for tasks) keeps this much so a better item can still be bought (user 2026-10-07).
 pub fn reserve() -> u64 {
@@ -277,6 +282,9 @@ async fn respin(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let (mut spins, mut spin_cost) = (0, 0u64);
+    if let Outcome::SessionLost = crate::fortress::run(session).await {
+        return Outcome::SessionLost;
+    }
     while spins < MAX_SPINS {
         let Some(gs) = session.game_state() else { break };
         let reserve = update_reserve(gs);
@@ -379,6 +387,12 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
                 Err(o) => return o,
             }
         }
+
+        // Fortress before spinning (items > fortress > spinning > attributes, user 2026-10-11)
+        if let Outcome::SessionLost = crate::fortress::run(session).await {
+            return Outcome::SessionLost;
+        }
+        let Some(gs) = session.game_state() else { return Outcome::Done };
 
         if spin_offers(gs).is_empty() {
             match crate::adtest::daily_refresh(session).await {

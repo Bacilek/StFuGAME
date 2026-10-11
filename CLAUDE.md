@@ -150,4 +150,4 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - The bot must be exited before a release build (locked exe). Do not run `cargo run` while the bot from the icon is running (single instance).
 
 ## Fortress
-- Description and open questions: `docs/fortress.md` (not implemented yet). Rules (user 2026-10-11): NEVER upgrade the Wall (fortifications); Gem Mine only from level 125; focus upgrades on the Fortress and the Laborers' Quarters; never mushrooms/hourglasses to finish a build.
+- Description, captures and open questions: `docs/fortress.md`, code `src/fortress.rs` (only Fortress, Laborers' Quarters, Woodcutter's Hut for now; enforced in `safe.rs`). Rules (user 2026-10-11): NEVER upgrade the Wall (fortifications); Gem Mine only from character level 125; focus upgrades on the Fortress and the Laborers' Quarters; never mushrooms/hourglasses to finish a build. Gold priority: better items > fortress > spinning the shops > attributes (fortress only from gold above the shop reserve, after the day's shop pass).

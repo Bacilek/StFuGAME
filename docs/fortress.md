@@ -35,9 +35,17 @@ finish `…3940` − start `…3040` = 900 s = 15 min. The `resources` silver fi
 - Minimum Fortress level per building: Laborers' Quarters, Quarry, Smithy, Woodcutter's Hut 1; Treasury 2; Gem Mine 3;
   Barracks, Wall 4; Archery Guild 5; Academy 6; Mages' Tower 7.
 
+## Implementation (src/fortress.rs)
+- `fortress::run` (main loop after the shops, before the Gleeman tasks; also in the shop pass before spinning and in the late spin round): (1) finish a build whose timer ran out (`FortressBuildFinish` with `mushrooms: 0` – the game wants it after every build, not only when skipping), (2) `FortressGather` for Wood/Stone/Experience when at least half of the production limit is collectable and there is room, (3) start the next build when `Fortress::can_build` says yes with gold ABOVE the shop reserve and the day's shop pass is done.
+- Order: Fortress → Woodcutter's Hut level 1 (second upgrade, user capture 2026-10-11) → then Fortress and Laborers' Quarters together (the lower level first, Fortress on a tie). ONLY these three buildings (also enforced in `safe.rs`); no Wall, no Gem Mine yet (character level 125, not implemented), nothing else until the user answers question 1.
+- Gold priority (user 2026-10-11): better items > fortress > spinning the shops > attributes.
+- Not handled yet: counter-attacks, units, the unlock of the Fortress feature itself for characters hitting level 25 (an `UnlockFeature` ident is probably pending like the dungeons' – unknown), waking up exactly when a build finishes (the main loop's ≤ 30 min cadence applies).
+
+## Second capture (Woodcutter's Hut level 1 started, user 2026-10-11)
+`fortress:1/0/0/…/3/1791727864/1791726964/10/110/9060/…` – Fortress level 1, build target `3` = Woodcutter's Hut (3 − 1 = 2), duration 900 s again, silver 19271 → 19071 (2 g).
+
+## Answers (2026-10-11)
+2. Gold: better items > fortress > spinning > attributes. 3. Gem Mine from CHARACTER level 125 – yes. 4. Start on every character that reaches level 25 (TestChar1 will be first).
+
 ## Open questions (asked 2026-10-11, answers go to `docs/precedents.md`)
-1. Wood and stone come from the Woodcutter's Hut and the Quarry – may they be upgraded too (needed to pay for the
-   Fortress / Laborers' Quarters upgrades)? Treasury (storage), Academy, units, Smithy, Hall of Knights?
-2. Gold: upgrades cost silver. Budget against the shop reserve and the attribute buying?
-3. Gem Mine: character level 125 – confirmed?
-4. Which characters first (level ≥ 25 only; test on one character)? Collecting resources (free) and counter-attacks later.
+1. Wood and stone come from the Woodcutter's Hut and the Quarry – may the Quarry and other buildings (Treasury, Academy, units, Smithy, Hall of Knights) be upgraded too? The user will answer later.
