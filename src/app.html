@@ -318,8 +318,8 @@ function openCard(c){
   const openDg = n.dungeons.filter(d=>!d.finished);
   if (!openDg.length) el("div",null,"No dungeon in progress");
   openDg.forEach(d=>{ const r=dt.insertRow(); r.insertCell().textContent = d.name.replace(/([a-z])([A-Z])/g,"$1 $2");
-    const c2=r.insertCell(); c2.textContent = d.finished ? "done" : `${d.done}/10`; const pr=document.createElement("span"); pr.className="prog";
-    const fill=document.createElement("i"); fill.style.width=Math.min(100,d.done*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
+    const c2=r.insertCell(); c2.textContent = d.finished ? "done" : `${Math.min(10,d.done+1)}/10`; const pr=document.createElement("span"); pr.className="prog";
+    const fill=document.createElement("i"); fill.style.width=Math.min(100,(d.done+1)*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
   $("card").showModal();
 }
 
