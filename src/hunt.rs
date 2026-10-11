@@ -195,7 +195,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             let Some(gs) = session.game_state() else { return Outcome::Done };
             let Some(item) = gs.character.equipment.0[slot].as_ref() else { continue };
             let Some(bag) = gs.character.inventory.free_slot() else {
-                report!("[hunt] Backpack full, cannot take off the {slot:?}");
+                report!(
+                    "[hunt] Backpack full, cannot take off the {slot:?} (backpack {} slots, {} free, {} already stripped)",
+                    gs.character.inventory.backpack.len(),
+                    gs.character.inventory.count_free_slots(),
+                    stripped.len()
+                );
                 // Put back whatever was already stripped this run before giving up
                 for (slot, bag, item_ident) in stripped {
                     let _ = safe::send(session, Command::Equip { from_pos: bag.into(), to_slot: slot, item_ident }).await;

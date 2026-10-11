@@ -573,7 +573,23 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "potion_items": c.active_potions.iter().flatten().map(potion_json).collect::<Vec<_>>(),
         "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
+        "gleeman": gleeman(gs),
     })
+}
+
+/// Goblin Gleeman state for the day report (user 2026-10-11: nothing recorded how the last day ended): earned points,
+/// every chest (points needed, opened or not) and the tasks still open, for the daily and the event list.
+fn gleeman(gs: &GameState) -> serde_json::Value {
+    let list = |tasks: &[sf_api::gamestate::rewards::Task], rewards: &[sf_api::gamestate::rewards::RewardChest]| {
+        let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+        serde_json::json!({
+            "points": earned,
+            "chests": rewards.iter().map(|c| serde_json::json!({ "need": c.required_points, "opened": c.opened })).collect::<Vec<_>>(),
+            "open": tasks.iter().filter(|t| !t.is_completed()).map(|t| format!("{:?} {}/{} ({} p)", t.typ, t.current, t.target, t.point_reward)).collect::<Vec<_>>(),
+        })
+    };
+    let t = &gs.specials.tasks;
+    serde_json::json!({ "daily": list(&t.daily.tasks, &t.daily.rewards), "event": list(&t.event.tasks, &t.event.rewards) })
 }
 
 /// The character's current state for the dashboard card (user 2026-10-08).
