@@ -680,3 +680,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: befriend tool run: all 12 characters are mutual friends and all added Bacilek31 (143 added, 0 failed). Release build made after that (bot not running at the time).
 - 2026-10-12: user sent fortress attack / soldier training captures (docs/fortress.md); waiting for what he wants automated.
 - 2026-10-12: fortress soldiers + one-soldier attacks + counter-attacks implemented (`fortress::military`, whitelist + tests in safe.rs). ⏳ needs a release rebuild and a live check on a character with Barracks (watch `[fortress]` lines). Correction: the 7k numbers in the attack response are fortress ranks, not loot.
+- 2026-10-12: fortress: loot threshold = 2× soldier cost, counter-attacks oldest first; user confirmed an attack always consumes the soldier and the training cost is per soldier. Needs a release rebuild.

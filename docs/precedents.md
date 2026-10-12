@@ -126,3 +126,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-12 (dashboard): the test account (`TestChar*`) is permanently excluded from the statistics (charts dashboard + leaderboard/issues, `roster.rs` skips folders starting with `TestChar`; its folder and logs stay). The chart legend shows only the character name, not the class.
 
 - 2026-10-12 (fortress soldiers): train soldiers automatically always up to the maximum (cheap); attack with ONE soldier at a time; prefer the opponent the fortress offers, and if one soldier would not do or that opponent has no resources use counter-attacks. Never reroll the opponent (gold/mushroom).
+- 2026-10-12 (fortress): measure the loot against the soldier price; counter-attacks oldest first; a soldier is always used up by an attack.

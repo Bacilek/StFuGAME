@@ -209,9 +209,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
 /// How often the soldiers are looked after (training + attacks), per character.
 const MILITARY_EVERY: chrono::Duration = chrono::Duration::minutes(5);
-/// An opponent is worth a soldier only if the expected loot (wood + stone, from `PlayerLookAt`) is at least this much;
-/// a soldier costs about 20 resources and a good raid brings 500–800 (captures 2026-10-12).
-const MIN_LOOT: u64 = 100;
+/// An opponent is worth a soldier (an attack always uses one up, even a won one – user 2026-10-12) only if the expected loot
+/// (wood + stone, from `PlayerLookAt`) is at least this many times the price of a soldier (`min_loot`). A soldier costs
+/// about 20 resources, a good raid brought 500–800 (captures 2026-10-12).
+const LOOT_PER_COST: u64 = 2;
+/// Used when the server shows no soldier price.
+const FALLBACK_COST: u64 = 20;
 /// Most attacks in one pass (soldiers come back one by one, a training takes ~10 min each).
 const MAX_ATTACKS: usize = 10;
 /// Counter-attack candidates examined per pass.
@@ -247,6 +250,13 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         return fail(&e);
     }
 
+    let min_loot = session
+        .game_state()
+        .and_then(|gs| gs.fortress.as_ref())
+        .map(|f| f.units[U::Soldier].training.cost)
+        .map_or(0, |c| c.wood + c.stone)
+        .max(FALLBACK_COST)
+        * LOOT_PER_COST;
     let mut attacked: Vec<u32> = Vec::new();
     let mut tried_counters: Vec<i64> = Vec::new();
     let mut use_offered = true;
@@ -264,7 +274,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
             && !attacked.contains(&id)
         {
             match loot_of(session, id).await {
-                Ok(Some((w, s))) if w + s >= MIN_LOOT => target = Some((id, w, s)),
+                Ok(Some((w, s))) if w + s >= min_loot => target = Some((id, w, s)),
                 Ok(Some((w, s))) => report!("[fortress] The offered opponent {id} has too little to loot (wood {w}, stone {s})"),
                 Ok(None) => report!("[fortress] Could not read the offered opponent {id}"),
                 Err(o) => return o,
@@ -280,7 +290,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 .filter(|e| matches!(e.battle_type, CombatMessageType::FortressDefense) && !tried_counters.contains(&e.msg_id))
                 .map(|e| (e.msg_id, e.player_name.clone(), e.time))
                 .collect();
-            log.sort_by_key(|e| std::cmp::Reverse(e.2));
+            log.sort_by_key(|e| e.2); // oldest first (user 2026-10-12)
             for (msg_id, name, _) in log.into_iter().take(MAX_COUNTERS) {
                 tried_counters.push(msg_id);
                 if let Err(err) = safe::send(session, Command::FortressSetCAEnemy { msg_id: msg_id as u32 }).await {
@@ -288,7 +298,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 }
                 let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
                 match loot_of(session, id).await {
-                    Ok(Some((w, s))) if w + s >= MIN_LOOT && !attacked.contains(&id) => {
+                    Ok(Some((w, s))) if w + s >= min_loot && !attacked.contains(&id) => {
                         report!("[fortress] Counter-attack target {name} ({id}): wood {w}, stone {s}");
                         target = Some((id, w, s));
                         break;
