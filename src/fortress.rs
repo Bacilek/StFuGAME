@@ -234,7 +234,7 @@ async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u6
 /// Soldiers (user 2026-10-12): attack with ONE soldier at a time, on the opponent the fortress offers (`attack_target`);
 /// when that one has too little to loot, or a one-soldier attack was lost, on a counter-attack target (`FortressSetCAEnemy`,
 /// a player who attacked us). Train soldiers up to the limit (cheap: ~15 wood + 5 stone each). Never rerolls the opponent
-/// (`FortressNewEnemy` costs gold or a mushroom, not whitelisted in `safe.rs`).
+/// (only the FREE change, once per ~5 min, via `safe::reroll_is_free`; the paid one costs gold or a mushroom and is forbidden).
 pub async fn military(session: &mut SimpleSession) -> Outcome {
     {
         let Ok(mut next) = NEXT_MILITARY.lock() else { return Outcome::Done };
@@ -263,6 +263,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
     let mut attacked: Vec<u32> = Vec::new();
     let mut tried_counters: Vec<i64> = Vec::new();
     let mut use_offered = true;
+    let mut rerolled = false;
     for _ in 0..MAX_ATTACKS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
@@ -312,6 +313,16 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
             }
         }
         let Some((id, w, s)) = target else {
+            // Nothing worthwhile: the FREE change of the opponent (once per ~5 min, user 2026-10-12), then look again
+            if !rerolled && session.game_state().is_some_and(safe::reroll_is_free) {
+                rerolled = true;
+                report!("[fortress] No worthwhile opponent, using the free change of the opponent");
+                if let Err(e) = safe::send(session, Command::FortressNewEnemy { use_mushroom: false }).await {
+                    return fail(&e);
+                }
+                use_offered = true;
+                continue;
+            }
             report!("[fortress] No worthwhile opponent right now, soldiers wait");
             break;
         };

@@ -88,10 +88,13 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy, mushrooms: 0 }
             | Command::FortressGather { .. }
             // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
-            // targets. NEVER `FortressNewEnemy` (rerolling costs gold or a mushroom). None of these takes mushrooms.
+            // targets. the paid `FortressNewEnemy` stays forbidden. None of these takes mushrooms.
             | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
             | Command::FortressAttack { soldiers: 1 }
             | Command::FortressSetCAEnemy { .. }
+            // The FREE change of the opponent only (user 2026-10-12, once per 5 min); `send_raw` checks `reroll_is_free`. The paid one
+            // (gold or a mushroom) stays forbidden.
+            | Command::FortressNewEnemy { use_mushroom: false }
             // Gem Mine (user 2026-10-12, src/gems.rs): start a search, collect it WITHOUT mushrooms, socket a gem (the move itself is
             // checked in `send_raw`: only a Gem from the backpack onto an equipped item that has a gem slot)
             | Command::FortressGemStoneSearch
@@ -119,6 +122,8 @@ pub enum Cooldown {
     Dungeon,
     /// Free Wheel of Fortune spin (otherwise it would cost mushrooms/lucky coins)
     Wheel,
+    /// Free change of the fortress attack opponent (once per ~5 min; otherwise it costs gold, user 2026-10-12)
+    Reroll,
 }
 
 /// When we last used each cooldown action (during this run of the bot).
@@ -152,6 +157,7 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
         // Only the free spin has a cooldown; lucky-coin spins are guarded by `tasks::lucky_spin_justified`
         Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn } => Some(Cooldown::Wheel),
+        Command::FortressNewEnemy { use_mushroom: false } => Some(Cooldown::Reroll),
         _ => None,
     }
 }
@@ -165,6 +171,11 @@ pub fn arena_is_free(gs: &GameState) -> bool {
 /// Is a free Wheel of Fortune spin available? Without a known time (None) we do not spin.
 pub fn wheel_is_free(gs: &GameState) -> bool {
     gs.specials.wheel.next_free_spin.is_some() && cooldown_free(Cooldown::Wheel, gs.specials.wheel.next_free_spin)
+}
+
+/// Is the free change of the fortress attack opponent available (the server-given time has passed and is newer than our last change)?
+pub fn reroll_is_free(gs: &GameState) -> bool {
+    gs.fortress.as_ref().is_some_and(|f| f.attack_free_reroll.is_some() && cooldown_free(Cooldown::Reroll, f.attack_free_reroll))
 }
 
 /// Are the Dungeons free? Only valid for a state fresh after `UpdateDungeons`.
@@ -265,6 +276,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         }
         Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
             return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
+        }
+        Some(Cooldown::Reroll) if !session.game_state().is_some_and(reroll_is_free) => {
+            return Err(SFError::InvalidRequest("the free change of the fortress opponent is not available, it would cost gold"));
         }
         _ => {}
     }
@@ -415,7 +429,7 @@ mod fortress_tests {
         assert!(is_allowed(&Command::FortressAttack { soldiers: 1 }));
         assert!(!is_allowed(&Command::FortressAttack { soldiers: 2 }));
         assert!(is_allowed(&Command::FortressSetCAEnemy { msg_id: 5 }));
-        assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: false }));
+        assert!(is_allowed(&Command::FortressNewEnemy { use_mushroom: false })); // free change only, guarded by `reroll_is_free`
         assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: true }));
         // gems: start and collect (only without mushrooms)
         assert!(is_allowed(&Command::FortressGemStoneSearch));
