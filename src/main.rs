@@ -306,6 +306,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = fortress::run(session).await {
             return tavern::Outcome::SessionLost;
         }
+        // Soldiers and fortress attacks (user 2026-10-12), independent of the shop pass
+        if let tavern::Outcome::SessionLost = fortress::military(session).await {
+            return tavern::Outcome::SessionLost;
+        }
 
         // Goblin Gleeman tasks: chests, guild skill, attributes; shell game only after the Tavern and the shops
         if let tavern::Outcome::SessionLost = tasks::run(session, tavern_done).await {

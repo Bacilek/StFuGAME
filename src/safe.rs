@@ -87,6 +87,11 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks }
             | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks, mushrooms: 0 }
             | Command::FortressGather { .. }
+            // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
+            // targets. NEVER `FortressNewEnemy` (rerolling costs gold or a mushroom). None of these takes mushrooms.
+            | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
+            | Command::FortressAttack { soldiers: 1 }
+            | Command::FortressSetCAEnemy { .. }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )
@@ -362,5 +367,14 @@ mod fortress_tests {
         assert!(is_allowed(&Command::FortressBuild { f_type: B::Barracks }));
         assert!(!is_allowed(&Command::FortressBuild { f_type: B::Smithy }));
         assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
+        // soldiers: train soldiers, one-soldier attacks, counter-attack targets; never a reroll, never other units or bigger armies
+        use sf_api::gamestate::fortress::FortressUnitType as U;
+        assert!(is_allowed(&Command::FortressBuildUnit { unit: U::Soldier, count: 3 }));
+        assert!(!is_allowed(&Command::FortressBuildUnit { unit: U::Archer, count: 1 }));
+        assert!(is_allowed(&Command::FortressAttack { soldiers: 1 }));
+        assert!(!is_allowed(&Command::FortressAttack { soldiers: 2 }));
+        assert!(is_allowed(&Command::FortressSetCAEnemy { msg_id: 5 }));
+        assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: false }));
+        assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: true }));
     }
 }

@@ -124,3 +124,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-12 (guild): a failed join must not leave the character guildless for 6 h – without a guild retry the join every 5 min (`guild::NO_GUILD_RETRY`).
 
 - 2026-10-12 (dashboard): the test account (`TestChar*`) is permanently excluded from the statistics (charts dashboard + leaderboard/issues, `roster.rs` skips folders starting with `TestChar`; its folder and logs stay). The chart legend shows only the character name, not the class.
+
+- 2026-10-12 (fortress soldiers): train soldiers automatically always up to the maximum (cheap); attack with ONE soldier at a time; prefer the opponent the fortress offers, and if one soldier would not do or that opponent has no resources use counter-attacks. Never reroll the opponent (gold/mushroom).

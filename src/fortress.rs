@@ -15,7 +15,8 @@ use sf_api::{
     command::Command,
     gamestate::{
         GameState,
-        fortress::{Fortress, FortressBuildingType as B, FortressResourceType as R},
+        fortress::{Fortress, FortressBuildingType as B, FortressResourceType as R, FortressUnitType as U},
+        social::CombatMessageType,
     },
 };
 
@@ -202,6 +203,151 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     );
     if let Err(e) = safe::send(session, Command::FortressBuild { f_type: next }).await {
         return fail(&e);
+    }
+    Outcome::Done
+}
+
+/// How often the soldiers are looked after (training + attacks), per character.
+const MILITARY_EVERY: chrono::Duration = chrono::Duration::minutes(5);
+/// An opponent is worth a soldier only if the expected loot (wood + stone, from `PlayerLookAt`) is at least this much;
+/// a soldier costs about 20 resources and a good raid brings 500–800 (captures 2026-10-12).
+const MIN_LOOT: u64 = 100;
+/// Most attacks in one pass (soldiers come back one by one, a training takes ~10 min each).
+const MAX_ATTACKS: usize = 10;
+/// Counter-attack candidates examined per pass.
+const MAX_COUNTERS: usize = 3;
+
+static NEXT_MILITARY: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = crate::ctx::PerChar::new();
+
+/// Expected loot (wood + stone) of fortress player `id`, from a fresh `PlayerLookAt`; `None` when it cannot be read.
+async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64)>, Outcome> {
+    let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| fail(&e))?;
+    Ok(gs.lookup.lookup_pid(id).and_then(|p| p.fortress.as_ref()).map(|f| (f.lootable_wood, f.lootable_stone)))
+}
+
+/// Soldiers (user 2026-10-12): attack with ONE soldier at a time, on the opponent the fortress offers (`attack_target`);
+/// when that one has too little to loot, or a one-soldier attack was lost, on a counter-attack target (`FortressSetCAEnemy`,
+/// a player who attacked us). Train soldiers up to the limit (cheap: ~15 wood + 5 stone each). Never rerolls the opponent
+/// (`FortressNewEnemy` costs gold or a mushroom, not whitelisted in `safe.rs`).
+pub async fn military(session: &mut SimpleSession) -> Outcome {
+    {
+        let Ok(mut next) = NEXT_MILITARY.lock() else { return Outcome::Done };
+        let now = Local::now();
+        if next.is_some_and(|t| now < t) {
+            return Outcome::Done;
+        }
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
+        if f.units[U::Soldier].limit == 0 {
+            return Outcome::Done; // no Barracks yet
+        }
+        *next = Some(now + MILITARY_EVERY);
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return fail(&e);
+    }
+
+    let mut attacked: Vec<u32> = Vec::new();
+    let mut tried_counters: Vec<i64> = Vec::new();
+    let mut use_offered = true;
+    for _ in 0..MAX_ATTACKS {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
+        if f.units[U::Soldier].count == 0 {
+            break;
+        }
+
+        // 1. The target: the offered opponent first
+        let mut target = None;
+        if use_offered
+            && let Some(id) = f.attack_target
+            && !attacked.contains(&id)
+        {
+            match loot_of(session, id).await {
+                Ok(Some((w, s))) if w + s >= MIN_LOOT => target = Some((id, w, s)),
+                Ok(Some((w, s))) => report!("[fortress] The offered opponent {id} has too little to loot (wood {w}, stone {s})"),
+                Ok(None) => report!("[fortress] Could not read the offered opponent {id}"),
+                Err(o) => return o,
+            }
+        }
+        // 2. Otherwise a counter-attack target
+        if target.is_none() {
+            let Some(gs) = session.game_state() else { return Outcome::Done };
+            let mut log: Vec<(i64, String, chrono::DateTime<Local>)> = gs
+                .mail
+                .combat_log
+                .iter()
+                .filter(|e| matches!(e.battle_type, CombatMessageType::FortressDefense) && !tried_counters.contains(&e.msg_id))
+                .map(|e| (e.msg_id, e.player_name.clone(), e.time))
+                .collect();
+            log.sort_by_key(|e| std::cmp::Reverse(e.2));
+            for (msg_id, name, _) in log.into_iter().take(MAX_COUNTERS) {
+                tried_counters.push(msg_id);
+                if let Err(err) = safe::send(session, Command::FortressSetCAEnemy { msg_id: msg_id as u32 }).await {
+                    return fail(&err);
+                }
+                let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
+                match loot_of(session, id).await {
+                    Ok(Some((w, s))) if w + s >= MIN_LOOT && !attacked.contains(&id) => {
+                        report!("[fortress] Counter-attack target {name} ({id}): wood {w}, stone {s}");
+                        target = Some((id, w, s));
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(o) => return o,
+                }
+            }
+        }
+        let Some((id, w, s)) = target else {
+            report!("[fortress] No worthwhile opponent right now, soldiers wait");
+            break;
+        };
+
+        // 3. Attack with one soldier
+        let before = session.game_state().and_then(|gs| gs.fortress.as_ref()).map(|f| (f.resources[R::Wood].current, f.resources[R::Stone].current));
+        report!("[fortress] Attacking {id} with 1 soldier (loot up to wood {w}, stone {s})");
+        if let Err(e) = safe::send(session, Command::FortressAttack { soldiers: 1 }).await {
+            return fail(&e);
+        }
+        attacked.push(id);
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let won = gs.last_fight.as_ref().is_some_and(|l| l.has_player_won);
+        let honor = gs.last_fight.as_ref().map_or(0, |l| l.honor_change);
+        let gained = gs.fortress.as_ref().zip(before).map(|(f, (bw, bs))| {
+            (f.resources[R::Wood].current.saturating_sub(bw), f.resources[R::Stone].current.saturating_sub(bs))
+        });
+        if won {
+            let (gw, gs_) = gained.unwrap_or((0, 0));
+            report!("[fortress] Won against {id}: wood +{gw}, stone +{gs_}, fortress honor {honor:+}");
+        } else {
+            report!("[fortress] Lost against {id} with one soldier, using counter-attacks from now on");
+            use_offered = false;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(fastrand::u64(3..8))).await;
+    }
+
+    // 4. Train soldiers up to the limit as far as wood and stone allow
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
+    let u = &f.units[U::Soldier];
+    let missing = u64::from(u.limit.saturating_sub(u.count + u.in_training));
+    if missing > 0 && u.in_training == 0 {
+        let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
+        let cost = u.training.cost;
+        let afford = [
+            if cost.wood > 0 { wood / cost.wood } else { u64::MAX },
+            if cost.stone > 0 { stone / cost.stone } else { u64::MAX },
+        ]
+        .into_iter()
+        .min()
+        .unwrap_or(0);
+        let n = missing.min(afford);
+        if n > 0 {
+            report!("[fortress] Training {n} soldier(s) ({}/{} now, limit {})", u.count, u.in_training, u.limit);
+            if let Err(e) = safe::send(session, Command::FortressBuildUnit { unit: U::Soldier, count: n as u32 }).await {
+                return fail(&e);
+            }
+        }
     }
     Outcome::Done
 }
