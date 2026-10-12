@@ -24,6 +24,9 @@ use crate::{safe, session::SimpleSession, tavern::Outcome};
 const SWITCH_MARGIN: u32 = 10;
 /// How often the quick-join list is checked (a free guild with better bonuses can appear any time).
 const CHECK_EVERY: chrono::Duration = chrono::Duration::hours(6);
+/// Without a guild the list is re-checked this often (a failed join, a kick): every hour without Instructor/Treasure
+/// bonuses is wasted (user 2026-10-12, PajaRizz), the list is only a few requests.
+const NO_GUILD_RETRY: chrono::Duration = chrono::Duration::minutes(5);
 /// Most list pages loaded per check (the page parameter of `GroupJoinList` is unverified: we stop at the first page that
 /// brings no new guild).
 const MAX_PAGES: u32 = 5;
@@ -206,7 +209,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         let Ok(mut last) = LAST_CHECK.lock() else { return Outcome::Done };
-        if last.is_some_and(|t| now - t < CHECK_EVERY) {
+        let every = if gs.guild.is_none() { NO_GUILD_RETRY } else { CHECK_EVERY };
+        if last.is_some_and(|t| now - t < every) {
             return Outcome::Done;
         }
         *last = Some(now);
