@@ -694,3 +694,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: scrapbook % now follows the game's profile (items+monsters)/2600 (fit of 5 profiles); chart/card/day files updated, ⏳ exact D needs 2-decimal profile values. Needs a release rebuild.
 - 2026-10-12: scrapbook D pinned to 2506 (chart/card now match the game profile); HoK upgrade automated (instant, only when no build runs). Needs a release rebuild.
 - 2026-10-12: scrapbook analysis (docs/scrapbook.md): dedicated hunt blocked all day by event/daily fight tasks; all hunts now prefer opponents wearing missing items. Needs a release rebuild.
+- 2026-10-12: task hunts (class, HoF, bare hands…) now ride along with the scrapbook (most missing items among the weaker candidates, up to 3 pages); user allowed it for the Ruffian event. Needs a release rebuild.

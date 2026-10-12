@@ -23,6 +23,9 @@ const INSPECT: usize = 3;
 /// The scrapbook hunt looks further: more pages and more players per page (each one is a `ViewPlayer`).
 const SCRAPBOOK_PAGES: u32 = 10;
 const SCRAPBOOK_INSPECT: usize = 6;
+/// Task hunts that ride along with the scrapbook: players inspected per page and pages scanned for a missing item.
+const COMBINED_INSPECT: usize = 5;
+const COMBINED_PAGES: u32 = 3;
 /// After a scrapbook search that found nobody, wait this long before the next one.
 const SCRAPBOOK_RETRY: chrono::Duration = chrono::Duration::minutes(30);
 
@@ -133,7 +136,16 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
         total = gs.hall_of_fames.players_total.max(our_rank);
     }
     // From the very bottom upwards: the lowest ranks are level 1 players, a clearly weaker opponent is always there
-    let (pages, inspect) = if hunt == Hunt::Scrapbook { (SCRAPBOOK_PAGES, SCRAPBOOK_INSPECT) } else { (BOTTOM_PAGES, INSPECT) };
+    // Fight tasks (win vs a class, bare hands, in the Hall of Fame…) ride along with the scrapbook (user 2026-10-12: "it combines
+    // nicely"): look through a few pages and take the clearly weaker opponent wearing the most missing items. Only the
+    // back-to-back streak (it must not be lost) keeps the plain weakest-first search.
+    let combined = !matches!(hunt, Hunt::Scrapbook | Hunt::AttackMe | Hunt::Any { streak: true });
+    let (pages, inspect) = match hunt {
+        Hunt::Scrapbook => (SCRAPBOOK_PAGES, SCRAPBOOK_INSPECT),
+        _ if combined => (BOTTOM_PAGES, COMBINED_INSPECT),
+        _ => (BOTTOM_PAGES, INSPECT),
+    };
+    let mut best: Option<(usize, String, String)> = None;
     for k in 0..pages {
         let target = total.saturating_sub(25 + 51 * k);
         if target <= our_rank || target < 26 {
@@ -157,7 +169,6 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
         list.sort();
         // Among the clearly weaker candidates of this page the one wearing the most items our scrapbook still lacks wins
         // (user 2026-10-12: tasks first, but the scrapbook may ride along); a scrapbook hunt needs at least one.
-        let mut best: Option<(usize, String, String)> = None;
         for (_, name) in list.into_iter().take(inspect) {
             let gs = safe::send(session, Command::ViewPlayer { ident: name.clone() }).await.map_err(|e| fail(&e))?;
             let Some(p) = gs.lookup.lookup_name(&name) else { continue };
@@ -174,7 +185,14 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
                 best = Some((missing, name, desc));
             }
         }
-        if let Some((missing, name, desc)) = best {
+        // Done with this page? A combined hunt keeps looking for a page with a missing item for up to COMBINED_PAGES pages
+        let enough = match &best {
+            None => false,
+            Some((missing, ..)) => !combined || *missing > 0 || k + 1 >= COMBINED_PAGES,
+        };
+        if enough
+            && let Some((missing, name, desc)) = best.take()
+        {
             report!("[hunt] {desc}");
             if missing > 0 {
                 report!("[hunt] {name} wears {missing} item(s) missing from our scrapbook");
@@ -182,7 +200,10 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
             return Ok(Some(name));
         }
     }
-    Ok(None)
+    Ok(best.map(|(_, name, desc)| {
+        report!("[hunt] {desc}");
+        name
+    }))
 }
 
 /// The equipment slots to empty for the fight (`None` = nothing to take off for this kind of hunt).
