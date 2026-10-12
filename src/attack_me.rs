@@ -1,8 +1,9 @@
-//! "Attack me" mode (user 2026-10-12): the user's main character `Bacilek31` is the preferred Arena / Hall of Fame
-//! opponent of every bot character while the switch in the app window is on. Goal: the achievement for 25 / 50 / 100 Arena
-//! fights won in a row – the user keeps Bacilek31's honor low and takes his weapon off so he loses on purpose.
-//! The switch is remembered across restarts in `roster/attack_me.txt` (the file exists = on). Quests and events keep their
-//! priority: a "win against <class>" task picks its own opponent, hunts for fight tasks run before the Arena.
+//! "Attack me" mode (user 2026-10-12): while the switch in the app window is on, every bot character looks up the user's
+//! main character `Bacilek31` in the Hall of Fame and attacks him (`hunt::Hunt::AttackMe`, ahead of every other hunt and
+//! of the Arena XP fights). Goal: his honor and rank sink, so he fights among weaker opponents and can reach the
+//! achievement for 25 / 50 / 100 Arena fights won in a row (he takes his weapon off and loses on purpose). These are
+//! Hall of Fame fights by name: they use the Arena cooldown but do NOT count towards the 10 XP wins a day.
+//! The switch is remembered across restarts in `roster/attack_me.txt` (the file exists = on).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;

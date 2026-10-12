@@ -124,8 +124,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         TaskType::WinFightsAgainst(c) => Some(c),
         _ => None,
     });
-    // "Attack me" mode: Bacilek31 is the opponent unless a class task chooses one (user 2026-10-12)
-    let forced = if want_class.is_none() { crate::attack_me::target() } else { None };
     let own_fighter = Fighter::from(&PlayerFighterSquad::new(gs).character);
     let mut ids = gs.arena.enemy_ids;
     if ids.iter().all(|&id| id == 0) {
@@ -139,11 +137,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
     // Load the opponents' stats and estimate our win chance against each via sf-api's own battle simulator
     // (same one `tournament.rs` uses) instead of the coarse attribute-only `power()` formula.
-    let mut best: Option<(f64, String)> = forced.map(|n| {
-        report!("[arena] Attack-me mode: challenging {n}");
-        (1.0, n.to_string())
-    });
-    for id in ids.into_iter().filter(|&id| id != 0 && forced.is_none()) {
+    let mut best: Option<(f64, String)> = None;
+    for id in ids.into_iter().filter(|&id| id != 0) {
         let gs = match safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await {
             Ok(gs) => gs,
             Err(e) => return fail(&e),

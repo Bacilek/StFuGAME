@@ -55,6 +55,8 @@ enum Hunt {
     /// Spare Arena fight (all 10 XP wins done, no task hunt open): an opponent wearing items our scrapbook still lacks
     /// (user 2026-10-12). Tasks and events always go first.
     Scrapbook,
+    /// "Attack me" mode: the user's main character is the opponent, ahead of everything else
+    AttackMe,
 }
 
 impl Hunt {
@@ -67,6 +69,7 @@ impl Hunt {
             Hunt::Any { streak: true } => 0.3,
             Hunt::Any { streak: false } => 0.6,
             Hunt::Scrapbook => 0.6,
+            Hunt::AttackMe => 1.0,
         }
     }
 }
@@ -108,11 +111,15 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 
 /// Finds a clearly weaker opponent for the hunt. Returns the name.
 async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option<String>, Outcome> {
-    // "Attack me" mode: for fights against anybody in the Hall of Fame the user's main is the opponent (user 2026-10-12)
-    if matches!(hunt, Hunt::Any { .. })
-        && let Some(target) = crate::attack_me::target()
-    {
-        report!("[hunt] Attack-me mode: {target}");
+    // "Attack me" mode (user 2026-10-12): look the user's main up and attack him, so his honor and rank sink
+    if hunt == Hunt::AttackMe {
+        let Some(target) = crate::attack_me::target() else { return Ok(None) };
+        let gs = safe::send(session, Command::ViewPlayer { ident: target.to_string() }).await.map_err(|e| fail(&e))?;
+        let Some(p) = gs.lookup.lookup_name(target) else {
+            report!("[hunt] Attack-me: {target} not found");
+            return Ok(None);
+        };
+        report!("[hunt] Attack-me: {target} (rank {}, honor {}, lvl {}, {:?})", p.rank, p.honor, p.level, p.class);
         return Ok(Some(target.to_string()));
     }
     let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
@@ -142,7 +149,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
                 p.level <= our_level
                     && match hunt {
                         Hunt::Class(c) => p.class == c,
-                        Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } | Hunt::Scrapbook => true,
+                        Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } | Hunt::Scrapbook | Hunt::AttackMe => true,
                     }
             })
             .map(|p| (p.honor, p.name.clone()))
@@ -182,7 +189,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
 fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>> {
     let gs = gs?;
     match hunt {
-        Hunt::Class(_) | Hunt::Any { .. } | Hunt::Scrapbook => None,
+        Hunt::Class(_) | Hunt::Any { .. } | Hunt::Scrapbook | Hunt::AttackMe => None,
         Hunt::Without(slot) => {
             let mut slots = vec![slot];
             if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
@@ -227,6 +234,9 @@ fn scrap_count(session: &SimpleSession) -> usize {
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let mut hunts = wanted_hunts(gs);
+    if crate::attack_me::target().is_some() {
+        hunts.insert(0, Hunt::AttackMe); // priority while the app switch is on (user 2026-10-12)
+    }
     if hunts.is_empty() && scrapbook_wanted(gs) {
         hunts.push(Hunt::Scrapbook);
     }
@@ -245,7 +255,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
     let Some(hunt) = chosen else { return Outcome::Done };
-    report!("[hunt] Task {hunt:?}: looking for a clearly weaker opponent in the Hall of Fame");
+    report!("[hunt] {hunt:?}: looking for an opponent in the Hall of Fame");
     let name = match find_opponent(session, hunt).await {
         Ok(Some(n)) => n,
         Ok(None) => {
