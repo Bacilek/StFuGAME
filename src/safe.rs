@@ -92,6 +92,15 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
             | Command::FortressAttack { soldiers: 1 }
             | Command::FortressSetCAEnemy { .. }
+            // Gem Mine (user 2026-10-12, src/gems.rs): start a search, collect it WITHOUT mushrooms, socket a gem (the move itself is
+            // checked in `send_raw`: only a Gem from the backpack onto an equipped item that has a gem slot)
+            | Command::FortressGemStoneSearch
+            | Command::FortressGemStoneSearchFinish { mushrooms: 0 }
+            | Command::PlayerItemMove {
+                from: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
+                to: PlayerItemPosition { place: PlayerItemPlace::Equipment, .. },
+                ..
+            }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
             | Command::BuyMount { mount: Mount::Dragon | Mount::Tiger }
     )
@@ -163,6 +172,16 @@ fn shop_buy_ok(gs: &GameState, shop_pos: ShopPosition, item_ident: ItemCommandId
     gs.shops[shop_pos.typ].items.get(shop_pos.pos).is_some_and(|item| {
         item.mushroom_price == 0 && item.command_ident() == item_ident && u64::from(item.price) <= gs.character.silver
     })
+}
+
+/// A gem from the backpack onto an equipped item that has a gem slot.
+fn gem_socket_ok(gs: &GameState, to: PlayerItemPosition, item_ident: ItemCommandIdent) -> bool {
+    use sf_api::gamestate::items::ItemType;
+    let is_gem = gs.character.inventory.backpack.iter().flatten().any(|i| i.command_ident() == item_ident && matches!(i.typ, ItemType::Gem(_)));
+    let has_slot = gs.character.equipment.0.iter().any(|(slot, item)| {
+        slot as usize - 1 == to.position && item.as_ref().is_some_and(|i| i.gem_slot.is_some())
+    });
+    is_gem && has_slot
 }
 
 /// Guild skill upgrade only for gold (from higher levels it also costs mushrooms) and only at the current level.
@@ -254,6 +273,14 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| crate::fortress::build_ok(gs, *f_type))
     {
         return Err(SFError::InvalidRequest("this fortress building may not be built now"));
+    }
+    // Backpack -> equipment moves are only for socketing a gem into an item with a gem slot (src/gems.rs); equipping is `Command::Equip`
+    if let Command::PlayerItemMove { from, to, item_ident } = &cmd
+        && to.place == PlayerItemPlace::Equipment
+        && from.place != PlayerItemPlace::Equipment
+        && !session.game_state().is_some_and(|gs| gem_socket_ok(gs, *to, *item_ident))
+    {
+        return Err(SFError::InvalidRequest("only a gem may be moved onto an equipped item with a gem slot"));
     }
     if let Command::GuildIncreaseSkill { skill, current } = &cmd
         && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))
@@ -376,5 +403,8 @@ mod fortress_tests {
         assert!(is_allowed(&Command::FortressSetCAEnemy { msg_id: 5 }));
         assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: false }));
         assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: true }));
+        // gems: start and collect (only without mushrooms)
+        assert!(is_allowed(&Command::FortressGemStoneSearch));
+        assert!(is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 0 }));
     }
 }

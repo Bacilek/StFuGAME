@@ -125,6 +125,14 @@ fn choose(f: &Fortress, char_level: u16) -> Option<B> {
 }
 
 /// Resources of one kind that can be collected right now (the server only recalculates them from time to time).
+/// Wood and stone the next planned building still needs (None when nothing is planned): other spending (gems) leaves it alone.
+pub fn next_build_cost(gs: &GameState) -> Option<(u64, u64)> {
+    let f = gs.fortress.as_ref()?;
+    let next = choose(f, gs.character.level)?;
+    let c = f.buildings[next].upgrade_cost;
+    Some((c.wood, c.stone))
+}
+
 fn collectable(gs: &GameState, r: R) -> u64 {
     let Some(f) = gs.fortress.as_ref() else { return 0 };
     let p = &f.resources[r].production;

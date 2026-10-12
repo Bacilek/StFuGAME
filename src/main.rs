@@ -13,6 +13,7 @@ mod ctx;
 mod daily;
 mod dungeons;
 mod fortress;
+mod gems;
 mod guard;
 mod guild;
 mod hunt;
@@ -308,6 +309,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
         // Soldiers and fortress attacks (user 2026-10-12), independent of the shop pass
         if let tavern::Outcome::SessionLost = fortress::military(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Gem Mine: search, collect, socket (user 2026-10-12)
+        if let tavern::Outcome::SessionLost = gems::run(session).await {
             return tavern::Outcome::SessionLost;
         }
 

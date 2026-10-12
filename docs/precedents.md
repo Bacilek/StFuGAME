@@ -127,3 +127,4 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - 2026-10-12 (fortress soldiers): train soldiers automatically always up to the maximum (cheap); attack with ONE soldier at a time; prefer the opponent the fortress offers, and if one soldier would not do or that opponent has no resources use counter-attacks. Never reroll the opponent (gold/mushroom).
 - 2026-10-12 (fortress): measure the loot against the soldier price; counter-attacks oldest first; a soldier is always used up by an attack.
+- 2026-10-12 (gems): collect when >=1 slot stays free or a secondary/luck gem can be replaced; main/orange/black gems into the longest-lasting best item, then Con, then Luck, then secondary; keep a gem that has no place.
