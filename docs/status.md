@@ -683,3 +683,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: fortress: loot threshold = 2× soldier cost, counter-attacks oldest first; user confirmed an attack always consumes the soldier and the training cost is per soldier. Needs a release rebuild.
 - 2026-10-12: gem mine capture (collect gem, socket into a necklace via PlayerItemMove) saved in docs/fortress.md; waiting for what the user wants automated.
 - 2026-10-12: Gem Mine automation (`src/gems.rs`: start/collect/socket per the user's rules, whitelist + tests in safe.rs). ⏳ needs a release rebuild; please send the REQUEST line of the socketing PlayerItemMove to confirm the shape. Watch `[gems]` lines.
+- 2026-10-12: Arena highlight thresholds raised (see docs/arena-highlights.md); saving works (10 fights saved by 08:00). Needs a release rebuild.

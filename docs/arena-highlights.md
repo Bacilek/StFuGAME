@@ -167,7 +167,7 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 | Druid bear form (stance 11) / swoop (type 13 + free attack) | ✅ format confirmed from a saved fight (unit test `decodes_druid_bear_and_swoop`); thresholds for `swoops`/`bear_crits` are guesses |
 | `PlayerCombatLogMark <id>/1` marks a fight (sets `combatloglist`'s last field to `3`, settling to `2`) | ✅ 2026-10-09, both via our own API call and the user's in-game click, same effect |
 | `PlayerCombatLogMark <id>/0` un-marks a fight (sets last field to `0`) | ✅ 2026-10-09, confirmed by diffing the user's own pin/unpin in-game clicks (clean single-row `3→0`) – inferred from the resulting list, the raw unmark request itself wasn't captured, but high confidence |
-| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ❌ 2026-10-12: NOT populated – every record since 2026-10-09 logged "no matching combat log entry", so NO fight has ever been saved by the bot. Now `maybe_mark` sends one `Update` and looks again (`recent_fight`); ⏳ unknown whether `Poll` carries `combatloglist` – watch for `Marking fight` in the log, otherwise find the command that lists the combat log |
+| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ❌ not in the `Fight` response, but an `Update` + retry (`recent_fight`) finds the entry: saving works since 2026-10-12 (10 fights in `roster/arena_highlights.txt` by 08:00) |
 | Point thresholds reasonable (mark too much / too little) | ⏳ pending real scores in the log |
 
 ## Open questions
@@ -190,3 +190,6 @@ msg id | category: why; category: why`. Beaten categories are removed from a lin
 
 ## Capture 2026-10-12 (user): opening Messages → Fights
 Opening the tab sends only a `timestamp` request; the list is NOT fetched by a separate command (it is already in the state the client holds). Clicking a fight sends `PlayerLookAt` (the opponent's data, `otherplayer…` keys, no `combatloglist`). So `combatloglist` arrives with ordinary full-state responses (login, `Poll`/`Update`?) – hence the `Update` + retry in `maybe_mark`. Still ⏳ unverified that a fresh `Update` right after a fight already contains the new entry.
+
+## Thresholds raised (2026-10-12, user: 10 saved fights since the morning is too many)
+First day with saving working (the `Update` + retry in `maybe_mark` found the combat-log entry): 10 saved fights by ~08:00, half of them `big_hit` at 40–53 % of the opponent's life. New thresholds: `big_hit` 0.35 → 0.75, `level_gap` 6 → 10, `strength_ratio` 1.6 → 2.0, `low_hp` 5 % → 2 %, `combo_run` 4 → 6, `evade_streak` 5 → 6, `block_streak` 5 → 6, `heal_blocks` 4 → 5, `crit_streak` 4 → 5 (class-specific counters untouched). Existing records stay; a new one must beat both the threshold and the character's own previous best. Re-tune from `roster/arena_highlights.txt` (one line per saved fight with the category).
