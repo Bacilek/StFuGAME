@@ -594,6 +594,55 @@ fn gleeman(gs: &GameState) -> serde_json::Value {
     serde_json::json!({ "daily": list(&t.daily.tasks, &t.daily.rewards), "event": list(&t.event.tasks, &t.event.rewards) })
 }
 
+/// Today's Gleeman quests and the event quests for the app window's "Quests" tab (user 2026-10-12): every task with
+/// its progress, the three chests with their rewards and the points earned so far.
+fn quests_json(gs: &GameState) -> serde_json::Value {
+    use sf_api::gamestate::rewards::{RewardChest, Task};
+    let part = |tasks: &[Task], rewards: &[RewardChest], end: Option<chrono::DateTime<Local>>| {
+        let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+        serde_json::json!({
+            "points": earned,
+            "max": tasks.iter().map(|t| t.point_reward).sum::<u32>(),
+            "tasks": tasks.iter().map(|t| serde_json::json!({
+                "name": format!("{:?}", t.typ), "current": t.current, "target": t.target,
+                "points": t.point_reward, "done": t.is_completed(),
+            })).collect::<Vec<_>>(),
+            "chests": rewards.iter().map(|c| serde_json::json!({
+                "need": c.required_points, "opened": c.opened,
+                "rewards": c.rewards.iter()
+                    .map(|r| crate::report::reward(&format!("{:?}", r.typ), i64::try_from(r.amount).unwrap_or(i64::MAX)))
+                    .collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+            "end": end.map(|e| e.to_rfc3339()),
+        })
+    };
+    let t = &gs.specials.tasks;
+    // An event whose task list has not synced yet has no tasks: show no event section then
+    let event = (!t.event.tasks.is_empty()).then(|| part(&t.event.tasks, &t.event.rewards, t.event.end));
+    serde_json::json!({
+        "daily": part(&t.daily.tasks, &t.daily.rewards, None),
+        "event": event,
+        "updated": Local::now().to_rfc3339(),
+    })
+}
+
+/// `roster/<character>/quests.json`, rewritten whenever the quests change (and at least every 2 minutes).
+pub fn write_quests(gs: &GameState) {
+    static LAST: crate::ctx::PerChar<Option<(String, std::time::Instant)>> = crate::ctx::PerChar::new();
+    let mut j = quests_json(gs);
+    j["updated"] = serde_json::Value::Null;
+    let body = j.to_string();
+    let Ok(mut last) = LAST.lock() else { return };
+    if last.as_ref().is_some_and(|(b, t)| *b == body && t.elapsed() < std::time::Duration::from_secs(120)) {
+        return;
+    }
+    *last = Some((body, std::time::Instant::now()));
+    drop(last);
+    let Some(d) = dir() else { return };
+    let _ = fs::create_dir_all(&d);
+    let _ = fs::write(d.join("quests.json"), quests_json(gs).to_string());
+}
+
 /// The character's current state for the dashboard card (user 2026-10-08).
 /// Thirst for Adventure (ALU) at full: `sf-api` itself checks against this constant for "full day" (100 min).
 const MAX_THIRST_SEC: u32 = 6000;

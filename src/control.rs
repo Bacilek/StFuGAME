@@ -168,7 +168,11 @@ pub fn status_json() -> serde_json::Value {
                     .ok()
                     .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
                     .unwrap_or(serde_json::Value::Null);
-                serde_json::json!({ "name": name, "state": state.as_str(), "now": now })
+                let quests = std::fs::read_to_string(format!("roster/{name}/quests.json"))
+                    .ok()
+                    .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+                    .unwrap_or(serde_json::Value::Null);
+                serde_json::json!({ "name": name, "state": state.as_str(), "now": now, "quests": quests })
             })
             .collect(),
     )

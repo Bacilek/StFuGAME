@@ -188,6 +188,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let Some(gs) = session.game_state() {
             roster::track_level(gs);
             roster::write_now(gs);
+            roster::write_quests(gs);
         }
 
         // Daily report for the character challenge at ~23:50 (roster/, local only) + simulated duels at 23:40

@@ -57,6 +57,31 @@ dialog::backdrop{background:#0008}
 table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2px 0;border:none;text-align:left}
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
+#quests{display:none}
+.qtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:16px}
+.qtile{background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:8px 6px 8px;text-align:center;cursor:pointer;position:relative}
+.qtile[aria-pressed=true]{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}
+.qtile .qimg{width:72px;height:72px;margin:0 auto 6px;border-radius:50%;background:var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:24px}
+.qtile .qimg img{width:100%;height:100%;object-fit:cover;display:block}
+.qtile .qn{font-weight:700;font-size:13px;word-break:break-word}
+.qpanel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.qpanel h3{margin:0 0 2px;font-size:16px}
+.qpanel .sub{color:var(--ink2);font-size:12px;margin-bottom:10px}
+.qbar{position:relative;height:16px;background:var(--line);border-radius:8px;margin:26px 8px 34px}
+.qbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--good)}
+.qbar .mk{position:absolute;top:-22px;transform:translateX(-50%);font-size:11px;color:var(--ink2);text-align:center;white-space:nowrap}
+.qbar .mk b{display:block;font-size:15px;line-height:1}
+.qbar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--surface)}
+.qbar .rw{position:absolute;top:20px;transform:translateX(-50%);font-size:11px;color:var(--ink2);text-align:center;max-width:120px;line-height:1.2}
+.qbar .rw.open{color:var(--muted);text-decoration:line-through}
+.qlist{display:flex;flex-direction:column;gap:8px}
+.qtask{display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr 90px;gap:10px;align-items:center;font-size:13px}
+.qtask .nm small{display:block;color:var(--muted);font-size:11px}
+.qtask .pb{height:12px;background:var(--line);border-radius:6px;overflow:hidden;position:relative}
+.qtask .pb i{display:block;height:100%;background:var(--Mage)}
+.qtask .pt{text-align:right;color:var(--ink2)}
+.qtask.skip .nm{color:var(--muted)}
+.qdone{color:var(--good);font-size:13px}
 .epic{color:#9b6be0} .legendary{color:#e08a1a}
 .gp{width:334px;margin:8px auto 12px}
 .paperdoll{display:grid;grid-template-columns:repeat(4,76px);grid-template-rows:repeat(4,76px);gap:6px;
@@ -96,6 +121,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
   <div class="tabs">
     <button id="tabChars" aria-pressed="true">Characters</button>
     <button id="tabCharts" aria-pressed="false">Charts</button>
+    <button id="tabQuests" aria-pressed="false">Quests</button>
   </div>
   <div class="spacer"></div>
   <div class="right">
@@ -110,6 +136,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 <main>
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
+  <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
 <dialog id="card"><div id="cardbody"></div><form method="dialog"><button class="close" aria-label="Close">✕</button></form></dialog>
 <script>
@@ -133,13 +160,19 @@ const classColor = cls => css("--" + (CLASSES.includes(cls) ? cls : "Other"));
 
 let STATUS = [];
 
-$("tabChars").addEventListener("click", () => setTab(true));
-$("tabCharts").addEventListener("click", () => setTab(false));
-function setTab(chars){
-  $("tabChars").setAttribute("aria-pressed", chars);
-  $("tabCharts").setAttribute("aria-pressed", !chars);
-  $("tiles").style.display = chars ? "grid" : "none";
-  $("charts").style.display = chars ? "none" : "block";
+$("tabChars").addEventListener("click", () => setTab("chars"));
+$("tabCharts").addEventListener("click", () => setTab("charts"));
+$("tabQuests").addEventListener("click", () => setTab("quests"));
+let currentTab = "chars";
+function setTab(tab){
+  currentTab = tab;
+  $("tabChars").setAttribute("aria-pressed", tab === "chars");
+  $("tabCharts").setAttribute("aria-pressed", tab === "charts");
+  $("tabQuests").setAttribute("aria-pressed", tab === "quests");
+  $("tiles").style.display = tab === "chars" ? "grid" : "none";
+  $("charts").style.display = tab === "charts" ? "block" : "none";
+  $("quests").style.display = tab === "quests" ? "block" : "none";
+  if (tab === "quests") renderQuests();
 }
 function setAll(on){
   const until = Date.now() + PENDING_MS;
@@ -341,8 +374,84 @@ function openCard(c){
 
 // Called by the Rust side every ~2 s with the latest status (tray.rs / app.rs → evaluate_script) and how many
 // characters still have to finish the latest "Run end of day now" request (0 = none in flight / already done).
-window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
-setTab(true);
+// ---- Quests tab (user 2026-10-12): character tiles (portrait + name only); a click shows that character's open Gleeman
+// quests, chests and event quests with progress bars like the game client.
+let qSelected = null;
+const humanTask = n => n.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\(/g, " (");
+const PAID_TASKS = /^(DrinkBeer)/;
+function untilText(iso){
+  const ms = new Date(iso) - Date.now(); if (!(ms > 0)) return "ended";
+  const h = Math.floor(ms/3600000), d = Math.floor(h/24);
+  return d > 0 ? `${d} d ${h%24} h` : `${h} h ${Math.floor((ms%3600000)/60000)} min`;
+}
+function qSection(title, q, isEvent){
+  const box = document.createElement("div"); box.className = "qpanel";
+  const h = document.createElement("h3"); h.textContent = title; box.appendChild(h);
+  const sub = document.createElement("div"); sub.className = "sub";
+  const chests = q.chests || [];
+  const next = chests.find(c => !c.opened && q.points < c.need);
+  const claimable = chests.filter(c => !c.opened && q.points >= c.need).length;
+  let txt = `${q.points} points earned (${q.max} possible)`;
+  if (next) txt += ` · next chest in ${next.need - q.points} point${next.need - q.points === 1 ? "" : "s"}`;
+  else if (claimable) txt += ` · ${claimable} chest${claimable === 1 ? "" : "s"} ready to open`;
+  else if (chests.length) txt += " · all chests opened";
+  if (isEvent && q.end) txt += ` · event ends in ${untilText(q.end)}`;
+  sub.textContent = txt; box.appendChild(sub);
+  // points bar with the chest thresholds
+  const top = Math.max(...chests.map(c => c.need), 1);
+  const bar = document.createElement("div"); bar.className = "qbar";
+  const fill = document.createElement("div"); fill.className = "fill"; fill.style.width = Math.min(100, q.points * 100 / top) + "%"; bar.appendChild(fill);
+  chests.forEach(c => {
+    const x = Math.min(100, c.need * 100 / top);
+    const tick = document.createElement("div"); tick.className = "tick"; tick.style.left = `calc(${x}% - 1px)`; bar.appendChild(tick);
+    const mk = document.createElement("div"); mk.className = "mk"; mk.style.left = x + "%";
+    mk.innerHTML = `<b>${c.opened ? "✔" : (q.points >= c.need ? "🎁" : "🔒")}</b>${c.need}`;
+    bar.appendChild(mk);
+    const rw = document.createElement("div"); rw.className = "rw" + (c.opened ? " open" : ""); rw.style.left = x + "%";
+    rw.textContent = (c.rewards || []).join(", "); bar.appendChild(rw);
+  });
+  box.appendChild(bar);
+  // only the unfinished tasks
+  const open = (q.tasks || []).filter(t => !t.done);
+  if (!open.length){ const d = document.createElement("div"); d.className = "qdone"; d.textContent = "All tasks done ✔"; box.appendChild(d); return box; }
+  const list = document.createElement("div"); list.className = "qlist";
+  open.forEach(t => {
+    const row = document.createElement("div"); row.className = "qtask" + (PAID_TASKS.test(t.name) ? " skip" : "");
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = humanTask(t.name);
+    if (PAID_TASKS.test(t.name)){ const s = document.createElement("small"); s.textContent = "costs mushrooms – the bot skips it"; nm.appendChild(s); }
+    const pb = document.createElement("div"); pb.className = "pb"; const i = document.createElement("i");
+    i.style.width = Math.min(100, t.target ? t.current * 100 / t.target : 0) + "%"; pb.appendChild(i);
+    const prog = document.createElement("div"); prog.className = "pt"; prog.textContent = `${t.current}/${t.target} · +${t.points}`;
+    row.append(nm, pb, prog); list.appendChild(row);
+  });
+  box.appendChild(list);
+  return box;
+}
+function renderQuests(){
+  const tiles = $("qtiles");
+  if (!STATUS.length){ tiles.replaceChildren(); const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character configured."; tiles.appendChild(p); $("qdetail").replaceChildren(); return; }
+  if (!qSelected || !STATUS.some(c => c.name === qSelected)) qSelected = STATUS[0].name;
+  tiles.replaceChildren();
+  STATUS.forEach(c => {
+    const t = document.createElement("div"); t.className = "qtile"; t.setAttribute("aria-pressed", c.name === qSelected);
+    t.style.setProperty("--c", classColor(c.now && c.now.class));
+    const img = document.createElement("div"); img.className = "qimg";
+    const im = document.createElement("img"); im.src = encodeURIComponent(c.name) + "/portrait.png";
+    im.onerror = () => { im.remove(); img.textContent = c.name.slice(0, 1).toUpperCase(); }; img.appendChild(im);
+    const n = document.createElement("div"); n.className = "qn"; n.textContent = c.name;
+    t.append(img, n); t.addEventListener("click", () => { qSelected = c.name; renderQuests(); });
+    tiles.appendChild(t);
+  });
+  const c = STATUS.find(s => s.name === qSelected), q = c && c.quests;
+  const det = $("qdetail"); det.replaceChildren();
+  if (!q || !q.daily){ const p = document.createElement("p"); p.className = "empty"; p.textContent = `${qSelected}: no quest data yet (the character has to be running).`; det.appendChild(p); return; }
+  const upd = document.createElement("div"); upd.className = "sub"; upd.style.margin = "0 0 8px";
+  upd.textContent = q.updated ? `${qSelected} · updated ${new Date(q.updated).toLocaleTimeString()}` : qSelected; det.appendChild(upd);
+  det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
+  if (q.event) det.appendChild(qSection("Event quests", q.event, true));
+}
+window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
+setTab("chars");
 </script>
 </body>
 </html>
