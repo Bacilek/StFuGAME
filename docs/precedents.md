@@ -128,3 +128,6 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-12 (fortress soldiers): train soldiers automatically always up to the maximum (cheap); attack with ONE soldier at a time; prefer the opponent the fortress offers, and if one soldier would not do or that opponent has no resources use counter-attacks. Never reroll the opponent (gold/mushroom).
 - 2026-10-12 (fortress): measure the loot against the soldier price; counter-attacks oldest first; a soldier is always used up by an attack.
 - 2026-10-12 (gems): collect when >=1 slot stays free or a secondary/luck gem can be replaced; main/orange/black gems into the longest-lasting best item, then Con, then Luck, then secondary; keep a gem that has no place.
+
+- 2026-10-12 (fortress): build time is the only bottleneck; drop the income buildings as prerequisites; keep the Treasury "a little" (inventory slots); rush Fortress 6 for the Academy; HoK later on the user's word.
+- 2026-10-12 (items): a socketed gem belongs to the item (counts fully); an empty slot counts a part of the gems we mine; an item worse only for its empty slot is kept (room permitting) until a gem can be socketed. Epics are announced to the user (Gloom event until 18.10.).

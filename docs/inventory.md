@@ -32,3 +32,10 @@
 | Selling via `SellShop` adds silver | ✅ 2026-10-07 (boots for 1 g 25 s) |
 | Assassin off-hand weapon (Shield slot) gets filled/upgraded correctly | ⏳ not verified (no Assassin has run yet) |
 - 2026-10-10: a weapon weaker than the bare-hand damage (min and max both below) is ignored by the game, so its value is the hands'. Decisions (equip/sell, shop weapon offers) are journaled in `roster/<character>/logs/inventory.log`.
+
+## Gem-aware item comparison (2026-10-12, user)
+Rule stays: better equipment (raw power by our formula, armor and item quality ignored unless the items are otherwise identical) is kept, worse is sold, epics are never sold (kept for the toilet of the gods). New: gems count (`inventory::value_core`).
+- A SOCKETED gem counts fully for the item (it cannot be taken out, so swapping the item loses it): main-attribute gem → main attribute (for weapons into the damage multiplier), Constitution 80 %, Luck 40 %, a secondary attribute 10 %, All/Legendary all of them (`gem_effect`).
+- An EMPTY gem slot counts `POTENTIAL_SHARE` (50 %) of the best gem we have (socketed or in the backpack), as a main-attribute gem – not every item has a slot (e.g. main hand weapon 30 + gem +66 beats a raw 50 weapon with an empty slot, so the new one is not equipped for its raw numbers).
+- Keep instead of sell (`keep_for_gem`): an item that is worse only because its slot is empty, but would beat the equipped one with a gem of our current mining strength, is kept in the backpack while ≥ 2 slots are free. `gems::socket_backpack_gem` then sockets the next gem into such a stored item (`PlayerItemMove` gem → the item's backpack position, shape UNVERIFIED like the equipped case) when it beats the worn one; the next inventory pass equips it.
+- Epic items arriving in the backpack are announced once (`shops::alert`: log `[ALERT]`, `roster/alerts.txt`, popup); the first look after a start only records what is already owned.

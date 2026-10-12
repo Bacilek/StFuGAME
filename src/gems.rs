@@ -212,6 +212,43 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
     let gs = session.game_state()?;
     let (pos, gem, ident) = backpack_gem(gs)?;
     let class = gs.character.class;
+    // A stored item that was kept only for its empty gem slot (inventory::keep_for_gem) and beats what is worn once it has
+    // this gem: socket it there first, the inventory logic then equips it (user 2026-10-12)
+    let stored = gs
+        .character
+        .inventory
+        .iter()
+        .filter_map(|(bag, item)| {
+            let item = item?;
+            let eq_slot = item.typ.equipment_slot()?;
+            if !item.can_be_equipped_by(class) || !matches!(item.gem_slot, Some(GemSlot::Empty)) {
+                return None;
+            }
+            let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+            let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
+            (gain > 0.0).then_some((bag, gain))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1));
+    if let Some((target, gain)) = stored {
+        report!("[gems] Socketing {:?} {} into a stored backpack item (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
+        if let Err(e) = safe::send(session, Command::PlayerItemMove { from: pos.into(), to: target.into(), item_ident: ident }).await {
+            report!("[gems] Socketing into the stored item failed: {e}");
+            if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
+                *d = Some(today);
+            }
+            return Some(fail(&e));
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return Some(fail(&e));
+        }
+        if session.game_state().and_then(backpack_gem).is_some_and(|g| g.1 == gem) {
+            report!("[gems] The gem is still in the backpack after the move, no more socketing today (request shape unverified)");
+            if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
+                *d = Some(today);
+            }
+        }
+        return None;
+    }
     let list = sockets(gs);
     let candidates: Vec<Socket> = list.iter().map(|s| s.1).collect();
     let i = choose_socket(&candidates, gem, class)?; // None = keep the gem

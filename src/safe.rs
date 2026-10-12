@@ -84,8 +84,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // Lucky coins only when a task chest needs the spins (user 2026-10-07), see `tasks::plan`
             | Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins }
             // Fortress (user 2026-10-11, src/fortress.rs): only the agreed buildings, never mushrooms
-            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks }
-            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks, mushrooms: 0 }
+            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy }
+            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy, mushrooms: 0 }
             | Command::FortressGather { .. }
             // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
             // targets. NEVER `FortressNewEnemy` (rerolling costs gold or a mushroom). None of these takes mushrooms.
@@ -99,6 +99,12 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::PlayerItemMove {
                 from: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
                 to: PlayerItemPosition { place: PlayerItemPlace::Equipment, .. },
+                ..
+            }
+            // a gem onto a stored backpack item that has an empty gem slot (`gem_socket_ok` checks it)
+            | Command::PlayerItemMove {
+                from: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
+                to: PlayerItemPosition { place: PlayerItemPlace::MainInventory | PlayerItemPlace::ExtendedInventory, .. },
                 ..
             }
             // The only allowed exception to the mushroom rule (user, 2026-10-07), only without a mount
@@ -178,9 +184,17 @@ fn shop_buy_ok(gs: &GameState, shop_pos: ShopPosition, item_ident: ItemCommandId
 fn gem_socket_ok(gs: &GameState, to: PlayerItemPosition, item_ident: ItemCommandIdent) -> bool {
     use sf_api::gamestate::items::ItemType;
     let is_gem = gs.character.inventory.backpack.iter().flatten().any(|i| i.command_ident() == item_ident && matches!(i.typ, ItemType::Gem(_)));
-    let has_slot = gs.character.equipment.0.iter().any(|(slot, item)| {
-        slot as usize - 1 == to.position && item.as_ref().is_some_and(|i| i.gem_slot.is_some())
-    });
+    let has_slot = if to.place == PlayerItemPlace::Equipment {
+        gs.character.equipment.0.iter().any(|(slot, item)| {
+            slot as usize - 1 == to.position && item.as_ref().is_some_and(|i| i.gem_slot.is_some())
+        })
+    } else {
+        // a stored backpack item with a still EMPTY gem slot
+        gs.character.inventory.iter().any(|(pos, item)| {
+            PlayerItemPosition::from(pos) == to
+                && item.is_some_and(|i| matches!(i.gem_slot, Some(sf_api::gamestate::items::GemSlot::Empty)))
+        })
+    };
     is_gem && has_slot
 }
 
@@ -274,13 +288,12 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("this fortress building may not be built now"));
     }
-    // Backpack -> equipment moves are only for socketing a gem into an item with a gem slot (src/gems.rs); equipping is `Command::Equip`
+    // Moves out of the backpack are only for socketing a gem into an item with a gem slot, worn or stored (src/gems.rs); equipping is `Command::Equip`
     if let Command::PlayerItemMove { from, to, item_ident } = &cmd
-        && to.place == PlayerItemPlace::Equipment
         && from.place != PlayerItemPlace::Equipment
         && !session.game_state().is_some_and(|gs| gem_socket_ok(gs, *to, *item_ident))
     {
-        return Err(SFError::InvalidRequest("only a gem may be moved onto an equipped item with a gem slot"));
+        return Err(SFError::InvalidRequest("only a gem may be moved onto an item with a gem slot"));
     }
     if let Command::GuildIncreaseSkill { skill, current } = &cmd
         && !session.game_state().is_some_and(|gs| guild_upgrade_ok(gs, *skill, *current))
@@ -392,6 +405,7 @@ mod fortress_tests {
         // the Gem Mine passes the whitelist but `fortress::build_ok` limits it to level 1 below character level 125
         assert!(is_allowed(&Command::FortressBuild { f_type: B::GemMine }));
         assert!(is_allowed(&Command::FortressBuild { f_type: B::Barracks }));
+        assert!(is_allowed(&Command::FortressBuild { f_type: B::Academy }));
         assert!(!is_allowed(&Command::FortressBuild { f_type: B::Smithy }));
         assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
         // soldiers: train soldiers, one-soldier attacks, counter-attack targets; never a reroll, never other units or bigger armies

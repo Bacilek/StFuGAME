@@ -8,7 +8,7 @@ use sf_api::{
     gamestate::{
         GameState,
         character::Class,
-        items::{BagPosition, EquipmentSlot, Item, ItemType},
+        items::{BagPosition, EquipmentSlot, Gem, GemSlot, GemType, Item, ItemType},
     },
 };
 
@@ -53,25 +53,90 @@ pub fn effective_avg_damage(class: Class, level: u16, secondary: bool, min_dmg: 
     }
 }
 
-/// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
-/// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage).
-/// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
-/// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
-fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
+/// Share of the gems we currently mine that an EMPTY gem slot is worth when comparing two items (user 2026-10-12: "a part
+/// of it, not all items have a slot").
+const POTENTIAL_SHARE: f64 = 0.5;
+
+/// The gem type of the class's main attribute.
+pub fn main_gem(class: Class) -> GemType {
+    match class.main_attribute() {
+        AttributeType::Strength => GemType::Strength,
+        AttributeType::Dexterity => GemType::Dexterity,
+        _ => GemType::Intelligence,
+    }
+}
+
+/// What a gem adds for this class: (bonus to the main attribute, value of the other stats with the Arena percentages
+/// 80 % CON, 40 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
+pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
+    let v = f64::from(g.value);
+    if g.typ == main_gem(class) {
+        return (v, 0.0);
+    }
+    match g.typ {
+        GemType::All | GemType::Legendary => (v, v * (0.8 + 0.4 + 0.2)),
+        GemType::Constitution => (0.0, v * 0.8),
+        GemType::Luck => (0.0, v * 0.4),
+        _ => (0.0, v * 0.1),
+    }
+}
+
+/// Strength of the best gem the character has seen lately (socketed or in the backpack), 0 without any.
+pub fn best_gem_power(gs: &GameState) -> u32 {
+    let socketed = gs.character.equipment.0.values().flatten().filter_map(|i| match i.gem_slot {
+        Some(GemSlot::Filled(g)) => Some(g.value),
+        _ => None,
+    });
+    let loose = gs.character.inventory.backpack.iter().flatten().filter_map(|i| match i.typ {
+        ItemType::Gem(g) => Some(g.value),
+        _ => None,
+    });
+    socketed.chain(loose).max().unwrap_or(0)
+}
+
+/// Item value core. A socketed gem counts fully (it cannot be taken out, so swapping the item loses it); an empty gem
+/// slot counts `potential` (a gem we expect to put there), if given.
+fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, potential: Option<Gem>) -> f64 {
     let ch = &gs.character;
+    let gem = match item.gem_slot {
+        Some(GemSlot::Filled(g)) => Some(g),
+        Some(GemSlot::Empty) => potential,
+        None => None,
+    };
+    let (gem_main, gem_other) = gem.map_or((0.0, 0.0), |g| gem_effect(ch.class, g));
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
-        return score(ch.class, item);
+        return score(ch.class, item) + gem_main + gem_other;
     };
     let main = ch.class.main_attribute();
     let total = f64::from(ch.attribute_basis[main] + ch.attribute_additions[main]);
     let equipped = ch.equipment.0[slot].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
-    let with_this = total - equipped + f64::from(item.attributes[main]);
+    let with_this = total - equipped + f64::from(item.attributes[main]) + gem_main;
     // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
-    let others = score(ch.class, item) - f64::from(item.attributes[main]);
+    let others = score(ch.class, item) - f64::from(item.attributes[main]) + gem_other;
     weapon_value(
         effective_avg_damage(ch.class, ch.level, ch.class == Class::Assassin && slot == EquipmentSlot::Shield, min_dmg, max_dmg),
         with_this,
     ) + others
+}
+
+/// A gem of the class's main attribute worth `power` (the stand-in for "a gem we will get").
+fn expected_gem(class: Class, power: f64) -> Gem {
+    Gem { typ: main_gem(class), value: power.max(0.0).round() as u32 }
+}
+
+/// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
+/// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage via M).
+/// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
+/// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
+/// A socketed gem is counted fully, an empty gem slot at `POTENTIAL_SHARE` of the best gem we have (user 2026-10-12).
+fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
+    let power = f64::from(best_gem_power(gs)) * POTENTIAL_SHARE;
+    value_core(gs, item, slot, (power >= 1.0).then(|| expected_gem(gs.character.class, power)))
+}
+
+/// The value the item would have with `gem` in its (empty) slot.
+pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem) -> f64 {
+    value_core(gs, item, slot, Some(gem))
 }
 
 /// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
@@ -87,6 +152,16 @@ enum Action {
 
 fn describe(item: &Item) -> String {
     format!("{:?}{}", item.typ, if item.is_epic() { " (epic)" } else { "" })
+}
+
+/// An item that is worse only because its gem slot is still empty (user 2026-10-12): with a gem of the strength we mine now
+/// it would beat the equipped one and there is room in the backpack (2 free slots) -> keep it and wait for a gem instead of selling.
+fn keep_for_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, cur: f64) -> bool {
+    let power = best_gem_power(gs);
+    matches!(item.gem_slot, Some(GemSlot::Empty))
+        && power > 0
+        && gs.character.inventory.count_free_slots() >= 2
+        && value_with_gem(gs, item, slot, expected_gem(gs.character.class, f64::from(power))) > cur
 }
 
 /// Next inventory management step, or None when there is nothing to do.
@@ -123,6 +198,9 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
             return Some((Action::Equip { pos, slot }, what));
         }
         if !item.is_epic() {
+            if keep_for_gem(gs, item, slot, cur) {
+                continue;
+            }
             return Some((
                 Action::Sell { pos },
                 format!("selling {} (value {new:.1} ≤ {cur:.1} of the equipped one)", describe(item)),
@@ -176,7 +254,31 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 }
 
 /// Goes through the inventory and does all equips/sales. Sends nothing when there is nothing to do.
+/// Epic items already known in the backpack (per character); `None` until the first look.
+static SEEN_EPICS: crate::ctx::PerChar<Option<Vec<String>>> = crate::ctx::PerChar::new();
+
+/// An epic item that dropped (expedition, chest, Gleeman…) is announced once (user 2026-10-12: Gloom event set). The very
+/// first look only records what the character already owns, so old epics do not pop up at every start.
+fn announce_epics(gs: &GameState) {
+    let Ok(mut seen) = SEEN_EPICS.lock() else { return };
+    let baseline = seen.is_none();
+    let list = seen.get_or_insert_with(Vec::new);
+    for item in gs.character.inventory.backpack.iter().flatten().filter(|i| i.is_epic()) {
+        let key = format!("{:?}{:?}", item.command_ident(), item.typ);
+        if list.contains(&key) {
+            continue;
+        }
+        list.push(key);
+        if !baseline {
+            crate::shops::alert(&format!("{}: an EPIC item is in the backpack: {}", crate::ctx::name(), detail(item)));
+        }
+    }
+}
+
 pub async fn manage(session: &mut SimpleSession) -> Outcome {
+    if let Some(gs) = session.game_state() {
+        announce_epics(gs);
+    }
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let Some((action, what)) = next_action(gs) else { return Outcome::Done };
@@ -225,6 +327,18 @@ mod tests {
         assert_eq!(hand_damage(Class::Mage, 10, false), (1.0, 2.0));
         // Assassin off-hand hits harder than the main hand
         assert!(hand_damage(Class::Assassin, 17, true).1 > hand_damage(Class::Assassin, 17, false).1);
+    }
+
+    #[test]
+    fn gem_effect_uses_the_arena_percentages() {
+        let g = |typ| Gem { typ, value: 100 };
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Intelligence)), (100.0, 0.0));
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Constitution)), (0.0, 80.0));
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Luck)), (0.0, 40.0));
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Strength)), (0.0, 10.0));
+        let (main, other) = gem_effect(Class::Bard, g(GemType::All));
+        assert_eq!(main, 100.0);
+        assert!((other - 140.0).abs() < 1e-9);
     }
 
     #[test]
