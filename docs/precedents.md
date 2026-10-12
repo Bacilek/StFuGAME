@@ -134,3 +134,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-12 (scrapbook): when all 10 XP wins are done and no quest/event needs the Arena/HoF, fight clearly weaker opponents who wear items missing from our scrapbook; quests and events have priority; chart of the fill level.
 - 2026-10-12 (arena): "Attack me" mode — while on, all bot characters look up Bacilek31 in the Hall of Fame and attack him with priority (to lower his honor and rank, not for XP wins); toggled in the app window, remembered in roster/attack_me.txt.
 - 2026-10-12 (scrapbook): for the Ruffian event the user allows the scrapbook to ride along with the event/daily fight tasks (choose the weaker opponent wearing the most missing items); tasks stay first and decide the class.
+- 2026-10-12 (tasks): once all chests of the daily or the event list are opened, its remaining tasks are dropped (no more hunts for them) and hidden in the GUI.

@@ -161,3 +161,6 @@ The travel beer and the quest beer are drunk only when the target chest pays at 
 ## Ruffian event (2026-10-12, user; 4 days, seen first on the main character)
 Four Hall of Fame fight tasks, 1 event token each: win N× against a class (20×), win N× against another class (10×), win 5× back to back, win 30× in the Hall of Fame. One token per chest (3 chests) → any 3 tasks give all chests; chest 1 materials, chest 2 gold, chest 3 gold + "you can buy another beer from the bartender today" (NOT used, see `docs/precedents.md` 2026-10-12). `hunt.rs` now hunts `WinFightsInHoF` and `WinFightsBackToBack` (`Hunt::Any`). Not verified live. Daily tasks go before event tasks on day 1 (precedent). Watch the `[hunt]` lines and the task list in the log.
 Event hunts wait for the daily Arena XP wins (see docs/precedents.md 2026-10-12).
+
+## Finished chests end the tasks (2026-10-12, user)
+When every chest of a task list (daily or event) is opened, nothing more can be earned from it: `hunt::wanted_hunts` no longer hunts for that list's fight tasks (Mrožik and Květoš had the last event chest, so e.g. "Paladin 8/20" is dropped), and the main loop's Arena wake-up (`hunt::wants_arena`) ignores them too. The Quests tab hides such a section (and a character whose daily AND event chests are all opened has no tile, see docs/controls.md).

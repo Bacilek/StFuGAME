@@ -97,8 +97,12 @@ fn wanted_hunts(gs: &GameState) -> Vec<Hunt> {
     let t = &gs.specials.tasks;
     let urgent = t.event.end.is_some_and(|e| (e - chrono::Local::now()).num_hours() < EVENT_URGENT_HOURS);
     let event_goes = urgent || !arena::ready(gs);
-    let daily = t.daily.tasks.iter();
-    let event = t.event.tasks.iter().filter(|_| event_goes);
+    // A task list whose chests are ALL opened has nothing more to give (user 2026-10-12: Mrožik and Květoš had the last event
+    // chest, so the remaining event quest need not be done): its tasks are not hunted any more.
+    let daily_open = t.daily.rewards.iter().any(|c| !c.opened);
+    let event_open = t.event.rewards.iter().any(|c| !c.opened);
+    let daily = t.daily.tasks.iter().filter(|_| daily_open);
+    let event = t.event.tasks.iter().filter(|_| event_goes && event_open);
     daily.chain(event).filter(|t| !t.is_completed()).filter_map(|t| match t.typ {
         TaskType::WinFightsAgainst(c) => Some(Hunt::Class(c)),
         TaskType::WinFightsBareHands => Some(Hunt::Without(EquipmentSlot::Weapon)),

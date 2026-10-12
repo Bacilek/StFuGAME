@@ -474,8 +474,10 @@ function renderQuests(){
   if (!q || !q.daily){ const p = document.createElement("p"); p.className = "empty"; p.textContent = `${qSelected}: no quest data yet (the character has to be running).`; det.appendChild(p); return; }
   const upd = document.createElement("div"); upd.className = "sub"; upd.style.margin = "0 0 8px";
   upd.textContent = q.updated ? `${qSelected} · updated ${new Date(q.updated).toLocaleTimeString()}` : qSelected; det.appendChild(upd);
-  det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
-  if (q.event) det.appendChild(qSection("Event quests", q.event, true));
+  // A section whose chests are all opened has nothing more to give: it is not shown (user 2026-10-12)
+  const allOpen = p => !p || (p.chests || []).every(x => x.opened);
+  if (!allOpen(q.daily)) det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
+  if (q.event && !allOpen(q.event)) det.appendChild(qSection("Event quests", q.event, true));
 }
 window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
