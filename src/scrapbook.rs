@@ -130,7 +130,18 @@ pub struct Stats {
     pub monsters: usize,
 }
 
+/// Denominator of the game's own percentage (Library of Meticulousness, shown on the profile as the XP bonus), fitted
+/// 2026-10-12 from the profiles the user read off five characters (Sanek 16 %, Chlamydie 14 %, Filminy 12 %, Pjotr 12 %, Mimi 12 %
+/// with 416 / 370 / 321 / 316 / 309 owned items + monsters): every one of them is consistent with any value between 2568 and 2684,
+/// so 2600 for now. Exact (2-decimal) profile values would pin it down: D = (items + monsters) / percentage.
+pub const GAME_TOTAL: f64 = 2600.0;
+
 impl Stats {
+    /// The game's percentage: (owned items + seen monsters) / `GAME_TOTAL`.
+    pub fn game_pct(self) -> f64 {
+        (self.owned + self.monsters) as f64 * 100.0 / GAME_TOTAL
+    }
+
     pub fn pct(self) -> f64 {
         if self.total == 0 { 0.0 } else { self.owned as f64 * 100.0 / self.total as f64 }
     }
@@ -163,7 +174,7 @@ pub fn stats(sb: &ScrapBook) -> Stats {
 pub fn json(sb: &ScrapBook) -> serde_json::Value {
     let s = stats(sb);
     serde_json::json!({
-        "pct": s.pct(), "owned": s.owned, "total": s.total,
+        "pct": s.game_pct(), "items_pct": s.pct(), "owned": s.owned, "total": s.total,
         "weapons_pct": part(s.weapons), "armor_pct": part(s.armor), "accessories_pct": part(s.accessories),
         "monsters": s.monsters, "monsters_pct": s.monsters as f64 * 100.0 / MONSTERS_TOTAL as f64,
     })
@@ -194,6 +205,15 @@ mod tests {
         assert_eq!(all.len(), 3358);
         assert_eq!(all.iter().filter(|(_, k)| *k == Kind::Accessory).count(), 539); // 564 positions, 25 talisman duplicates
         assert_eq!(all.iter().filter(|(_, k)| *k == Kind::Weapon).count(), 749); // 760 positions, 11 duplicate idents in sf-api's table
+    }
+
+    #[test]
+    fn game_percentage_matches_the_profiles_the_user_read_off() {
+        // (items + monsters, percentage shown in the game, rounded to whole percent)
+        for (n, shown) in [(416.0, 16.0), (370.0, 14.0), (321.0, 12.0), (316.0, 12.0), (309.0, 12.0)] {
+            let pct = n * 100.0 / GAME_TOTAL;
+            assert!((pct - shown).abs() < 0.5, "{n} -> {pct}");
+        }
     }
 
     #[test]

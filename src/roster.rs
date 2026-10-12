@@ -656,7 +656,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         })
         .collect();
     let scrapbook = c.scrapbook.as_ref().map(|s| s.items.len() + s.monster.len());
-    let scrapbook_pct = c.scrapbook.as_ref().map(|s| crate::scrapbook::stats(s).pct());
+    let scrapbook_pct = c.scrapbook.as_ref().map(|s| crate::scrapbook::stats(s).game_pct());
     let ach = &gs.achievements;
     serde_json::json!({
         "name": c.name,
