@@ -31,6 +31,29 @@ static NEXT: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar:
 /// `gem_search.finish` of the last gem we collected: the server does not clear it, so without this a collected gem would
 /// look ready forever.
 static COLLECTED: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
+
+/// Also kept on disk (`roster/<character>/gem_collected.txt`) so a restart does not try to collect the same gem again.
+fn collected_path() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("gem_collected.txt")
+}
+
+fn last_collected() -> Option<DateTime<Local>> {
+    if let Some(t) = COLLECTED.lock().ok().and_then(|c| *c) {
+        return Some(t);
+    }
+    let t = std::fs::read_to_string(collected_path()).ok()?.trim().parse::<DateTime<Local>>().ok()?;
+    if let Ok(mut c) = COLLECTED.lock() {
+        *c = Some(t);
+    }
+    Some(t)
+}
+
+fn mark_collected(t: DateTime<Local>) {
+    if let Ok(mut c) = COLLECTED.lock() {
+        *c = Some(t);
+    }
+    let _ = std::fs::write(collected_path(), t.to_rfc3339());
+}
 /// A socketing that did not change anything stops further attempts for the rest of the day (unverified request shape).
 static SOCKET_FAILED_ON: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
 
@@ -133,7 +156,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
     let now = Local::now();
-    let collected = COLLECTED.lock().ok().and_then(|c| *c);
+    let collected = last_collected();
     let finished = f.gem_search.finish.filter(|t| *t <= now && collected != Some(*t));
     if let Some(t) = finished {
         let free = gs.character.inventory.count_free_slots();
@@ -145,9 +168,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
             }
-            if let Ok(mut c) = COLLECTED.lock() {
-                *c = Some(t);
-            }
+            mark_collected(t);
             if let Err(e) = safe::send(session, Command::Update).await {
                 return fail(&e);
             }
@@ -163,7 +184,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // 3. Start the next search when the mine is idle
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
-    let collected = COLLECTED.lock().ok().and_then(|c| *c);
+    let collected = last_collected();
     let idle = f.gem_search.finish.is_none_or(|t| t <= Local::now() && collected == Some(t));
     if !idle || !crate::shops::pass_done() {
         return Outcome::Done;
