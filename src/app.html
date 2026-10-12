@@ -82,6 +82,15 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .qtask .pt{text-align:right;color:var(--ink2)}
 .qtask.skip .nm{color:var(--muted)}
 .qdone{color:var(--good);font-size:13px}
+.bag{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;margin-top:6px}
+.bslot{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink2);text-align:center;padding:2px;overflow:visible}
+.bslot.empty{opacity:.3}
+.bslot img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.bslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
+.bslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
+.bslot .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--page);border-radius:6px;padding:5px 8px;font-size:11px;line-height:1.3;white-space:nowrap;z-index:5;text-align:left}
+.bslot .tip b{display:block;font-size:12px}
+.bslot:hover .tip{display:block}
 .epic{color:#9b6be0} .legendary{color:#e08a1a}
 .gp{width:334px;margin:8px auto 12px}
 .paperdoll{display:grid;grid-template-columns:repeat(4,76px);grid-template-rows:repeat(4,76px);gap:6px;
@@ -361,6 +370,19 @@ function openCard(c){
   stat("XP", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
   charPanel(body, {name:c.name, guild:n.guild, level:n.level, portrait:encodeURIComponent(c.name)+"/portrait.png",
     equip:n.equip, attrs:n.attrs, potions:n.potions, derived:n.derived});
+  if (n.backpack && n.backpack.slots){
+    const slots = n.backpack.slots, used = slots.filter(x => x).length;
+    el("div","sec",`Inventory (${used}/${slots.length} slots used)`);
+    const bag = el("div","bag");
+    slots.forEach(it => {
+      const s = el("div","bslot"+(it ? (it.legendary?" legendary":it.epic?" epic":"") : " empty"), null, bag);
+      if (!it) return;
+      const label = it.kind === "Gem" || it.kind === "Potion" ? it.d : it.kind;
+      if (it.icon){ const im = el("img",null,null,s); im.src = it.icon; im.alt = it.kind; im.onerror = () => { im.remove(); s.textContent = label; const tip2 = el("div","tip",null,s); el("b",null,it.kind,tip2); el("div",null,it.d || "â",tip2); }; }
+      else s.textContent = label;
+      const tip = el("div","tip",null,s); el("b",null,it.kind,tip); el("div",null,it.d || "â",tip);
+    });
+  }
   el("div","sec","Dungeons");
   const dt = el("table","mini");
   // Only dungeons still in progress; finished ones drop off (user 2026-10-09)
@@ -427,12 +449,17 @@ function qSection(title, q, isEvent){
   box.appendChild(list);
   return box;
 }
+const questsDone = c => { const q = c.quests; if (!q || !q.daily) return false;
+  const all = p => !p || (p.chests || []).every(x => x.opened);
+  return all(q.daily) && all(q.event); };
 function renderQuests(){
   const tiles = $("qtiles");
   if (!STATUS.length){ tiles.replaceChildren(); const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character configured."; tiles.appendChild(p); $("qdetail").replaceChildren(); return; }
-  if (!qSelected || !STATUS.some(c => c.name === qSelected)) qSelected = STATUS[0].name;
+  const shown = STATUS.filter(c => !questsDone(c));
+  if (!shown.length){ tiles.replaceChildren(); const p = document.createElement("p"); p.className = "empty"; p.textContent = "Every character has collected all chests (daily and event) â nothing to do."; tiles.appendChild(p); $("qdetail").replaceChildren(); return; }
+  if (!qSelected || !shown.some(c => c.name === qSelected)) qSelected = shown[0].name;
   tiles.replaceChildren();
-  STATUS.forEach(c => {
+  shown.forEach(c => {
     const t = document.createElement("div"); t.className = "qtile"; t.setAttribute("aria-pressed", c.name === qSelected);
     t.style.setProperty("--c", classColor(c.now && c.now.class));
     const img = document.createElement("div"); img.className = "qimg";

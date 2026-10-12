@@ -594,6 +594,49 @@ fn gleeman(gs: &GameState) -> serde_json::Value {
     serde_json::json!({ "daily": list(&t.daily.tasks, &t.daily.rewards), "event": list(&t.event.tasks, &t.event.rewards) })
 }
 
+/// The backpack for the character card (user 2026-10-12): one entry per slot, `null` for an empty one. Each item has a
+/// sprite path (`assets/items/…`, the same files the equipment slots use; gems `15_<sub id>_1_1.png`, potions `12_<id>_1_1.png`),
+/// a kind and a description (equipment: damage/attributes plus the gem slot state).
+fn backpack_json(gs: &GameState) -> serde_json::Value {
+    use sf_api::gamestate::items::{GemSlot, ItemType};
+    let slots: Vec<serde_json::Value> = gs
+        .character
+        .inventory
+        .backpack
+        .iter()
+        .map(|slot| {
+            let Some(i) = slot else { return serde_json::Value::Null };
+            match i.typ {
+                ItemType::Potion(p) => {
+                    let mut j = potion_json(&p);
+                    j["kind"] = "Potion".into();
+                    j["d"] = j["t"].clone();
+                    j
+                }
+                ItemType::Gem(g) => serde_json::json!({
+                    "kind": "Gem",
+                    "icon": format!("assets/items/15_{}_1_1.png", i.full_model_id),
+                    "d": format!("{:?} gem +{}", g.typ, g.value),
+                }),
+                _ => {
+                    let kind = format!("{:?}", i.typ).split(['{', '(', ' ']).next().unwrap_or("Item").to_string();
+                    let mut d = item_desc(i);
+                    match i.gem_slot {
+                        Some(GemSlot::Empty) => d.push_str(" · gem slot: empty"),
+                        Some(GemSlot::Filled(g)) => d.push_str(&format!(" · gem: {:?} +{}", g.typ, g.value)),
+                        None => {}
+                    }
+                    serde_json::json!({
+                        "kind": kind, "icon": item_icon(i), "d": d,
+                        "epic": i.is_epic(), "legendary": i.is_legendary(),
+                    })
+                }
+            }
+        })
+        .collect();
+    serde_json::json!({ "slots": slots, "free": gs.character.inventory.count_free_slots() })
+}
+
 /// Today's Gleeman quests and the event quests for the app window's "Quests" tab (user 2026-10-12): every task with
 /// its progress, the three chests with their rewards and the points earned so far.
 fn quests_json(gs: &GameState) -> serde_json::Value {
@@ -725,6 +768,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "derived": derived(gs),
         "scrapbook": scrapbook,
         "scrapbook_pct": scrapbook_pct,
+        "backpack": backpack_json(gs),
         "achievements": { "owned": ach.owned(), "total": ach.0.len() },
         "dungeons": dungeons,
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
