@@ -39,6 +39,9 @@ struct Day {
     done: bool,
     /// A later spin-only round failed to buy (full backpack, unchanged offer): no more of them today
     respin_blocked: bool,
+    /// Fingerprint of the wares as the last pass or spin round left them: a different one later (shop rerolled by hand
+    /// or by the game) means new offers nobody has looked at yet, so the full pass runs again.
+    wares: String,
 }
 
 static DAY: crate::ctx::PerChar<Option<Day>> = crate::ctx::PerChar::new();
@@ -77,7 +80,7 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     let today = Local::now().date_naive();
     if guard.as_ref().is_none_or(|d| d.date != today) {
         let (seen, carry) = load_reserve(today);
-        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false, respin_blocked: false });
+        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false, respin_blocked: false, wares: String::new() });
     }
     guard.as_mut().map(f)
 }
@@ -249,6 +252,18 @@ fn describe(pos: ShopPosition, item: &Item) -> String {
     )
 }
 
+/// What both shops offer right now (slot, item identity, price), compared between passes.
+fn wares(gs: &GameState) -> String {
+    gs.shops.values().flat_map(|s| s.iter()).map(|(p, i)| format!("{:?}{}{:?}{}", p.typ, p.pos, i.command_ident(), i.price)).collect::<Vec<_>>().join(";")
+}
+
+fn remember_wares(session: &SimpleSession) {
+    if let Some(gs) = session.game_state() {
+        let w = wares(gs);
+        with_day(|d| d.wares = w);
+    }
+}
+
 /// Shopping once a day after the Tavern is done. Sends nothing when there is nothing to do.
 pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     if !tavern_done {
@@ -256,11 +271,20 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     }
     match with_day(|d| d.done) {
         None => return Outcome::Done,
-        Some(true) => return respin(session).await,
+        Some(true) => {
+            let Some(gs) = session.game_state() else { return Outcome::Done };
+            let now = wares(gs);
+            if with_day(|d| d.wares == now).unwrap_or(true) {
+                return respin(session).await;
+            }
+            report!("[shops] The wares changed since the last pass (rerolled?), going through them again");
+            with_day(|d| d.respin_blocked = false);
+        }
         Some(false) => {}
     }
     with_day(|d| d.done = true);
     let outcome = shop(session).await;
+    remember_wares(session);
     if let Some(gs) = session.game_state() {
         report!("[shops] Done, gold left {}", crate::report::gold(gs.character.silver));
     }
@@ -310,6 +334,7 @@ async fn respin(session: &mut SimpleSession) -> Outcome {
         }
     }
     finish_spins(spins, spin_cost);
+    remember_wares(session);
     Outcome::Done
 }
 
