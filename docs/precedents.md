@@ -122,3 +122,5 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-12 | Arena XP wins before event hunts | Event Hall of Fame hunts (same Arena cooldown) wait while the daily Arena XP wins are still due (fewer than 10); they go ahead once those are done or when the event ends within 24 h (`hunt::EVENT_URGENT_HOURS`, my pick). Daily-list hunts still come before the XP wins. |
 
 - 2026-10-12 (guild): a failed join must not leave the character guildless for 6 h – without a guild retry the join every 5 min (`guild::NO_GUILD_RETRY`).
+
+- 2026-10-12 (dashboard): the test account (`TestChar*`) is permanently excluded from the statistics (charts dashboard + leaderboard/issues, `roster.rs` skips folders starting with `TestChar`; its folder and logs stay). The chart legend shows only the character name, not the class.

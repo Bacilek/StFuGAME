@@ -673,3 +673,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: "Run end of day now" progress shows names of characters still working and reloads the charts when all reports are written (was marked done too early). ⏳ verify after a release rebuild. Pre-existing failing test: `tavern::tests::expedition_shortest_then_easiest`.
 
 - 2026-10-12: shops – changed wares (hand reroll, relog) trigger the full pass again (`shops::wares` fingerprint). ⏳ verify live. Fixed the stale test `expedition_shortest_then_easiest` (Merman got mapped, Cupid now stands in for "unmapped"); all 65 tests pass.
+- 2026-10-12: dashboard skips TestChar* folders for good; chart legend = character name only. Needs a release rebuild.

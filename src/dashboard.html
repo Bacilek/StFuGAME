@@ -359,7 +359,7 @@ function legend(){
     const k=document.createElementNS(NS,"svg"); k.setAttribute("width",26); k.setAttribute("height",14);
     el("line",{x1:0,x2:26,y1:7,y2:7,stroke:s.color,"stroke-width":2,"stroke-dasharray":s.dashed?"5 3":"none"},k);
     marker(k, s.shape, 13, 7, 4.5, s.dashed?css("--surface"):s.color, s.color);
-    const n=document.createElement("span"); n.textContent=`${c.nick} · ${pretty(c.cls)}`;
+    const n=document.createElement("span"); n.textContent=c.nick;
     li.append(k,n); li.title="Click to hide / show";
     li.addEventListener("click",()=>{ hidden.has(i)?hidden.delete(i):hidden.add(i); li.classList.toggle("off"); render(); });
     ul.appendChild(li); });

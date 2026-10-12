@@ -843,6 +843,9 @@ fn write_shared(date: NaiveDate) {
         .filter(|e| e.path().is_dir() && (demo || !e.file_name().to_string_lossy().starts_with('_')))
     {
         let nick = e.file_name().to_string_lossy().to_string();
+        if !demo && nick.starts_with("TestChar") {
+            continue;
+        }
         if let Ok(text) = fs::read_to_string(e.path().join("days").join(format!("{date}.issues"))) {
             let body = if text.trim().is_empty() { "–".to_string() } else { text.trim().to_string() };
             issues += &format!("== {nick} ==\n{body}\n\n");
@@ -892,6 +895,10 @@ fn write_dashboard(demo: bool) {
     // Daily simulated round robin: average win rate per character (src/tournament.rs)
     let win_rates = crate::tournament::daily_win_rates(demo);
     for e in dirs {
+        // The test account never belongs in the statistics (user 2026-10-12)
+        if !demo && e.file_name().to_string_lossy().starts_with("TestChar") {
+            continue;
+        }
         let rows = read_history(&e.path().join("history.csv"));
         if rows.is_empty() && !e.path().join("now.json").exists() {
             continue;
