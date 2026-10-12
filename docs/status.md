@@ -685,3 +685,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: Gem Mine automation (`src/gems.rs`: start/collect/socket per the user's rules, whitelist + tests in safe.rs). ⏳ needs a release rebuild; please send the REQUEST line of the socketing PlayerItemMove to confirm the shape. Watch `[gems]` lines.
 - 2026-10-12: Arena highlight thresholds raised (see docs/arena-highlights.md); saving works (10 fights saved by 08:00). Needs a release rebuild.
 - 2026-10-12: gems: collected-gem marker also on disk (gem_collected.txt); user: replacing a gem in a filled socket should be allowed, socketed gems cannot be removed (nothing to handle).
+- 2026-10-12: user facts: loot can exceed the storage cap (19k wood / 7k stone vs 6k/2k caps), build time is the only bottleneck, Woodcutter/Quarry look obsolete from Fortress 4 / Barracks 1 – planner change proposed, awaiting his decision (docs/fortress.md).
