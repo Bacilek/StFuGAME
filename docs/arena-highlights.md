@@ -187,3 +187,6 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 `roster/arena_highlights.txt` lists every fight the bot currently has saved, one per line: `time | character | vs opponent |
 msg id | category: why; category: why`. Beaten categories are removed from a line, the line is deleted with its last one
 (`update_log`/`strip_beaten`, unit-tested). An un-mark in the game happens only when a fight holds no record any more.
+
+## Capture 2026-10-12 (user): opening Messages → Fights
+Opening the tab sends only a `timestamp` request; the list is NOT fetched by a separate command (it is already in the state the client holds). Clicking a fight sends `PlayerLookAt` (the opponent's data, `otherplayer…` keys, no `combatloglist`). So `combatloglist` arrives with ordinary full-state responses (login, `Poll`/`Update`?) – hence the `Update` + retry in `maybe_mark`. Still ⏳ unverified that a fresh `Update` right after a fight already contains the new entry.
