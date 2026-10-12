@@ -4,7 +4,7 @@ Updated: 2026-10-12. Rewrite after every bigger change.
 
 - **Event hunts yield to Arena XP wins (2026-10-12, user):** `hunt::wanted_hunts`, urgent when the event ends in < 24 h. Compiles; needs a release rebuild.
 - **Beak to Tail mapped + reward order with resources (2026-10-12, user):** `src/missions.rs`; `tavern::choose_reward` ranks wood/stone above hourglasses while the storage has room. Tests pass; needs a release rebuild.
-- **Ruffian event hunts (2026-10-12):** `WinFightsInHoF` + `WinFightsBackToBack` added to `hunt.rs`, see `docs/tasks.md`; the chest-3 beer is not used. Needs a release rebuild.
+- **Ruffian event hunts (2026-10-12):** `WinFightsInHoF` + `WinFightsBackToBack` added to `hunt.rs`, see `docs/tasks.md`; the chest-3 beer is not used (user confirmed 2026-10-12: an extra paid beer slot, claim the chest at once, nothing to hold back – no code change needed). Needs a release rebuild.
 - **Plenty of Men in the Sea mapped (2026-10-12, user):** rod 0, bait (worms) 3, merman 9, +5 / −5 (`src/missions.rs`, `FishingBait` ≠ dragon `Bait`). `cargo check` ok; needs a release rebuild. **Ruffian event (Gleeman, 4 days, Hall of Fame fight tasks, chest 3 = "buy another beer today") – design discussion open with the user**, nothing coded yet (questions: does the beer still cost a mushroom, task semantics, claim timing, mushroom-rule exception).
 
 - **Ad automation removed (2026-10-11, user agreed):** `src/adtest.rs` deleted, no `AdvertisementsCompleted`/`PlayerNewWares` in `safe.rs`, no shop ad refresh, no lucky coin ads. TestChar1's `trust_counter` stays drained until it recovers by itself / real views. The memory note `lucky-ads-week-updates` is obsolete. Needs a release rebuild.

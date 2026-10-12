@@ -27,6 +27,7 @@ Co ještě máme v plánu pošéfit. Hotové věci odškrtnout (nebo smazat) a p
 - [ ] Truhly u Goblin Gleemana: porovnat řádky `[tasks] daily/event chest …` v logu (body + odměny) s tím, co ukazuje hra (`docs/tasks.md`)
 
 ## Návrhy od Clauda
+- Eventy na XP / houby: zvážit utrácení hub za piva (chest "extra pivo" dává 11. pivo denně za houbu) – user 2026-10-12, zatím neřešit.
 Napadlo mě během práce, k probrání s uživatelem (nic z toho se nedělá bez jeho souhlasu).
 
 - [x] Free deal u Mushroom Dealera – naimplementováno 2026-10-08 (`daily::claim_welcome_pack`), zachyceno živě přes DevTools. Čeká na živé ověření (`docs/daily-rewards.md`).
