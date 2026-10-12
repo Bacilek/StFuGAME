@@ -108,6 +108,13 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 
 /// Finds a clearly weaker opponent for the hunt. Returns the name.
 async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option<String>, Outcome> {
+    // "Attack me" mode: for fights against anybody in the Hall of Fame the user's main is the opponent (user 2026-10-12)
+    if matches!(hunt, Hunt::Any { .. })
+        && let Some(target) = crate::attack_me::target()
+    {
+        report!("[hunt] Attack-me mode: {target}");
+        return Ok(Some(target.to_string()));
+    }
     let Some(gs) = session.game_state() else { return Err(Outcome::Done) };
     let (our_rank, our_level, ours) = (gs.character.rank, u32::from(gs.character.level), own_power(gs));
     let mut total = gs.hall_of_fames.players_total;

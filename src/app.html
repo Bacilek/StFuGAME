@@ -102,6 +102,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
     <button id="startAll">Start all</button>
     <button id="stopAll">Stop all</button>
     <button id="eod">Run end of day now</button>
+    <button id="attackMe" aria-pressed="false" title="While on, every bot character prefers Bacilek31 as its Arena / Hall of Fame opponent (for the 25/50/100 wins-in-a-row achievement)">Attack me: off</button>
     <span id="eodStatus" style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
     <button id="browser">Open in browser</button>
   </div>
@@ -174,6 +175,14 @@ function renderEodStatus(pending){
     if (eodClickedAt && Date.now() - eodClickedAt < 15000){ st.style.display = "inline"; st.textContent = "Done – all characters updated, charts reloaded"; }
     else st.style.display = "none";
   }
+}
+let attackMeOn = false;
+$("attackMe").addEventListener("click", () => post({cmd:"attack_me", on: !attackMeOn}));
+function renderAttackMe(on){
+  attackMeOn = !!on;
+  const b = $("attackMe");
+  b.setAttribute("aria-pressed", attackMeOn ? "true" : "false");
+  b.textContent = attackMeOn ? "Attack me: ON" : "Attack me: off";
 }
 $("browser").addEventListener("click", () => post({cmd:"open_browser"}));
 
@@ -332,7 +341,7 @@ function openCard(c){
 
 // Called by the Rust side every ~2 s with the latest status (tray.rs / app.rs → evaluate_script) and how many
 // characters still have to finish the latest "Run end of day now" request (0 = none in flight / already done).
-window.onStatus = (status, eodPending) => { STATUS = status; renderTiles(); renderEodStatus(eodPending || []); };
+window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab(true);
 </script>
 </body>

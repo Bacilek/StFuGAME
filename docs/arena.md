@@ -60,3 +60,9 @@ Only mislabels that one journal entry, does not lose data or affect the real ser
 | Fighting during an expedition works | ⏳ not verified |
 | `fights_for_xp` = today's wins for XP (user) | ✅ 2026-10-07: after a win 0 → 1, unchanged after a loss |
 | Simulated-win-chance opponent picking actually improves the win rate | ⏳ not verified, 2026-10-08 (pending a rebuild + a day of fights) |
+
+## "Attack me" mode (2026-10-12, user) – `src/attack_me.rs`
+Goal: the achievement for 25 / 50 / 100 Arena fights won in a row (the 10 XP fights a day, over several days). The user keeps his main `Bacilek31` at low honor, takes his weapon off and loses on purpose, so every bot character wins against him. A toggle button "Attack me: off/ON" in the app window (next to "Run end of day now", IPC `attack_me`) switches it for ALL bot characters at once; the state is remembered in `roster/attack_me.txt` (file exists = on) and survives restarts.
+- While on: `arena::run` challenges Bacilek31 (`Fight{name}`, win chance shown as 100 %) instead of picking the weakest of the 3 offered opponents; `hunt::find_opponent` returns him for the "fight anybody in the Hall of Fame" hunts (`Hunt::Any`, event tasks win in the Hall of Fame / back to back). Quests keep their priority: a "win against <class>" task still chooses its own opponent, class/bare-hands/no-epics hunts run as before, the character Bacilek31 itself never attacks itself.
+- Still only off cooldown and at most 10 XP wins a day (unchanged `safe.rs` rules). A loss (e.g. the user kept his weapon on) breaks the streak – the user's responsibility; the log shows `[arena] Attack-me mode: challenging Bacilek31` and the usual win/loss line.
+- ⏳ Unverified live: that `Fight` by name works for any player in the Arena (it does for the Hall of Fame hunts) and that fights against him count for the XP wins and the streak.

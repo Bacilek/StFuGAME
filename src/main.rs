@@ -4,6 +4,7 @@
 #[macro_use]
 mod report;
 mod app;
+mod attack_me;
 mod arena;
 mod arena_highlights;
 mod attributes;
