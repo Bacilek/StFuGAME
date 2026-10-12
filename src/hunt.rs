@@ -155,29 +155,31 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
             .map(|p| (p.honor, p.name.clone()))
             .collect();
         list.sort();
+        // Among the clearly weaker candidates of this page the one wearing the most items our scrapbook still lacks wins
+        // (user 2026-10-12: tasks first, but the scrapbook may ride along); a scrapbook hunt needs at least one.
+        let mut best: Option<(usize, String, String)> = None;
         for (_, name) in list.into_iter().take(inspect) {
             let gs = safe::send(session, Command::ViewPlayer { ident: name.clone() }).await.map_err(|e| fail(&e))?;
             let Some(p) = gs.lookup.lookup_name(&name) else { continue };
             let s = power(p.class, |a| arena::total(p, a));
-            // A scrapbook hunt wants an opponent wearing something we do not own yet
-            let missing = if hunt == Hunt::Scrapbook {
-                match gs.character.scrapbook.as_ref() {
-                    Some(sb) => crate::scrapbook::missing_on(&p.equipment, sb),
-                    None => 0,
-                }
-            } else {
-                1
-            };
-            if missing == 0 {
+            if s > limit {
                 continue;
             }
-            if s <= limit {
-                report!("[hunt] Found {name} (rank {}, lvl {}, {:?}): power {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
-                if hunt == Hunt::Scrapbook {
-                    report!("[hunt] {name} wears {missing} item(s) missing from our scrapbook");
-                }
-                return Ok(Some(name));
+            let missing = gs.character.scrapbook.as_ref().map_or(0, |sb| crate::scrapbook::missing_on(&p.equipment, sb));
+            if hunt == Hunt::Scrapbook && missing == 0 {
+                continue;
             }
+            if best.as_ref().is_none_or(|b| missing > b.0) {
+                let desc = format!("Found {name} (rank {}, lvl {}, {:?}): power {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
+                best = Some((missing, name, desc));
+            }
+        }
+        if let Some((missing, name, desc)) = best {
+            report!("[hunt] {desc}");
+            if missing > 0 {
+                report!("[hunt] {name} wears {missing} item(s) missing from our scrapbook");
+            }
+            return Ok(Some(name));
         }
     }
     Ok(None)

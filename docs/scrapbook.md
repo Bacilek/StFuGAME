@@ -24,3 +24,8 @@ The profile (Library of Meticulousness, = the XP bonus) shows 16 % for Sanek, 14
 
 ## D pinned: 2506 (2026-10-12, 2-decimal profile values from the user)
 Chlamydie 14.76 % (370 = items + monsters), Květoš 12.37 % (310), Wecros 12.09 % (303) – all whole numbers with D = **2506**, and the main's 27.37 % = 686 / 2506. `scrapbook::GAME_TOTAL = 2506` (the earlier fit 2600 is replaced; today's day files migrated; test with the four values). The game's percentage therefore = (owned items + seen monsters) / 2506.
+
+## Analysis 2026-10-12 16:30 (first hours of the feature)
+- The dedicated scrapbook hunt never started (no `Scrapbook` lines in any log): it needs ALL 10 XP wins done AND no open fight task. Every character has the Ruffian event open until it ends (win 20× vs a class, 10× vs another, 30× in the HoF, 5 back to back) plus daily class tasks, so every free Arena window went to task hunts – by design (tasks first). The bot only gets to the scrapbook when those are done.
+- Scrapbook counts (items + monsters) between ~13:30 and 16:30: Sanek 416 → 416, Chlamydie 370 → 370, Filminy 321 → 321, Wecros, Pagan, PajaRizz, Mrožik unchanged; Pjotr 316 → 317, Mimi 309 → 314, Novotné 313 → 318, Květoš 305 → 310 (Květoš won against Bacilek31 at 13:41, who wears ~10 items: +5 – consistent with "beating a player adds what he wears"). The task hunts fight the weakest level-1 players of a class, who wear starter items we mostly own already, so they add almost nothing.
+- Change: ALL hunts now (not just the scrapbook hunt) inspect the weaker candidates of a Hall of Fame page and take the one wearing the most items missing from our scrapbook (`find_opponent`; tasks stay first, the scrapbook rides along; costs up to 2 extra `ViewPlayer` per search).
