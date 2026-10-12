@@ -67,6 +67,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // Beer only for the last missing Gleeman task to a chest with mushrooms (user 2026-10-07) or the travel beer (2026-10-10), see tasks::beer_justified
             | Command::BuyBeer
             | Command::HallOfFamePage { .. }
+            // Read-only refresh of the scrapbook (user 2026-10-12, scrapbook hunt)
+            | Command::ViewScrapbook
             // Taking an item off (equipment → backpack) for "bare hands"/"no chest plate" tasks, see hunt.rs
             | Command::PlayerItemMove {
                 from: PlayerItemPosition { place: PlayerItemPlace::Equipment, .. },

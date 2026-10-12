@@ -574,6 +574,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
         "guild_bonus": gs.guild.as_ref().map(|g| format!("{}/{}", g.total_instructor_skill, g.total_treasure_skill)),
+        "scrapbook": gs.character.scrapbook.as_ref().map(crate::scrapbook::json),
         "gleeman": gleeman(gs),
     })
 }
@@ -655,6 +656,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         })
         .collect();
     let scrapbook = c.scrapbook.as_ref().map(|s| s.items.len() + s.monster.len());
+    let scrapbook_pct = c.scrapbook.as_ref().map(|s| crate::scrapbook::stats(s).pct());
     let ach = &gs.achievements;
     serde_json::json!({
         "name": c.name,
@@ -673,6 +675,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
         "potions": potions,
         "derived": derived(gs),
         "scrapbook": scrapbook,
+        "scrapbook_pct": scrapbook_pct,
         "achievements": { "owned": ach.owned(), "total": ach.0.len() },
         "dungeons": dungeons,
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
@@ -938,7 +941,7 @@ fn write_dashboard(demo: bool) {
                     // had *on this date*, not today's live state – e.g. Day 0 must show no equipment bonus.
                     "level": num(r, "level"), "honor": num(r, "honor"),
                     "gold_now": num(r, "gold"), "mushrooms_now": num(r, "mushrooms"), "lucky_coins_now": num(r, "lucky_coins"),
-                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "potion_items": get("potion_items"), "derived": get("derived"), "guild_day": get("guild"),
+                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "potion_items": get("potion_items"), "derived": get("derived"), "guild_day": get("guild"), "scrapbook_pct": snap.map_or(serde_json::Value::Null, |s| s["scrapbook"]["pct"].clone()),
                 }),
             );
         }

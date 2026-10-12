@@ -134,6 +134,7 @@ const METRICS = [
   {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
   {key:"power", label:"Power", fmt:v=>Math.round(v).toLocaleString()},
   {key:"winrate", label:"Win rate [%] (simulated against all)", fmt:v=>v.toFixed(1)+" %"},
+  {key:"scrapbook_pct", label:"Scrapbook (collection fill) [%]", fmt:v=>v.toFixed(2)+" %"},
 ];
 // Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
 // A second character of the same class gets a dashed line and a hollow marker.
@@ -472,7 +473,7 @@ function openCard(i){
   stat("Mushrooms", d?.mushrooms_now); stat("Lucky coins", d?.lucky_coins_now);
   if (n){
     const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
-    stat("Achievements (now)", ach); stat("Collection (now)", n.scrapbook != null ? `${n.scrapbook} items` : "–");
+    stat("Achievements (now)", ach); stat("Collection (now)", n.scrapbook != null ? `${n.scrapbook} items` + (n.scrapbook_pct != null ? ` (${n.scrapbook_pct.toFixed(1)} %)` : "") : "–");
     stat("XP (now)", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
   }
   charPanel(body, {cls:c.cls, name:c.nick, guild:d?.guild_day, level:lvl, portrait:encodeURIComponent(c.nick)+"/portrait.png",

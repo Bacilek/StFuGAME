@@ -20,6 +20,26 @@ use crate::{
 const BOTTOM_PAGES: u32 = 6;
 /// How many of the lowest-honor players of one page to inspect (each one is a `ViewPlayer`).
 const INSPECT: usize = 3;
+/// The scrapbook hunt looks further: more pages and more players per page (each one is a `ViewPlayer`).
+const SCRAPBOOK_PAGES: u32 = 10;
+const SCRAPBOOK_INSPECT: usize = 6;
+/// After a scrapbook search that found nobody, wait this long before the next one.
+const SCRAPBOOK_RETRY: chrono::Duration = chrono::Duration::minutes(30);
+
+static NEXT_SCRAPBOOK: crate::ctx::PerChar<Option<chrono::DateTime<chrono::Local>>> = crate::ctx::PerChar::new();
+
+/// A spare Arena fight for the scrapbook: all XP wins of the day done, the Arena free, a scrapbook that is not complete,
+/// and the last fruitless search long enough ago.
+fn scrapbook_wanted(gs: &GameState) -> bool {
+    let incomplete = gs.character.scrapbook.as_ref().is_some_and(|sb| {
+        let s = crate::scrapbook::stats(sb);
+        s.owned < s.total
+    });
+    incomplete
+        && usize::from(gs.arena.fights_for_xp) >= arena::MAX_WINS_PER_DAY
+        && safe::arena_is_free(gs)
+        && NEXT_SCRAPBOOK.lock().is_ok_and(|n| n.is_none_or(|t| chrono::Local::now() >= t))
+}
 
 /// What the fight has to look like.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,6 +52,9 @@ enum Hunt {
     /// Any clearly weaker Hall of Fame opponent: "win N fights in the Hall of Fame" and "win back to back"
     /// (Ruffian event, user 2026-10-12). Back to back = the very weakest ones, a loss would reset the streak.
     Any { streak: bool },
+    /// Spare Arena fight (all 10 XP wins done, no task hunt open): an opponent wearing items our scrapbook still lacks
+    /// (user 2026-10-12). Tasks and events always go first.
+    Scrapbook,
 }
 
 impl Hunt {
@@ -43,6 +66,7 @@ impl Hunt {
             Hunt::Without(_) | Hunt::NoEpics => 0.5,
             Hunt::Any { streak: true } => 0.3,
             Hunt::Any { streak: false } => 0.6,
+            Hunt::Scrapbook => 0.6,
         }
     }
 }
@@ -95,7 +119,8 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
         total = gs.hall_of_fames.players_total.max(our_rank);
     }
     // From the very bottom upwards: the lowest ranks are level 1 players, a clearly weaker opponent is always there
-    for k in 0..BOTTOM_PAGES {
+    let (pages, inspect) = if hunt == Hunt::Scrapbook { (SCRAPBOOK_PAGES, SCRAPBOOK_INSPECT) } else { (BOTTOM_PAGES, INSPECT) };
+    for k in 0..pages {
         let target = total.saturating_sub(25 + 51 * k);
         if target <= our_rank || target < 26 {
             break;
@@ -110,18 +135,33 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
                 p.level <= our_level
                     && match hunt {
                         Hunt::Class(c) => p.class == c,
-                        Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } => true,
+                        Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } | Hunt::Scrapbook => true,
                     }
             })
             .map(|p| (p.honor, p.name.clone()))
             .collect();
         list.sort();
-        for (_, name) in list.into_iter().take(INSPECT) {
+        for (_, name) in list.into_iter().take(inspect) {
             let gs = safe::send(session, Command::ViewPlayer { ident: name.clone() }).await.map_err(|e| fail(&e))?;
             let Some(p) = gs.lookup.lookup_name(&name) else { continue };
             let s = power(p.class, |a| arena::total(p, a));
+            // A scrapbook hunt wants an opponent wearing something we do not own yet
+            let missing = if hunt == Hunt::Scrapbook {
+                match gs.character.scrapbook.as_ref() {
+                    Some(sb) => crate::scrapbook::missing_on(&p.equipment, sb),
+                    None => 0,
+                }
+            } else {
+                1
+            };
+            if missing == 0 {
+                continue;
+            }
             if s <= limit {
                 report!("[hunt] Found {name} (rank {}, lvl {}, {:?}): power {s:.0}, ours {ours:.0}", p.rank, p.level, p.class);
+                if hunt == Hunt::Scrapbook {
+                    report!("[hunt] {name} wears {missing} item(s) missing from our scrapbook");
+                }
                 return Ok(Some(name));
             }
         }
@@ -135,7 +175,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
 fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>> {
     let gs = gs?;
     match hunt {
-        Hunt::Class(_) | Hunt::Any { .. } => None,
+        Hunt::Class(_) | Hunt::Any { .. } | Hunt::Scrapbook => None,
         Hunt::Without(slot) => {
             let mut slots = vec![slot];
             if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
@@ -172,10 +212,17 @@ async fn ensure_room(session: &mut SimpleSession, hunt: Hunt) -> Result<bool, Ou
     Ok(true)
 }
 
+fn scrap_count(session: &SimpleSession) -> usize {
+    session.game_state().and_then(|gs| gs.character.scrapbook.as_ref().map(|s| s.items.len())).unwrap_or(0)
+}
+
 /// One hunt fight if a fight task is open and the Arena is free (tasks go before the XP fights, user 2026-10-10).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    let hunts = wanted_hunts(gs);
+    let mut hunts = wanted_hunts(gs);
+    if hunts.is_empty() && scrapbook_wanted(gs) {
+        hunts.push(Hunt::Scrapbook);
+    }
     if hunts.is_empty() || !safe::arena_is_free(gs) {
         return Outcome::Done;
     }
@@ -196,6 +243,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Ok(Some(n)) => n,
         Ok(None) => {
             report!("[hunt] No clearly weaker opponent found");
+            if hunt == Hunt::Scrapbook
+                && let Ok(mut n) = NEXT_SCRAPBOOK.lock()
+            {
+                *n = Some(chrono::Local::now() + SCRAPBOOK_RETRY);
+            }
             return Outcome::Done;
         }
         Err(o) => return o,
@@ -235,6 +287,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
 
+    let scrap_before = scrap_count(session);
     report!("[hunt] Fighting {name}");
     let session_lost = match safe::send(session, Command::Fight { name: name.clone(), use_mushroom: false }).await {
         Ok(gs) => {
@@ -249,6 +302,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             crate::tavern::is_session_error(&e)
         }
     };
+
+    if hunt == Hunt::Scrapbook {
+        if safe::send(session, Command::ViewScrapbook).await.is_ok() {
+            let after = scrap_count(session);
+            report!("[hunt] Scrapbook: {scrap_before} -> {after} items");
+        }
+    }
 
     // Always put the item(s) back on
     for (slot, bag, item_ident) in stripped {

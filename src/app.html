@@ -315,7 +315,7 @@ function openCard(c){
   stat("Hall of Fame", "#"+n.rank.toLocaleString()); stat("Honor", n.honor.toLocaleString()); stat("Power", Math.round(n.power).toLocaleString());
   stat("Gold", n.gold.toFixed(2)); stat("Mushrooms", n.mushrooms); stat("Lucky coins", n.lucky_coins); stat("Hourglasses", n.hourglasses);
   const ach = n.achievements && n.achievements.total ? `${Math.round(n.achievements.owned*100/n.achievements.total)} % (${n.achievements.owned}/${n.achievements.total})` : "–";
-  stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` : "–");
+  stat("Achievements", ach); stat("Collection", n.scrapbook != null ? `${n.scrapbook} items` + (n.scrapbook_pct != null ? ` (${n.scrapbook_pct.toFixed(1)} %)` : "") : "–");
   stat("XP", n.next_xp ? `${Math.round(n.xp*100/n.next_xp)} %` : "–");
   charPanel(body, {name:c.name, guild:n.guild, level:n.level, portrait:encodeURIComponent(c.name)+"/portrait.png",
     equip:n.equip, attrs:n.attrs, potions:n.potions, derived:n.derived});

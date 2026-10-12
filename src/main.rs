@@ -23,6 +23,7 @@ mod missions;
 mod potions;
 mod roster;
 mod safe;
+mod scrapbook;
 mod session;
 mod shops;
 mod stable;
