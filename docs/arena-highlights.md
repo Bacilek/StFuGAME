@@ -167,7 +167,7 @@ that doesn't beat a record (kept deliberately quiet, per the project's general l
 | Druid bear form (stance 11) / swoop (type 13 + free attack) | ✅ format confirmed from a saved fight (unit test `decodes_druid_bear_and_swoop`); thresholds for `swoops`/`bear_crits` are guesses |
 | `PlayerCombatLogMark <id>/1` marks a fight (sets `combatloglist`'s last field to `3`, settling to `2`) | ✅ 2026-10-09, both via our own API call and the user's in-game click, same effect |
 | `PlayerCombatLogMark <id>/0` un-marks a fight (sets last field to `0`) | ✅ 2026-10-09, confirmed by diffing the user's own pin/unpin in-game clicks (clean single-row `3→0`) – inferred from the resulting list, the raw unmark request itself wasn't captured, but high confidence |
-| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ⏳ unverified assumption, still untested by our own code sending `Fight` |
+| `gs.mail.combat_log` populated right after a `Fight` response without a separate fetch | ❌ 2026-10-12: NOT populated – every record since 2026-10-09 logged "no matching combat log entry", so NO fight has ever been saved by the bot. Now `maybe_mark` sends one `Update` and looks again (`recent_fight`); ⏳ unknown whether `Poll` carries `combatloglist` – watch for `Marking fight` in the log, otherwise find the command that lists the combat log |
 | Point thresholds reasonable (mark too much / too little) | ⏳ pending real scores in the log |
 
 ## Open questions

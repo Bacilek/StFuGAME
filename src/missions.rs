@@ -13,6 +13,7 @@ pub enum Bonus {
 }
 
 /// Estimated bonus for a task we have not mapped yet.
+#[allow(dead_code)] // no mission with an unknown bonus is left; kept for the next unmapped one
 const UNKNOWN_BONUS: Bonus = Bonus::OnComplete(5);
 
 #[derive(Debug)]
@@ -65,6 +66,7 @@ const fn known(name: &'static str, chain: &'static [(ExpeditionThing, i32)], bon
 }
 
 /// Mission whose task bonus is not known yet (estimate UNKNOWN_BONUS).
+#[allow(dead_code)]
 const fn unknown(name: &'static str, chain: &'static [(ExpeditionThing, i32)], limit: u8) -> Mission {
     Mission { name, chain, bonus: UNKNOWN_BONUS, bonus_known: false, fail_penalty: 0, count: 1, limit, final_repeats: false }
 }

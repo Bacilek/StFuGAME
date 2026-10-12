@@ -573,6 +573,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "potion_items": c.active_potions.iter().flatten().map(potion_json).collect::<Vec<_>>(),
         "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
+        "guild_bonus": gs.guild.as_ref().map(|g| format!("{}/{}", g.total_instructor_skill, g.total_treasure_skill)),
         "gleeman": gleeman(gs),
     })
 }
@@ -804,7 +805,9 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
     if cur["guild"] != prev["guild"]
         && let Some(g) = cur["guild"].as_str()
     {
-        out.push(change_entry(format!("Joined the guild {g}"), None));
+        // Instructor/Treasure of the guild (user 2026-10-12: show the bonuses as the reason); older snapshots lack them
+        let bonus = cur["guild_bonus"].as_str().map_or(String::new(), |b| format!(" (Instructor/Treasure {b})"));
+        out.push(change_entry(format!("Joined the guild {g}{bonus}"), None));
     }
     out
 }

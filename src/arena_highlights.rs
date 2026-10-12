@@ -337,6 +337,17 @@ async fn mark(session: &mut SimpleSession, msg_id: i64, flag: &str) {
     }
 }
 
+/// Message id of our latest fight against `opponent` (at most 5 minutes old) in the combat log.
+fn recent_fight(gs: &GameState, opponent: &str) -> Option<i64> {
+    gs.mail
+        .combat_log
+        .iter()
+        .filter(|e| e.player_name == opponent)
+        .max_by_key(|e| e.time)
+        .filter(|e| (Local::now() - e.time).num_minutes() < 5)
+        .map(|e| e.msg_id)
+}
+
 /// Call after a won Arena fight (`raw` = the raw response of the `Fight` command). Marks it via
 /// `PlayerCombatLogMark` (so it shows up in Quarter → Mail) only if it beats this character's own previous best
 /// in at least one category, and un-marks whichever earlier fight(s) it just superseded (user 2026-10-09: old,
@@ -354,15 +365,7 @@ pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) 
             .filter(|m| records.get(m.category).is_none_or(|prev| beats_record(m, prev.0)))
             .map(|m| (m.category.to_string(), m.value, (m.describe)(m.value), records.get(m.category).map(|r| r.1)))
             .collect();
-        let msg_id = gs
-            .mail
-            .combat_log
-            .iter()
-            .filter(|e| e.player_name == opponent)
-            .max_by_key(|e| e.time)
-            .filter(|e| (Local::now() - e.time).num_minutes() < 5)
-            .map(|e| e.msg_id);
-        (new_records, msg_id)
+        (new_records, recent_fight(gs, opponent))
     }) else {
         return;
     };
@@ -372,6 +375,12 @@ pub async fn maybe_mark(session: &mut SimpleSession, raw: &str, opponent: &str) 
     let descriptions: Vec<&str> = new_records.iter().map(|(_, _, d, _)| d.as_str()).collect();
     report!("[arena] New personal best: {}", descriptions.join(", "));
 
+    // The `Fight` response does not carry the combat log (2026-10-12: all 8 records so far found no entry), so ask for
+    // a fresh state once before giving up.
+    let mut msg_id = msg_id;
+    if msg_id.is_none() && safe::send(session, Command::Update).await.is_ok() {
+        msg_id = session.game_state().and_then(|gs| recent_fight(gs, opponent));
+    }
     let Some(msg_id) = msg_id else {
         report!("[arena] New record but no matching combat log entry to mark yet, skipping the save");
         return;
