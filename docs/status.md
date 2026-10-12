@@ -699,3 +699,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: Quests tab hides characters with all chests opened; inventory (with sprites) in the character card. Needs a release rebuild + a look at the real window.
 - 2026-10-12: found + fixed: with the 10 XP wins done the loop slept 30 min although hunts use the Arena cooldown (hunts ran every 30 min); now it wakes at the cooldown end when a hunt is wanted (docs/architecture.md). Needs a release rebuild.
 - 2026-10-12: a task list with all chests opened is no longer hunted and its Quests-tab section is hidden (Mrožik/Květoš event). Needs a release rebuild.
+- 2026-10-12: fortress attacks only on targets with soldier_advice <= 1 (else counters / free reroll); Quests tab tasks show x/y only (bars stay for the chests). Needs a release rebuild.

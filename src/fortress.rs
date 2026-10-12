@@ -265,9 +265,9 @@ const MAX_COUNTERS: usize = 3;
 static NEXT_MILITARY: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = crate::ctx::PerChar::new();
 
 /// Expected loot (wood + stone) of fortress player `id`, from a fresh `PlayerLookAt`; `None` when it cannot be read.
-async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64)>, Outcome> {
+async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64, u16)>, Outcome> {
     let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| fail(&e))?;
-    Ok(gs.lookup.lookup_pid(id).and_then(|p| p.fortress.as_ref()).map(|f| (f.lootable_wood, f.lootable_stone)))
+    Ok(gs.lookup.lookup_pid(id).and_then(|p| p.fortress.as_ref()).map(|f| (f.lootable_wood, f.lootable_stone, f.soldier_advice)))
 }
 
 /// Soldiers (user 2026-10-12): attack with ONE soldier at a time, on the opponent the fortress offers (`attack_target`);
@@ -317,8 +317,10 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
             && !attacked.contains(&id)
         {
             match loot_of(session, id).await {
-                Ok(Some((w, s))) if w + s >= min_loot => target = Some((id, w, s)),
-                Ok(Some((w, s))) => report!("[fortress] The offered opponent {id} has too little to loot (wood {w}, stone {s})"),
+                Ok(Some((w, s, advice))) if advice <= 1 && w + s >= min_loot => target = Some((id, w, s)),
+                Ok(Some((w, s, advice))) => report!(
+                    "[fortress] The offered opponent {id} is not worth one soldier (wood {w}, stone {s}, need {min_loot}; the game advises {advice} soldiers)"
+                ),
                 Ok(None) => report!("[fortress] Could not read the offered opponent {id}"),
                 Err(o) => return o,
             }
@@ -341,7 +343,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 }
                 let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
                 match loot_of(session, id).await {
-                    Ok(Some((w, s))) if w + s >= min_loot && !attacked.contains(&id) => {
+                    Ok(Some((w, s, advice))) if advice <= 1 && w + s >= min_loot && !attacked.contains(&id) => {
                         report!("[fortress] Counter-attack target {name} ({id}): wood {w}, stone {s}");
                         target = Some((id, w, s));
                         break;
