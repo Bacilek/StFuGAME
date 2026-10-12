@@ -884,8 +884,6 @@ mod tests {
         assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000, &[]), Some(1));
         // same length: an unmapped mission wins (Merman was mapped 2026-10-12, so Cupid stands in)
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Cupid, 20)], 6000, &[]), Some(1));
-        // same length: a mission with an unverified bonus also wins
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Klaus, 20)], 6000, &[]), Some(1));
         // not enough Thirst for Adventure for the longer one
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600, &[]), None);
     }

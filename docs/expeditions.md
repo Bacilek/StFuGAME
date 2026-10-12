@@ -48,7 +48,7 @@ Verified from runs:
 | Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 / piece (polluted fountain keeps appearing to the end, net +4 each), failure 0 (user 2026-10-10, not yet verified) |
 | Plenty of Men in the Sea | 1× | fishing rod (0) → fishing bait/worms (3) → merman (9) (user 2026-10-12; NOT the dragon's `Bait`, which is the princess −2) | `FishingRod` → `FishingBait` → `Merman` | +5, failure −5 (user, not yet verified) |
 | Beak to Tail | 1× | chicken (0) → tiger (9) → riding Stan (3) (user 2026-10-12) | `Chicken` → `Tiger` → `RidingStan` | +5, failure −5 (not yet verified) |
-| Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | ? |
+| Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | +5, failure −5 (user 2026-10-12, not yet verified) |
 
 Sanitary: the FAQ says "at the end +5 if you have 3 toilet papers, otherwise −5". The user is sure about +20 / −5; their version applies (not yet verified in a run).
 
@@ -84,7 +84,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
 - Missions from sf-api the FAQ does not know: (merman is mapped since 2026-10-12, see the table),
   lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
-- Missing task bonuses: Build A Friend (the bot estimates +5 on completion for now).
+- Missing task bonuses: none (Build A Friend got +5 / −5 from the user 2026-10-12; no mission with an unknown bonus is left, so the "unverified bonus wins a tie" test case was dropped).
 
 The bot does not stop on unknown things. It prints them and logs them to the journal (`unmapped`).
 For an unmapped mission it treats items from the same tens range as the target as chain steps (e.g. 151 → 152 → 153).

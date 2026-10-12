@@ -131,7 +131,8 @@ pub const MISSIONS: &[Mission] = &[
     penalty(known("Plenty of Men in the Sea", &[(FishingRod, 0), (FishingBait, 3), (Merman, 9)], Bonus::OnComplete(5), 1), 5),
     // user 2026-10-12: chicken 0, tiger 9, riding Stan 3, bonus +5 on completion, -5 when failed
     penalty(known("Beak to Tail", &[(Chicken, 0), (Tiger, 9), (RidingStan, 3)], Bonus::OnComplete(5), 1), 5),
-    unknown("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], 1),
+    // user 2026-10-12: hand -5, feet -5, body -5, Klaus +35, bonus +5 on completion, -5 when failed
+    penalty(known("Build A Friend", &[(Hand, -5), (Feet, -5), (Body, -5), (Klaus, 35)], Bonus::OnComplete(5), 1), 5),
 ];
 
 /// Mission whose target is the given item.
