@@ -75,7 +75,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .qbar .rw{position:absolute;top:20px;transform:translateX(-50%);font-size:11px;color:var(--ink2);text-align:center;max-width:120px;line-height:1.2}
 .qbar .rw.open{color:var(--muted);text-decoration:line-through}
 .qlist{display:flex;flex-direction:column;gap:8px}
-.qtask{display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr 90px;gap:10px;align-items:center;font-size:13px}
+.qtask{display:grid;grid-template-columns:minmax(150px,1fr) 100px;gap:10px;align-items:center;font-size:13px}
 .qtask .nm small{display:block;color:var(--muted);font-size:11px}
 .qtask .pb{height:12px;background:var(--line);border-radius:6px;overflow:hidden;position:relative}
 .qtask .pb i{display:block;height:100%;background:var(--Mage)}
@@ -441,10 +441,8 @@ function qSection(title, q, isEvent){
     const row = document.createElement("div"); row.className = "qtask" + (PAID_TASKS.test(t.name) ? " skip" : "");
     const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = humanTask(t.name);
     if (PAID_TASKS.test(t.name)){ const s = document.createElement("small"); s.textContent = "costs mushrooms – the bot skips it"; nm.appendChild(s); }
-    const pb = document.createElement("div"); pb.className = "pb"; const i = document.createElement("i");
-    i.style.width = Math.min(100, t.target ? t.current * 100 / t.target : 0) + "%"; pb.appendChild(i);
     const prog = document.createElement("div"); prog.className = "pt"; prog.textContent = `${t.current}/${t.target} · +${t.points}`;
-    row.append(nm, pb, prog); list.appendChild(row);
+    row.append(nm, prog); list.appendChild(row);
   });
   box.appendChild(list);
   return box;
