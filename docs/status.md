@@ -692,3 +692,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - 2026-10-12: "Attack me" button in the app window: all bots look up Bacilek31 in the Hall of Fame and attack him (ahead of every other hunt and of the Arena XP fights) so his honor/rank sink; docs/arena.md. Needs a release rebuild.
 - 2026-10-12: attack-me tested: works technically but the bots lose to Bacilek31 (3 fights: 2 losses, 1 win), so it cannot lower his honor; user switched it off. Decision pending on keeping/removing.
 - 2026-10-12: scrapbook % now follows the game's profile (items+monsters)/2600 (fit of 5 profiles); chart/card/day files updated, ⏳ exact D needs 2-decimal profile values. Needs a release rebuild.
+- 2026-10-12: scrapbook D pinned to 2506 (chart/card now match the game profile); HoK upgrade automated (instant, only when no build runs). Needs a release rebuild.

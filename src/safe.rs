@@ -89,6 +89,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy }
             | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy, mushrooms: 0 }
             | Command::FortressGather { .. }
+            // Hall of Knights (user 2026-10-12): instant, only while no build runs; `send_raw` checks `fortress::hok_affordable`
+            | Command::FortressUpgradeHallOfKnights
             // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
             // targets. the paid `FortressNewEnemy` stays forbidden. None of these takes mushrooms.
             | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
@@ -304,6 +306,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("this fortress building may not be built now"));
     }
+    if matches!(cmd, Command::FortressUpgradeHallOfKnights) && !session.game_state().is_some_and(crate::fortress::hok_affordable) {
+        return Err(SFError::InvalidRequest("the Hall of Knights is not affordable now or a build is running"));
+    }
     // Moves out of the backpack are only for socketing a gem into an item with a gem slot, worn or stored (src/gems.rs); equipping is `Command::Equip`
     if let Command::PlayerItemMove { from, to, item_ident } = &cmd
         && from.place != PlayerItemPlace::Equipment
@@ -424,6 +429,7 @@ mod fortress_tests {
         assert!(is_allowed(&Command::FortressBuild { f_type: B::Academy }));
         assert!(!is_allowed(&Command::FortressBuild { f_type: B::Smithy }));
         assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
+        assert!(is_allowed(&Command::FortressUpgradeHallOfKnights)); // guarded by `hok_affordable`
         // soldiers: train soldiers, one-soldier attacks, counter-attack targets; never a reroll, never other units or bigger armies
         use sf_api::gamestate::fortress::FortressUnitType as U;
         assert!(is_allowed(&Command::FortressBuildUnit { unit: U::Soldier, count: 3 }));

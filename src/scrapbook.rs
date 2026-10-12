@@ -130,11 +130,11 @@ pub struct Stats {
     pub monsters: usize,
 }
 
-/// Denominator of the game's own percentage (Library of Meticulousness, shown on the profile as the XP bonus), fitted
-/// 2026-10-12 from the profiles the user read off five characters (Sanek 16 %, Chlamydie 14 %, Filminy 12 %, Pjotr 12 %, Mimi 12 %
-/// with 416 / 370 / 321 / 316 / 309 owned items + monsters): every one of them is consistent with any value between 2568 and 2684,
-/// so 2600 for now. Exact (2-decimal) profile values would pin it down: D = (items + monsters) / percentage.
-pub const GAME_TOTAL: f64 = 2600.0;
+/// Denominator of the game's own percentage (Library of Meticulousness, shown on the profile as the XP bonus):
+/// (owned items + seen monsters) / 2506. Pinned 2026-10-12 from profile values with two decimals: Chlamydie 14.76 % = 370,
+/// Květoš 12.37 % = 310, Wecros 12.09 % = 303 (all whole numbers at 2506) and the main's 27.37 % = 686. 2506 = 800 monsters +
+/// 1706 item positions (the 1706 are not understood).
+pub const GAME_TOTAL: f64 = 2506.0;
 
 impl Stats {
     /// The game's percentage: (owned items + seen monsters) / `GAME_TOTAL`.
@@ -209,10 +209,10 @@ mod tests {
 
     #[test]
     fn game_percentage_matches_the_profiles_the_user_read_off() {
-        // (items + monsters, percentage shown in the game, rounded to whole percent)
-        for (n, shown) in [(416.0, 16.0), (370.0, 14.0), (321.0, 12.0), (316.0, 12.0), (309.0, 12.0)] {
+        // (items + monsters, percentage shown in the game with two decimals)
+        for (n, shown) in [(370.0, 14.76), (310.0, 12.37), (303.0, 12.09), (686.0, 27.37)] {
             let pct = n * 100.0 / GAME_TOTAL;
-            assert!((pct - shown).abs() < 0.5, "{n} -> {pct}");
+            assert!((pct - shown).abs() < 0.006, "{n} -> {pct}");
         }
     }
 

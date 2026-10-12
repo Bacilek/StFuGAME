@@ -120,6 +120,19 @@ fn choose(f: &Fortress, char_level: u16) -> Option<B> {
 }
 
 /// Resources of one kind that can be collected right now (the server only recalculates them from time to time).
+/// Can the Hall of Knights be upgraded right now (the same rule `safe.rs` enforces)? No build running, the price is known
+/// and paid in wood, stone and gold we have, and the level stays at or below the Fortress level.
+pub fn hok_affordable(gs: &GameState) -> bool {
+    let Some(f) = gs.fortress.as_ref() else { return false };
+    let p = f.hall_of_knights_upgrade_price;
+    f.building_upgrade.target.is_none()
+        && (p.wood > 0 || p.stone > 0)
+        && p.wood <= f.resources[R::Wood].current
+        && p.stone <= f.resources[R::Stone].current
+        && p.silver <= gs.character.silver
+        && f.hall_of_knights_level < f.buildings[B::Fortress].level
+}
+
 /// Wood and stone the next planned building still needs (None when nothing is planned): other spending (gems) leaves it alone.
 pub fn next_build_cost(gs: &GameState) -> Option<(u64, u64)> {
     let f = gs.fortress.as_ref()?;
@@ -187,6 +200,32 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if f.building_upgrade.target.is_some() || !crate::shops::pass_done() {
         return Outcome::Done;
     }
+    // The Hall of Knights is built instantly, but only while nothing else is being built (user 2026-10-12): so whenever no
+    // build is running and it is affordable, it goes before the next build. Never above the Fortress level.
+    if hok_affordable(gs) {
+        let f = gs.fortress.as_ref().expect("checked above");
+        report!(
+            "[fortress] Upgrading the Hall of Knights {} -> {} (wood {}, stone {}, {})",
+            f.hall_of_knights_level,
+            f.hall_of_knights_level + 1,
+            f.hall_of_knights_upgrade_price.wood,
+            f.hall_of_knights_upgrade_price.stone,
+            crate::report::gold(f.hall_of_knights_upgrade_price.silver)
+        );
+        if let Err(e) = safe::send(session, Command::FortressUpgradeHallOfKnights).await {
+            return fail(&e);
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e);
+        }
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
+        if f.building_upgrade.target.is_some() {
+            return Outcome::Done;
+        }
+    }
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
     let Some(next) = choose(f, gs.character.level) else { return Outcome::Done };
     if !build_ok(gs, next) {
         return Outcome::Done;
