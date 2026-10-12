@@ -144,7 +144,8 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
             Event::NewEvents(StartCause::Init) => {}
             Event::UserEvent(AppEvent::Tick) => {
                 let status = control::status_json();
-                let eod_pending = crate::ctx::eod_pending();
+                let running = control::running_names();
+                let eod_pending = serde_json::json!(crate::ctx::eod_pending().into_iter().filter(|n| running.contains(n)).collect::<Vec<_>>());
                 let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending})"));
                 tray.set_state(control::overall());
             }
@@ -167,7 +168,7 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
                 report!("[control] Stop all requested from the tray icon");
             } else if ev.id == tray.eod.id() {
                 report!("[control] End of day requested (preview)");
-                crate::ctx::request_end_of_day(control::running_count());
+                crate::ctx::request_end_of_day(control::running_names());
             } else if ev.id == tray.dash.id() {
                 open_dashboard();
             } else if ev.id == tray.log.id() {
@@ -198,7 +199,7 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
         "stop" if !name.is_empty() => control::stop(name),
         "start_all" => control::start_all(rt),
         "stop_all" => control::stop_all(),
-        "eod" => crate::ctx::request_end_of_day(control::running_count()),
+        "eod" => crate::ctx::request_end_of_day(control::running_names()),
         "open_browser" => open_dashboard(),
         other => report!("[control] Unknown command from the app window: {other:?}"),
     }

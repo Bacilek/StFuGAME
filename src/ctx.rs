@@ -28,28 +28,38 @@ pub fn log_path(file: &str) -> String {
 /// "Run end of day now" from the icon menu: a request counter + a wake-up for the sleeping main loops.
 pub static EOD_REQUESTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static EOD_WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
-/// How many currently-running characters still have to finish processing the latest manual request (set to the
-/// running count when requested, decremented as each one finishes its preview report + Day 0/duels) – lets the
-/// app window show "Updating…" instead of leaving the user guessing whether the click did anything yet
-/// (user 2026-10-08).
-static EOD_PENDING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Names of the running characters that still have to finish the latest manual request (their preview report is
+/// really written) – lets the app window show "Updating… waiting for X" instead of leaving the user guessing
+/// (user 2026-10-08; names instead of a count and "done" only after the report: 2026-10-12).
+static EOD_PENDING: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
-pub fn request_end_of_day(running: u64) {
+pub fn request_end_of_day(running: Vec<String>) {
     EOD_REQUESTS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    EOD_PENDING.store(running, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(mut p) = EOD_PENDING.lock() {
+        *p = running;
+    }
     EOD_WAKE.notify_waiters();
 }
 
-/// Characters still processing the latest manual request (0 once it's fully done).
-pub fn eod_pending() -> u64 {
-    EOD_PENDING.load(std::sync::atomic::Ordering::SeqCst)
+/// Characters still processing the latest manual request (empty once it is fully done).
+pub fn eod_pending() -> Vec<String> {
+    EOD_PENDING.lock().map(|p| p.clone()).unwrap_or_default()
 }
 
-/// Called by a character's main loop once it has finished handling the manual request it just saw.
+/// Marks the current character as finished with the manual request.
 pub fn eod_done_one() {
-    let _ = EOD_PENDING.try_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |n| {
-        Some(n.saturating_sub(1))
-    });
+    let me = name();
+    if let Ok(mut p) = EOD_PENDING.lock() {
+        p.retain(|n| *n != me);
+    }
+}
+
+/// Marks the current character done when dropped, so every early return (lost session) clears it too.
+pub struct EodGuard;
+impl Drop for EodGuard {
+    fn drop(&mut self) {
+        eod_done_one();
+    }
 }
 
 static SEEN: PerChar<u64> = PerChar::new();

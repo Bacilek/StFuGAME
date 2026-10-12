@@ -203,13 +203,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
         // "Run end of day now" from the icon menu: duels + report as a preview (the 23:40/23:50 runs replace it)
         let manual = ctx::take_end_of_day_request();
+        // Counts as done only once the preview report is really written (dropped after the report block below, or on any
+        // early return) – it used to be marked done up front, so the app said "Done" while reports were still missing.
+        let eod_guard = manual.then_some(ctx::EodGuard);
         if manual {
-            // Count this character as done for the progress indicator right away, not after the work below –
-            // `take_end_of_day_request` already marked the request "seen" for this character, so if anything
-            // below hits `SessionLost` and returns early, a reconnect would never see `manual == true` again for
-            // this same request and the indicator would stay stuck on "N characters left" forever (found
-            // 2026-10-08, together with the starvation bug above).
-            ctx::eod_done_one();
             report!("[roster] Manual end of day (preview)");
             tournament::unlock_today();
             let today = tournament::today();
@@ -243,6 +240,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
                 Err(e) => report!("[roster] Update before the daily report failed: {e}"),
             }
         }
+        drop(eod_guard);
 
         if let tavern::Outcome::SessionLost = daily::run(session).await {
             return tavern::Outcome::SessionLost;

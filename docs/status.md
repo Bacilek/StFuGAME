@@ -669,3 +669,5 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - Write `roster/start.txt` (day 1 of the challenge) once all characters are confirmed stable.
 
 - 2026-10-12: guild retry every 5 min while guildless (PajaRizz was left without a guild after a failed join). ⏳ verify live (`[guild] Joining …` lines). Open: whether to hold new expeditions until a guild is joined.
+
+- 2026-10-12: "Run end of day now" progress shows names of characters still working and reloads the charts when all reports are written (was marked done too early). ⏳ verify after a release rebuild. Pre-existing failing test: `tavern::tests::expedition_shortest_then_easiest`.
