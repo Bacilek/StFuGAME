@@ -33,15 +33,25 @@ static NEXT_SCRAPBOOK: crate::ctx::PerChar<Option<chrono::DateTime<chrono::Local
 
 /// A spare Arena fight for the scrapbook: all XP wins of the day done, the Arena free, a scrapbook that is not complete,
 /// and the last fruitless search long enough ago.
-fn scrapbook_wanted(gs: &GameState) -> bool {
+fn scrapbook_due(gs: &GameState) -> bool {
     let incomplete = gs.character.scrapbook.as_ref().is_some_and(|sb| {
         let s = crate::scrapbook::stats(sb);
         s.owned < s.total
     });
     incomplete
         && usize::from(gs.arena.fights_for_xp) >= arena::MAX_WINS_PER_DAY
-        && safe::arena_is_free(gs)
         && NEXT_SCRAPBOOK.lock().is_ok_and(|n| n.is_none_or(|t| chrono::Local::now() >= t))
+}
+
+fn scrapbook_wanted(gs: &GameState) -> bool {
+    scrapbook_due(gs) && safe::arena_is_free(gs)
+}
+
+/// Is any hunt (fight task, attack-me, scrapbook) waiting for the Arena cooldown? The main loop then wakes up when the
+/// cooldown ends instead of idling for 30 minutes (found 2026-10-12: with the 10 XP wins done the Arena timer was ignored and
+/// the event hunts ran once every 30 min).
+pub fn wants_arena(gs: &GameState) -> bool {
+    !wanted_hunts(gs).is_empty() || crate::attack_me::target().is_some() || scrapbook_due(gs)
 }
 
 /// What the fight has to look like.

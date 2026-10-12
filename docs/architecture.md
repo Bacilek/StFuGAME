@@ -59,3 +59,6 @@ Every game feature returns `tavern::Outcome` (`Done` / `SessionLost`). `SessionL
 - After every change: commit (in English) + push. GitHub sometimes returns 500 → retry later.
 - Editing files with Python from bash heredocs: beware of `\r`, `\s` etc. in normal strings (it broke CLAUDE.md once) and of quotes
   in heredocs (bash sometimes fails with "unexpected EOF") → put the script in a file in the scratchpad and run it, or use Write/Edit.
+
+## Main loop idle wait and the Arena cooldown (2026-10-12)
+Found from Mrožik's log (activity only at :15 / :46 every half hour): the idle wait of `main::play` used `arena::secs_until_ready`, which is `None` once the 10 XP wins of the day are done, so it fell back to the 30-minute default – while the hunts (event/daily fight tasks, scrapbook, attack-me) fight in the SAME Arena cooldown (10 min). Result: one hunt fight per 30 min instead of one per 10 min for every character with an open fight task. Fix: `hunt::wants_arena(gs)` (open fight task, attack-me on, or a due scrapbook hunt) makes the loop wake when the Arena cooldown ends (`arena::secs_until_free`, at least 60 s). Other timers (Dungeons 1 h, daily, midnight, report) unchanged.

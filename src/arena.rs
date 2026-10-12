@@ -86,6 +86,12 @@ pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
     Some(u64::try_from((free_at - Local::now()).num_seconds()).unwrap_or(0))
 }
 
+/// Seconds until the Arena cooldown ends (with margin), whatever the number of XP wins today – for hunts that use the same cooldown.
+pub fn secs_until_free(gs: &GameState) -> u64 {
+    let free_at = gs.arena.next_free_fight.map_or_else(Local::now, |t| t + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC));
+    u64::try_from((free_at - Local::now()).num_seconds()).unwrap_or(0)
+}
+
 /// Should we go to the Arena? Off cooldown and fewer than 10 wins today.
 pub fn ready(gs: &GameState) -> bool {
     safe::arena_is_free(gs) && usize::from(gs.arena.fights_for_xp) < MAX_WINS_PER_DAY

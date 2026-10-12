@@ -331,7 +331,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
 
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min
         let gs = session.game_state();
-        let arena = gs.and_then(arena::secs_until_ready).unwrap_or(30 * 60);
+        let arena = gs
+            .and_then(|gs| arena::secs_until_ready(gs).or_else(|| hunt::wants_arena(gs).then(|| arena::secs_until_free(gs).max(60))))
+            .unwrap_or(30 * 60);
         let mut dungeon = gs.map_or(30 * 60, dungeons::secs_until_ready);
         if dungeon == 0 {
             // Dungeons "free" but no fight happened (full inventory etc.): next attempt only after RETRY_SEC
