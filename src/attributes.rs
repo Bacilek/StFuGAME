@@ -144,11 +144,12 @@ fn weight(class: Class, a: AttributeType) -> f64 {
     crate::arena::weight(class, a)
 }
 
-/// Which attribute gives the best weight-per-gold right now, among all 5. Ties favor the main attribute, then
-/// the table order above (CON, LCK, side).
+/// Which attribute gives the best weight-per-gold right now, among the main attribute, CON and LCK (user 2026-10-14: the
+/// secondary attributes are never bought, not even for their 10 %). Ties favor the main attribute, then CON, LCK.
 pub fn best_attribute(class: Class) -> AttributeType {
     ATTRS
         .into_iter()
+        .filter(|&a| a == class.main_attribute() || matches!(a, AttributeType::Constitution | AttributeType::Luck))
         .max_by(|&a, &b| {
             let ratio = |x: AttributeType| weight(class, x) / f64::from(next_price(x));
             ratio(a).partial_cmp(&ratio(b)).unwrap_or(std::cmp::Ordering::Equal)

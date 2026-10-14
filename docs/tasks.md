@@ -55,8 +55,8 @@
   weight-per-gold, weight = the same as the Arena power formula (`arena::weight`: main 100 %, CON 80 %,
   LCK 40 %, the other two side attributes 10 % each) divided by the next purchase's price.
 - **Surplus attribute buying (`tasks::buy_surplus_attributes`, no task needed, user 2026-10-09):** once gold piles
-  up past 5× the shop reserve (`SURPLUS_RESERVE_MULTIPLE`), the bot spends the excess on whichever attribute is
-  currently the best weight-per-gold, keeping at least that 5× floor. Runs every pass, right after the task-driven
+  up past 10× the shop reserve (`SURPLUS_RESERVE_MULTIPLE`), the bot spends the excess on whichever attribute is
+  currently the best weight-per-gold, keeping at least that 10× floor. Runs every pass, right after the task-driven
   `buy_attributes`, only when there's no open attribute task to handle it instead. Not yet verified live.
 - Expeditions (`choose_expedition`): an affordable expedition through a `TravelTo(location)` location wins over shorter ones.
   A task for an expedition type is not known in sf-api yet – when it shows up (Unknown in the task log), map it.

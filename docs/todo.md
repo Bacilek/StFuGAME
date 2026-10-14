@@ -25,16 +25,16 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 
 ### Balíček A – Pevnost: plán a pořadí (`src/fortress.rs`, `docs/fortress.md`)
 - [ ] Zkontrolovat, že se Fortress odemkla (check).
-- [ ] Plně dořešit upgrade path: kde jsme skončili? Fortress lvl 6 → rush Academy → trochu Treasury (nepřehánět, Treasury je konstanta na zlato).
-- [ ] Oprava domněnky: HoK se vylepšuje i během stavby (ne během stavby Fortress) – upravit kód i `docs/fortress.md`.
-- [ ] Priorita zlata: jak moc upřednostňujeme fortress goldy před ostatními výdaji a v jakém pořadí (dohledat, ukázat userovi); rezerva atributů 5× → 10×.
+- [x] Plně dořešit upgrade path (hotovo 2026-10-14, `PLAN` + `pick_generic`): kde jsme skončili? Fortress lvl 6 → rush Academy → trochu Treasury (nepřehánět, Treasury je konstanta na zlato).
+- [x] Oprava domněnky: HoK se vylepšuje i během stavby (ne během stavby Fortress) – upravit kód i `docs/fortress.md`.
+- [ ] Priorita zlata: jak moc upřednostňujeme fortress goldy před ostatními výdaji a v jakém pořadí (dohledat, ukázat userovi); rezerva atributů 5× → 10× (hotovo, `SURPLUS_RESERVE_MULTIPLE`).
 - [ ] Gem Mine: kdy těžit (gem stojí 150 g, těžba trvá jen 50 min) – rozhodnout pravidlo.
-- [ ] Barracks upgrade: počítat dopředu – když se blíží (např. za 20 min) dostavba/upgrade Barracks, zadat trénink max tolika vojáků, aby skončil dřív (trénink blokuje upgrade).
+- [x] Barracks upgrade: počítat dopředu – když se blíží (např. za 20 min) dostavba/upgrade Barracks, zadat trénink max tolika vojáků, aby skončil dřív (trénink blokuje upgrade).
 
 ### Balíček B – Pevnost: útoky a vojáci (`src/fortress.rs`)
-- [ ] Plní vojáci + soupeř, na kterého se nevyplatí útočit ani po rerollu: obětovat 1 vojáka na prohraný útok (vynutí reroll soupeře), vojáka dotrénovat.
-- [ ] Suroviny pevnosti nesmí přetéct (overflow) – ESPECIÁLNĚ XP na Akademii.
-- [ ] Hlavní postava user: přidat do bota v režimu "jen Fortress attacks + Academy XP collect", nic jiného; samostatné on/off tlačítko (jen na přes noc). (Navazuje na `control.rs`/`roster`.)
+- [x] Plní vojáci + soupeř, na kterého se nevyplatí útočit ani po rerollu: obětovat 1 vojáka na prohraný útok (vynutí reroll soupeře), vojáka dotrénovat.
+- [x] Suroviny pevnosti nesmí přetéct (overflow) – ESPECIÁLNĚ XP na Akademii.
+- [x] Hlavní postava user: přidat do bota (hotovo: `SF_ATTACK_ONLY` v `.env`, user musí přidat účet do `SF_ACCOUNTS`) v režimu "jen Fortress attacks + Academy XP collect", nic jiného; samostatné on/off tlačítko (jen na přes noc). (Navazuje na `control.rs`/`roster`.)
 
 ### Balíček C – Časování smyčky (`main` loop, `control.rs`)
 - [ ] Jak se časuje kontrola postavy? Konstantní interval (10 min) vs. časovač na nejbližší událost (expedice končí za 8 min → vzbudit za 8 min). Optimalizovat i s ohledem na fortress útoky a odměny Akademie (plná kapacita už po ~1 h na začátku). Nejdřív popsat userovi současný stav.
@@ -48,7 +48,7 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 ### Balíček E – Předměty, staty, gemy (`src/inventory.rs`, `docs/inventory.md`)
 - [ ] Smysluplné počítání statů s gemy: např. 44 CON item + 66 CON gem > 46 STR item; item s prázdným slotem – jak hodnotit potenciální gem (navazuje na precedent 2026-10-12 "empty slot counts a part"). Na nižších levelech se obměňuje často, do budoucna ne.
 - [ ] Lepší porovnání zbraní: u spousty postav zbraň s Luck / sekundárními (useless) staty, protože se bere hlavně damage – zohlednit hodnotu statů.
-- [ ] Zrušit upgrade sekundárních atributů (`src/attributes.rs`) – ani 10 %.
+- [x] Zrušit upgrade sekundárních atributů (`src/attributes.rs`) – ani 10 %.
 
 ### Balíček F – Arena / Hall of Fame / Scrapbook
 - [ ] Jak dobře funguje útočení v Hall of Fame na doplnění scrapbooku? Kdy, kolikrát, úspěšnost – vyhodnotit z logů.
@@ -60,7 +60,7 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [ ] "Why up" guild bonusy: zkrátit zprávu na "(x%/y%)"; "huge x upgrade" → "+x%", nic víc.
 - [ ] Přejmenovat taby: "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
 - [ ] Autostart aplikace s Windows (user 2026-10-14: ano, autostart; pozor na pravidlo: postavy se spouští jen podle poslední volby v `roster/switches.json`).
-- [ ] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
+- [x] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 
 ### Balíček H – Monitoring / ověřování (bez kódu)
 - [ ] Dungeon se na hlavní postavě odemkl až na lvl 31 místo 30 (dřív bylo potřeba najít klíč od dungeonu, teď si user klíče nevšiml) – jen monitorovat na postavách, že se další dungeon získá (user 2026-10-14).

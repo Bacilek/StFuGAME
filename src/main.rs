@@ -198,6 +198,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             roster::track_level(gs);
             roster::write_now(gs);
             roster::write_quests(gs);
+            fortress::write_snapshot(gs, true);
         }
 
         // Daily report for the character challenge at ~23:50 (roster/, local only) + simulated duels at 23:40
@@ -323,6 +324,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = fortress::military(session).await {
             return tavern::Outcome::SessionLost;
         }
+        if let Some(gs) = session.game_state() {
+            fortress::write_snapshot(gs, true);
+        }
         // Gem Mine: search, collect, socket (user 2026-10-12)
         if let tavern::Outcome::SessionLost = gems::run(session).await {
             return tavern::Outcome::SessionLost;
@@ -354,7 +358,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let midnight = guard::secs_until_midnight(now);
         let daily = gs.and_then(daily::secs_until_ready).unwrap_or(30 * 60);
         let roster_due = roster::secs_until_due().unwrap_or(30 * 60).min(tournament::secs_until_due().unwrap_or(30 * 60));
-        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due) + fastrand::u64(30..120);
+        // Fortress: a build finishing, the soldiers' next look, the XP production about to overflow (user 2026-10-14)
+        let fortress_due = gs.and_then(fortress::secs_until_due).unwrap_or(30 * 60);
+        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due).min(fortress_due) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         // A manual "end of day now" from the icon wakes the loop up early (or is already waiting: the wake-up may
         // have been consumed inside the Tavern wait)
@@ -365,6 +371,38 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             () = tokio::time::sleep(std::time::Duration::from_secs(wait)) => {}
             () = ctx::EOD_WAKE.notified() => {}
         }
+    }
+}
+
+/// Characters that only do fortress attacks and the Academy's XP (user 2026-10-14, his main character): the names in the
+/// `SF_ATTACK_ONLY` environment variable (.env), separated by `;`, compared ignoring case.
+fn attack_only(character: &str) -> bool {
+    std::env::var("SF_ATTACK_ONLY")
+        .is_ok_and(|v| v.split(';').map(str::trim).any(|n| !n.is_empty() && n.eq_ignore_ascii_case(character)))
+}
+
+/// Attack-only loop: soldiers' raids (training included, they need it) and collecting the Academy's XP – nothing else.
+async fn play_attack_only(session: &mut SimpleSession) -> tavern::Outcome {
+    loop {
+        if let Err(e) = safe::send(session, Command::Update).await {
+            report!("[main] Update at the start of the pass failed: {e}");
+            if tavern::is_session_error(&e) {
+                return tavern::Outcome::SessionLost;
+            }
+        }
+        if let Some(gs) = session.game_state() {
+            roster::write_now(gs);
+            fortress::write_snapshot(gs, false);
+        }
+        if let tavern::Outcome::SessionLost = fortress::run_attack_only(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        let gs = session.game_state();
+        if let Some(gs) = gs {
+            fortress::write_snapshot(gs, false);
+        }
+        let wait = gs.and_then(fortress::secs_until_due).unwrap_or(30 * 60) + fastrand::u64(30..120);
+        tokio::time::sleep(std::time::Duration::from_secs(wait.clamp(60, 30 * 60))).await;
     }
 }
 
@@ -501,7 +539,12 @@ pub(crate) async fn run_character(creds: Credentials) -> ExitCode {
             first = false;
         }
         let started = std::time::Instant::now();
-        if let tavern::Outcome::SessionLost = play(&mut session, &mut journal).await {
+        let lost = if attack_only(&creds.character) {
+            play_attack_only(&mut session).await
+        } else {
+            play(&mut session, &mut journal).await
+        };
+        if let tavern::Outcome::SessionLost = lost {
             attempt = if started.elapsed().as_secs() >= SESSION_OK_SEC { 1 } else { attempt + 1 };
             continue;
         }

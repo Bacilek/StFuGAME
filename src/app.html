@@ -58,6 +58,23 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
 #quests{display:none}
+#fort{display:none}
+.ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.ftile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px 18px;overflow:hidden}
+.ftile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.ftile .fh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ftile .fh b{font-size:15px}
+.ftile .fh span{color:var(--muted);font-size:11px}
+.ftile h4{margin:10px 0 3px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.fb{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 8px}
+.fb div{font-size:12px;color:var(--ink2)} .fb b{display:block;font-size:15px;color:var(--ink)}
+.fres{display:grid;grid-template-columns:54px 1fr auto;gap:2px 8px;align-items:center;font-size:12px}
+.fres .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.fres .bar i{display:block;height:100%;background:var(--ink2)}
+.fres .bar i.hot{background:var(--bad)}
+.fres small{color:var(--muted)}
+.fline{font-size:12px;color:var(--ink2)} .fline b{color:var(--ink)}
+.fline.wait{color:var(--muted)}
 .qtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:16px}
 .qtile{background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:8px 6px 8px;text-align:center;cursor:pointer;position:relative}
 .qtile[aria-pressed=true]{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}
@@ -131,6 +148,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
     <button id="tabChars" aria-pressed="true">Characters</button>
     <button id="tabCharts" aria-pressed="false">Charts</button>
     <button id="tabQuests" aria-pressed="false">Quests</button>
+    <button id="tabFort" aria-pressed="false">Fortress</button>
   </div>
   <div class="spacer"></div>
   <div class="right">
@@ -145,6 +163,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 <main>
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
+  <div id="fort"><div id="ftiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
 <dialog id="card"><div id="cardbody"></div><form method="dialog"><button class="close" aria-label="Close">✕</button></form></dialog>
@@ -172,15 +191,19 @@ let STATUS = [];
 $("tabChars").addEventListener("click", () => setTab("chars"));
 $("tabCharts").addEventListener("click", () => setTab("charts"));
 $("tabQuests").addEventListener("click", () => setTab("quests"));
+$("tabFort").addEventListener("click", () => setTab("fort"));
 let currentTab = "chars";
 function setTab(tab){
   currentTab = tab;
   $("tabChars").setAttribute("aria-pressed", tab === "chars");
   $("tabCharts").setAttribute("aria-pressed", tab === "charts");
   $("tabQuests").setAttribute("aria-pressed", tab === "quests");
+  $("tabFort").setAttribute("aria-pressed", tab === "fort");
   $("tiles").style.display = tab === "chars" ? "grid" : "none";
   $("charts").style.display = tab === "charts" ? "block" : "none";
   $("quests").style.display = tab === "quests" ? "block" : "none";
+  $("fort").style.display = tab === "fort" ? "block" : "none";
+  if (tab === "fort") renderFort();
   if (tab === "quests") renderQuests();
 }
 function setAll(on){
@@ -477,7 +500,44 @@ function renderQuests(){
   if (!allOpen(q.daily)) det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
   if (q.event && !allOpen(q.event)) det.appendChild(qSection("Event quests", q.event, true));
 }
-window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
+// ---- Fortress tab (user 2026-10-14): one tile per character with a fortress: building levels, the running build and the plan,
+// resources (current/limit, uncollected production), soldiers, Hall of Knights, snapshot time.
+const clock = iso => iso ? new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "?";
+const leftText = iso => { const ms = new Date(iso) - Date.now(); if (!(ms > 0)) return "now";
+  const m = Math.ceil(ms / 60000); return m >= 60 ? `${Math.floor(m/60)} h ${m%60} min` : `${m} min`; };
+const ago = iso => { const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000)); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.floor(m/60)} h ago`; };
+function fortTile(c){
+  const f = c.fortress, t = document.createElement("div"); t.className = "ftile";
+  t.style.setProperty("--c", classColor(c.now && c.now.class));
+  const esc = s => String(s).replace(/[&<>]/g, x => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[x]));
+  let h = `<div class="fh"><b>${esc(c.name)}</b><span>snapshot ${clock(f.updated)} (${ago(f.updated)})</span></div>`;
+  h += `<h4>Buildings</h4><div class="fb">` + f.buildings.map(b => `<div>${esc(b.name.replace("Laborers' Quarters","Laborers").replace("Woodcutter's Hut","Woodcutter"))}<b>${b.level}</b></div>`).join("") + `<div>Hall of Knights<b>${f.hallOfKnights}</b></div></div>`;
+  h += `<h4>Resources</h4><div class="fres">` + f.resources.map(r => {
+    const pct = r.limit ? Math.min(100, r.current * 100 / r.limit) : 0;
+    const full = r.prodLimit && r.ready * 100 / r.prodLimit >= 80;
+    return `<span>${r.name}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${r.current}/${r.limit} <small>+${r.ready}${full ? " ⚠" : ""}</small></span>`;
+  }).join("") + `</div>`;
+  const s = f.soldiers;
+  h += `<h4>Soldiers</h4><div class="fline"><b>${s.count}</b>/${s.limit}` + (s.training ? ` · ${s.training} training${s.trainingFinish ? " (done in " + leftText(s.trainingFinish) + ")" : ""}` : "") + (s.level ? ` · level ${s.level}` : "") + `</div>`;
+  if (f.gemSearch) h += `<div class="fline">Gem Mine: searching${f.gemSearch.finish ? " (done in " + leftText(f.gemSearch.finish) + ")" : ""}</div>`;
+  if (f.builds){
+    h += `<h4>Building</h4>`;
+    if (f.running) h += `<div class="fline"><b>${esc(f.running.name)}</b> → ${f.running.to} · done in ${f.running.finish ? leftText(f.running.finish) : "?"} (${clock(f.running.finish)})</div>`;
+    else h += `<div class="fline">nothing is being built</div>`;
+    h += `<h4>Plan</h4>`;
+    if (f.next) h += `<div class="fline">Next: <b>${esc(f.next.name)} → ${f.next.to}</b> (${f.next.minutes} min)</div>` + (f.next.waiting ? `<div class="fline wait">${esc(f.next.waiting)}</div>` : "");
+    if (f.after && f.after.length) h += `<div class="fline wait">then ${f.after.map(a => esc(a.name) + " " + a.to).join(", ")}</div>`;
+    if (!f.next) h += `<div class="fline wait">nothing planned</div>`;
+  } else h += `<div class="fline wait" style="margin-top:8px">attack-only mode (no building)</div>`;
+  t.innerHTML = h; return t;
+}
+function renderFort(){
+  const box = $("ftiles"); box.replaceChildren();
+  const shown = STATUS.filter(c => c.fortress && c.fortress.buildings);
+  if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has fortress data yet (needs level 25 and a running bot)."; box.appendChild(p); return; }
+  shown.forEach(c => box.appendChild(fortTile(c)));
+}
+window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
 </script>
 </body>
