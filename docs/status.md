@@ -2,6 +2,7 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Release built 2026-10-14 (after the chest fix):** includes everything pending; the user starts the bot. Check TestChar1 `[tasks] Claiming` and the `[fortress] Error … (fortress.rs:NNN)` line.
 - **Gleeman chests claimed at the top of every pass (2026-10-14, package H):** TestChar1's unopened chests were a control-flow bug – the Tavern branch in `play` `continue`s before `tasks::run`, so a character on expeditions never claimed. `tasks::claim_chests` (now pub) runs right after the state refresh. `cargo check` ok; needs a release rebuild; verify `[tasks] Claiming` on TestChar1.
 - **Release built 2026-10-14 (night)** with everything pending: journal-based Arena wins for catch-up reports, dungeons per chart day, fortress error source lines, GUI package. After the start read the TestChar1 `[fortress] Error … (fortress.rs:NNN)` line.
 - **TestChar1 soldiers full, no raids (2026-10-14, user):** its log shows only `[fortress] Error: something went wrong` once per pass and never a raid/"not worth" line, so the failing command probably stops `fortress::military` before it reaches the opponent check. Fortress errors now carry the source line (`fortress.rs:NNN`) to find the command; read it after the next release. Raid rules: `military` every 5 min per character, offered opponent only if loot >= 2x soldier cost per soldier, else counter-attack, 1-2 soldiers.
