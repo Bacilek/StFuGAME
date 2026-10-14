@@ -267,7 +267,7 @@ async fn collect(session: &mut SimpleSession, only_xp: bool) -> Result<(), Outco
         if should_collect(gs, r, missing) {
             report!("[fortress] Collecting {r:?} (about {} of {})", collectable(gs, r), f.resources[r].production.limit);
             if let Err(e) = safe::send(session, Command::FortressGather { resource: r }).await {
-                return Err(fail(&e));
+                return Err(fail(&e, line!()));
             }
         }
     }
@@ -303,10 +303,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
         report!("[fortress] {target:?} is finished, collecting it");
         if let Err(e) = safe::send(session, Command::FortressBuildFinish { f_type: target, mushrooms: 0 }).await {
-            return fail(&e);
+            return fail(&e, line!());
         }
         if let Err(e) = safe::send(session, Command::Update).await {
-            return fail(&e);
+            return fail(&e, line!());
         }
     }
 
@@ -332,10 +332,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             crate::report::gold(f.hall_of_knights_upgrade_price.silver)
         );
         if let Err(e) = safe::send(session, Command::FortressUpgradeHallOfKnights).await {
-            return fail(&e);
+            return fail(&e, line!());
         }
         if let Err(e) = safe::send(session, Command::Update).await {
-            return fail(&e);
+            return fail(&e, line!());
         }
     }
 
@@ -363,7 +363,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         crate::report::gold(cost.silver)
     );
     if let Err(e) = safe::send(session, Command::FortressBuild { f_type: next }).await {
-        return fail(&e);
+        return fail(&e, line!());
     }
     Outcome::Done
 }
@@ -396,7 +396,7 @@ static NEXT_MILITARY: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = cra
 
 /// Expected loot (wood + stone) of fortress player `id`, from a fresh `PlayerLookAt`; `None` when it cannot be read.
 async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64, u16)>, Outcome> {
-    let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| fail(&e))?;
+    let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| fail(&e, line!()))?;
     Ok(gs.lookup.lookup_pid(id).and_then(|p| p.fortress.as_ref()).map(|f| (f.lootable_wood, f.lootable_stone, f.soldier_advice)))
 }
 
@@ -419,7 +419,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         *next = Some(now + MILITARY_EVERY);
     }
     if let Err(e) = safe::send(session, Command::Update).await {
-        return fail(&e);
+        return fail(&e, line!());
     }
 
     let min_loot = session
@@ -473,7 +473,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
             for (msg_id, name, _) in log.into_iter().take(MAX_COUNTERS) {
                 tried_counters.push(msg_id);
                 if let Err(err) = safe::send(session, Command::FortressSetCAEnemy { msg_id: msg_id as u32 }).await {
-                    return fail(&err);
+                    return fail(&err, line!());
                 }
                 let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
                 match loot_of(session, id).await {
@@ -493,7 +493,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 rerolled = true;
                 report!("[fortress] No worthwhile opponent, using the free change of the opponent");
                 if let Err(e) = safe::send(session, Command::FortressNewEnemy { use_mushroom: false }).await {
-                    return fail(&e);
+                    return fail(&e, line!());
                 }
                 use_offered = true;
                 continue;
@@ -513,7 +513,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 sacrificed = true;
                 report!("[fortress] Soldiers are full and nobody is worth it: sacrificing one soldier on {id} to get a new opponent");
                 if let Err(e) = safe::send(session, Command::FortressAttack { soldiers: 1 }).await {
-                    return fail(&e);
+                    return fail(&e, line!());
                 }
                 attacked.push(id);
                 use_offered = true;
@@ -528,7 +528,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         let before = session.game_state().and_then(|gs| gs.fortress.as_ref()).map(|f| (f.resources[R::Wood].current, f.resources[R::Stone].current));
         report!("[fortress] Attacking {id} with {n} soldier(s) (loot up to wood {w}, stone {s})");
         if let Err(e) = safe::send(session, Command::FortressAttack { soldiers: n }).await {
-            return fail(&e);
+            return fail(&e, line!());
         }
         attacked.push(id);
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -576,7 +576,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         if n > 0 {
             report!("[fortress] Training {n} soldier(s) ({}/{} now, limit {})", u.count, u.in_training, u.limit);
             if let Err(e) = safe::send(session, Command::FortressBuildUnit { unit: U::Soldier, count: n as u32 }).await {
-                return fail(&e);
+                return fail(&e, line!());
             }
             if let Some(u) = session.game_state().and_then(|gs| gs.fortress.as_ref()).map(|f| &f.units[U::Soldier])
                 && let Some(fin) = u.training.finish
@@ -764,8 +764,8 @@ pub fn diagnose(gs: &GameState) {
     }
 }
 
-fn fail(e: &sf_api::error::SFError) -> Outcome {
-    report!("[fortress] Error: {e}");
+fn fail(e: &sf_api::error::SFError, line: u32) -> Outcome {
+    report!("[fortress] Error: {e} (fortress.rs:{line})");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
