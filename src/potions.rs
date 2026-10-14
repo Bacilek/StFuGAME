@@ -1,6 +1,6 @@
 //! Potions (user 2026-10-07). At most 3 active potions. Target set: main attribute + Constitution + Eternal Life
 //! (+25 % HP, 7 days); without an Eternal Life potion the third one is Luck (unless Luck is at the crit cap, then the bigger secondary attribute). Stat potions last 3 days, sizes 10/15/25 %. Importance = strength gained by the 100/80/40/10 formula (size × attribute without potions × weight), see `importance`.
-//! Drinking the same type again extends it by its full duration. Only for gold (Eternal Life usually costs mushrooms).
+//! Drinking the same type AND size again extends it by its full duration (+3 days, Eternal Life +7; user 2026-10-14: no cap, the main character runs 12-15 days), so such a potion in the backpack is drunk at once (`bag_step`); a different type or size overwrites the remaining time. Only for gold (Eternal Life usually costs mushrooms).
 //! - A target potion is missing and a slot is free → drink one from the backpack, otherwise buy the biggest for gold.
 //! - Stock: keep up to `MAX_STOCK` potions of any type in the backpack (better some than none, they are cheap, buying
 //!   them spins the shop and they can be sold any time). Target types first; non-target ones are the first to go.
@@ -165,6 +165,14 @@ pub fn stock_has_room(gs: &GameState) -> bool {
 /// potion turns up (`removal_ok` already allows removing a non-target active one).
 fn bag_step(gs: &GameState) -> Option<(BagPosition, &Item)> {
     let act = active(gs);
+    // Same type AND same size as an active target potion extends it (+3 days, Eternal Life +7; user 2026-10-14), so it is
+    // drunk at once instead of sitting in the backpack. A different size would overwrite the remaining time instead.
+    let tg = targets(gs);
+    if let Some((pos, item, _)) = bag_potions(gs).into_iter().find(|(_, _, p)| {
+        tg.contains(&p.typ) && act.iter().any(|(_, a)| a.typ == p.typ && a.size.effect() == p.size.effect())
+    }) {
+        return Some((pos, item));
+    }
     if act.len() >= 3 {
         return None;
     }

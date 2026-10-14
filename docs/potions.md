@@ -6,6 +6,7 @@
 - Priority: main attribute potion, CON potion, Eternal Life. Eternal Life is rare and usually costs mushrooms → buy it
   only when it is for gold. Without it the third best is Luck.
 - Only for gold. In the gold order: after equipment upgrades, before tasks and spinning; may go below the shop reserve.
+- **Same type + same size in the backpack while that type is an active target = drink it at once** (extends +3 days, Eternal Life +7, no cap; user 2026-10-14, `potions::bag_step`). Frees slots (Pjotr kept 4 INT potions waiting, Mrožik 2× Eternal Life). My earlier "wait until it expires" reading was wrong.
 - The same size potion can be drunk repeatedly, it extends the duration (stacking). A bigger size drunk while a smaller
   one of the same type is active does NOT add to the remaining time — it replaces the active potion outright, so
   whatever days were left on the smaller one are lost (verified by the user 2026-10-09: drinking 3 medium (15 %, 3
