@@ -223,7 +223,7 @@ impl Snapshot {
             mushrooms: c.mushrooms,
             lucky_coins: gs.specials.wheel.lucky_coins,
             hourglasses: gs.tavern.quicksand_glasses,
-            arena_wins: gs.arena.fights_for_xp.max(crate::arena::xp_wins_today()),
+            arena_wins: gs.arena.fights_for_xp,
             guild: gs.guild.as_ref().map_or_else(|| "-".to_string(), |g| g.name.replace(',', " ")),
             gold_gained,
             mushrooms_gained,
@@ -327,6 +327,9 @@ pub fn write_day(gs: &GameState, date: NaiveDate, fin: bool) -> String {
     let sum = |kind: &str| notes.iter().filter(|n| n.1 == kind).filter_map(|n| n.3.parse::<u64>().ok()).sum::<u64>();
     let mut s = Snapshot::of(gs, sum("GOLD") as f64 / 100.0, sum("MUSH"), sum("XP"));
     s.date = date;
+    // After midnight (catch-up of the missed day) the server counter already belongs to the new day: use the journal
+    let journal = crate::arena::xp_wins_on(date);
+    s.arena_wins = if date == Local::now().date_naive() { s.arena_wins.max(journal) } else { journal };
     let history = d.join("history.csv");
     // Mushrooms gained = at least the growth of the balance since the previous day's row. The notes ledger only sees
     // income of commands it wraps and missed ~10 on Sanek's day 1 (user 2026-10-09: the chart must count every

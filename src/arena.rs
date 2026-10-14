@@ -82,9 +82,9 @@ pub fn fights_today() -> usize {
 }
 
 /// Arena wins that gave XP today according to the journal (the server counter `fights_for_xp` can already be
-/// reset when a late report reads it, e.g. Pagan's 2026-10-13 row said 0).
-pub fn xp_wins_today() -> u8 {
-    let today = Local::now().format("%Y-%m-%d").to_string();
+/// reset when a late/catch-up report reads it, e.g. Pagan's 2026-10-13 row, written 00:05 on the 14th, said 0).
+pub fn xp_wins_on(date: chrono::NaiveDate) -> u8 {
+    let today = date.format("%Y-%m-%d").to_string();
     let n = std::fs::read_to_string(log_file())
         .unwrap_or_default()
         .lines()

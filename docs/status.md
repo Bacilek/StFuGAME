@@ -2,6 +2,7 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Correction (2026-10-14):** Pagan's 13.10. report was a catch-up written 00:05 on the 14th (bot was off over midnight), so the server counter was already the new day's. `write_day` now takes the Arena wins for the report date from the journal (`arena::xp_wins_on(date)`), max with the counter only for today. Needs another release rebuild (the one built earlier today has the wrong-day variant).
 - **Release built 2026-10-14 (late)** with packages F/G/H changes (journal-based Arena wins, shorter tab/Why-up texts, tile timestamp, Windows autostart – the exe registers itself in HKCU Run on its first start, so start it once by hand). Check: TestChar1 `[tasks] Claiming`, autostart after the next Windows login.
 - **Package H checked (2026-10-14):** gems are counted by the simulation and totals (source-verified). NEW finding: TestChar1 has 12 daily points but chests 1+2 unopened and no `[tasks]` lines in its log – see the open item in `docs/todo.md` (package H); verify after the next restart.
 - **Package G done in code (2026-10-14):** tab labels renamed (Gold, XP, Dungeon, Arena, Hall of Fame, Shrooms, Power, Win Rate, Scrapbook), "Why up" shortened (`Joined the guild X (10%/20%)`, `+300 %`), snapshot time on the Characters tiles, Windows autostart (`app::ensure_autostart`, HKCU Run key written by the release exe only; characters still start only from `roster/switches.json`). Open: game icons for the tabs. Needs a release rebuild (exit the bot first).
