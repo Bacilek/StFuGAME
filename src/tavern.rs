@@ -635,10 +635,21 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             sleep = dungeon + fastrand::u64(5..20);
                             report!("[tavern] The Dungeons become free while waiting, waking up in {sleep} s");
                         }
+                        // Anything else that falls due (fortress, City Guard, daily rewards, reports, midnight): leave the
+                        // wait and let the main loop do it; it knows the expedition end too (`schedule::next`).
+                        let other = crate::schedule::next(gs, false);
+                        let leave = !matches!(other.what, "Arena" | "Dungeons") && other.secs.max(60) + 5 < sleep;
+                        if leave {
+                            sleep = other.secs.max(60) + fastrand::u64(5..20);
+                            report!("[tavern] {} is due while waiting, waking up in {sleep} s", other.what);
+                        }
                         // A manual "end of day now" interrupts the wait (main loop handles it, then comes back here)
                         tokio::select! {
                             () = tokio::time::sleep(Duration::from_secs(sleep)) => {}
                             () = crate::ctx::EOD_WAKE.notified() => return Outcome::Done,
+                        }
+                        if leave {
+                            return Outcome::Done;
                         }
                         Command::Update
                     }

@@ -24,6 +24,7 @@ mod missions;
 mod potions;
 mod roster;
 mod safe;
+mod schedule;
 mod scrapbook;
 mod session;
 mod shops;
@@ -350,24 +351,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
 
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min
-        let gs = session.game_state();
-        let arena = gs
-            .and_then(|gs| arena::secs_until_ready(gs).or_else(|| hunt::wants_arena(gs).then(|| arena::secs_until_free(gs).max(60))))
-            .unwrap_or(30 * 60);
-        let mut dungeon = gs.map_or(30 * 60, dungeons::secs_until_ready);
-        if dungeon == 0 {
-            // Dungeons "free" but no fight happened (full inventory etc.): next attempt only after RETRY_SEC
-            dungeon = dungeons::RETRY_SEC;
-        }
-        let now = chrono::Local::now();
-        let guard_done = gs.and_then(|gs| guard::secs_until_done(gs.tavern.current_action)).unwrap_or(30 * 60);
-        // The Thirst for Adventure resets at midnight: wake up and start a new day
-        let midnight = guard::secs_until_midnight(now);
-        let daily = gs.and_then(daily::secs_until_ready).unwrap_or(30 * 60);
-        let roster_due = roster::secs_until_due().unwrap_or(30 * 60).min(tournament::secs_until_due().unwrap_or(30 * 60));
-        // Fortress: a build finishing, the soldiers' next look, the XP production about to overflow (user 2026-10-14)
-        let fortress_due = gs.and_then(fortress::secs_until_due).unwrap_or(30 * 60);
-        let wait = arena.min(dungeon).min(guard_done).min(midnight).min(daily).min(roster_due).min(fortress_due) + fastrand::u64(30..120);
+        // Sleep until the nearest event (`schedule::next`: Arena/hunts, Dungeons, City Guard, midnight, daily reward,
+        // reports, fortress, end of the expedition), at most 30 min
+        let next = session.game_state().map(|gs| schedule::next(gs, true));
+        let wait = next.map_or(30 * 60, |w| w.secs) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         // A manual "end of day now" from the icon wakes the loop up early (or is already waiting: the wake-up may
         // have been consumed inside the Tavern wait)

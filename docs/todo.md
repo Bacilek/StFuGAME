@@ -37,7 +37,7 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] Hlavní postava user: přidat do bota (hotovo: `SF_ATTACK_ONLY` v `.env`, user musí přidat účet do `SF_ACCOUNTS`) v režimu "jen Fortress attacks + Academy XP collect", nic jiného; samostatné on/off tlačítko (jen na přes noc). (Navazuje na `control.rs`/`roster`.)
 
 ### Balíček C – Časování smyčky (`main` loop, `control.rs`)
-- [ ] Jak se časuje kontrola postavy? Konstantní interval (10 min) vs. časovač na nejbližší událost (expedice končí za 8 min → vzbudit za 8 min). Optimalizovat i s ohledem na fortress útoky a odměny Akademie (plná kapacita už po ~1 h na začátku). Nejdřív popsat userovi současný stav.
+- [x] Časování smyčky sjednoceno 2026-10-14 (`src/schedule.rs`, `schedule::next`; čeká na release build + živé ověření): smyčka spí do nejbližší události, čekání na expedici se probouzí i pro pevnost, City Guard, půlnoc, denní odměny a reporty.
 
 ### Balíček D – Expedice a lektvary (`src/tavern.rs`, `src/potions.rs`)
 - [ ] Ověřit/nastavit pořadí odměn: houby > zlato > hodiny >>> suroviny pevnosti.
