@@ -374,6 +374,17 @@ const MILITARY_EVERY: chrono::Duration = chrono::Duration::minutes(5);
 /// (wood + stone, from `PlayerLookAt`) is at least this many times the price of a soldier (`min_loot`). A soldier costs
 /// about 20 resources, a good raid brought 500–800 (captures 2026-10-12).
 const LOOT_PER_COST: u64 = 2;
+/// Most soldiers one raid may spend (user 2026-10-14: "1-2 soldiers is fine when it pays off in resources").
+const MAX_RAID_SOLDIERS: u32 = 2;
+
+/// Soldiers to send against a target whose game advice is `advice` (the advice is the count the game suggests; odd values like
+/// 8001 are far above the cap): the advice (at least 1) when it is within `MAX_RAID_SOLDIERS`, we have that many and the
+/// loot is worth `LOOT_PER_COST` times the price of EVERY soldier spent (`min_loot` is for one).
+fn soldiers_for(advice: u16, loot: u64, min_loot: u64, have: u32) -> Option<u32> {
+    let n = u32::from(advice).max(1);
+    (n <= MAX_RAID_SOLDIERS && n <= have && loot >= min_loot * u64::from(n)).then_some(n)
+}
+
 /// Used when the server shows no soldier price.
 const FALLBACK_COST: u64 = 20;
 /// Most attacks in one pass (soldiers come back one by one, a training takes ~10 min each).
@@ -431,15 +442,18 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         }
 
         // 1. The target: the offered opponent first
+        let have = u32::from(f.units[U::Soldier].count);
         let mut target = None;
         if use_offered
             && let Some(id) = f.attack_target
             && !attacked.contains(&id)
         {
             match loot_of(session, id).await {
-                Ok(Some((w, s, advice))) if advice <= 1 && w + s >= min_loot => target = Some((id, w, s)),
+                Ok(Some((w, s, advice))) if soldiers_for(advice, w + s, min_loot, have).is_some() => {
+                    target = soldiers_for(advice, w + s, min_loot, have).map(|n| (id, w, s, n));
+                }
                 Ok(Some((w, s, advice))) => report!(
-                    "[fortress] The offered opponent {id} is not worth one soldier (wood {w}, stone {s}, need {min_loot}; the game advises {advice} soldiers)"
+                    "[fortress] The offered opponent {id} is not worth the soldiers it needs (wood {w}, stone {s}, need {min_loot}; the game advises {advice} soldiers)"
                 ),
                 Ok(None) => report!("[fortress] Could not read the offered opponent {id}"),
                 Err(o) => return o,
@@ -463,9 +477,9 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 }
                 let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
                 match loot_of(session, id).await {
-                    Ok(Some((w, s, advice))) if advice <= 1 && w + s >= min_loot && !attacked.contains(&id) => {
+                    Ok(Some((w, s, advice))) if soldiers_for(advice, w + s, min_loot, have).is_some() && !attacked.contains(&id) => {
                         report!("[fortress] Counter-attack target {name} ({id}): wood {w}, stone {s}");
-                        target = Some((id, w, s));
+                        target = soldiers_for(advice, w + s, min_loot, have).map(|n| (id, w, s, n));
                         break;
                     }
                     Ok(_) => {}
@@ -473,7 +487,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 }
             }
         }
-        let Some((id, w, s)) = target else {
+        let Some((id, w, s, n)) = target else {
             // Nothing worthwhile: the FREE change of the opponent (once per ~5 min, user 2026-10-12), then look again
             if !rerolled && session.game_state().is_some_and(safe::reroll_is_free) {
                 rerolled = true;
@@ -512,8 +526,8 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
 
         // 3. Attack with one soldier
         let before = session.game_state().and_then(|gs| gs.fortress.as_ref()).map(|f| (f.resources[R::Wood].current, f.resources[R::Stone].current));
-        report!("[fortress] Attacking {id} with 1 soldier (loot up to wood {w}, stone {s})");
-        if let Err(e) = safe::send(session, Command::FortressAttack { soldiers: 1 }).await {
+        report!("[fortress] Attacking {id} with {n} soldier(s) (loot up to wood {w}, stone {s})");
+        if let Err(e) = safe::send(session, Command::FortressAttack { soldiers: n }).await {
             return fail(&e);
         }
         attacked.push(id);
@@ -761,6 +775,17 @@ mod tests {
 
     fn at(levels: &'static [(B, u16)]) -> impl Fn(B) -> u16 {
         move |b| levels.iter().find(|(x, _)| *x == b).map_or(0, |(_, l)| *l)
+    }
+
+    #[test]
+    fn raid_soldiers_follow_the_advice_within_the_cap() {
+        assert_eq!(soldiers_for(1, 100, 40, 5), Some(1));
+        assert_eq!(soldiers_for(0, 100, 40, 5), Some(1));
+        assert_eq!(soldiers_for(2, 100, 40, 5), Some(2));
+        assert_eq!(soldiers_for(2, 70, 40, 5), None); // two soldiers need twice the loot
+        assert_eq!(soldiers_for(2, 100, 40, 1), None); // not enough soldiers
+        assert_eq!(soldiers_for(3, 1000, 40, 9), None);
+        assert_eq!(soldiers_for(8001, 1000, 40, 9), None);
     }
 
     #[test]

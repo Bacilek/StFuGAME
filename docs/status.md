@@ -2,6 +2,8 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Raids with 1–2 soldiers (2026-10-14, user):** `fortress::soldiers_for`, see `docs/fortress.md`; needs another release rebuild.
+
 - **Release built 2026-10-14 (afternoon)** with everything from the backlog packages A+B, the Gem Mine rule and the fortress gold reserve; the bot is not started yet by Claude (the user starts it). After the start check: `[fortress] State:` line per character (TestChar1!), Fortress tab, `[check] Training … finishes at`, sacrifice/Barracks lines.
 
 - **Gem Mine rule + fortress gold reserve (2026-10-14, user):** see `docs/fortress.md` "Gem Mine rule"; `[fortress] State:` line per login to diagnose TestChar1. Needs a release rebuild.

@@ -94,7 +94,7 @@ fn is_allowed(cmd: &Command) -> bool {
             // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
             // targets. the paid `FortressNewEnemy` stays forbidden. None of these takes mushrooms.
             | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
-            | Command::FortressAttack { soldiers: 1 }
+            | Command::FortressAttack { soldiers: 1 | 2 }
             | Command::FortressSetCAEnemy { .. }
             // The FREE change of the opponent only (user 2026-10-12, once per 5 min); `send_raw` checks `reroll_is_free`. The paid one
             // (gold or a mushroom) stays forbidden.
@@ -435,7 +435,8 @@ mod fortress_tests {
         assert!(is_allowed(&Command::FortressBuildUnit { unit: U::Soldier, count: 3 }));
         assert!(!is_allowed(&Command::FortressBuildUnit { unit: U::Archer, count: 1 }));
         assert!(is_allowed(&Command::FortressAttack { soldiers: 1 }));
-        assert!(!is_allowed(&Command::FortressAttack { soldiers: 2 }));
+        assert!(is_allowed(&Command::FortressAttack { soldiers: 2 })); // user 2026-10-14: 1-2 soldiers per raid
+        assert!(!is_allowed(&Command::FortressAttack { soldiers: 3 }));
         assert!(is_allowed(&Command::FortressSetCAEnemy { msg_id: 5 }));
         assert!(is_allowed(&Command::FortressNewEnemy { use_mushroom: false })); // free change only, guarded by `reroll_is_free`
         assert!(!is_allowed(&Command::FortressNewEnemy { use_mushroom: true }));
