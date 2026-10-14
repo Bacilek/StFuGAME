@@ -127,7 +127,7 @@ fn bump(f: &Fighter, what: &str, amount: f64) -> Fighter {
             f.max_health *= (c + amount) / c;
             f.attributes[AttributeType::Constitution] = add(f.attributes[AttributeType::Constitution], amount);
         }
-        "lck" => f.attributes[AttributeType::Luck] += amount as u32,
+        "lck" => f.attributes[AttributeType::Luck] = add(f.attributes[AttributeType::Luck], amount),
         "sec" => {
             // the weakest non-main, non-CON, non-LCK attribute
             let a = [AttributeType::Strength, AttributeType::Dexterity, AttributeType::Intelligence]
@@ -216,7 +216,7 @@ fn validate_formulas() {
     let all: Vec<Fighter> = nicks.iter().filter_map(|n| load(n)).collect();
     let mut rng = fastrand::Rng::with_seed(7);
     // (name, predictions per sample), truth
-    let names = ["old (avg dmg raw)", "new (damage_points)", "cal 0.7/1.2/0.13/0.15", "cal2 0.7/1.0/0.2/0.15"];
+    let names = ["old (avg dmg raw)", "new (damage_points)", "cal CON 1.2 LCK .27", "CON 1.0 LCK .27", "CON 0.8 LCK .27", "CON 0.8 LCK .15"];
     let mut pred: Vec<Vec<f64>> = vec![Vec::new(); names.len()];
     let mut truth: Vec<f64> = Vec::new();
     for me in &all {
@@ -244,8 +244,10 @@ fn validate_formulas() {
             let _ = con;
             pred[0].push(old + 0.8 * dc + 0.4 * dl + 0.1 * ds);
             pred[1].push(dmg_pts + 0.8 * dc + 0.4 * dl + 0.1 * ds);
-            pred[2].push(0.7 * dmg_pts + 1.2 * dc + 0.13 * dl + 0.15 * ds);
-            pred[3].push(0.7 * dmg_pts + 1.0 * dc + 0.2 * dl + 0.15 * ds);
+            pred[2].push(0.7 * dmg_pts + 1.2 * dc + 0.27 * dl + 0.15 * ds);
+            pred[3].push(0.7 * dmg_pts + 1.0 * dc + 0.27 * dl + 0.15 * ds);
+            pred[4].push(0.7 * dmg_pts + 0.8 * dc + 0.27 * dl + 0.15 * ds);
+            pred[5].push(0.7 * dmg_pts + 0.8 * dc + 0.15 * dl + 0.1 * ds);
         }
     }
     let n = truth.len() as f64;
@@ -323,5 +325,27 @@ fn opponent_strength() {
             n += 1.0;
         }
         println!("opp x{extra}: mean W {:.2}  LCK {:.3}  CON {:.2}  sec {:.3}  dmg1% {:.2}x  main slope {:.5}", wsum / n, sums[0] / n, sums[1] / n, sums[2] / n, sums[3] / n, sums[4] / n);
+    }
+}
+
+/// Is +LCK really worth the damage the crit formula promises (+1 point of crit chance = +1 % damage)?
+#[test]
+#[ignore]
+fn luck_vs_damage() {
+    let nicks = ["Chlamydie", "Filminy", "Květoš", "Mimimimi11", "Mrožik", "Novotné", "Pagan", "PajaRizz", "Pjotr", "Wecros"];
+    let all: Vec<Fighter> = nicks.iter().filter_map(|n| load(n)).collect();
+    println!("{:<12}{:>5}{:>6}{:>8}{:>12}{:>12}{:>8}", "nick", "lvl", "LCK", "crit %", "dW LCK+100", "dW dmg(eq)", "ratio");
+    for me in &all {
+        let pool = pool_for(me, &all);
+        let lck = f64::from(me.attributes[AttributeType::Luck]);
+        let crit = 5.0 * lck / (2.0 * f64::from(me.level)) / 100.0;
+        // +100 LCK = +crit_delta chance; expected damage ×(1 + crit) → relative change
+        let crit_delta = 5.0 * 100.0 / (2.0 * f64::from(me.level)) / 100.0;
+        let eq = 100.0 * crit_delta / (1.0 + crit);
+        let it = 100_000;
+        let w_l = win_rate(&bump(me, "lck", 100.0), &pool, it) - win_rate(&bump(me, "lck", -100.0_f64.min(lck - 1.0)), &pool, it) * 0.0;
+        let w0 = win_rate(me, &pool, it);
+        let w_d = win_rate(&bump(me, "dmg", eq), &pool, it);
+        println!("{:<12}{:>5}{:>6.0}{:>8.1}{:>12.4}{:>12.4}{:>8.2}  (eq dmg {:.1} %)", me.name, me.level, lck, crit * 100.0, w_l - w0, w_d - w0, (w_l - w0) / (w_d - w0), eq);
     }
 }

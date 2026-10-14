@@ -116,7 +116,7 @@ pub fn targets(gs: &GameState) -> [PotionType; 3] {
     [main, PotionType::Constitution, third]
 }
 
-/// How much a potion is worth to us: the strength it adds by the user's formula (main 100 %, CON 80 %, Luck 15 %, the two
+/// How much a potion is worth to us: the strength it adds by the user's formula (main 100 %, CON 80 %, Luck 27 %, the two
 /// other attributes 10 %; user 2026-10-09) = potion size × the attribute without potions (base + equipment, which is
 /// what the game's potion bonus is a percentage of) × that weight. So a small main-attribute potion (10 % × 100) and a big
 /// Luck one (25 % × 40) compare by what the character really has. Luck stops counting at the crit cap (50 % crit =

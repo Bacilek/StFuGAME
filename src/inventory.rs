@@ -1,6 +1,6 @@
 //! Inventory management: compares every equippable item in the backpack with what the character wears.
 //! Better ones get equipped, worse ones sold. Epic items are never sold (kept for later).
-//! "Better" = higher value by the Arena formula (100 % main + 80 % CON + 15 % LCK + 10 % secondary),
+//! "Better" = higher value by the Arena formula (100 % main + 80 % CON + 27 % LCK + 10 % secondary),
 //! weapons by expected damage (see `weapon_value`).
 
 use sf_api::{
@@ -67,7 +67,7 @@ pub fn main_gem(class: Class) -> GemType {
 }
 
 /// What a gem adds for this class: (bonus to the main attribute, value of the other stats with the Arena percentages
-/// 80 % CON, 15 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
+/// 80 % CON, 27 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
 pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     let v = f64::from(g.value);
     if g.typ == main_gem(class) {
@@ -156,7 +156,7 @@ fn expected_gem(class: Class, power: f64) -> Gem {
 }
 
 /// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
-/// + their other stats (80 % CON, 15 % LCK, 10 % secondary; the main one is already in the damage via M).
+/// + their other stats (80 % CON, 27 % LCK, 10 % secondary; the main one is already in the damage via M).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
 /// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
 /// A socketed gem is counted fully, an empty gem slot at `POTENTIAL_SHARE` of the best gem we have (user 2026-10-12).
