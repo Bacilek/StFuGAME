@@ -59,10 +59,11 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [ ] Dlaždice postav: timestamp snapshotu/stavu.
 - [ ] "Why up" guild bonusy: zkrátit zprávu na "(x%/y%)"; "huge x upgrade" → "+x%", nic víc.
 - [ ] Přejmenovat taby: "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
-- [ ] Launch app on start (autostart s Windows?) – zjistit, co user myslí, a navrhnout (pozor na pravidlo: žádný autostart postav kromě poslední volby).
+- [ ] Autostart aplikace s Windows (user 2026-10-14: ano, autostart; pozor na pravidlo: postavy se spouští jen podle poslední volby v `roster/switches.json`).
+- [ ] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 
 ### Balíček H – Monitoring / ověřování (bez kódu)
-- [ ] Hlavní postava user: na lvl 31 nedostala další dungeon (až později) – sledovat na postavách, kdy se dungeon odemyká.
+- [ ] Dungeon se na hlavní postavě odemkl až na lvl 31 místo 30 (dřív bylo potřeba najít klíč od dungeonu, teď si user klíče nevšiml) – jen monitorovat na postavách, že se další dungeon získá (user 2026-10-14).
 - [ ] TestChar: dělá daily quests? Ověřit v logu.
 
 ## Soutěž postav s kamarády
