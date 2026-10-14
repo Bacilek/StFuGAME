@@ -1,7 +1,8 @@
 # Project status (handover document)
 
-Updated: 2026-10-12. Rewrite after every bigger change.
+Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Fresh state every pass (2026-10-14):** TestChar1 sat on a stale midnight view (finished City Guard shift, unclaimed calendar, a guild it had been kicked from) because nothing refreshed the state for a character skipping the Tavern; the only other `Update` (`fortress::military`) failed with "something went wrong". `play` now sends `Update` at the top of every pass and logs `[main] Update at the start of the pass failed: …`. Compiles; needs a release rebuild. Verify: TestChar1 claims calendar, finishes the shift, notices the missing guild; read the `[main] Update` line if it still fails (then the account-side Update error is real). Fortress otherwise runs fine on the other 11 characters (checked 13:00).
 - **Event hunts yield to Arena XP wins (2026-10-12, user):** `hunt::wanted_hunts`, urgent when the event ends in < 24 h. Compiles; needs a release rebuild.
 - **Beak to Tail mapped + reward order with resources (2026-10-12, user):** `src/missions.rs`; `tavern::choose_reward` ranks wood/stone above hourglasses while the storage has room. Tests pass; needs a release rebuild.
 - **Ruffian event hunts (2026-10-12):** `WinFightsInHoF` + `WinFightsBackToBack` added to `hunt.rs`, see `docs/tasks.md`; the chest-3 beer is not used (user confirmed 2026-10-12: an extra paid beer slot, claim the chest at once, nothing to hold back – no code change needed). Needs a release rebuild.

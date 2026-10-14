@@ -185,6 +185,15 @@ fn print_status(session: &SimpleSession) {
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
     loop {
+        // Fresh state at the top of every pass. Nothing else refreshed it for a character that skips the Tavern (busy / no
+        // Thirst for Adventure): TestChar1 kept a stale view from midnight (finished City Guard shift, calendar, guild it
+        // had been kicked from) and never acted on it (2026-10-14). A failure is logged, not fatal.
+        if let Err(e) = safe::send(session, Command::Update).await {
+            report!("[main] Update at the start of the pass failed: {e}");
+            if tavern::is_session_error(&e) {
+                return tavern::Outcome::SessionLost;
+            }
+        }
         if let Some(gs) = session.game_state() {
             roster::track_level(gs);
             roster::write_now(gs);
