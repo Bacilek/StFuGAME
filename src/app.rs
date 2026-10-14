@@ -81,9 +81,26 @@ fn serve_asset(_id: wry::WebViewId, request: http::Request<Vec<u8>>) -> http::Re
     }
 }
 
+/// Registers the release exe to start with Windows (user 2026-10-14). Which characters then log in is still only the
+/// last on/off choice in `roster/switches.json`. Debug builds never register themselves.
+fn ensure_autostart() {
+    use std::os::windows::process::CommandExt;
+    let Ok(exe) = std::env::current_exe() else { return };
+    if !exe.to_string_lossy().to_lowercase().contains("release") {
+        return;
+    }
+    let _ = std::process::Command::new("reg")
+        .args(["add", r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "/v", "StFuGAME", "/t", "REG_SZ", "/d"])
+        .arg(format!("\"{}\"", exe.display()))
+        .arg("/f")
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .output();
+}
+
 /// Builds the window + webview and runs the one message loop for the whole app (icon + window). Never returns.
 pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
     control::register(&accounts);
+    ensure_autostart();
 
     let _ = std::fs::create_dir_all("roster");
     let _ = std::fs::write("roster/app.html", include_str!("app.html"));

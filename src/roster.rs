@@ -885,7 +885,7 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
             && x > 0.0
             && y >= x * BIG_UPGRADE
         {
-            out.push(change_entry(format!("Huge {} upgrade (+{:.0} %)", slot.to_lowercase(), (y / x - 1.0) * 100.0), icon));
+            out.push(change_entry(format!("+{:.0} %", (y / x - 1.0) * 100.0), icon));
         }
     }
     let potions = |s: &serde_json::Value| -> Vec<String> {
@@ -902,7 +902,7 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
         && let Some(g) = cur["guild"].as_str()
     {
         // Instructor/Treasure of the guild (user 2026-10-12: show the bonuses as the reason); older snapshots lack them
-        let bonus = cur["guild_bonus"].as_str().map_or(String::new(), |b| format!(" (Instructor/Treasure {b})"));
+        let bonus = cur["guild_bonus"].as_str().map_or(String::new(), |b| format!(" ({})", b.replace('/', "%/") + "%"));
         out.push(change_entry(format!("Joined the guild {g}{bonus}"), None));
     }
     out
@@ -1128,7 +1128,7 @@ mod tests {
             "Weapon": {"d": "22–30 dmg", "v": 52.0}}, "potions": ["Luck 15 %"], "guild": null});
         assert!(changes(&prev, &cur, "Mage").is_empty());
         let huge = serde_json::json!({"attrs": {}, "equip": {"Ring": {"d": "INT +30", "v": 40.0}}});
-        assert_eq!(changes(&prev, &huge, "Mage"), [serde_json::json!("Huge ring upgrade (+300 %)")]);
+        assert_eq!(changes(&prev, &huge, "Mage"), [serde_json::json!("+300 %")]);
     }
 
     #[test]

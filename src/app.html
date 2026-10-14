@@ -296,7 +296,7 @@ function renderTiles(){
     }
     const n = c.now || {};
     el.tile.style.setProperty("--c", classColor(n.class));
-    el.cl.textContent = n.class ? `${pretty(n.class)} · level ${n.level}` : "not logged in yet";
+    el.cl.textContent = n.class ? `${pretty(n.class)} · level ${n.level}` + (n.updated ? ` · ${n.updated}` : "") : "not logged in yet";
     el.dot.className = "dot " + c.state; el.dotText.textContent = " " + c.state;
     el.r.textContent = n.rank ? "#"+n.rank.toLocaleString() : "–";
     el.g.textContent = n.power != null ? Math.round(n.power).toLocaleString() : "–";

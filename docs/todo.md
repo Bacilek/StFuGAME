@@ -56,10 +56,10 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] HoF "day 6" (13.10.): vysvětleno, žádná chyba – rank je relativní (honor roste ~100–180/den, ale ostatní hráči serveru rostou rychleji, rank se u Květoše/Wecrose/Sanka/Mimimimi11 zhoršil o ~500–900). Nic k opravě.
 
 ### Balíček G – GUI / dashboard (`src/dashboard.html`, `src/app.rs`)
-- [ ] Dlaždice postav: timestamp snapshotu/stavu.
-- [ ] "Why up" guild bonusy: zkrátit zprávu na "(x%/y%)"; "huge x upgrade" → "+x%", nic víc.
-- [ ] Přejmenovat taby: "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
-- [ ] Autostart aplikace s Windows (user 2026-10-14: ano, autostart; pozor na pravidlo: postavy se spouští jen podle poslední volby v `roster/switches.json`).
+- [x] Dlaždice postav: timestamp snapshotu/stavu (hotovo 2026-10-14, `app.html`).
+- [x] "Why up": guild "(x%/y%)", upgrade jen "+x %" (hotovo 2026-10-14, `roster::changes`).
+- [ ] Taby přejmenovány (hotovo 2026-10-14, `METRICS` v `dashboard.html`); ZBÝVAJÍ ikonky ze hry (nejdřív zjistit, co je v assetech): "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
+- [x] Autostart s Windows (hotovo 2026-10-14, `app::ensure_autostart`, klíč HKCU Run, jen release exe; user 2026-10-14: ano, autostart; pozor na pravidlo: postavy se spouští jen podle poslední volby v `roster/switches.json`).
 - [x] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 
 ### Balíček H – Monitoring / ověřování (bez kódu)

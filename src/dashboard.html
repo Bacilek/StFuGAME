@@ -126,15 +126,15 @@ dialog::backdrop{background:#0008} .close{position:absolute;top:10px;right:10px}
 <script>
 const DATA = /*DATA*/{"generated":"","dates":[],"chars":[]}/*END*/;
 const METRICS = [
-  {key:"gold", label:"Gold (total gained)", fmt:v=>Math.round(v).toLocaleString()},
-  {key:"xp", label:"XP (total gained)", fmt:v=>Math.round(v).toLocaleString()},
-  {key:"dungeons", label:"Dungeon enemies defeated", fmt:v=>Math.round(v)},
-  {key:"arena_wins_total", label:"Arena wins (total)", fmt:v=>Math.round(v)},
-  {key:"rank", label:"Hall of Fame rank", fmt:v=>"#"+Math.round(v).toLocaleString(), invert:true},
-  {key:"mushrooms", label:"Mushrooms (total gained)", fmt:v=>Math.round(v)},
+  {key:"gold", label:"Gold", fmt:v=>Math.round(v).toLocaleString()},
+  {key:"xp", label:"XP", fmt:v=>Math.round(v).toLocaleString()},
+  {key:"dungeons", label:"Dungeon", fmt:v=>Math.round(v)},
+  {key:"arena_wins_total", label:"Arena", fmt:v=>Math.round(v)},
+  {key:"rank", label:"Hall of Fame", fmt:v=>"#"+Math.round(v).toLocaleString(), invert:true},
+  {key:"mushrooms", label:"Shrooms", fmt:v=>Math.round(v)},
   {key:"power", label:"Power", fmt:v=>Math.round(v).toLocaleString()},
-  {key:"winrate", label:"Win rate [%] (simulated against all)", fmt:v=>v.toFixed(1)+" %"},
-  {key:"scrapbook_pct", label:"Scrapbook / Library of Meticulousness [%]", fmt:v=>v.toFixed(2)+" %"},
+  {key:"winrate", label:"Win Rate", fmt:v=>v.toFixed(1)+" %"},
+  {key:"scrapbook_pct", label:"Scrapbook", fmt:v=>v.toFixed(2)+" %"},
 ];
 // Colour = class (user 2026-10-07); every character has a plain dot (no shapes, user 2026-10-07).
 // A second character of the same class gets a dashed line and a hollow marker.
