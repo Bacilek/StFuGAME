@@ -396,7 +396,10 @@ static NEXT_MILITARY: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = cra
 
 /// Expected loot (wood + stone) of fortress player `id`, from a fresh `PlayerLookAt`; `None` when it cannot be read.
 async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64, u16)>, Outcome> {
-    let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| fail(&e, line!()))?;
+    let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| {
+        report!("[fortress] Looking at the target {id} failed");
+        fail(&e, line!())
+    })?;
     Ok(gs.lookup.lookup_pid(id).and_then(|p| p.fortress.as_ref()).map(|f| (f.lootable_wood, f.lootable_stone, f.soldier_advice)))
 }
 

@@ -2,6 +2,7 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **"Why up" texts (2026-10-14, user):** weapon = `30 → 46, +53 %` (no "damage"; the % is the item value `v` ratio, same as other slots); guild = `Joined Name (114.4%/124%/365)` = Instructor/Treasure bonus per member (total skill × 0.2 %) + the guild's Hall of Knights total (sum of members' knights; stored in `guild_bonus` as `instr/treasure/knights`, old snapshots show two numbers). `loot_of` logs `Looking at the target <id> failed` (TestChar1 `fortress.rs:399`, ViewPlayer error – read the id after the next build). TestChar1 chests verified claimed (20:49). Needs a release rebuild.
 - **Release built 2026-10-14 (after the chest fix):** includes everything pending; the user starts the bot. Check TestChar1 `[tasks] Claiming` and the `[fortress] Error … (fortress.rs:NNN)` line.
 - **Gleeman chests claimed at the top of every pass (2026-10-14, package H):** TestChar1's unopened chests were a control-flow bug – the Tavern branch in `play` `continue`s before `tasks::run`, so a character on expeditions never claimed. `tasks::claim_chests` (now pub) runs right after the state refresh. `cargo check` ok; needs a release rebuild; verify `[tasks] Claiming` on TestChar1.
 - **Release built 2026-10-14 (night)** with everything pending: journal-based Arena wins for catch-up reports, dungeons per chart day, fortress error source lines, GUI package. After the start read the TestChar1 `[fortress] Error … (fortress.rs:NNN)` line.

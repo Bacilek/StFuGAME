@@ -592,7 +592,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
         "dungeon_list": dungeon_list(gs),
-        "guild_bonus": gs.guild.as_ref().map(|g| format!("{}/{}", g.total_instructor_skill, g.total_treasure_skill)),
+        "guild_bonus": gs.guild.as_ref().map(|g| format!("{}/{}/{}", g.total_instructor_skill, g.total_treasure_skill, g.members.iter().map(|m| u32::from(m.knights)).sum::<u32>())),
         "scrapbook": gs.character.scrapbook.as_ref().map(crate::scrapbook::json),
         "gleeman": gleeman(gs),
     })
@@ -844,6 +844,17 @@ fn best_potion_setup(potions: &[&str], class: &str) -> bool {
     potions.len() == 3 && want.iter().all(|w| potions.contains(&w.as_str()))
 }
 
+/// " (114.4%/124%/365)" from the stored "instructor/treasure/knights" totals: the bonus each member gets is 0.2 % per skill point
+/// (user 2026-10-14), then the guild's Hall of Knights total; old snapshots without knights show just the two bonuses.
+fn guild_bonus_text(b: &str) -> String {
+    let p: Vec<&str> = b.split('/').collect();
+    let pct = |s: &str| s.parse::<f64>().map(|v| format!("{}%", (v * 2.0).round() / 10.0));
+    match (p.first().map(|s| pct(s)), p.get(1).map(|s| pct(s)), p.get(2)) {
+        (Some(Ok(i)), Some(Ok(t)), k) => format!(" ({i}/{t}{})", k.map_or(String::new(), |k| format!("/{k}"))),
+        _ => String::new(),
+    }
+}
+
 /// A change that is worth a line in the dashboard's "Why up?" box: plain text, or text with an item icon.
 fn change_entry(text: String, icon: Option<&str>) -> serde_json::Value {
     match icon {
@@ -875,8 +886,8 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
         };
         let (da, db) = (a["d"].as_str().unwrap_or(""), b["d"].as_str().unwrap_or(""));
         let dmg = match (weapon_avg(da), weapon_avg(db)) {
-            (Some(x), Some(y)) if y >= x * BETTER_WEAPON => Some(format!("damage {x:.0} → {y:.0}")),
-            (None, Some(y)) => Some(format!("damage {y:.0}")),
+            (Some(x), Some(y)) if y >= x * BETTER_WEAPON => Some(format!("{x:.0} → {y:.0}")),
+            (None, Some(y)) => Some(format!("{y:.0}")),
             _ => None,
         };
         let icon = b["icon"].as_str();
@@ -888,7 +899,11 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
                 out.push(change_entry(format!("New {rarity}{}{extra}", slot.to_lowercase()), icon));
             }
         } else if let Some(d) = dmg {
-            out.push(change_entry(format!("Better {}: {d}", slot.to_lowercase()), icon));
+            let pct = match (a["v"].as_f64(), b["v"].as_f64()) {
+                (Some(x), Some(y)) if x > 0.0 => format!(", +{:.0} %", (y / x - 1.0) * 100.0),
+                _ => String::new(),
+            };
+            out.push(change_entry(format!("{d}{pct}"), icon));
         } else if let (Some(x), Some(y)) = (a["v"].as_f64(), b["v"].as_f64())
             && x > 0.0
             && y >= x * BIG_UPGRADE
@@ -910,8 +925,8 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
         && let Some(g) = cur["guild"].as_str()
     {
         // Instructor/Treasure of the guild (user 2026-10-12: show the bonuses as the reason); older snapshots lack them
-        let bonus = cur["guild_bonus"].as_str().map_or(String::new(), |b| format!(" ({})", b.replace('/', "%/") + "%"));
-        out.push(change_entry(format!("Joined the guild {g}{bonus}"), None));
+        let bonus = cur["guild_bonus"].as_str().map_or(String::new(), guild_bonus_text);
+        out.push(change_entry(format!("Joined {g}{bonus}"), None));
     }
     out
 }
@@ -1120,9 +1135,9 @@ mod tests {
         assert_eq!(
             changes(&prev, &cur, "Warrior"),
             [
-                serde_json::json!({"t": "New epic weapon (damage 18 → 28)", "icon": "w.png"}),
+                serde_json::json!({"t": "New epic weapon (18 → 28)", "icon": "w.png"}),
                 serde_json::json!("Best potion setup (main attribute + Constitution + Eternal Life, all maximum size)"),
-                serde_json::json!("Joined the guild Artušova Garda"),
+                serde_json::json!("Joined Artušova Garda"),
             ]
         );
         assert!(changes(&cur, &cur, "Warrior").is_empty());
