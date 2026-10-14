@@ -52,8 +52,8 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 
 ### Balíček F – Arena / Hall of Fame / Scrapbook
 - [ ] Jak dobře funguje útočení v Hall of Fame na doplnění scrapbooku? Kdy, kolikrát, úspěšnost – vyhodnotit z logů.
-- [ ] Pagan včera nejel Arenu – proč? (log)
-- [ ] Proč je Hall of Fame chart "day 6" propadák u většiny postav?
+- [x] Pagan "nejel Arenu" (2026-10-14): jezdil každý den (10 výher 11.–14.), řádek 13.10. v `history.csv` měl `arena_wins`=0 (server čítač `fights_for_xp` se už vynuloval). Opraveno: `arena::xp_wins_today` (z deníku) + max; řádek opraven ručně.
+- [x] HoF "day 6" (13.10.): vysvětleno, žádná chyba – rank je relativní (honor roste ~100–180/den, ale ostatní hráči serveru rostou rychleji, rank se u Květoše/Wecrose/Sanka/Mimimimi11 zhoršil o ~500–900). Nic k opravě.
 
 ### Balíček G – GUI / dashboard (`src/dashboard.html`, `src/app.rs`)
 - [ ] Dlaždice postav: timestamp snapshotu/stavu.

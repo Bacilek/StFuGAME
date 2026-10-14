@@ -223,7 +223,7 @@ impl Snapshot {
             mushrooms: c.mushrooms,
             lucky_coins: gs.specials.wheel.lucky_coins,
             hourglasses: gs.tavern.quicksand_glasses,
-            arena_wins: gs.arena.fights_for_xp,
+            arena_wins: gs.arena.fights_for_xp.max(crate::arena::xp_wins_today()),
             guild: gs.guild.as_ref().map_or_else(|| "-".to_string(), |g| g.name.replace(',', " ")),
             gold_gained,
             mushrooms_gained,

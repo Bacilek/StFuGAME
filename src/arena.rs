@@ -81,6 +81,19 @@ pub fn fights_today() -> usize {
         .count()
 }
 
+/// Arena wins that gave XP today according to the journal (the server counter `fights_for_xp` can already be
+/// reset when a late report reads it, e.g. Pagan's 2026-10-13 row said 0).
+pub fn xp_wins_today() -> u8 {
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    let n = std::fs::read_to_string(log_file())
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .filter(|v| v["date"].as_str() == Some(today.as_str()) && v["won"].as_bool() == Some(true) && v["xp"].as_u64().unwrap_or(0) > 0)
+        .count();
+    u8::try_from(n).unwrap_or(u8::MAX)
+}
+
 /// Seconds until the Arena is free (with margin), if it still makes sense (fewer than 10 wins).
 pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
     if usize::from(gs.arena.fights_for_xp) >= MAX_WINS_PER_DAY {
