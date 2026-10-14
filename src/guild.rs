@@ -191,9 +191,6 @@ async fn load_offers(session: &mut SimpleSession) -> Result<Vec<Offer>, sf_api::
         if fresh.is_empty() {
             break;
         }
-        if page > 0 {
-            report!("[guild] Quick-join list page {page} brought {} more guilds", fresh.len());
-        }
         all.extend(fresh);
     }
     Ok(all)
@@ -233,8 +230,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         treasure: u32::from(g.own_treasure_skill),
     });
     let player_id = gs.character.player_id;
-    for o in offers.iter().filter(|o| o.members < MAX_MEMBERS && unmet_requirement(&o.description, own)) {
-        report!("[guild] Skipping {}: its description asks for skill levels we lack: {}", o.name, o.description);
+    let skipped: Vec<&str> = offers.iter().filter(|o| o.members < MAX_MEMBERS && unmet_requirement(&o.description, own)).map(|o| o.name.as_str()).collect();
+    if !skipped.is_empty() {
+        report!("[guild] Skipping {} guild(s) whose description asks for skill levels we lack: {}", skipped.len(), skipped.join(", "));
     }
     let list = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own);
 

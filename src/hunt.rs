@@ -305,11 +305,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
     let Some(hunt) = chosen else { return Outcome::Done };
-    report!("[hunt] {hunt:?}: looking for an opponent in the Hall of Fame");
     let name = match find_opponent(session, hunt).await {
         Ok(Some(n)) => n,
         Ok(None) => {
-            report!("[hunt] No clearly weaker opponent found");
+            report!("[hunt] {hunt:?}: nobody suitable in the Hall of Fame right now (no clearly weaker player{})", if hunt == Hunt::Scrapbook { " wearing items we lack" } else { "" });
             journal(&format!("{hunt:?} | no clearly weaker opponent"));
             if hunt == Hunt::Scrapbook
                 && let Ok(mut n) = NEXT_SCRAPBOOK.lock()

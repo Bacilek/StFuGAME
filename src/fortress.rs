@@ -587,11 +587,6 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
             if let Err(e) = safe::send(session, Command::FortressBuildUnit { unit: U::Soldier, count: n as u32 }).await {
                 return fail(&e, line!());
             }
-            if let Some(u) = session.game_state().and_then(|gs| gs.fortress.as_ref()).map(|f| &f.units[U::Soldier])
-                && let Some(fin) = u.training.finish
-            {
-                report!("[check] Training {n} soldier(s) finishes at {} (price table time per soldier: {} s)", fin.format("%H:%M:%S"), u.training.cost.time.as_secs());
-            }
         }
     }
     Outcome::Done
