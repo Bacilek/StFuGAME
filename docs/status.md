@@ -2,6 +2,8 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Release built 2026-10-14 (afternoon)** with everything from the backlog packages A+B, the Gem Mine rule and the fortress gold reserve; the bot is not started yet by Claude (the user starts it). After the start check: `[fortress] State:` line per character (TestChar1!), Fortress tab, `[check] Training … finishes at`, sacrifice/Barracks lines.
+
 - **Gem Mine rule + fortress gold reserve (2026-10-14, user):** see `docs/fortress.md` "Gem Mine rule"; `[fortress] State:` line per login to diagnose TestChar1. Needs a release rebuild.
 - **Backlog packages A+B done in code (2026-10-14, user; needs a release rebuild + live check):** Fortress plan (Academy rush after Fortress 6), no more skipped gathering during builds + XP overflow guard + loop wake-ups for the fortress, Hall of Knights during builds (not during the Fortress build), Barracks-aware soldier training, sacrifice of one soldier to force a new opponent, `SF_ATTACK_ONLY` mode for the main character (the user must add the account to `.env` `SF_ACCOUNTS` and set `SF_ATTACK_ONLY`), new Fortress tab, surplus-attribute floor 5× → 10×, secondary attributes are never bought for free choice (`attributes::best_attribute`). Details `docs/fortress.md` "Changes 2026-10-14". Still open from the backlog: gem mine rule, gold priority answer, unlock check (all in `docs/todo.md`).
 
