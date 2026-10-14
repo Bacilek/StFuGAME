@@ -194,12 +194,13 @@ pub fn hok_affordable(gs: &GameState) -> bool {
         && f.hall_of_knights_level < f.buildings[B::Fortress].level
 }
 
-/// Wood and stone the next planned building still needs (None when nothing is planned): other spending (gems) leaves it alone.
-pub fn next_build_cost(gs: &GameState) -> Option<(u64, u64)> {
-    let f = gs.fortress.as_ref()?;
-    let next = choose(f, gs.character.level)?;
-    let c = f.buildings[next].upgrade_cost;
-    Some((c.wood, c.stone))
+/// Gold the fortress will want for its next planned build (0 without a fortress / plan). The fortress is not a one-off
+/// spend like the shops (user 2026-10-14: the bot comes back to it many times a day until builds take days), so the lower
+/// priority gold spending – spinning the shops, guild upgrades without a task, surplus attributes, gem searches – leaves
+/// this much on top of its own reserve.
+pub fn gold_needed(gs: &GameState) -> u64 {
+    let Some(f) = gs.fortress.as_ref() else { return 0 };
+    choose(f, gs.character.level).map_or(0, |b| f.buildings[b].upgrade_cost.silver)
 }
 
 fn collectable(gs: &GameState, r: R) -> u64 {
@@ -728,6 +729,25 @@ pub fn write_snapshot(gs: &GameState, builds: bool) {
     let dir = std::path::Path::new("roster").join(crate::ctx::name());
     let _ = std::fs::create_dir_all(&dir);
     let _ = std::fs::write(dir.join("fortress.json"), j.to_string());
+}
+
+/// One line per login about the fortress state (found 2026-10-14: TestChar1 never logged anything about its fortress, the user
+/// saw a Barracks there – this shows whether the server data reaches us).
+pub fn diagnose(gs: &GameState) {
+    match gs.fortress.as_ref() {
+        Some(f) => report!(
+            "[fortress] State: Fortress {}, Barracks {}, Academy {}, soldiers {}/{}, building {:?}, HoK {}",
+            f.buildings[B::Fortress].level,
+            f.buildings[B::Barracks].level,
+            f.buildings[B::Academy].level,
+            f.units[U::Soldier].count,
+            f.units[U::Soldier].limit,
+            f.building_upgrade.target,
+            f.hall_of_knights_level
+        ),
+        None if gs.character.level >= 25 => report!("[fortress] No fortress data from the server although the character is level {}", gs.character.level),
+        None => {}
+    }
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {

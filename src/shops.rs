@@ -205,7 +205,7 @@ fn spin_candidate(gs: &GameState, reserve: u32) -> Option<(ShopPosition, &Item)>
         .into_iter()
         .filter(|(_, i)| !i.is_epic())
         .min_by_key(|(_, i)| i.price)
-        .filter(|(_, i)| gs.character.silver >= u64::from(i.price) + u64::from(reserve))
+        .filter(|(_, i)| gs.character.silver >= u64::from(i.price) + u64::from(reserve) + crate::fortress::gold_needed(gs))
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {

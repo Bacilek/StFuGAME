@@ -114,7 +114,7 @@ async fn upgrade_guild_surplus(session: &mut SimpleSession) -> Outcome {
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         // After the upgrade 1× the most expensive shop item must remain (user 2026-10-11, lowered from 5×; the surplus attributes keep 10×, user 2026-10-14)
-        let Some((skill, current)) = guild_skill_keeping(gs, crate::shops::reserve()) else {
+        let Some((skill, current)) = guild_skill_keeping(gs, crate::shops::reserve() + crate::fortress::gold_needed(gs)) else {
             return Outcome::Done;
         };
         let price = gs.guild.as_ref().map_or(0, |g| g.upgrade_price[skill].silver);
@@ -180,7 +180,7 @@ pub async fn buy_surplus_attributes(session: &mut SimpleSession) -> Outcome {
     let mut last_price = 0;
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        let floor = SURPLUS_RESERVE_MULTIPLE * crate::shops::reserve();
+        let floor = SURPLUS_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs);
         if gs.character.silver <= floor + last_price {
             return Outcome::Done;
         }

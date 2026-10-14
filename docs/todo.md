@@ -24,11 +24,11 @@ Zapsáno z poznámek uživatele po 2 dnech bez session. Seskupeno podle toho, co
 Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): sekundární atributy se nevylepšují vůbec (ani těch 10 %); rezerva pro upgrady atributů 5× → 10×; u drobného zbytku Thirst for Adventure bereme zlato místo hodin; pořadí odměn z expedic: houby > zlato > hodiny >>> suroviny pevnosti (útoky dávají mnohem víc); HoK jde vylepšovat i při stavbě (jen asi ne při stavbě samotné Fortress) – oprava dosavadní domněnky.
 
 ### Balíček A – Pevnost: plán a pořadí (`src/fortress.rs`, `docs/fortress.md`)
-- [ ] Zkontrolovat, že se Fortress odemkla (check).
+- [ ] Zkontrolovat, že se Fortress odemkla: TestChar1 nikdy nelogoval nic o pevnosti, user tam viděl Barracks – po restartu hledat řádek `[fortress] State:` / `No fortress data`.
 - [x] Plně dořešit upgrade path (hotovo 2026-10-14, `PLAN` + `pick_generic`): kde jsme skončili? Fortress lvl 6 → rush Academy → trochu Treasury (nepřehánět, Treasury je konstanta na zlato).
 - [x] Oprava domněnky: HoK se vylepšuje i během stavby (ne během stavby Fortress) – upravit kód i `docs/fortress.md`.
-- [ ] Priorita zlata: jak moc upřednostňujeme fortress goldy před ostatními výdaji a v jakém pořadí (dohledat, ukázat userovi); rezerva atributů 5× → 10× (hotovo, `SURPLUS_RESERVE_MULTIPLE`).
-- [ ] Gem Mine: kdy těžit (gem stojí 150 g, těžba trvá jen 50 min) – rozhodnout pravidlo.
+- [x] Priorita zlata: pořadí potvrzeno userem 2026-10-14 (itemy > pevnost > točení > cech > atributy); pevnost se opakuje, proto ostatní utrácení nechává `fortress::gold_needed` navíc.
+- [x] Gem Mine: pravidlo hotovo 2026-10-14 (zbýt min. 2× rezerva + zlato další stavby pevnosti, suroviny ignorovat, držet 1–2 gemy, slabé gemy do rychle vyměňovaných itemů; `docs/fortress.md`).
 - [x] Barracks upgrade: počítat dopředu – když se blíží (např. za 20 min) dostavba/upgrade Barracks, zadat trénink max tolika vojáků, aby skončil dřív (trénink blokuje upgrade).
 
 ### Balíček B – Pevnost: útoky a vojáci (`src/fortress.rs`)

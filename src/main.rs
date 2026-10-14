@@ -184,6 +184,7 @@ fn print_status(session: &SimpleSession) {
 /// and when there is nothing to do, wait for the nearest cooldown to end. Runs until stopped.
 async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> tavern::Outcome {
     let mut last_dungeon_try: Option<std::time::Instant> = None;
+    let mut fortress_diagnosed = false;
     loop {
         // Fresh state at the top of every pass. Nothing else refreshed it for a character that skips the Tavern (busy / no
         // Thirst for Adventure): TestChar1 kept a stale view from midnight (finished City Guard shift, calendar, guild it
@@ -199,6 +200,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             roster::write_now(gs);
             roster::write_quests(gs);
             fortress::write_snapshot(gs, true);
+            if !std::mem::replace(&mut fortress_diagnosed, true) {
+                fortress::diagnose(gs);
+            }
         }
 
         // Daily report for the character challenge at ~23:50 (roster/, local only) + simulated duels at 23:40
@@ -326,6 +330,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
         if let Some(gs) = session.game_state() {
             fortress::write_snapshot(gs, true);
+            if !std::mem::replace(&mut fortress_diagnosed, true) {
+                fortress::diagnose(gs);
+            }
         }
         // Gem Mine: search, collect, socket (user 2026-10-12)
         if let tavern::Outcome::SessionLost = gems::run(session).await {
@@ -383,6 +390,7 @@ fn attack_only(character: &str) -> bool {
 
 /// Attack-only loop: soldiers' raids (training included, they need it) and collecting the Academy's XP – nothing else.
 async fn play_attack_only(session: &mut SimpleSession) -> tavern::Outcome {
+    let mut diagnosed = false;
     loop {
         if let Err(e) = safe::send(session, Command::Update).await {
             report!("[main] Update at the start of the pass failed: {e}");
@@ -393,6 +401,9 @@ async fn play_attack_only(session: &mut SimpleSession) -> tavern::Outcome {
         if let Some(gs) = session.game_state() {
             roster::write_now(gs);
             fortress::write_snapshot(gs, false);
+            if !std::mem::replace(&mut diagnosed, true) {
+                fortress::diagnose(gs);
+            }
         }
         if let tavern::Outcome::SessionLost = fortress::run_attack_only(session).await {
             return tavern::Outcome::SessionLost;

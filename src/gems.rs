@@ -5,6 +5,11 @@
 //!  * at least 2 backpack slots are free (the gem takes one, at least one stays free), or
 //!  * 1 slot is free but the gem will be socketed right away (an empty socket, or a worse gem to replace).
 //!
+//! A search starts when the mine is idle and the gold left afterwards is at least 2x the shop reserve plus what the fortress
+//! wants for its next build (user 2026-10-14; wood/stone are ignored). Up to 1 gem (2 with 6+ free slots) is held in the
+//! backpack for a future item with a slot. Luck/secondary gems go to the item we replace soonest, Constitution/main gems to
+//! the best, hardest-to-replace one.
+//!
 //! Worth of a gem for a class (`tier`, lower is better): 0 = main attribute / "all attributes" / legendary, 1 = Constitution,
 //! 2 = Luck, 3 = a secondary attribute. Socketing (`choose_socket`): an empty socket, or a filled one holding a tier 2-3 gem
 //! that is strictly worse than the new gem (a Constitution or main-attribute gem is never replaced). Among the candidate
@@ -54,6 +59,11 @@ fn mark_collected(t: DateTime<Local>) {
     }
     let _ = std::fs::write(collected_path(), t.to_rfc3339());
 }
+/// Backpack gems held for a future item (1; 2 when at least this many slots are free).
+const HOLD_TWO_FREE: usize = 6;
+/// A search leaves at least this multiple of the shop reserve in gold (user 2026-10-14; wood and stone do not matter, a
+/// search costs next to nothing in them) on top of what the fortress wants for its next build.
+const SEARCH_RESERVE_MULTIPLE: u64 = 2;
 /// A socketing that did not change anything stops further attempts for the rest of the day (unverified request shape).
 static SOCKET_FAILED_ON: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
 
@@ -84,7 +94,7 @@ struct Socket {
 /// The socket for `gem` (index into `sockets`), or None (keep the gem).
 fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
     let new = tier(gem.typ, class);
-    sockets
+    let fit = sockets
         .iter()
         .enumerate()
         .filter(|(_, s)| match s.content {
@@ -93,9 +103,11 @@ fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
                 let t = tier(old.typ, class);
                 t >= 2 && t > new
             }
-        })
-        .max_by(|(_, a), (_, b)| (a.epic, a.value).partial_cmp(&(b.epic, b.value)).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(i, _)| i)
+        });
+    let by = |a: &(usize, &Socket), b: &(usize, &Socket)| (a.1.epic, a.1.value).partial_cmp(&(b.1.epic, b.1.value)).unwrap_or(std::cmp::Ordering::Equal);
+    // Constitution and main-attribute gems go to the item that is best and hardest to replace; Luck and secondary gems to the
+    // item we will swap out soonest (user 2026-10-14)
+    (if new <= 1 { fit.max_by(by) } else { fit.min_by(by) }).map(|(i, _)| i)
 }
 
 /// Equipped items with a gem slot.
@@ -163,7 +175,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         let class = gs.character.class;
         let list: Vec<Socket> = sockets(gs).iter().map(|s| s.1).collect();
         let fits_now = f.gem_search.target.is_some_and(|typ| choose_socket(&list, Gem { typ, value: 0 }, class).is_some());
-        if free >= 2 || (free == 1 && fits_now) {
+        // Holding a gem for a future item with a free slot is fine: 1, or 2 with plenty of room (user 2026-10-14)
+        let held = gs.character.inventory.iter().filter(|(_, i)| i.is_some_and(|i| matches!(i.typ, ItemType::Gem(_)))).count();
+        let cap = if free >= HOLD_TWO_FREE { 2 } else { 1 };
+        if fits_now && free >= 1 || free >= 2 && held < cap {
             report!("[gems] Collecting the mined gem ({:?}, {free} free backpack slots)", f.gem_search.target);
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
@@ -191,9 +206,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
     let cost = f.gem_search.cost;
     let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
-    // Do not eat the resources the next planned building is waiting for
-    let (reserve_w, reserve_s) = crate::fortress::next_build_cost(gs).unwrap_or((0, 0));
-    if cost.silver > gs.character.silver || wood < cost.wood + reserve_w || stone < cost.stone + reserve_s {
+    let keep = SEARCH_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs);
+    if gs.character.silver < cost.silver + keep || wood < cost.wood || stone < cost.stone {
         return Outcome::Done;
     }
     report!("[gems] Starting a gem search (wood {}, stone {}, {})", cost.wood, cost.stone, crate::report::gold(cost.silver));
@@ -316,5 +330,17 @@ mod tests {
         assert_eq!(choose_socket(&[sock(Some(GemType::Luck), false, 1.0)], gem(GemType::Dexterity), c), None);
         // no sockets at all
         assert_eq!(choose_socket(&[], gem(GemType::Intelligence), c), None);
+    }
+
+    #[test]
+    fn weak_gems_go_to_the_item_replaced_soonest() {
+        let c = Class::Bard;
+        // two empty sockets: a weak item (value 10) and a strong epic (value 90)
+        let list = [sock(None, false, 10.0), sock(None, true, 90.0)];
+        // a Luck or secondary gem goes to the weak item, Constitution and main-attribute gems to the strong one
+        assert_eq!(choose_socket(&list, gem(GemType::Luck), c), Some(0));
+        assert_eq!(choose_socket(&list, gem(GemType::Strength), c), Some(0));
+        assert_eq!(choose_socket(&list, gem(GemType::Constitution), c), Some(1));
+        assert_eq!(choose_socket(&list, gem(GemType::Intelligence), c), Some(1));
     }
 }
