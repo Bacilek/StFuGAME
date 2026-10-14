@@ -394,6 +394,12 @@ const MAX_COUNTERS: usize = 3;
 
 static NEXT_MILITARY: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = crate::ctx::PerChar::new();
 
+/// The opponent the fortress offers; id 0 means the game offers nobody (2026-10-14: five characters sat on `attack_target` 0, the
+/// look at it failed and ended the whole pass before any counter-attack or free change of the opponent).
+fn offered(f: &sf_api::gamestate::fortress::Fortress) -> Option<u32> {
+    f.attack_target.map(u32::from).filter(|&id| id != 0)
+}
+
 /// Expected loot (wood + stone) of fortress player `id`, from a fresh `PlayerLookAt`; `None` when it cannot be read.
 async fn loot_of(session: &mut SimpleSession, id: u32) -> Result<Option<(u64, u64, u16)>, Outcome> {
     let gs = safe::send(session, Command::ViewPlayer { ident: id.to_string() }).await.map_err(|e| {
@@ -448,7 +454,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         let have = u32::from(f.units[U::Soldier].count);
         let mut target = None;
         if use_offered
-            && let Some(id) = f.attack_target
+            && let Some(id) = offered(f)
             && !attacked.contains(&id)
         {
             match loot_of(session, id).await {
@@ -478,7 +484,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                 if let Err(err) = safe::send(session, Command::FortressSetCAEnemy { msg_id: msg_id as u32 }).await {
                     return fail(&err, line!());
                 }
-                let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(|f| f.attack_target) else { continue };
+                let Some(id) = session.game_state().and_then(|gs| gs.fortress.as_ref()).and_then(offered) else { continue };
                 match loot_of(session, id).await {
                     Ok(Some((w, s, advice))) if soldiers_for(advice, w + s, min_loot, have).is_some() && !attacked.contains(&id) => {
                         report!("[fortress] Counter-attack target {name} ({id}): wood {w}, stone {s}");
@@ -510,7 +516,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
                     let u = &f.units[U::Soldier];
                     u.count > 0 && u.count + u.in_training >= u.limit
                 })
-                .and_then(|f| f.attack_target)
+                .and_then(offered)
                 .filter(|id| !attacked.contains(id));
             if let Some(id) = sacrifice {
                 sacrificed = true;
