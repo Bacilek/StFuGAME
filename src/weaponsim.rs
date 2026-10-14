@@ -88,6 +88,10 @@ fn main_attr(c: Class) -> AttributeType {
 
 /// Opponents of similar strength: every roster character (class mix) scaled so the mean win rate is about 50 %.
 fn pool_for(me: &Fighter, all: &[Fighter]) -> Vec<Fighter> {
+    pool_for_x(me, all, 1.0)
+}
+
+fn pool_for_x(me: &Fighter, all: &[Fighter], extra: f64) -> Vec<Fighter> {
     let ma = main_attr(me.class);
     let build = |g: f64| -> Vec<Fighter> {
         [0.8, 0.9, 1.0, 1.1, 1.2]
@@ -106,7 +110,7 @@ fn pool_for(me: &Fighter, all: &[Fighter]) -> Vec<Fighter> {
         let w = win_rate(me, &build(mid), 600);
         if w > 0.5 { lo = mid } else { hi = mid }
     }
-    build(f64::sqrt(lo * hi))
+    build(f64::sqrt(lo * hi) * extra)
 }
 
 fn add(v: u32, d: f64) -> u32 {
@@ -264,5 +268,60 @@ fn validate_formulas() {
             }
         }
         println!("{name:<28} corr {:.3}  sign {ok}/{tot} ({:.1} %)", corr(&pred[i], &truth), 100.0 * f64::from(ok) / f64::from(tot));
+    }
+}
+
+#[test]
+#[ignore]
+fn assassin_check() {
+    let nicks = ["Chlamydie", "Filminy", "Květoš", "Mimimimi11", "Mrožik", "Novotné", "Pagan", "PajaRizz", "Pjotr", "Sanek", "Wecros"];
+    let all: Vec<Fighter> = nicks.iter().filter_map(|n| load(n)).collect();
+    let me = all.iter().find(|f| f.class == Class::Assassin).unwrap();
+    let pool = pool_for(me, &all);
+    let ma = main_attr(me.class);
+    println!("main attr {:?} = {}, all attrs {:?}", ma, me.attributes[ma], me.attributes);
+    let iters = 100_000;
+    let slope = |plus: Fighter, minus: Fighter, amt: f64| (win_rate(&plus, &pool, iters) - win_rate(&minus, &pool, iters)) / (2.0 * amt);
+    let main = slope(bump(me, "main", 25.0), bump(me, "main", -25.0), 25.0);
+    let scale = |f: &Fighter, first: f64, second: f64| {
+        let mut f = f.clone();
+        if let Some(w) = &mut f.first_weapon { w.damage = DamageRange { min: w.damage.min * first, max: w.damage.max * first }; }
+        if let Some(w) = &mut f.second_weapon { w.damage = DamageRange { min: w.damage.min * second, max: w.damage.max * second }; }
+        f
+    };
+    let both = slope(scale(me, 1.1, 1.1), scale(me, 0.9, 0.9), 10.0);
+    let first = slope(scale(me, 1.1, 1.0), scale(me, 0.9, 1.0), 10.0);
+    let second = slope(scale(me, 1.0, 1.1), scale(me, 1.0, 0.9), 10.0);
+    println!("main slope {main:.5}/pt; +1% both {both:.5} ({:.2} main pts); first only {first:.5}; second only {second:.5}", both / main);
+    println!("first avg {:?} second avg {:?}", me.first_weapon.as_ref().map(|w| (w.damage.min + w.damage.max) / 2.0), me.second_weapon.as_ref().map(|w| (w.damage.min + w.damage.max) / 2.0));
+    println!("formula (20+M)/100 = {:.2}", (20.0 + f64::from(me.attributes[ma])) / 100.0);
+}
+
+#[test]
+#[ignore]
+fn opponent_strength() {
+    let nicks = ["Chlamydie", "Filminy", "Květoš", "Mimimimi11", "Mrožik", "Novotné", "Pagan", "PajaRizz", "Pjotr", "Sanek", "Wecros"];
+    let all: Vec<Fighter> = nicks.iter().filter_map(|n| load(n)).collect();
+    for extra in [0.8, 1.0, 1.25] {
+        let mut sums = [0.0f64; 5];
+        let mut wsum = 0.0;
+        let mut n = 0.0;
+        for me in all.iter().filter(|f| f.class != Class::Assassin) {
+            let pool = pool_for_x(me, &all, extra);
+            let m = f64::from(me.attributes[main_attr(me.class)]);
+            let con = f64::from(me.attributes[AttributeType::Constitution]);
+            let slope = |what: &str, amt: f64| (win_rate(&bump(me, what, amt), &pool, 12000) - win_rate(&bump(me, what, -amt), &pool, 12000)) / (2.0 * amt);
+            let main = slope("main", m * 0.06);
+            let lck = slope("lck", m * 0.1) / main;
+            let con_r = slope("con", con * 0.06) / main;
+            let sec = slope("sec", m * 0.2) / main;
+            let dmg = slope("dmg", 6.0) / main / ((20.0 + m) / 100.0);
+            wsum += win_rate(me, &pool, 6000);
+            for (s, v) in sums.iter_mut().zip([lck, con_r, sec, dmg, main]) {
+                *s += v;
+            }
+            n += 1.0;
+        }
+        println!("opp x{extra}: mean W {:.2}  LCK {:.3}  CON {:.2}  sec {:.3}  dmg1% {:.2}x  main slope {:.5}", wsum / n, sums[0] / n, sums[1] / n, sums[2] / n, sums[3] / n, sums[4] / n);
     }
 }

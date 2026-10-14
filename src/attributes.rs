@@ -139,7 +139,7 @@ pub fn record_purchase(a: AttributeType, paid: u32) {
 }
 
 /// Weight of an attribute towards the user's strength formula (same as `arena::weight`): main 100 %, CON 80 %,
-/// LCK 40 %, the other two side attributes 10 % each.
+/// LCK 15 %, the other two side attributes 10 % each.
 fn weight(class: Class, a: AttributeType) -> f64 {
     crate::arena::weight(class, a)
 }

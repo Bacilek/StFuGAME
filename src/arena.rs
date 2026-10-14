@@ -25,6 +25,10 @@ pub fn total(p: &OtherPlayer, a: AttributeType) -> f64 {
     f64::from(p.attribute_basis[a] + p.attribute_additions[a] + p.attribute_pet_bonus[a])
 }
 
+/// Luck weight in the power formula. Simulated 2026-10-14 (`weaponsim.rs`, sf-api fights): one Luck point is worth 0.13-0.14
+/// main attribute points (user 2026-10-14: "we can lower Luck"); it was 0.4 before. CON measured 1.2 (formula 0.8), see `docs/inventory.md`.
+pub const LUCK_WEIGHT: f64 = 0.15;
+
 /// Opponent power by the user's formula.
 pub fn power(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
     let main = class.main_attribute();
@@ -33,10 +37,10 @@ pub fn power(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
         .filter(|a| *a != main)
         .map(&stat)
         .sum();
-    stat(main) + 0.8 * stat(AttributeType::Constitution) + 0.4 * stat(AttributeType::Luck) + 0.1 * side
+    stat(main) + 0.8 * stat(AttributeType::Constitution) + LUCK_WEIGHT * stat(AttributeType::Luck) + 0.1 * side
 }
 
-/// This attribute's weight in the power formula above: main 100 %, CON 80 %, LCK 40 %, the other two side
+/// This attribute's weight in the power formula above: main 100 %, CON 80 %, LCK 15 %, the other two side
 /// attributes 10 % each (used by `attributes.rs` to pick which attribute is the best value for gold).
 pub fn weight(class: Class, a: AttributeType) -> f64 {
     let main = class.main_attribute();
@@ -45,7 +49,7 @@ pub fn weight(class: Class, a: AttributeType) -> f64 {
     } else if a == AttributeType::Constitution {
         0.8
     } else if a == AttributeType::Luck {
-        0.4
+        LUCK_WEIGHT
     } else {
         0.1
     }
@@ -244,9 +248,9 @@ mod tests {
 
     #[test]
     fn scout_formula() {
-        // Scout: 100 % DEX + 80 % CON + 40 % LCK + 10 % STR + 10 % INT
+        // Scout: 100 % DEX + 80 % CON + LUCK_WEIGHT LCK + 10 % STR + 10 % INT
         let s = power(Class::Scout, stats(100.0, 1000.0, 200.0, 500.0, 300.0));
-        assert!((s - (1000.0 + 400.0 + 120.0 + 10.0 + 20.0)).abs() < 1e-9);
+        assert!((s - (1000.0 + 400.0 + 300.0 * LUCK_WEIGHT + 10.0 + 20.0)).abs() < 1e-9);
     }
 
     #[test]

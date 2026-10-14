@@ -1,6 +1,6 @@
 //! Inventory management: compares every equippable item in the backpack with what the character wears.
 //! Better ones get equipped, worse ones sold. Epic items are never sold (kept for later).
-//! "Better" = higher value by the Arena formula (100 % main + 80 % CON + 40 % LCK + 10 % secondary),
+//! "Better" = higher value by the Arena formula (100 % main + 80 % CON + 15 % LCK + 10 % secondary),
 //! weapons by expected damage (see `weapon_value`).
 
 use sf_api::{
@@ -14,7 +14,7 @@ use sf_api::{
 
 use crate::session::SimpleSession;
 
-use crate::{arena::power, safe, tavern::Outcome};
+use crate::{arena::{LUCK_WEIGHT, power}, safe, tavern::Outcome};
 
 /// Safety limit against an endless loop in one pass.
 const MAX_ACTIONS: usize = 30;
@@ -67,16 +67,16 @@ pub fn main_gem(class: Class) -> GemType {
 }
 
 /// What a gem adds for this class: (bonus to the main attribute, value of the other stats with the Arena percentages
-/// 80 % CON, 40 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
+/// 80 % CON, 15 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
 pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     let v = f64::from(g.value);
     if g.typ == main_gem(class) {
         return (v, 0.0);
     }
     match g.typ {
-        GemType::All | GemType::Legendary => (v, v * (0.8 + 0.4 + 0.2)),
+        GemType::All | GemType::Legendary => (v, v * (0.8 + LUCK_WEIGHT + 0.2)),
         GemType::Constitution => (0.0, v * 0.8),
-        GemType::Luck => (0.0, v * 0.4),
+        GemType::Luck => (0.0, v * LUCK_WEIGHT),
         _ => (0.0, v * 0.1),
     }
 }
@@ -114,24 +114,40 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, potential: Optio
     // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
     let others = score(ch.class, item) - f64::from(item.attributes[main]) + gem_other;
     let secondary = ch.class == Class::Assassin && slot == EquipmentSlot::Shield;
-    let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg), with_this);
+    // An Assassin hits with both hands every round: (L + R) × 0.625 × (1 + A / 10), so one weapon only changes its share of the
+    // total (user 2026-10-14). The other hand counts with its own bare-hands floor.
+    let other_hand = if ch.class == Class::Assassin {
+        let other = if slot == EquipmentSlot::Weapon { EquipmentSlot::Shield } else { EquipmentSlot::Weapon };
+        match ch.equipment.0[other].as_ref().map(|w| &w.typ) {
+            Some(&ItemType::Weapon { min_dmg, max_dmg }) => effective_avg_damage(ch.class, ch.level, !secondary, min_dmg, max_dmg),
+            _ => effective_avg_damage(ch.class, ch.level, !secondary, 0, 0),
+        }
+    } else {
+        0.0
+    };
+    let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg) + other_hand, total);
     // Reference: the weapon worn in this slot (bare hands without one) with the character's current main attribute
     let ref_avg = match ch.equipment.0[slot].as_ref().map(|w| &w.typ) {
         Some(&ItemType::Weapon { min_dmg, max_dmg }) => effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg),
         _ => effective_avg_damage(ch.class, ch.level, secondary, 0, 0),
     };
-    let damage_ref = weapon_value(ref_avg, total);
-    damage_points(damage, damage_ref, total) + others
+    let damage_ref = weapon_value(ref_avg + other_hand, total);
+    // A main attribute bonus of the weapon (or its gem) is worth exactly one point each, it is not weighed like damage
+    damage_points(damage, damage_ref, total) + (with_this - total) + others
 }
 
 /// Weapon damage on the same scale as attribute points (user 2026-10-14: a weapon with Luck/secondary stats must not win on
 /// damage alone). One point of the main attribute raises damage by 1 / (20 + M) of the reference damage, so
 /// `ratio × (20 + M)` is the damage expressed in main attribute points.
+/// Simulated 2026-10-14 (`weaponsim.rs`): +1 % damage is worth 0.75 of the (20 + M) / 100 main attribute points above
+/// (a main point adds 1/(20+M) of the damage against a stronger and 2/(20+M) against a weaker enemy, 1.5 on average).
+const DAMAGE_WEIGHT: f64 = 0.75;
+
 fn damage_points(damage: f64, damage_ref: f64, main_total: f64) -> f64 {
     if damage_ref <= 0.0 {
         return damage;
     }
-    damage / damage_ref * (20.0 + main_total)
+    DAMAGE_WEIGHT * damage / damage_ref * (20.0 + main_total)
 }
 
 /// A gem of the class's main attribute worth `power` (the stand-in for "a gem we will get").
@@ -140,7 +156,7 @@ fn expected_gem(class: Class, power: f64) -> Gem {
 }
 
 /// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
-/// + their other stats (80 % CON, 40 % LCK, 10 % secondary; the main one is already in the damage via M).
+/// + their other stats (80 % CON, 15 % LCK, 10 % secondary; the main one is already in the damage via M).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
 /// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
 /// A socketed gem is counted fully, an empty gem slot at `POTENTIAL_SHARE` of the best gem we have (user 2026-10-12).
@@ -349,22 +365,29 @@ mod tests {
         let g = |typ| Gem { typ, value: 100 };
         assert_eq!(gem_effect(Class::Bard, g(GemType::Intelligence)), (100.0, 0.0));
         assert_eq!(gem_effect(Class::Bard, g(GemType::Constitution)), (0.0, 80.0));
-        assert_eq!(gem_effect(Class::Bard, g(GemType::Luck)), (0.0, 40.0));
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Luck)), (0.0, 100.0 * LUCK_WEIGHT));
         assert_eq!(gem_effect(Class::Bard, g(GemType::Strength)), (0.0, 10.0));
         let (main, other) = gem_effect(Class::Bard, g(GemType::All));
         assert_eq!(main, 100.0);
-        assert!((other - 140.0).abs() < 1e-9);
+        assert!((other - (80.0 + 100.0 * LUCK_WEIGHT + 20.0)).abs() < 1e-9);
     }
 
     #[test]
     fn damage_points_share_the_scale_of_attributes() {
-        // +1 main attribute on the same weapon = +1 point
+        // +10 % damage at M = 100 is worth 12 points × DAMAGE_WEIGHT = 9, so +15 LCK (2.25 points) does not beat it
         let base = weapon_value(30.0, 100.0);
-        let plus = weapon_value(30.0, 101.0);
-        assert!((damage_points(plus, base, 100.0) - damage_points(base, base, 100.0) - 1.0).abs() < 0.05);
-        // +10 % damage at M = 100 is worth 12 points, so +15 LCK (6 points) does not beat it but +40 LCK would
         let better = weapon_value(33.0, 100.0);
-        assert!((damage_points(better, base, 100.0) - damage_points(base, base, 100.0) - 12.0).abs() < 1e-9);
+        assert!((damage_points(better, base, 100.0) - damage_points(base, base, 100.0) - 12.0 * DAMAGE_WEIGHT).abs() < 1e-9);
+    }
+
+    #[test]
+    fn assassin_weapon_is_only_its_share_of_both_hands() {
+        // Both hands 40 + 40: +10 % on one weapon is +5 % of the total damage, half of what a single-weapon class gets
+        let (m, ratio_single, ratio_pair): (f64, f64, f64) = (100.0, 1.10, (44.0 + 40.0) / 80.0);
+        assert!((ratio_pair - 1.05).abs() < 1e-9);
+        let single = damage_points(weapon_value(40.0 * ratio_single, m), weapon_value(40.0, m), m);
+        let pair = damage_points(weapon_value(80.0 * ratio_pair, m), weapon_value(80.0, m), m);
+        assert!(((pair - 120.0 * DAMAGE_WEIGHT) * 2.0 - (single - 120.0 * DAMAGE_WEIGHT)).abs() < 1e-9);
     }
 
     #[test]
