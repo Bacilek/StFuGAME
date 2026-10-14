@@ -263,6 +263,19 @@ async fn ensure_room(session: &mut SimpleSession, hunt: Hunt) -> Result<bool, Ou
     Ok(true)
 }
 
+/// Uncapped per-character journal of hunts (`roster/<character>/logs/hunts.log`): the progress log keeps only 100
+/// messages, too few to judge how often the scrapbook hunt finds an opponent and how many items a win adds.
+fn journal(line: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("hunts.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {line}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
 fn scrap_count(session: &SimpleSession) -> usize {
     session.game_state().and_then(|gs| gs.character.scrapbook.as_ref().map(|s| s.items.len())).unwrap_or(0)
 }
@@ -297,6 +310,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Ok(Some(n)) => n,
         Ok(None) => {
             report!("[hunt] No clearly weaker opponent found");
+            journal(&format!("{hunt:?} | no clearly weaker opponent"));
             if hunt == Hunt::Scrapbook
                 && let Ok(mut n) = NEXT_SCRAPBOOK.lock()
             {
@@ -343,11 +357,18 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
     let scrap_before = scrap_count(session);
     report!("[hunt] Fighting {name}");
+    let mut result = "failed";
     let session_lost = match safe::send(session, Command::Fight { name: name.clone(), use_mushroom: false }).await {
         Ok(gs) => {
             match &gs.last_fight {
-                Some(f) => report!("[hunt] {} against {name}", if f.has_player_won { "Win" } else { "Loss" }),
-                None => report!("[hunt] Fight done, the server sent no result"),
+                Some(f) => {
+                    result = if f.has_player_won { "win" } else { "loss" };
+                    report!("[hunt] {} against {name}", if f.has_player_won { "Win" } else { "Loss" });
+                }
+                None => {
+                    result = "no result";
+                    report!("[hunt] Fight done, the server sent no result");
+                }
             }
             false
         }
@@ -357,12 +378,15 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     };
 
+    let mut scrap = String::new();
     if hunt == Hunt::Scrapbook {
         if safe::send(session, Command::ViewScrapbook).await.is_ok() {
             let after = scrap_count(session);
             report!("[hunt] Scrapbook: {scrap_before} -> {after} items");
+            scrap = format!(" | scrapbook {scrap_before} -> {after}");
         }
     }
+    journal(&format!("{hunt:?} | vs {name} | {result}{scrap}"));
 
     // Always put the item(s) back on
     for (slot, bag, item_ident) in stripped {

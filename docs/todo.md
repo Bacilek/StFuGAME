@@ -51,14 +51,14 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] Zrušit upgrade sekundárních atributů (`src/attributes.rs`) – ani 10 %.
 
 ### Balíček F – Arena / Hall of Fame / Scrapbook
-- [ ] Jak dobře funguje útočení v Hall of Fame na doplnění scrapbooku? Kdy, kolikrát, úspěšnost – vyhodnotit z logů.
+- [ ] Jak dobře funguje útočení v Hall of Fame na doplnění scrapbooku? Kdy, kolikrát, úspěšnost – vyhodnotit z logů. (2026-10-14: přidán trvalý deník `roster/<postava>/logs/hunts.log`; po pár dnech běhu z něj spočítat počet hledání / nenalezení / výher a přírůstek itemů na výhru.)
 - [x] Pagan "nejel Arenu" (2026-10-14): jezdil každý den (10 výher 11.–14.), řádek 13.10. v `history.csv` měl `arena_wins`=0 (server čítač `fights_for_xp` se už vynuloval). Opraveno: `arena::xp_wins_today` (z deníku) + max; řádek opraven ručně.
 - [x] HoF "day 6" (13.10.): vysvětleno, žádná chyba – rank je relativní (honor roste ~100–180/den, ale ostatní hráči serveru rostou rychleji, rank se u Květoše/Wecrose/Sanka/Mimimimi11 zhoršil o ~500–900). Nic k opravě.
 
 ### Balíček G – GUI / dashboard (`src/dashboard.html`, `src/app.rs`)
 - [x] Dlaždice postav: timestamp snapshotu/stavu (hotovo 2026-10-14, `app.html`).
 - [x] "Why up": guild "(x%/y%)", upgrade jen "+x %" (hotovo 2026-10-14, `roster::changes`).
-- [ ] Taby přejmenovány (hotovo 2026-10-14, `METRICS` v `dashboard.html`); ZBÝVAJÍ ikonky ze hry (nejdřív zjistit, co je v assetech): "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
+- [ ] Taby přejmenovány (hotovo 2026-10-14, `METRICS` v `dashboard.html`); ZBÝVAJÍ ikonky ze hry (2026-10-14: v `roster/assets/` jsou jen sprity itemů 1–20, žádné UI ikony zlata/XP/hub/HoF/scrapbooku – user musí říct, odkud je vzít, nebo jestli stačí vlastní SVG): "Gold", "XP", "Shrooms", "Arena", "Dungeon", "Hall of Fame", "Power", "Win Rate", "Scrapbook"; ikonky ze hry (min. Gold, XP, Shrooms, Hall of Fame, Scrapbook) – nejdřív zjistit, co se dá ve hře/assetech najít, pak implementovat.
 - [x] Autostart s Windows (hotovo 2026-10-14, `app::ensure_autostart`, klíč HKCU Run, jen release exe; user 2026-10-14: ano, autostart; pozor na pravidlo: postavy se spouští jen podle poslední volby v `roster/switches.json`).
 - [x] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 

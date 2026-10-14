@@ -32,3 +32,6 @@ Chlamydie 14.76 % (370 = items + monsters), Květoš 12.37 % (310), Wecros 12.09
 
 ## Event/daily fight tasks ride along with the scrapbook (2026-10-12, user allowed it)
 For the Ruffian event (and the daily class tasks) the user allowed combining: the task hunts themselves now pick the scrapbook-useful opponent. `hunt::find_opponent` (all hunts except the back-to-back streak, the scrapbook hunt and attack-me): inspects up to 5 players per Hall of Fame page (was 3), and among the clearly weaker ones (same power ratios as before) takes the one wearing the most items missing from our scrapbook; if the page has none it looks at up to 3 pages before it settles for the first valid candidate. The "win back to back" task keeps the plain weakest-first search (a loss would reset the streak; ratio 0.3). Tasks still decide WHEN and against which class; the dedicated `Hunt::Scrapbook` stays reserved for free time. Cost: a few more `ViewPlayer` per hunt.
+
+## Hunt journal (2026-10-14)
+`roster/<character>/logs/hunts.log` (uncapped, `hunt::journal`): one line per hunt attempt – `Scrapbook | vs <name> | win | scrapbook A -> B` or `Scrapbook | no clearly weaker opponent`. Use it to measure the success rate (searches that find nobody, wins, items added per win) instead of the 100-message progress log.
