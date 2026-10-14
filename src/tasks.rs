@@ -56,7 +56,7 @@ macro_rules! send_or_return {
 }
 
 /// Claims every chest (daily, event) that has enough points.
-async fn claim_chests(session: &mut SimpleSession) -> Outcome {
+pub async fn claim_chests(session: &mut SimpleSession) -> Outcome {
     for _ in 0..6 {
         let Some(gs) = session.game_state() else { return Outcome::Done };
         let t = &gs.specials.tasks;

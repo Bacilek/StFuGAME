@@ -208,6 +208,12 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             }
         }
 
+        // Gleeman chests right away: the Tavern branch below `continue`s the pass before `tasks::run`, so a character busy
+        // with expeditions never reached it (TestChar1: 12 points, chests 1+2 unopened, 2026-10-14)
+        if let tavern::Outcome::SessionLost = tasks::claim_chests(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+
         // Daily report for the character challenge at ~23:50 (roster/, local only) + simulated duels at 23:40
         // (win rate for the dashboard). Checked up here, before the Tavern section below, which `continue`s the
         // loop (skipping everything after it) on almost every pass while an expedition is actively progressing –
