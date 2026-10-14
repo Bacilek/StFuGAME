@@ -3,6 +3,8 @@
 Updated: 2026-10-14. Rewrite after every bigger change.
 
 - **Expedition reward order (2026-10-14, user, backlog package D):** `tavern::choose_reward` = mushrooms > gold > hourglasses > other >>> Fortress wood/stone; the leftover-expedition special case (hourglasses before gold) and `fortress_room` are gone. Tests pass; needs a release rebuild.
+- **Backlog D investigated (2026-10-14):** Pjotr not drinking the INT potions and Mrožik holding 2× Eternal Life are by design (see `docs/todo.md`), no code change; open question to the user: cap the Eternal Life stock at 1?
+
 
 - **Filminy was kicked from the guild BlueBerryYumYum (user 2026-10-14, evening).** The guild logic (`guild.rs`, quick-join list every 6 h) should join a new one on its own; check `[Filminy]` `[guild]` lines after the start.
 

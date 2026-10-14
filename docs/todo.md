@@ -42,8 +42,8 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 ### Balíček D – Expedice a lektvary (`src/tavern.rs`, `src/potions.rs`)
 - [x] Ověřit/nastavit pořadí odměn: houby > zlato > hodiny >>> suroviny pevnosti. (hotovo 2026-10-14, `tavern::choose_reward`)
 - [x] Drobný zbytek Thirst for Adventure: upřednostnit zlato před hodinami (zrušit dosavadní preferenci hodin pro "leftover" expedici; upravit CLAUDE.md pravidlo Tavern/Rewards). (hotovo 2026-10-14)
-- [ ] Pjotr: má vypité medium INT potion (zbývá 1 den) a v inventu 2 další medium INT – proč si je nedá? Ověřit logiku, hlídat místo v batohu (bot musí upřednostnit zbavit se potionů před jinými věcmi / vypít stejný pro prodloužení).
-- [ ] Mrožik drží 2× Eternal Life potion?? Zjistit proč.
+- [x] Pjotr: má vypité medium INT potion (zbývá 1 den) a v inventu 2 další medium INT – proč si je nedá? Ověřit logiku, hlídat místo v batohu (bot musí upřednostnit zbavit se potionů před jinými věcmi / vypít stejný pro prodloužení). **Vyšetřeno 2026-10-14: není to chyba.** Active INT 15 % (zbývá ~11 h) + v batohu 2×15 % a 2×10 %: `bag_step` pije jen typ, který NENÍ aktivní (stejný typ by přepsal zbývající čas), a nový se vypije hned, jak ten aktivní vyprší. Batoh měl 2 volné sloty, takže ani žádný tlak na místo. Stock 4 lektvary je schválený limit.
+- [x] Mrožik drží 2× Eternal Life potion?? Zjistit proč. **Vyšetřeno 2026-10-14: záměr, ne chyba.** Eternal Life má importance 1e6, takže ho `trim_stock` nikdy neprodá a `shop_step` ho kupuje do zásoby (aktivní má 25 %, v batohu 2× další). Zabírají sloty, ale nepropadnou; pokud to uživatele obtěžuje, omezit zásobu EL na 1 (zeptat se).
 
 ### Balíček E – Předměty, staty, gemy (`src/inventory.rs`, `docs/inventory.md`)
 - [ ] Smysluplné počítání statů s gemy: např. 44 CON item + 66 CON gem > 46 STR item; item s prázdným slotem – jak hodnotit potenciální gem (navazuje na precedent 2026-10-12 "empty slot counts a part"). Na nižších levelech se obměňuje často, do budoucna ne.
