@@ -2,6 +2,8 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Release built 2026-10-14 (evening)** with the 1–2 soldier raids and the unified loop timing (`schedule.rs`); the user starts the bot. After the start check: fortress raids with 1–2 soldiers, the `[tavern] … is due while waiting` lines, Arena/fortress not waiting for the expedition end.
+
 - **Loop timing unified (2026-10-14, user chose option b, backlog package C):** new `src/schedule.rs` (`schedule::next(gs, expedition)` = nearest of Arena/hunts incl. scrapbook, Dungeons, City Guard, midnight, daily reward, report, duel round, fortress, expedition end). The main loop sleeps on it (max 30 min, min 60 s + jitter); the Tavern expedition wait wakes for Arena/Dungeons as before and now also leaves the wait (returns to the main loop) when anything else falls due. Scrapbook: after the 10 XP wins a search runs every Arena cooldown; after a fruitless search `NEXT_SCRAPBOOK` pauses 30 min (the loop then sleeps up to 30 min on purpose). Compiles, 73 tests pass; needs a release rebuild; not live yet.
 
 - **Raids with 1–2 soldiers (2026-10-14, user):** `fortress::soldiers_for`, see `docs/fortress.md`; needs another release rebuild.

@@ -63,6 +63,7 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 
 ### Balíček H – Monitoring / ověřování (bez kódu)
+- [ ] Gemy ve snapshotech a výpočtech (user 2026-10-14): ověřit, zda snapshot postavy / inventáře (`now.json`, `days/<date>.json`, karta) ukládá gemy – jak v itemech (socket slotech), tak volné gemy mimo sloty (inventář / Gem Mine); a zda win-rate simulace (`tournament.rs`) a výpočet power (`arena::power`, `roster::derived`) s gemy počítají (bonus atributů z gemů v itemech). Navazuje na Balíček E (gemy v hodnocení itemů).
 - [ ] Dungeon se na hlavní postavě odemkl až na lvl 31 místo 30 (dřív bylo potřeba najít klíč od dungeonu, teď si user klíče nevšiml) – jen monitorovat na postavách, že se další dungeon získá (user 2026-10-14).
 - [ ] TestChar: dělá daily quests? Ověřit v logu.
 
