@@ -63,9 +63,9 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] NOVÝ Fortress tab v aplikaci: dlaždice postav jako v ostatních tabech – levely budov, čas snapshotu, suroviny (kolik z kolika), plán co dál, vojáci atd. (user 2026-10-14)
 
 ### Balíček H – Monitoring / ověřování (bez kódu)
-- [ ] Gemy ve snapshotech a výpočtech (user 2026-10-14): ověřit, zda snapshot postavy / inventáře (`now.json`, `days/<date>.json`, karta) ukládá gemy – jak v itemech (socket slotech), tak volné gemy mimo sloty (inventář / Gem Mine); a zda win-rate simulace (`tournament.rs`) a výpočet power (`arena::power`, `roster::derived`) s gemy počítají (bonus atributů z gemů v itemech). Navazuje na Balíček E (gemy v hodnocení itemů).
+- [x] (ověřeno ve zdroji 2026-10-14: sf-api `UpgradeableFighter` počítá vložené gemy do atributů pro simulaci, server totals/`attrs_total` je obsahují, snapshot batohu ukládá `Gem` itemy a stav gem slotu v popisu; Gem Mine zásoba mimo batoh se neukládá) Gemy ve snapshotech a výpočtech (user 2026-10-14): ověřit, zda snapshot postavy / inventáře (`now.json`, `days/<date>.json`, karta) ukládá gemy – jak v itemech (socket slotech), tak volné gemy mimo sloty (inventář / Gem Mine); a zda win-rate simulace (`tournament.rs`) a výpočet power (`arena::power`, `roster::derived`) s gemy počítají (bonus atributů z gemů v itemech). Navazuje na Balíček E (gemy v hodnocení itemů).
 - [ ] Dungeon se na hlavní postavě odemkl až na lvl 31 místo 30 (dřív bylo potřeba najít klíč od dungeonu, teď si user klíče nevšiml) – jen monitorovat na postavách, že se další dungeon získá (user 2026-10-14).
-- [ ] TestChar: dělá daily quests? Ověřit v logu.
+- [ ] TestChar1 daily quests: úkoly plní (Arena 10/10, Druid 3/3), ALE truhly za 5 a 10 bodů zůstaly při 12 bodech neotevřené (`quests.json` 16:57) a v logu nejsou žádné `[tasks]` řádky. Po restartu hledat `[tasks] Claiming` u TestChar1; podezření: průchod se na TestChar1 často vrací dřív (Tavern větev `continue`) než dojde na `tasks::run`.
 
 ## Soutěž postav s kamarády
 - Vše o soutěži (plán, soupiska, reporty) je jen lokálně v `roster/` (`roster/plan.md`, `roster/README.md`).
