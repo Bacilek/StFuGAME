@@ -113,10 +113,25 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, potential: Optio
     let with_this = total - equipped + f64::from(item.attributes[main]) + gem_main;
     // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
     let others = score(ch.class, item) - f64::from(item.attributes[main]) + gem_other;
-    weapon_value(
-        effective_avg_damage(ch.class, ch.level, ch.class == Class::Assassin && slot == EquipmentSlot::Shield, min_dmg, max_dmg),
-        with_this,
-    ) + others
+    let secondary = ch.class == Class::Assassin && slot == EquipmentSlot::Shield;
+    let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg), with_this);
+    // Reference: the weapon worn in this slot (bare hands without one) with the character's current main attribute
+    let ref_avg = match ch.equipment.0[slot].as_ref().map(|w| &w.typ) {
+        Some(&ItemType::Weapon { min_dmg, max_dmg }) => effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg),
+        _ => effective_avg_damage(ch.class, ch.level, secondary, 0, 0),
+    };
+    let damage_ref = weapon_value(ref_avg, total);
+    damage_points(damage, damage_ref, total) + others
+}
+
+/// Weapon damage on the same scale as attribute points (user 2026-10-14: a weapon with Luck/secondary stats must not win on
+/// damage alone). One point of the main attribute raises damage by 1 / (20 + M) of the reference damage, so
+/// `ratio × (20 + M)` is the damage expressed in main attribute points.
+fn damage_points(damage: f64, damage_ref: f64, main_total: f64) -> f64 {
+    if damage_ref <= 0.0 {
+        return damage;
+    }
+    damage / damage_ref * (20.0 + main_total)
 }
 
 /// A gem of the class's main attribute worth `power` (the stand-in for "a gem we will get").
@@ -339,6 +354,17 @@ mod tests {
         let (main, other) = gem_effect(Class::Bard, g(GemType::All));
         assert_eq!(main, 100.0);
         assert!((other - 140.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn damage_points_share_the_scale_of_attributes() {
+        // +1 main attribute on the same weapon = +1 point
+        let base = weapon_value(30.0, 100.0);
+        let plus = weapon_value(30.0, 101.0);
+        assert!((damage_points(plus, base, 100.0) - damage_points(base, base, 100.0) - 1.0).abs() < 0.05);
+        // +10 % damage at M = 100 is worth 12 points, so +15 LCK (6 points) does not beat it but +40 LCK would
+        let better = weapon_value(33.0, 100.0);
+        assert!((damage_points(better, base, 100.0) - damage_points(base, base, 100.0) - 12.0).abs() < 1e-9);
     }
 
     #[test]
