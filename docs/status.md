@@ -2,6 +2,7 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Dungeons on the chart-day card (2026-10-14, user report):** the card showed the live dungeon list for every day. `snapshot()` now stores `dungeon_list` in `days/<date>.json`, `write_dashboard` forwards it, the card reads it ("No snapshot for this day yet." for older days). Needs a release rebuild (the bot is running now; exit it first). Also still pending in that rebuild: the Arena wins fix for catch-up reports.
 - **Correction (2026-10-14):** Pagan's 13.10. report was a catch-up written 00:05 on the 14th (bot was off over midnight), so the server counter was already the new day's. `write_day` now takes the Arena wins for the report date from the journal (`arena::xp_wins_on(date)`), max with the counter only for today. Needs another release rebuild (the one built earlier today has the wrong-day variant).
 - **Release built 2026-10-14 (late)** with packages F/G/H changes (journal-based Arena wins, shorter tab/Why-up texts, tile timestamp, Windows autostart – the exe registers itself in HKCU Run on its first start, so start it once by hand). Check: TestChar1 `[tasks] Claiming`, autostart after the next Windows login.
 - **Package H checked (2026-10-14):** gems are counted by the simulation and totals (source-verified). NEW finding: TestChar1 has 12 daily points but chests 1+2 unopened and no `[tasks]` lines in its log – see the open item in `docs/todo.md` (package H); verify after the next restart.

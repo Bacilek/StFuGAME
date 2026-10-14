@@ -199,6 +199,21 @@ struct Snapshot {
 const CSV_HEADER: &str = "date,level,rank,honor,power,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,\
 gold_gained,mushrooms_gained,xp_gained,dungeons,class";
 
+/// Dungeons that are open or finished (name, enemies done, finished) for the card; part of the daily snapshot too.
+fn dungeon_list(gs: &GameState) -> Vec<serde_json::Value> {
+    gs.dungeons
+        .light
+        .iter()
+        .map(|(d, p)| (format!("{d:?}"), p))
+        .chain(gs.dungeons.shadow.iter().map(|(d, p)| (format!("Shadow {d:?}"), p)))
+        .filter_map(|(name, p)| match p {
+            DungeonProgress::Open { finished } => Some(serde_json::json!({ "name": name, "done": finished, "finished": false })),
+            DungeonProgress::Finished => Some(serde_json::json!({ "name": name, "done": 10, "finished": true })),
+            DungeonProgress::Locked => None,
+        })
+        .collect()
+}
+
 /// Dungeon enemies defeated so far (a finished dungeon counts as 10).
 fn dungeons_defeated(gs: &GameState) -> u32 {
     let count = |p: &DungeonProgress| match p {
@@ -576,6 +591,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
         "potion_items": c.active_potions.iter().flatten().map(potion_json).collect::<Vec<_>>(),
         "derived": derived(gs),
         "guild": gs.guild.as_ref().map(|g| g.name.clone()),
+        "dungeon_list": dungeon_list(gs),
         "guild_bonus": gs.guild.as_ref().map(|g| format!("{}/{}", g.total_instructor_skill, g.total_treasure_skill)),
         "scrapbook": gs.character.scrapbook.as_ref().map(crate::scrapbook::json),
         "gleeman": gleeman(gs),
@@ -738,18 +754,7 @@ fn card_data(gs: &GameState) -> serde_json::Value {
             j
         })
         .collect();
-    let dungeons: Vec<serde_json::Value> = gs
-        .dungeons
-        .light
-        .iter()
-        .map(|(d, p)| (format!("{d:?}"), p))
-        .chain(gs.dungeons.shadow.iter().map(|(d, p)| (format!("Shadow {d:?}"), p)))
-        .filter_map(|(name, p)| match p {
-            DungeonProgress::Open { finished } => Some(serde_json::json!({ "name": name, "done": finished, "finished": false })),
-            DungeonProgress::Finished => Some(serde_json::json!({ "name": name, "done": 10, "finished": true })),
-            DungeonProgress::Locked => None,
-        })
-        .collect();
+    let dungeons = dungeon_list(gs);
     let scrapbook = c.scrapbook.as_ref().map(|s| s.items.len() + s.monster.len());
     let scrapbook_pct = c.scrapbook.as_ref().map(|s| crate::scrapbook::stats(s).game_pct());
     let ach = &gs.achievements;
@@ -1037,7 +1042,7 @@ fn write_dashboard(demo: bool) {
                     // had *on this date*, not today's live state – e.g. Day 0 must show no equipment bonus.
                     "level": num(r, "level"), "honor": num(r, "honor"),
                     "gold_now": num(r, "gold"), "mushrooms_now": num(r, "mushrooms"), "lucky_coins_now": num(r, "lucky_coins"),
-                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "potion_items": get("potion_items"), "derived": get("derived"), "guild_day": get("guild"), "scrapbook_pct": snap.map_or(serde_json::Value::Null, |s| s["scrapbook"]["pct"].clone()),
+                    "attrs_total": get("attrs_total"), "potions_day": get("potions"), "potion_items": get("potion_items"), "derived": get("derived"), "dungeon_list": get("dungeon_list"), "guild_day": get("guild"), "scrapbook_pct": snap.map_or(serde_json::Value::Null, |s| s["scrapbook"]["pct"].clone()),
                 }),
             );
         }

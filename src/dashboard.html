@@ -454,7 +454,7 @@ function openCard(i){
   const c = DATA.chars[i], n = c.now, body = $("cardbody"); body.replaceChildren();
   // Everything in this card reflects the selected chart day's end-of-day snapshot (`c.rows[dayDate]`), not
   // today's live state – e.g. Day 0 must show no equipment bonus (user 2026-10-09). Only what has no daily
-  // history at all (achievements, collection, XP progress, dungeon list, activity, "updated") falls back to
+  // history at all (achievements, collection, XP progress, activity, "updated") falls back to
   // the live "now" data, and is labelled "now" below so it isn't mistaken for that day's value.
   const dayDate = DATA.dates[upto-1];
   const d = (c.rows||{})[dayDate] || null;
@@ -478,14 +478,17 @@ function openCard(i){
   }
   charPanel(body, {cls:c.cls, name:c.nick, guild:d?.guild_day, level:lvl, portrait:encodeURIComponent(c.nick)+"/portrait.png",
     equip:d?.equip, attrs:d?.attrs_total, potions:d?.potion_items || (d?.potions_day||[]).map(t=>({t})), derived:d?.derived});
-  if (n){
-    el2("div","sec","Dungeons (now)");
+  // The day's own dungeons come from its snapshot (older days have none)
+  el2("div","sec","Dungeons");
+  const dl = d?.dungeon_list;
+  if (!Array.isArray(dl)) el2("div","muted","No snapshot for this day yet.");
+  else {
     const dt = el2("table","mini");
     // Only dungeons still in progress; finished ones drop off (user 2026-10-09)
-    const openDg = n.dungeons.filter(dg=>!dg.finished);
+    const openDg = dl.filter(dg=>!dg.finished);
     if (!openDg.length) el2("div","muted","No dungeon in progress");
     openDg.forEach(dg=>{ const r=dt.insertRow(); r.insertCell().textContent = dg.name.replace(/([a-z])([A-Z])/g,"$1 $2");
-      const c2=r.insertCell(); c2.textContent = dg.finished ? "done" : `${Math.min(10,dg.done+1)}/10`; const pr=document.createElement("span"); pr.className="prog";
+      const c2=r.insertCell(); c2.textContent = `${Math.min(10,dg.done+1)}/10`; const pr=document.createElement("span"); pr.className="prog";
       const fill=document.createElement("i"); fill.style.width=Math.min(100,(dg.done+1)*10)+"%"; pr.appendChild(fill); c2.appendChild(pr); });
   }
   $("card").showModal();
