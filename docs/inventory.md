@@ -33,6 +33,9 @@
 | Assassin off-hand weapon (Shield slot) gets filled/upgraded correctly | ⏳ not verified (no Assassin has run yet) |
 - 2026-10-10: a weapon weaker than the bare-hand damage (min and max both below) is ignored by the game, so its value is the hands'. Decisions (equip/sell, shop weapon offers) are journaled in `roster/<character>/logs/inventory.log`.
 
+## Weapon damage on the attribute scale (2026-10-14, user)
+Before, weapon damage (avg × (1 + M/20), thousands) was added to the weapon's other stats (tens of points), so Luck/secondary stats never mattered. Now `inventory::damage_points` converts the damage to main-attribute points relative to the weapon worn in that slot (bare hands without one): `damage / damage_ref × (20 + M)`, i.e. +1 main attribute point = +1 value, +10 % damage at M = 100 = +12 points. The weapon's other stats (80 % CON, 40 % LCK, 10 % secondary) are added as before. After the next release build check `inventory.log`: a clearly stronger weapon still wins, near-equal ones now go by their stats.
+
 ## Gem-aware item comparison (2026-10-12, user)
 Rule stays: better equipment (raw power by our formula, armor and item quality ignored unless the items are otherwise identical) is kept, worse is sold, epics are never sold (kept for the toilet of the gods). New: gems count (`inventory::value_core`).
 - A SOCKETED gem counts fully for the item (it cannot be taken out, so swapping the item loses it): main-attribute gem → main attribute (for weapons into the damage multiplier), Constitution 80 %, Luck 40 %, a secondary attribute 10 %, All/Legendary all of them (`gem_effect`).

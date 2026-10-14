@@ -46,8 +46,8 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] Mrožik drží 2× Eternal Life potion?? Zjistit proč. **OPRAVENO 2026-10-14:** druhý EL v batohu se vypije a prodlouží aktivní (+7 dní); chybí-li aktivní EL, vymění nejslabší vypitý (existující `swap_secondary`).
 
 ### Balíček E – Předměty, staty, gemy (`src/inventory.rs`, `docs/inventory.md`)
-- [ ] Smysluplné počítání statů s gemy: např. 44 CON item + 66 CON gem > 46 STR item; item s prázdným slotem – jak hodnotit potenciální gem (navazuje na precedent 2026-10-12 "empty slot counts a part"). Na nižších levelech se obměňuje často, do budoucna ne.
-- [ ] Lepší porovnání zbraní: u spousty postav zbraň s Luck / sekundárními (useless) staty, protože se bere hlavně damage – zohlednit hodnotu statů.
+- [x] (už hotovo 2026-10-12, `docs/inventory.md`) Smysluplné počítání statů s gemy: např. 44 CON item + 66 CON gem > 46 STR item; item s prázdným slotem – jak hodnotit potenciální gem (navazuje na precedent 2026-10-12 "empty slot counts a part"). Na nižších levelech se obměňuje často, do budoucna ne.
+- [x] (hotovo 2026-10-14, `inventory::damage_points`; čeká na release build + kontrolu `inventory.log`) Lepší porovnání zbraní: u spousty postav zbraň s Luck / sekundárními (useless) staty, protože se bere hlavně damage – zohlednit hodnotu statů.
 - [x] Zrušit upgrade sekundárních atributů (`src/attributes.rs`) – ani 10 %.
 
 ### Balíček F – Arena / Hall of Fame / Scrapbook

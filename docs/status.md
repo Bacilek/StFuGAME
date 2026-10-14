@@ -2,6 +2,7 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Weapon comparison rescaled (2026-10-14, backlog package E):** `inventory::damage_points` puts weapon damage on the attribute-point scale so Luck/CON/secondary stats of a weapon finally count (`docs/inventory.md`). The gem-aware item value was already done on 2026-10-12. Tests pass; needs a release rebuild, then read `inventory.log` / shop weapon offers. Next open packages: F (log analysis: scrapbook hunts, Pagan's Arena, HoF chart day 6), G (GUI), H (monitoring, gems in snapshots).
 - **Expedition reward order (2026-10-14, user, backlog package D):** `tavern::choose_reward` = mushrooms > gold > hourglasses > other >>> Fortress wood/stone; the leftover-expedition special case (hourglasses before gold) and `fortress_room` are gone. Tests pass; needs a release rebuild.
 - **Potions fixed (2026-10-14, user):** `potions::bag_step` drinks a bag potion of the same type+size as an active target at once (extends +3 days, EL +7); backlog D "by design" verdict retracted. Needs a release rebuild.
 
