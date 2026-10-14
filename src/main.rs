@@ -32,6 +32,8 @@ mod stable;
 mod tasks;
 mod tavern;
 mod tournament;
+#[cfg(test)]
+mod weaponsim;
 mod tray;
 
 use std::{

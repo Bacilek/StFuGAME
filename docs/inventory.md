@@ -36,6 +36,19 @@
 ## Weapon damage on the attribute scale (2026-10-14, user)
 Before, weapon damage (avg × (1 + M/20), thousands) was added to the weapon's other stats (tens of points), so Luck/secondary stats never mattered. Now `inventory::damage_points` converts the damage to main-attribute points relative to the weapon worn in that slot (bare hands without one): `damage / damage_ref × (20 + M)`, i.e. +1 main attribute point = +1 value, +10 % damage at M = 100 = +12 points. The weapon's other stats (80 % CON, 40 % LCK, 10 % secondary) are added as before. After the next release build check `inventory.log`: a clearly stronger weapon still wins, near-equal ones now go by their stats.
 
+### Simulation check of the weights (2026-10-14, `src/weaponsim.rs`, ignored tests)
+Run: `CARGO_TARGET_DIR=<elsewhere> cargo test --release weaponsim -- --ignored --nocapture` (needs `roster/*/now.json`, ~2 min). Uses sf-api's `simulate_battle` (armor included, runes/portal 0) against a pool of the 11 roster characters scaled to our main attribute ±20 % (mean win rate ≈ 50 %). Central differences = value of one point in "main attribute points" (= 1.0):
+
+| | measured (mean of 11) | Arena formula |
+|---|---|---|
+| CON | **1.2** (0.8 – 1.6 by class) | 0.8 |
+| LCK | **0.13** | 0.4 |
+| secondary attribute | **0.15** | 0.10 |
+| +1 % weapon damage | **0.70 × (20+M)/100** | (20+M)/100 |
+
+Why damage is 0.7×: the sim's attribute bonus is A = max(M/2, M − M_enemy/2), so a main point is worth 1/(20+M) of the damage against a stronger enemy and 2/(20+M) against a weaker one (mean 1.5 → 0.67). The Assassin (two weapons) measured an outlier (0.64 instead of ~3.9 for 1 % damage per main point) – not understood, treat Assassin weapon results with care.
+Validation on 400 random weapon swaps (damage ×0.8–1.25, ±30 main, −30…+60 CON, −20…+60 LCK, 0…40 secondary) against the simulated win-rate change: old raw-damage formula corr 0.81 / sign 86.5 %, `damage_points` with the Arena weights corr 0.94 / 94.8 %, **calibrated (0.7 × damage, CON 1.2, LCK 0.13, secondary 0.15) corr 0.98 / 98.5 %**. The calibrated weights are NOT in the code yet (user decision pending: they differ from the Arena formula the user dictated).
+
 ## Gem-aware item comparison (2026-10-12, user)
 Rule stays: better equipment (raw power by our formula, armor and item quality ignored unless the items are otherwise identical) is kept, worse is sold, epics are never sold (kept for the toilet of the gods). New: gems count (`inventory::value_core`).
 - A SOCKETED gem counts fully for the item (it cannot be taken out, so swapping the item loses it): main-attribute gem → main attribute (for weapons into the damage multiplier), Constitution 80 %, Luck 40 %, a secondary attribute 10 %, All/Legendary all of them (`gem_effect`).
