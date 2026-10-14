@@ -65,7 +65,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 - Strategy (src/tavern.rs): secure 40 heroism (including bonuses/penalties at the end), then only keys and chests and never drop below 40.
   Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
 - Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.
-- Rewards: mushrooms > gold > hourglasses; for a leftover expedition (Thirst for Adventure ≤ 3 min) mushrooms > hourglasses > gold. NEVER use hourglasses as a *reward preference for skipping* or mushroom skips; beer only per the task exception.
+- Rewards: mushrooms > gold > hourglasses >>> Fortress wood/stone (user 2026-10-14; also for a leftover expedition, no special case). NEVER use hourglasses as a *reward preference for skipping* or mushroom skips; beer only per the task exception.
   **One narrow exception (user 2026-10-08):** `ExpeditionSkipWait { typ: TimeSkip::Glass }` (hourglass, never `Mushroom`) is allowed during the `Waiting` stage, but only when normal waiting would leave less than 15 min before the midnight Thirst for Adventure reset (`tavern::should_skip_wait_with_glass`) – to avoid wasting a late-granted bonus ALU (e.g. from a Gleeman-task beer drunk near/during a City Guard shift, see the City Guard section) instead of letting it reset unused. See `docs/city-guard.md`.
 - Gleeman/event task "travel to <location>": an expedition through that location wins even when longer (user 2026-10-07).
 - Timestamped progress: `logs/progress.log` (output via the `report!` macro, keeps the last 100 messages). Money is always shown in gold (`report::gold`).

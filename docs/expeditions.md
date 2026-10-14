@@ -91,7 +91,7 @@ For an unmapped mission it treats items from the same tens range as the target a
 
 ## Rewards after a boss
 - Normally: mushrooms > gold > hourglasses.
-- Leftover expedition (started with at most 3 min of Thirst for Adventure, i.e. the rest of the day): mushrooms > hourglasses > gold.
+- Leftover expedition (≤ 3 min of Thirst for Adventure): since 2026-10-14 no special case, same order as always (mushrooms > gold > hourglasses >>> Fortress wood/stone).
   It gives little gold (2026-10-07: 9 silver) but the same hourglasses. After a bot restart mid-expedition it is treated as a full one.
 - Hourglasses are never used.
 

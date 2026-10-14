@@ -2,6 +2,8 @@
 
 Updated: 2026-10-14. Rewrite after every bigger change.
 
+- **Expedition reward order (2026-10-14, user, backlog package D):** `tavern::choose_reward` = mushrooms > gold > hourglasses > other >>> Fortress wood/stone; the leftover-expedition special case (hourglasses before gold) and `fortress_room` are gone. Tests pass; needs a release rebuild.
+
 - **Filminy was kicked from the guild BlueBerryYumYum (user 2026-10-14, evening).** The guild logic (`guild.rs`, quick-join list every 6 h) should join a new one on its own; check `[Filminy]` `[guild]` lines after the start.
 
 - **Release built 2026-10-14 (evening)** with the 1–2 soldier raids and the unified loop timing (`schedule.rs`); the user starts the bot. After the start check: fortress raids with 1–2 soldiers, the `[tavern] … is due while waiting` lines, Arena/fortress not waiting for the expedition end.

@@ -40,8 +40,8 @@ Rozhodnutí (už platí, zapsat do `docs/precedents.md` při implementaci): seku
 - [x] Časování smyčky sjednoceno 2026-10-14 (`src/schedule.rs`, `schedule::next`; čeká na release build + živé ověření): smyčka spí do nejbližší události, čekání na expedici se probouzí i pro pevnost, City Guard, půlnoc, denní odměny a reporty.
 
 ### Balíček D – Expedice a lektvary (`src/tavern.rs`, `src/potions.rs`)
-- [ ] Ověřit/nastavit pořadí odměn: houby > zlato > hodiny >>> suroviny pevnosti.
-- [ ] Drobný zbytek Thirst for Adventure: upřednostnit zlato před hodinami (zrušit dosavadní preferenci hodin pro "leftover" expedici; upravit CLAUDE.md pravidlo Tavern/Rewards).
+- [x] Ověřit/nastavit pořadí odměn: houby > zlato > hodiny >>> suroviny pevnosti. (hotovo 2026-10-14, `tavern::choose_reward`)
+- [x] Drobný zbytek Thirst for Adventure: upřednostnit zlato před hodinami (zrušit dosavadní preferenci hodin pro "leftover" expedici; upravit CLAUDE.md pravidlo Tavern/Rewards). (hotovo 2026-10-14)
 - [ ] Pjotr: má vypité medium INT potion (zbývá 1 den) a v inventu 2 další medium INT – proč si je nedá? Ověřit logiku, hlídat místo v batohu (bot musí upřednostnit zbavit se potionů před jinými věcmi / vypít stejný pro prodloužení).
 - [ ] Mrožik drží 2× Eternal Life potion?? Zjistit proč.
 
