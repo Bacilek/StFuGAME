@@ -81,19 +81,26 @@ pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     }
 }
 
-/// Strength of the best gem lying loose in the backpack (ready to be socketed), 0 without one.
-pub fn best_gem_power(gs: &GameState) -> u32 {
+/// The gem lying loose in the backpack (ready to be socketed) that is worth the most to this class, with its REAL type
+/// (user 2026-10-15: Pjotr, a Necromancer, held a Strength gem +86 that was valued like an Intelligence one).
+pub fn best_backpack_gem(gs: &GameState) -> Option<Gem> {
+    let class = gs.character.class;
     gs.character
         .inventory
         .backpack
         .iter()
         .flatten()
         .filter_map(|i| match i.typ {
-            ItemType::Gem(g) => Some(g.value),
+            ItemType::Gem(g) => Some(g),
             _ => None,
         })
-        .max()
-        .unwrap_or(0)
+        .max_by(|a, b| {
+            let worth = |g: &Gem| {
+                let (m, o) = gem_effect(class, *g);
+                m + o
+            };
+            worth(a).total_cmp(&worth(b))
+        })
 }
 
 /// Whether an item deserves a gem (user 2026-10-15): a weapon, or gear with main attribute, CON or LCK of its own. Gems are
@@ -161,19 +168,13 @@ fn damage_points(damage: f64, damage_ref: f64, main_total: f64) -> f64 {
     DAMAGE_WEIGHT * damage / damage_ref * (20.0 + main_total)
 }
 
-/// A gem of the class's main attribute worth `power` (the stand-in for "a gem we will get").
-fn expected_gem(class: Class, power: f64) -> Gem {
-    Gem { typ: main_gem(class), value: power.max(0.0).round() as u32 }
-}
-
 /// Item value for our character in a specific equipment slot: non-weapons by attributes; weapons by damage
 /// + their other stats (80 % CON, 27 % LCK, 10 % secondary; the main one is already in the damage via M).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
 /// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
 /// A socketed gem is counted fully, an empty gem slot only as the loose backpack gem it can take right now (user 2026-10-15).
 fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
-    let power = f64::from(best_gem_power(gs));
-    value_core(gs, item, slot, (power >= 1.0).then(|| expected_gem(gs.character.class, power)))
+    value_core(gs, item, slot, best_backpack_gem(gs))
 }
 
 /// The value the item would have with `gem` in its (empty) slot.
@@ -199,11 +200,10 @@ fn describe(item: &Item) -> String {
 /// An item that is worse only because its gem slot is still empty (user 2026-10-12): with a gem of the strength we mine now
 /// it would beat the equipped one and there is room in the backpack (2 free slots) -> keep it and wait for a gem instead of selling.
 fn keep_for_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, cur: f64) -> bool {
-    let power = best_gem_power(gs);
+    let Some(gem) = best_backpack_gem(gs) else { return false };
     matches!(item.gem_slot, Some(GemSlot::Empty))
-        && power > 0
         && gs.character.inventory.count_free_slots() >= 2
-        && value_with_gem(gs, item, slot, expected_gem(gs.character.class, f64::from(power))) > cur
+        && value_with_gem(gs, item, slot, gem) > cur
 }
 
 /// Next inventory management step, or None when there is nothing to do.
