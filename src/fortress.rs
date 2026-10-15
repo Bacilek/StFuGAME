@@ -620,6 +620,10 @@ pub fn secs_until_due(gs: &GameState) -> Option<u64> {
     if let Some(fin) = f.building_upgrade.finish.filter(|_| f.building_upgrade.target.is_some()) {
         due.push(secs(fin));
     }
+    // A gem search that is still running: wake up when it finishes so the gem is collected at once (the "find a gem" task)
+    if let Some(fin) = f.gem_search.finish.filter(|t| *t > now) {
+        due.push(secs(fin));
+    }
     if f.units[U::Soldier].limit > 0
         && let Ok(next) = NEXT_MILITARY.lock()
         && let Some(t) = *next

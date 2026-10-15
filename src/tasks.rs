@@ -398,30 +398,16 @@ fn pays_mushrooms(c: &RewardChest) -> bool {
     chest_mushrooms(c) >= u64::from(BEER_MUSHROOMS)
 }
 
-/// Should the Gem Mine search for the "Find a gem in the Fortress" task be done now (user 2026-10-15, Mrožik missed it)? The
-/// search costs `cost` silver (+ wood/stone) and the gem has to be collected, so it is only worth it when the task is open
-/// and one of these holds: (a) something we wear has an empty gem slot that deserves a gem, (b) the backpack has room to
-/// spare (2+ free slots), (c) the task is needed to reach an unopened chest that pays more gold than the search costs.
-/// Then `gems.rs` starts the search without the usual gold reserve and collects the gem with a single free slot.
+/// Should the Gem Mine search for the "Find a gem in the Fortress" task be done NOW, ignoring the gold reserve (user 2026-10-15,
+/// Mrožik missed it)? Only when the task is open and its points lift us to an unopened chest that the other open tasks would
+/// not reach and that pays more silver than the search costs (`cost`). Free backpack room or an empty gem slot do NOT lift the
+/// reserve (the normal search rule applies then). `gems.rs` then starts the search with just the `cost` and collects the gem
+/// with a single free slot.
 pub fn gem_task_wanted(gs: &GameState, cost: u64) -> bool {
     let t = &gs.specials.tasks;
-    let lists = [(&t.daily.tasks, &t.daily.rewards), (&t.event.tasks, &t.event.rewards)];
-    let open = |tasks: &[Task]| tasks.iter().any(|t| t.typ == TaskType::FindGemInFortress && !t.is_completed());
-    if !lists.iter().any(|(tasks, _)| open(tasks)) {
-        return false;
-    }
-    let class = gs.character.class;
-    let empty_slot = gs
-        .character
-        .equipment
-        .0
+    [(&t.daily.tasks, &t.daily.rewards), (&t.event.tasks, &t.event.rewards)]
         .iter()
-        .filter_map(|(_, i)| i.as_ref())
-        .any(|i| matches!(i.gem_slot, Some(sf_api::gamestate::items::GemSlot::Empty)) && crate::inventory::worth_a_gem(class, i));
-    if empty_slot || gs.character.inventory.count_free_slots() >= 2 {
-        return true;
-    }
-    lists.iter().any(|(tasks, chests)| gem_task_reaches_gold_chest(&tasks[..], &chests[..], cost))
+        .any(|(tasks, chests)| gem_task_reaches_gold_chest(&tasks[..], &chests[..], cost))
 }
 
 /// The gem task's points lift us above an unopened chest that the other open tasks would not reach, and that chest pays

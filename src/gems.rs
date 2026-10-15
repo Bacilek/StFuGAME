@@ -150,7 +150,14 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     {
         let Ok(mut next) = NEXT.lock() else { return Outcome::Done };
         let now = Local::now();
-        if next.is_some_and(|t| now < t) {
+        // A search that just finished is collected at once, not at the next 10-minute slot (the "find a gem" task has to
+        // be done and its chest claimed before midnight)
+        let ready = session
+            .game_state()
+            .and_then(|gs| gs.fortress.as_ref())
+            .and_then(|f| f.gem_search.finish)
+            .is_some_and(|t| t <= now && last_collected() != Some(t));
+        if !ready && next.is_some_and(|t| now < t) {
             return Outcome::Done;
         }
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -213,8 +220,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
     let cost = f.gem_search.cost;
     let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
-    // With the "find a gem" task worth doing (`tasks::gem_task_wanted`) the 150 g are all that is needed, no reserve
-    let keep = if crate::tasks::gem_task_wanted(gs, cost.silver) {
+    // With the "find a gem" task reaching a gold chest (`tasks::gem_task_wanted`) the 150 g are all that is needed, no reserve
+    // (a search takes 50 min: from 23:00 it would no longer be collected today, so the usual reserve applies then)
+    let keep = if chrono::Timelike::hour(&Local::now()) < 23 && crate::tasks::gem_task_wanted(gs, cost.silver) {
         0
     } else {
         SEARCH_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs)
