@@ -419,6 +419,15 @@ fn item_desc(i: &Item) -> String {
     parts.join(", ")
 }
 
+/// The socketed gem of an item for the app (user 2026-10-15): `{"t": "Strength", "v": 123}`, null without a gem (an empty
+/// or missing slot shows nothing; the colour sprite is picked by the page from `t`).
+fn gem_json(i: &Item) -> serde_json::Value {
+    match i.gem_slot {
+        Some(sf_api::gamestate::items::GemSlot::Filled(g)) => serde_json::json!({ "t": format!("{:?}", g.typ), "v": g.value }),
+        _ => serde_json::Value::Null,
+    }
+}
+
 /// Filename of this item's sprite under `roster/assets/items/` (vendored, local-only, see
 /// `docs/precedents.md`): `{type}_{model}_{color}_{class}.png`, the same naming the game's own web client
 /// uses for its item sprites, reverse-engineered from the (independently open-source) `sf-tools` project.
@@ -569,6 +578,7 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
                     "epic": i.is_epic(),
                     "legendary": i.is_legendary(),
                     "icon": item_icon(i),
+                    "gem": gem_json(i),
                     // Raw ids for debugging wrong sprites (epic icons, 2026-10-10)
                     "raw_model": i.full_model_id,
                     "item_class": format!("{:?}", i.class),
@@ -646,7 +656,7 @@ fn backpack_json(gs: &GameState) -> serde_json::Value {
                         None => {}
                     }
                     serde_json::json!({
-                        "kind": kind, "icon": item_icon(i), "d": d,
+                        "kind": kind, "icon": item_icon(i), "d": d, "gem": gem_json(i),
                         "epic": i.is_epic(), "legendary": i.is_legendary(),
                     })
                 }

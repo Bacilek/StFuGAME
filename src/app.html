@@ -103,6 +103,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .bslot{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink2);text-align:center;padding:2px;overflow:visible}
 .bslot.empty{opacity:.3}
 .bslot img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.gemmark{position:absolute;right:2px;bottom:2px;width:18px;height:18px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 0 1px #000)}
 .bslot.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset}
 .bslot.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
 .bslot .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--page);border-radius:6px;padding:5px 8px;font-size:11px;line-height:1.3;white-space:nowrap;z-index:5;text-align:left}
@@ -346,6 +347,7 @@ function charPanel(parent, o){
     s.style.gridArea = area;
     if (it && it.icon){ const im=mk("img",null,null,s); im.src = it.icon; im.onerror=()=>{im.style.visibility="hidden"}; }
     const tip = mk("div","tip",null,s); mk("b",null,slot,tip); mk("div",null, it ? (it.d||"–") : noHand ? "nothing in the second hand" : "empty", tip);
+    gemMark(s, tip, it && it.gem);
   });
   const at = mk("div","pdattrs",null,gp), dv = o.derived || {};
   const fmt = n => n==null ? "–" : Math.round(n).toLocaleString();
@@ -376,6 +378,15 @@ function charPanel(parent, o){
       c.append(short); }); }
 }
 
+// A socketed gem (user 2026-10-15): a small coloured gem in the slot's corner (sprite per type, `roster/assets/gems/`;
+// "All" and Legendary share the orange one) and a line in the tooltip. `gem` = {t: "Strength", v: 123} or null.
+function gemMark(slot, tip, gem){
+  if (!gem) return;
+  const im = document.createElement("img"); im.className = "gemmark"; im.src = "assets/gems/" + gem.t + ".png";
+  im.onerror = () => im.remove(); slot.appendChild(im);
+  const d = document.createElement("div"); d.textContent = "Gem: " + gem.t + " +" + gem.v; tip.appendChild(d);
+}
+
 function openCard(c){
   const n = c.now, body = $("cardbody"); body.replaceChildren();
   const el = (tag, cls, text, parent=body) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; parent.appendChild(e); return e; };
@@ -403,7 +414,7 @@ function openCard(c){
       const label = it.kind === "Gem" || it.kind === "Potion" ? it.d : it.kind;
       if (it.icon){ const im = el("img",null,null,s); im.src = it.icon; im.alt = it.kind; im.onerror = () => { im.remove(); s.textContent = label; const tip2 = el("div","tip",null,s); el("b",null,it.kind,tip2); el("div",null,it.d || "â",tip2); }; }
       else s.textContent = label;
-      const tip = el("div","tip",null,s); el("b",null,it.kind,tip); el("div",null,it.d || "â",tip);
+      const tip = el("div","tip",null,s); el("b",null,it.kind,tip); el("div",null,it.d || "â",tip); gemMark(s, tip, it.gem);
     });
   }
   el("div","sec","Dungeons");
