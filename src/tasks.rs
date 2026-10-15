@@ -398,6 +398,46 @@ fn pays_mushrooms(c: &RewardChest) -> bool {
     chest_mushrooms(c) >= u64::from(BEER_MUSHROOMS)
 }
 
+/// Should the Gem Mine search for the "Find a gem in the Fortress" task be done now (user 2026-10-15, Mrožik missed it)? The
+/// search costs `cost` silver (+ wood/stone) and the gem has to be collected, so it is only worth it when the task is open
+/// and one of these holds: (a) something we wear has an empty gem slot that deserves a gem, (b) the backpack has room to
+/// spare (2+ free slots), (c) the task is needed to reach an unopened chest that pays more gold than the search costs.
+/// Then `gems.rs` starts the search without the usual gold reserve and collects the gem with a single free slot.
+pub fn gem_task_wanted(gs: &GameState, cost: u64) -> bool {
+    let t = &gs.specials.tasks;
+    let lists = [(&t.daily.tasks, &t.daily.rewards), (&t.event.tasks, &t.event.rewards)];
+    let open = |tasks: &[Task]| tasks.iter().any(|t| t.typ == TaskType::FindGemInFortress && !t.is_completed());
+    if !lists.iter().any(|(tasks, _)| open(tasks)) {
+        return false;
+    }
+    let class = gs.character.class;
+    let empty_slot = gs
+        .character
+        .equipment
+        .0
+        .iter()
+        .filter_map(|(_, i)| i.as_ref())
+        .any(|i| matches!(i.gem_slot, Some(sf_api::gamestate::items::GemSlot::Empty)) && crate::inventory::worth_a_gem(class, i));
+    if empty_slot || gs.character.inventory.count_free_slots() >= 2 {
+        return true;
+    }
+    lists.iter().any(|(tasks, chests)| gem_task_reaches_gold_chest(&tasks[..], &chests[..], cost))
+}
+
+/// The gem task's points lift us above an unopened chest that the other open tasks would not reach, and that chest pays
+/// more silver than the search costs.
+fn gem_task_reaches_gold_chest(tasks: &[Task], chests: &[RewardChest], cost: u64) -> bool {
+    let Some(gem) = tasks.iter().find(|t| t.typ == TaskType::FindGemInFortress && !t.is_completed()) else { return false };
+    let earned: u32 = tasks.iter().filter(|t| t.is_completed()).map(|t| t.point_reward).sum();
+    let expected = earned + natural_points(tasks);
+    chests.iter().any(|c| {
+        !c.opened
+            && c.required_points > expected
+            && c.required_points <= expected + gem.point_reward
+            && chest_amount(c, RewardType::Silver) > cost
+    })
+}
+
 /// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
 /// cost at most this much.
 const BEER_ALU_SEC: u32 = 20 * 60;
@@ -921,5 +961,20 @@ mod tests {
         assert!(plan(&tasks, &chests, RICH).is_empty());
         let chests = [chest(4), chest(8), chest_coins(12, 40)];
         assert_eq!(plan(&tasks, &chests, RICH), [Extra::Wheel]);
+    }
+    #[test]
+    fn gem_task_needs_a_gold_chest_when_nothing_else_speaks_for_it() {
+        let gem = task(TaskType::FindGemInFortress, 0, 1, 4);
+        let gold = |points: u32, silver: u64| RewardChest {
+            required_points: points,
+            opened: false,
+            rewards: vec![sf_api::gamestate::rewards::Reward { typ: RewardType::Silver, amount: silver }],
+        };
+        // the gem task lifts us from 0 to 4 points: the 4-point chest pays 40 g > the 15 g search
+        assert!(gem_task_reaches_gold_chest(std::slice::from_ref(&gem), &[gold(4, 4000)], 1500));
+        // the chest pays less than the search costs
+        assert!(!gem_task_reaches_gold_chest(std::slice::from_ref(&gem), &[gold(4, 1000)], 1500));
+        // out of reach even with the task
+        assert!(!gem_task_reaches_gold_chest(std::slice::from_ref(&gem), &[gold(9, 90000)], 1500));
     }
 }

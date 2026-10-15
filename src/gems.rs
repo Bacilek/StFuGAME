@@ -182,7 +182,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         // Holding a gem for a future item with a free slot is fine: 1, or 2 with plenty of room (user 2026-10-14)
         let held = gs.character.inventory.iter().filter(|(_, i)| i.is_some_and(|i| matches!(i.typ, ItemType::Gem(_)))).count();
         let cap = if free >= HOLD_TWO_FREE { 2 } else { 1 };
-        if fits_now && free >= 1 || free >= 2 && held < cap {
+        // The "find a gem" task (daily/event) is only done once the gem is collected (Mrožik 2026-10-15: still 0/1 while the
+        // search ran), so with the task open one free slot is enough
+        let for_task = free >= 1 && crate::tasks::gem_task_wanted(gs, f.gem_search.cost.silver);
+        if fits_now && free >= 1 || free >= 2 && held < cap || for_task {
             report!("[gems] Collecting the mined gem ({:?}, {free} free backpack slots)", f.gem_search.target);
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
@@ -210,7 +213,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
     let cost = f.gem_search.cost;
     let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
-    let keep = SEARCH_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs);
+    // With the "find a gem" task worth doing (`tasks::gem_task_wanted`) the 150 g are all that is needed, no reserve
+    let keep = if crate::tasks::gem_task_wanted(gs, cost.silver) {
+        0
+    } else {
+        SEARCH_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs)
+    };
     if gs.character.silver < cost.silver + keep || wood < cost.wood || stone < cost.stone {
         return Outcome::Done;
     }

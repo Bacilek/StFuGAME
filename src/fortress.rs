@@ -50,11 +50,12 @@ const PLAN: &[(B, u16)] = &[
     (B::GemMine, 1),
     (B::Treasury, 2),
     (B::LaborersQuarters, 3),
-    // User 2026-10-12: rush Fortress 6 (the Academy, which gives XP, needs it). From there `pick_generic` takes over and
-    // oscillates between Fortress, Laborers' Quarters, Academy, Barracks and Treasury (user 2026-10-15; before, the Academy
-    // was rushed to 6 on its own, user 2026-10-14).
+    // User 2026-10-12: rush Fortress 6 (the Academy, which gives XP, needs it). User 2026-10-14/15: then max the Academy
+    // (level 6), then the Laborers' Quarters to 6, then whatever is missing (`pick_generic`).
     (B::Fortress, 5),
     (B::Fortress, 6),
+    (B::Academy, 6),
+    (B::LaborersQuarters, 6),
 ];
 
 /// May the bot build/finish this building right now? The same rule is enforced in `safe.rs`. Fortress, Laborers'
@@ -81,14 +82,14 @@ const BARRACKS_TARGET: u16 = 4;
 /// What to build after the dictated plan. Since fortress attacks supply wood and stone far beyond the storage cap
 /// (user 2026-10-12, confirmed 2026-10-15: storage only limits the production buildings, raids ignore it) the only
 /// bottleneck is BUILD TIME, so the income buildings (Woodcutter's Hut, Quarry) are never upgraded further.
-///
-/// The other buildings OSCILLATE (user 2026-10-15) instead of one being rushed to the top before the next starts: each
-/// candidate has a target and a weight, and the one with the lowest `level / weight` is built next (ties: Fortress, Laborers'
-/// Quarters, Academy, Barracks, Treasury, Gem Mine). Weights follow how far each should climb next to the Fortress level `n`:
-/// - the Fortress, Laborers' Quarters (shorten every build) and Academy (from Fortress 6, XP): weight 1, up to `n`,
-/// - the Barracks (soldier capacity): up to `BARRACKS_TARGET`, weight `BARRACKS_TARGET / 6`,
-/// - the Treasury (inventory slots, user: "at least a little"): up to half of `n` rounded up, weight 0.5,
-/// - the Gem Mine: level 1 from Fortress 3 straight away, further levels only from character level 125.
+/// Before each new Fortress level (current level `n`), in this order (user 2026-10-15: "whenever we raise the Fortress we
+/// raise the Laborers' Quarters and the Academy too"):
+/// 1. the Academy up to `n` from Fortress 6 (XP, the priority),
+/// 2. the Laborers' Quarters up to `n` (they shorten every later build),
+/// 3. the Barracks up to `BARRACKS_TARGET` (the user does not want more: the bot checks constantly, soldiers never pile up),
+/// 4. the Treasury up to half of `n`, rounded up (inventory slots, user: "at least a little"),
+/// 5. the Gem Mine at level 1 from Fortress 3 (more levels only from character level 125),
+/// 6. the next Fortress level.
 ///
 /// A building never goes above the Fortress level. The Hall of Knights is separate (`hok_affordable`).
 fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Option<B> {
@@ -97,21 +98,22 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
         return Some(B::Fortress);
     }
     let cap = n.min(max_level.max(1));
-    let barracks_weight = f64::from(BARRACKS_TARGET) / 6.0;
-    // (building, target level, weight); the array order is the tie-break
-    let candidates = [
-        (B::Fortress, max_level, 1.0),
-        (B::LaborersQuarters, cap, 1.0),
-        (B::Academy, if n >= 6 { cap } else { 0 }, 1.0),
-        (B::Barracks, cap.min(BARRACKS_TARGET), barracks_weight),
-        (B::Treasury, if n >= 2 { n.div_ceil(2).min(cap) } else { 0 }, 0.5),
-        (B::GemMine, if n >= 3 { if char_level >= 125 { cap } else { 1 } } else { 0 }, 1.0),
-    ];
-    candidates
-        .iter()
-        .filter(|(b, target, _)| level(*b) < *target)
-        .min_by(|a, b| (f64::from(level(a.0)) / a.2).total_cmp(&(f64::from(level(b.0)) / b.2)))
-        .map(|(b, _, _)| *b)
+    if n >= 6 && level(B::Academy) < cap {
+        return Some(B::Academy);
+    }
+    if level(B::LaborersQuarters) < cap {
+        return Some(B::LaborersQuarters);
+    }
+    if level(B::Barracks) < cap.min(BARRACKS_TARGET) {
+        return Some(B::Barracks);
+    }
+    if n >= 2 && level(B::Treasury) < n.div_ceil(2).min(cap) {
+        return Some(B::Treasury);
+    }
+    if n >= 3 && (level(B::GemMine) == 0 || (char_level >= 125 && level(B::GemMine) < cap)) {
+        return Some(B::GemMine);
+    }
+    (n < max_level).then_some(B::Fortress)
 }
 
 /// Every building type in discriminant order (`b as usize` indexes it).
@@ -192,8 +194,16 @@ pub fn hok_affordable(gs: &GameState) -> bool {
         && p.wood <= f.resources[R::Wood].current
         && p.stone <= f.resources[R::Stone].current
         && p.silver <= gs.character.silver
-        && f.hall_of_knights_level < f.buildings[B::Fortress].level
+        && f.hall_of_knights_level < f.buildings[B::Fortress].level.max(HOK_MIN_TARGET)
+        && HOK_FAILED.lock().is_ok_and(|x| *x != Some((f.hall_of_knights_level, f.buildings[B::Fortress].level)))
 }
+
+/// The Hall of Knights is taken to at least this level even below it the Fortress level (user 2026-10-15); beyond, up to the
+/// Fortress level. UNVERIFIED that the game lets it exceed the Fortress level: on a refusal `HOK_FAILED` stops the retries
+/// until the Hall or the Fortress changes level.
+const HOK_MIN_TARGET: u16 = 8;
+/// (Hall of Knights level, Fortress level) at which the last upgrade attempt failed.
+static HOK_FAILED: crate::ctx::PerChar<Option<(u16, u16)>> = crate::ctx::PerChar::new();
 
 /// Gold the fortress will want for its next planned build (0 without a fortress / plan). The fortress is not a one-off
 /// spend like the shops (user 2026-10-14: the bot comes back to it many times a day until builds take days), so the lower
@@ -332,7 +342,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             f.hall_of_knights_upgrade_price.stone,
             crate::report::gold(f.hall_of_knights_upgrade_price.silver)
         );
+        let at = (f.hall_of_knights_level, f.buildings[B::Fortress].level);
         if let Err(e) = safe::send(session, Command::FortressUpgradeHallOfKnights).await {
+            if !crate::tavern::is_session_error(&e) {
+                if let Ok(mut x) = HOK_FAILED.lock() {
+                    *x = Some(at);
+                }
+            }
             return fail(&e, line!());
         }
         if let Err(e) = safe::send(session, Command::Update).await {
@@ -828,26 +844,24 @@ mod tests {
 
     #[test]
     fn generic_rules_after_the_plan() {
-        // the dictated plan ends with Fortress 6; the Academy is no longer rushed on its own (user 2026-10-15)
+        // the dictated plan ends with Fortress 6, Academy 6, Laborers' Quarters 6 (user 2026-10-15)
         let f6 = &[(B::Fortress, 6), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 1), (B::GemMine, 1)];
-        assert_eq!(pick(at(f6), 20), None);
-        // oscillation: lowest level / weight first. Nothing built yet -> the Academy (0), then it alternates with the Barracks
-        assert_eq!(generic(f6, 30), Some(B::Academy));
-        let a1 = &[(B::Fortress, 6), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 1), (B::GemMine, 1), (B::Academy, 1)];
-        assert_eq!(generic(a1, 30), Some(B::Academy)); // 1 < Barracks 1 / 0.67
-        let a2 = &[(B::Fortress, 6), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 1), (B::GemMine, 1), (B::Academy, 2)];
-        assert_eq!(generic(a2, 30), Some(B::Barracks)); // 1.5 < 2
-        let a3 = &[(B::Fortress, 6), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 2), (B::GemMine, 1), (B::Academy, 2)];
-        assert_eq!(generic(a3, 30), Some(B::Academy)); // 2 < Barracks 3
-        // a tie goes to the Laborers' Quarters before the Academy (they shorten every later build)
-        let tie = &[(B::Fortress, 6), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 4), (B::GemMine, 1), (B::Academy, 3)];
-        assert_eq!(generic(tie, 30), Some(B::LaborersQuarters));
-        // everything at its cap for Fortress 6 (Barracks 4, Treasury 3): the next Fortress level
-        let capped = &[(B::Fortress, 6), (B::LaborersQuarters, 6), (B::Academy, 6), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
-        assert_eq!(generic(capped, 30), Some(B::Fortress));
-        // Fortress 7: the Laborers' Quarters and the Academy first (6 < 7), the Treasury to 4 (half of 7 rounded up)
+        assert_eq!(pick(at(f6), 20), Some(B::Academy));
+        let a6 = &[(B::Fortress, 6), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 3), (B::Treasury, 2), (B::Barracks, 1), (B::GemMine, 1), (B::Academy, 6)];
+        assert_eq!(pick(at(a6), 20), Some(B::LaborersQuarters));
+        let done = &[(B::Fortress, 6), (B::WoodcuttersHut, 3), (B::Quarry, 3), (B::LaborersQuarters, 6), (B::Treasury, 2), (B::Barracks, 1), (B::GemMine, 1), (B::Academy, 6)];
+        assert_eq!(pick(at(done), 20), None);
+        // then whatever is missing: the Barracks up to 4 (no more), the Treasury to half the Fortress level
+        assert_eq!(generic(done, 30), Some(B::Barracks));
+        let b4 = &[(B::Fortress, 6), (B::LaborersQuarters, 6), (B::Treasury, 2), (B::Barracks, 4), (B::GemMine, 1), (B::Academy, 6)];
+        assert_eq!(generic(b4, 30), Some(B::Treasury));
+        let t3 = &[(B::Fortress, 6), (B::LaborersQuarters, 6), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1), (B::Academy, 6)];
+        assert_eq!(generic(t3, 30), Some(B::Fortress));
+        // Fortress 7: the Academy first, then the Laborers' Quarters, then the Treasury (4 = half of 7 rounded up)
         let f7 = &[(B::Fortress, 7), (B::LaborersQuarters, 6), (B::Academy, 6), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
-        assert_eq!(generic(f7, 30), Some(B::LaborersQuarters));
+        assert_eq!(generic(f7, 30), Some(B::Academy));
+        let f7a = &[(B::Fortress, 7), (B::LaborersQuarters, 6), (B::Academy, 7), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
+        assert_eq!(generic(f7a, 30), Some(B::LaborersQuarters));
         let f7b = &[(B::Fortress, 7), (B::LaborersQuarters, 7), (B::Academy, 7), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
         assert_eq!(generic(f7b, 30), Some(B::Treasury));
         // the Gem Mine only goes further from character level 125; never the Wall or the resource buildings

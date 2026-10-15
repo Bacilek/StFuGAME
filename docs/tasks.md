@@ -164,3 +164,6 @@ Event hunts wait for the daily Arena XP wins (see docs/precedents.md 2026-10-12)
 
 ## Finished chests end the tasks (2026-10-12, user)
 When every chest of a task list (daily or event) is opened, nothing more can be earned from it: `hunt::wanted_hunts` no longer hunts for that list's fight tasks (Mrožik and Květoš had the last event chest, so e.g. "Paladin 8/20" is dropped), and the main loop's Arena wake-up (`hunt::wants_arena`) ignores them too. The Quests tab hides such a section (and a character whose daily AND event chests are all opened has no tile, see docs/controls.md).
+
+## Find a gem in the Fortress (2026-10-15, user)
+`FindGemInFortress` (4 p daily): Mrožik missed it. The search (150 g + 2 wood + 1 stone, 50 min) now starts without the gold reserve and the gem is collected with one free slot when the task is open and (a) an equipped item has an empty gem slot that deserves a gem (`inventory::worth_a_gem`), or (b) 2+ backpack slots are free, or (c) the task lifts us to an unopened chest that pays more silver than the search (`tasks::gem_task_wanted`, `gem_task_reaches_gold_chest`). The task still showed 0/1 while the search was running → it counts when the gem is collected (verify). The search must be started early enough to finish and be collected before midnight (not handled yet).
