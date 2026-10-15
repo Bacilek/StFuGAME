@@ -89,6 +89,8 @@ struct Socket {
     content: Option<Gem>,
     epic: bool,
     value: f64,
+    /// Weapon or gear with own main/CON/LCK (`inventory::worth_a_gem`); other items never get a gem (user 2026-10-15).
+    worth: bool,
 }
 
 /// The socket for `gem` (index into `sockets`), or None (keep the gem).
@@ -97,6 +99,7 @@ fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
     let fit = sockets
         .iter()
         .enumerate()
+        .filter(|(_, s)| s.worth)
         .filter(|(_, s)| match s.content {
             None => true,
             Some(old) => {
@@ -122,7 +125,8 @@ fn sockets(gs: &GameState) -> Vec<(EquipmentSlot, Socket)> {
                 GemSlot::Empty => None,
                 GemSlot::Filled(g) => Some(g),
             };
-            Some((slot, Socket { content, epic: item.is_epic(), value: inventory::value(gs, item) }))
+            let worth = inventory::worth_a_gem(gs.character.class, item);
+            Some((slot, Socket { content, epic: item.is_epic(), value: inventory::value(gs, item), worth }))
         })
         .collect()
 }
@@ -300,7 +304,14 @@ mod tests {
         Gem { typ, value: 50 }
     }
     fn sock(content: Option<GemType>, epic: bool, value: f64) -> Socket {
-        Socket { content: content.map(gem), epic, value }
+        Socket { content: content.map(gem), epic, value, worth: true }
+    }
+
+    #[test]
+    fn side_stat_only_items_get_no_gem() {
+        let junk = Socket { worth: false, ..sock(None, true, 90.0) };
+        assert_eq!(choose_socket(&[junk], gem(GemType::Intelligence), Class::Bard), None);
+        assert_eq!(choose_socket(&[junk, sock(None, false, 1.0)], gem(GemType::Intelligence), Class::Bard), Some(1));
     }
 
     #[test]

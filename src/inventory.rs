@@ -96,17 +96,22 @@ pub fn best_gem_power(gs: &GameState) -> u32 {
         .unwrap_or(0)
 }
 
+/// Whether an item deserves a gem (user 2026-10-15): a weapon, or gear with main attribute, CON or LCK of its own. Gems are
+/// never taken out again, so a side-stat-only item would waste its own slot's worth for good.
+pub fn worth_a_gem(class: Class, item: &Item) -> bool {
+    matches!(item.typ, ItemType::Weapon { .. })
+        || item.attributes[class.main_attribute()] + item.attributes[AttributeType::Constitution] + item.attributes[AttributeType::Luck] > 0
+}
+
 /// Item value core. A socketed gem counts fully (it cannot be taken out, so swapping the item loses it); an empty gem
 /// slot counts `potential` (a gem we expect to put there), if given.
 fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, potential: Option<Gem>) -> f64 {
     let ch = &gs.character;
     // (user 2026-10-15) An empty slot only counts on an item that is worth keeping without the gem: main attribute, CON or
     // at least LCK of its own. Side-stat-only gear never wins on a gem we merely hope to socket. Weapons are exempt (damage).
-    let is_weapon = matches!(item.typ, ItemType::Weapon { .. });
-    let own = item.attributes[ch.class.main_attribute()] + item.attributes[AttributeType::Constitution] + item.attributes[AttributeType::Luck];
     let gem = match item.gem_slot {
         Some(GemSlot::Filled(g)) => Some(g),
-        Some(GemSlot::Empty) if is_weapon || own > 0 => potential,
+        Some(GemSlot::Empty) if worth_a_gem(ch.class, item) => potential,
         Some(GemSlot::Empty) | None => None,
     };
     let (gem_main, gem_other) = gem.map_or((0.0, 0.0), |g| gem_effect(ch.class, g));
