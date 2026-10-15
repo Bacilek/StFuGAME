@@ -101,5 +101,5 @@ New third tab in the app window (`src/app.html`): character tiles with only the 
   SOCKETED, plus a tooltip line `Gem: Strength +123`. `now.json` equip/backpack entries carry `"gem": {"t","v"}` (null without
   one; an empty slot shows nothing) from `roster::gem_json`; drawn by `gemMark` in `app.html`.
 - Sprites = the user's colour gems in `roster/assets/gems/<GemType>.png` (local only, like `assets/items`): Strength blue,
-  Dexterity yellow, Intelligence green, Luck red, Constitution black/grey, Legendary and All orange (copied from `my_input/`).
+  Dexterity yellow, Intelligence green, Luck red, All black (every attribute), Legendary orange (main + CON); Constitution purple (copied from `my_input/`).
   Appears after each character's next snapshot (a few minutes after login). Needs a release build.

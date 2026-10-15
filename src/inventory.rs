@@ -67,14 +67,15 @@ pub fn main_gem(class: Class) -> GemType {
 }
 
 /// What a gem adds for this class: (bonus to the main attribute, value of the other stats with the Arena percentages
-/// 80 % CON, 27 % LCK, 10 % each secondary). "All" and Legendary count as every attribute.
+/// 80 % CON, 27 % LCK, 10 % each secondary). "All" counts as every attribute, Legendary as main + CON (user 2026-10-15).
 pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     let v = f64::from(g.value);
     if g.typ == main_gem(class) {
         return (v, 0.0);
     }
     match g.typ {
-        GemType::All | GemType::Legendary => (v, v * (0.8 + LUCK_WEIGHT + 0.2)),
+        GemType::All => (v, v * (0.8 + LUCK_WEIGHT + 0.2)),
+        GemType::Legendary => (v, v * 0.8),
         GemType::Constitution => (0.0, v * 0.8),
         GemType::Luck => (0.0, v * LUCK_WEIGHT),
         _ => (0.0, v * 0.1),
