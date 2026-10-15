@@ -53,9 +53,9 @@ pub fn effective_avg_damage(class: Class, level: u16, secondary: bool, min_dmg: 
     }
 }
 
-/// Share of the gems we currently mine that an EMPTY gem slot is worth when comparing two items (user 2026-10-12: "a part
-/// of it, not all items have a slot").
-const POTENTIAL_SHARE: f64 = 0.5;
+/// (2026-10-15, user) An EMPTY gem slot counts only while a loose gem lies in the backpack, ready to be socketed: then it is
+/// worth that gem. Without one the slot is worth nothing (before: half of the best gem we had, which let junk-stat items
+/// with a slot beat real upgrades and epics).
 
 /// The gem type of the class's main attribute.
 pub fn main_gem(class: Class) -> GemType {
@@ -81,17 +81,19 @@ pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     }
 }
 
-/// Strength of the best gem the character has seen lately (socketed or in the backpack), 0 without any.
+/// Strength of the best gem lying loose in the backpack (ready to be socketed), 0 without one.
 pub fn best_gem_power(gs: &GameState) -> u32 {
-    let socketed = gs.character.equipment.0.values().flatten().filter_map(|i| match i.gem_slot {
-        Some(GemSlot::Filled(g)) => Some(g.value),
-        _ => None,
-    });
-    let loose = gs.character.inventory.backpack.iter().flatten().filter_map(|i| match i.typ {
-        ItemType::Gem(g) => Some(g.value),
-        _ => None,
-    });
-    socketed.chain(loose).max().unwrap_or(0)
+    gs.character
+        .inventory
+        .backpack
+        .iter()
+        .flatten()
+        .filter_map(|i| match i.typ {
+            ItemType::Gem(g) => Some(g.value),
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 /// Item value core. A socketed gem counts fully (it cannot be taken out, so swapping the item loses it); an empty gem
@@ -159,9 +161,9 @@ fn expected_gem(class: Class, power: f64) -> Gem {
 /// + their other stats (80 % CON, 27 % LCK, 10 % secondary; the main one is already in the damage via M).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
 /// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
-/// A socketed gem is counted fully, an empty gem slot at `POTENTIAL_SHARE` of the best gem we have (user 2026-10-12).
+/// A socketed gem is counted fully, an empty gem slot only as the loose backpack gem it can take right now (user 2026-10-15).
 fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
-    let power = f64::from(best_gem_power(gs)) * POTENTIAL_SHARE;
+    let power = f64::from(best_gem_power(gs));
     value_core(gs, item, slot, (power >= 1.0).then(|| expected_gem(gs.character.class, power)))
 }
 
