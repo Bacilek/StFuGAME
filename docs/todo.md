@@ -15,6 +15,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] Otevřená otázka (`docs/status.md`): přejít s hodnotou itemů (inventář/obchody/gemy, ne Arena power) na kalibrované váhy ze simulace (`src/weaponsim.rs`, `docs/inventory.md`)?
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
+- [ ] Smithy (vylepšuje vojáky): jen pokud soupeři mají tak silnou obranu, že nájezdy přestanou vynášet suroviny (user 2026-10-15). Vyžaduje Wall, Mages Tower a Archery Guild (levné, jednotky nikdy nevylepšujeme, chceme být napadáni) – koliduje s pravidlem „nikdy Wall“, před stavbou se zeptat.
 - Eventy na XP / houby: zvážit utrácení hub za piva (chest "extra pivo" dává 11. pivo denně za houbu) – user 2026-10-12, zatím neřešit.
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
 - [ ] `WinFightsNoGear` – zatím nemapováno v `src/hunt.rs` (úkol se přeskočí); sundat celou výbavu naráží na plný batoh (viz výše).
