@@ -269,13 +269,18 @@ pub fn detail(item: &Item) -> String {
     .map(|(a, n)| format!("{n}+{}", item.attributes[*a]))
     .collect();
     format!(
-        "{:?} class={:?} epic={} price={} mushrooms={} [{}]",
+        "{:?} class={:?} epic={} price={} mushrooms={} [{}] gem slot: {}",
         item.typ,
         item.class,
         item.is_epic(),
         item.price,
         item.mushroom_price,
-        attrs.join(" ")
+        attrs.join(" "),
+        match item.gem_slot {
+            None => "none".to_string(),
+            Some(GemSlot::Empty) => "EMPTY (counts as a potential gem)".to_string(),
+            Some(GemSlot::Filled(g)) => format!("filled {:?}+{}", g.typ, g.value),
+        }
     )
 }
 
