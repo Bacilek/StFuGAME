@@ -80,8 +80,13 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 | Bewitched Stew: witch −5, brew +15 | ✅ | 2026-10-07 server; user confirmed 2026-10-10; cauldron is +2 (server shows +2 in every check, user confirmed 2026-10-16; was −2) |
 | Other task bonuses, Sanitary +20 / −5 | ⏳ | pending |
 
+## Source check 2026-10-16 (in-game encounter overview, `my_input/expeditions.png`)
+Every cycle on the screenshot matches the tables above (points, limits, "after that only the last encounter", bounty 3× per individual
+encounter, drumstick → 2 options, pig → 1 option). Not on the screenshot: Running Dry, Plenty of Men in the Sea, Beak to Tail, Gone With the Wind.
+Measured frequencies, chain follow-up probabilities and the strategy review: `docs/expedition-analysis.md` (report script `scripts/expedition_stats.js`).
+
 ## Unmapped
-- Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`; add it once its ids show up in the journal `unmapped`.
+- Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`. **Verified from the journals 2026-10-16** (72 runs, shown as `Unknown`): the three steps arrive as `Unknown(+4)`, `Unknown(+2)`, `Unknown(+6)` and completing the chain gives +10 on top (55 journal mismatches of exactly +10, 15 of +20 with a poster). The ids stay unknown; to map it we would need to tell the steps apart by their points (see `docs/todo.md`).
 - Missions from sf-api the FAQ does not know: (merman is mapped since 2026-10-12, see the table),
   lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
 - Missing task bonuses: none (Build A Friend got +5 / −5 from the user 2026-10-12; no mission with an unknown bonus is left, so the "unverified bonus wins a tie" test case was dropped).

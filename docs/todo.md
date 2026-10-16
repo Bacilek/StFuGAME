@@ -16,6 +16,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
 - [ ] Smithy (vylepšuje vojáky): jen pokud soupeři mají tak silnou obranu, že nájezdy přestanou vynášet suroviny (user 2026-10-15). Vyžaduje Wall, Mages Tower a Archery Guild (levné, jednotky nikdy nevylepšujeme, chceme být napadáni) – koliduje s pravidlem „nikdy Wall“, před stavbou se zeptat.
+- [ ] Expedice – min-max (user 2026-10-16, analýza v `docs/expedition-analysis.md`, report `node scripts/expedition_stats.js`): testovat po jedné změně a porovnat `--since` s baseline 88,4 % (≥ 40): (A) CupCake (kuřecí stehno) je horší než Dummy3 o ~1,1 b. – snížit skóre; (B) penalizace za „příští kolo má méně voleb“ po Cake/CupCake; (C) `feasibility` nahradit naměřenou pravděpodobností dalšího kroku řetězu (~0,68 další kolo, ~0,85 do 2 kol); (D) namapovat Gone With the Wind podle bodů +4/+2/+6 (bonus +10/−10, 6 % expedic); (E) posledních ≤ 2 kol max okamžité body; (F) Build A Friend: nezačínat/neopouštět řetěz podle zbývajících kol. Deník rozšířit o `heroism_by_round` a odměny z truhel.
 - [x] Tier list expedic (user 2026-10-16, hotovo): výběr expedice = Gleeman lokace > tier (S>A>B z oficiálního Discordu, `Mission::tier`) > kratší > ease. Čeká na ověření v běhu.
 - Eventy na XP / houby: zvážit utrácení hub za piva (chest "extra pivo" dává 11. pivo denně za houbu) – user 2026-10-12, zatím neřešit.
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
