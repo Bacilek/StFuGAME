@@ -2,6 +2,7 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **"Why up" epic/weapon texts (2026-10-16, user):** an epic/legendary now reads just `Epic: +56 %` / `Legendary: +56 %` (icon shows the item; "new" is implied). Weapon % is now the average-DAMAGE ratio (`46 → 66, +43 %`), not the `v` ratio: a weapon's `v` is computed against the weapon worn at snapshot time (ratio 1), so it hid the damage and only reflected side stats (Mimimimi11's 46→66 showed +18 %). Other slots: `v` ratio, where `v` = score in main-attribute-point equivalents (main 100 %, CON 80 %, LCK 27 %, others 10 %, + gem), so +538 % means the old item was nearly worthless (e.g. no main attribute/CON). Computed at render, so old days change too. Test passes; needs a release rebuild.
 - **Release built 08:15 2026-10-16: Arena back to 10 XP wins, Academy XP collected normally again, HoK cap; the user starts the bot.**
 - (older) **Release built 2026-10-16 (HoK cap), the user starts the bot.**
 - **HoK above the Fortress level REFUSED (2026-10-16, `need higher building1`, Sanek/Chlamydie 07:58):** the Hall of Knights is capped at min(Fortress level, 8) (user: nothing above 8 for now; `HOK_MAX_TARGET`; needs a release build, the retry latch already stopped the spam).
