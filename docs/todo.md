@@ -4,7 +4,7 @@ Co ještě máme v plánu pošéfit. Hotové věci se mažou (popsané jsou v p�
 Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole.
 
 ## Rozděláno / čeká na ověření
-- [ ] Event game loop (piva?)
+- [ ] Týdenní eventy pátek–neděle (`docs/events.md`): pravidla zapsána (XP event -> 10 piv denně, gold event sám -> žádná piva), kód zatím ne; čekáme na seznam dalších eventů.
 - [ ] Pevnost (`docs/fortress.md`): základ i plán běží, pravidla od uživatele jsou v CLAUDE.md. Zbývá: ověřit po restartu, že se Fortress odemkla u TestChar1 (hledat `[fortress] State:` / `No fortress data`), a živě ověřit Academy rush, sacrifice vojáka, Barracks-aware trénink, `SF_ATTACK_ONLY` (user musí přidat účet hlavní postavy do `SF_ACCOUNTS`).
 - [ ] Scrapbook hunts v Hall of Fame: vyhodnotit úspěšnost z `roster/<postava>/logs/hunts.log` po pár dnech běhu (kolikrát nikdo nenalezen, výhry, přírůstek itemů na výhru) – `docs/scrapbook.md`.
 - [ ] Ikonky tabů v dashboardu (Gold, XP, Shrooms, Arena, Dungeon, Hall of Fame, Power, Win Rate, Scrapbook): v `roster/assets/` jsou jen sprity itemů; user musí říct, odkud UI ikony vzít (zachytit z klienta), nebo jestli stačí vlastní SVG.

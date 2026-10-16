@@ -155,3 +155,6 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Ads
 - No ad automation (user 2026-10-11): never send `AdvertisementsCompleted` or imitate the ad network's view verification; ads are watched by hand. See `docs/shops.md`.
+
+## Weekly events
+- Every Friday 00:01 – Sunday 23:59 a set of events runs; the user lists them and the rules live in `docs/events.md` (not implemented yet as of 2026-10-16). New mushroom exception (user 2026-10-16): while "Exceptional XP" (2× XP) is active, up to 10 beers a day in the Tavern. A gold-only event never justifies beers.
