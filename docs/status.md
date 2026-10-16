@@ -6,6 +6,8 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 - **Gem marks in the app shrunk (2026-10-16, user: too big):** the user meant the gems socketed in WORN items (paperdoll `.pdslot`, 56 px item sprite): `.pdslot img` (56 px) and `.bslot img` (100 %) out-ranked `.gemmark`, so the mark was as big as the item; selector is now `.bslot img.gemmark,.pdslot img.gemmark`, 12 px. `app.html` is `include_str!`ed, so it needs a release rebuild.
 
+- **Empty gem slot circle in the app (2026-10-16, user):** `roster::gem_json` now returns `{"empty": true}` for an item with an empty gem slot (null = no slot), `app.html::gemMark` draws a small empty ring in the corner + tooltip line "Gem slot: empty". Shows on worn items and backpack items; days/`now.json` written before the rebuild still say null for empty slots until the next snapshot. Needs a release rebuild.
+
 - **Release built 21:41 2026-10-16** (guild check every 15 min during Exceptional XP + top-of-list log); the user starts the bot.
 
 - **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.

@@ -419,11 +419,13 @@ fn item_desc(i: &Item) -> String {
     parts.join(", ")
 }
 
-/// The socketed gem of an item for the app (user 2026-10-15): `{"t": "Strength", "v": 123}`, null without a gem (an empty
-/// or missing slot shows nothing; the colour sprite is picked by the page from `t`).
+/// The socketed gem of an item for the app (user 2026-10-15): `{"t": "Strength", "v": 123}`, `{"empty": true}` for an empty
+/// slot (the page draws an empty circle, user 2026-10-16), null for an item without a slot (the colour sprite is picked by
+/// the page from `t`).
 fn gem_json(i: &Item) -> serde_json::Value {
     match i.gem_slot {
         Some(sf_api::gamestate::items::GemSlot::Filled(g)) => serde_json::json!({ "t": format!("{:?}", g.typ), "v": g.value }),
+        Some(sf_api::gamestate::items::GemSlot::Empty) => serde_json::json!({ "empty": true }),
         _ => serde_json::Value::Null,
     }
 }
