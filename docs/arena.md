@@ -73,3 +73,4 @@ Captures: `PlayerGetHallOfFame` with a name = a list page of 30 players around t
 ## Rumble for Riches (2026-10-16, user)
 During the weekly event the choice among the 3 opponents prefers one whose win pays gold: opponent rank ≤ ours + 50 and honor ≥ ours − 955 (`arena::rumble_pays`) with a simulated win chance ≥ 50 %. UNVERIFIED in the real game: check the `[arena] Rumble for Riches` line and the gold in the fight lines.
 Answer 2026-10-16 (user): wins pay gold even beyond the 10 XP wins, so during Rumble for Riches the 10-win limit is lifted (`arena::ready`/`secs_until_ready` via `rumble_unlimited`); losses do not matter. Scrapbook hunts (`hunt::scrapbook_due`) yield the cooldown during the event.
+REVERSED 2026-10-16 (user: "gold se při prohře v aréně ztrácí"): the 10-win limit applies again during Rumble for Riches (`rumble_unlimited` removed); after the 10 XP wins only Hall of Fame scrapbook hunts. The gold-paying-opponent preference stays for the 10 XP wins.
