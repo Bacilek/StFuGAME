@@ -175,3 +175,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - **Events come from the server, no manual switch (user 2026-10-16):** an Events tab was built and removed the same day. The XP-event beers follow the server list + its end time only, no hardcoded weekdays (`docs/events.md`).
 
 - **Items are compared without gems (user 2026-10-16):** gems are cheap (mined about every 40 min, 24/7), so a new item is compared with the worn one by its own stats; the worn item's gem only counts if it is Legendary or All (black). A new item that could become better once it has a gem may wait in the backpack for one while there is room (`keep_candidate`). See `docs/inventory.md`.
+
+- **Main/CON balance (user 2026-10-16):** the ideal is Constitution = 80 % of the main attribute; items and gems are judged on the resulting pair, slightly less value the further from 100 : 80 (strength 0.25, single constant in `balance.rs`). Raw numbers only (no potions). Luck and secondary attributes stay out of the balance (fixed weights, only matter for power).

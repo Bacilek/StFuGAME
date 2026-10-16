@@ -111,6 +111,60 @@ pub fn worth_a_gem(class: Class, item: &Item) -> bool {
         || item.attributes[class.main_attribute()] + item.attributes[AttributeType::Constitution] + item.attributes[AttributeType::Luck] > 0
 }
 
+/// What a gem adds for this class as (main attribute, Constitution, everything else of value: Luck 27 %, secondary 10 %).
+/// The same gem as `gem_effect`, but with the Constitution kept apart so the main/CON balance can see it (`balance.rs`).
+fn gem_parts(class: Class, g: Gem) -> (f64, f64, f64) {
+    let v = f64::from(g.value);
+    if g.typ == main_gem(class) {
+        return (v, 0.0, 0.0);
+    }
+    match g.typ {
+        GemType::All => (v, v, v * (LUCK_WEIGHT + 0.2)),
+        GemType::Legendary => (v, v, 0.0),
+        GemType::Constitution => (0.0, v, 0.0),
+        GemType::Luck => (0.0, 0.0, v * LUCK_WEIGHT),
+        _ => (0.0, 0.0, v * 0.1),
+    }
+}
+
+/// The same for an item's own attributes.
+fn item_parts(class: Class, item: &Item) -> (f64, f64, f64) {
+    let main = f64::from(item.attributes[class.main_attribute()]);
+    let con = f64::from(item.attributes[AttributeType::Constitution]);
+    (main, con, score(class, item) - main - 0.8 * con)
+}
+
+/// Raw main attribute and Constitution of the character (bought points + worn items + their socketed gems; no potions or
+/// other bonuses, user 2026-10-16), leaving out the item worn in `skip`.
+fn raw_totals(gs: &GameState, skip: Option<EquipmentSlot>) -> (f64, f64) {
+    let ch = &gs.character;
+    let main = ch.class.main_attribute();
+    let mut m = f64::from(ch.attribute_basis[main]);
+    let mut c = f64::from(ch.attribute_basis[AttributeType::Constitution]);
+    for (slot, item) in ch.equipment.0.iter() {
+        let Some(item) = item.as_ref() else { continue };
+        if Some(slot) == skip {
+            continue;
+        }
+        let (im, ic, _) = item_parts(ch.class, item);
+        m += im;
+        c += ic;
+        if let Some(GemSlot::Filled(g)) = item.gem_slot {
+            let (gm, gc, _) = gem_parts(ch.class, g);
+            m += gm;
+            c += gc;
+        }
+    }
+    (m, c)
+}
+
+/// What a loose gem would add to the character right now (in an empty socket), balance included (`balance.rs`).
+pub fn gem_gain(gs: &GameState, g: Gem) -> f64 {
+    let (m, c) = raw_totals(gs, None);
+    let (gm, gc, gr) = gem_parts(gs.character.class, g);
+    crate::balance::value_of(m + gm, c + gc) - crate::balance::value_of(m, c) + gr
+}
+
 /// Which socketed gems count in an item's value.
 #[derive(Clone, Copy, PartialEq)]
 enum Gems {
@@ -129,16 +183,24 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, pote
         Some(GemSlot::Empty) if mode == Gems::Rare && worth_a_gem(ch.class, item) => potential,
         _ => None,
     };
-    let (gem_main, gem_other) = gem.map_or((0.0, 0.0), |g| gem_effect(ch.class, g));
+    let (gem_main, gem_con, gem_rest) = gem.map_or((0.0, 0.0, 0.0), |g| gem_parts(ch.class, g));
+    let (item_main, item_con, item_rest) = item_parts(ch.class, item);
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
-        return score(ch.class, item) + gem_main + gem_other;
+        // The item on top of the rest of the build, main attribute and Constitution judged together (balance.rs)
+        let (rest_m, rest_c) = raw_totals(gs, Some(item.typ.equipment_slot().unwrap_or(slot)));
+        let with = crate::balance::value_of(rest_m + item_main + gem_main, rest_c + item_con + gem_con);
+        return with - crate::balance::value_of(rest_m, rest_c) + item_rest + gem_rest;
     };
     let main = ch.class.main_attribute();
     let total = f64::from(ch.attribute_basis[main] + ch.attribute_additions[main]);
-    let equipped = ch.equipment.0[slot].as_ref().map_or(0.0, |w| f64::from(w.attributes[main]));
-    let with_this = total - equipped + f64::from(item.attributes[main]) + gem_main;
-    // The weapon's other stats with the same percentages as everywhere else; the main attribute is already in the damage via M
-    let others = score(ch.class, item) - f64::from(item.attributes[main]) + gem_other;
+    // The weapon's main attribute and Constitution (and its gem's) against the build as it is now, balance included; Luck and the
+    // secondary attributes with their fixed weights. The main attribute is also in the damage via M, as before.
+    let (rest_m, rest_c) = raw_totals(gs, Some(slot));
+    let (now_m, now_c) = raw_totals(gs, None);
+    let stats = crate::balance::value_of(rest_m + item_main + gem_main, rest_c + item_con + gem_con)
+        - crate::balance::value_of(now_m, now_c)
+        + item_rest
+        + gem_rest;
     let secondary = ch.class == Class::Assassin && slot == EquipmentSlot::Shield;
     // An Assassin hits with both hands every round: (L + R) × 0.625 × (1 + A / 10), so one weapon only changes its share of the
     // total (user 2026-10-14). The other hand counts with its own bare-hands floor.
@@ -158,8 +220,7 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, pote
         _ => effective_avg_damage(ch.class, ch.level, secondary, 0, 0),
     };
     let damage_ref = weapon_value(ref_avg + other_hand, total);
-    // A main attribute bonus of the weapon (or its gem) is worth exactly one point each, it is not weighed like damage
-    damage_points(damage, damage_ref, total) + (with_this - total) + others
+    damage_points(damage, damage_ref, total) + stats
 }
 
 /// Weapon damage on the same scale as attribute points (user 2026-10-14: a weapon with Luck/secondary stats must not win on

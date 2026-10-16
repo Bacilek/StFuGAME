@@ -337,7 +337,12 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         // First gem (best first) that has a place: a stored item kept for its empty gem slot that beats the worn one once it
         // has this gem (user 2026-10-12: socket it there first, the inventory logic then equips it), else a worn socket
         let mut placed = None;
-        for (pos, gem, ident) in gems {
+        // The weapon takes the strongest main gem first (old order: tier, power); every other place goes to the gem that adds the most
+        // right now, main/CON balance included (user 2026-10-16: with Constitution lacking, a CON gem beats a main one)
+        let mut by_gain = gems.clone();
+        by_gain.sort_by(|a, b| inventory::gem_gain(gs, b.1).total_cmp(&inventory::gem_gain(gs, a.1)));
+        let order: Vec<_> = gems.iter().filter(|g| weapon_socket(&candidates, g.1, class).is_some()).chain(by_gain.iter()).cloned().collect();
+        for (pos, gem, ident) in order {
             // The worn weapon comes first (its gem counts double, user 2026-10-16), before any stored item
             if let Some(i) = weapon_socket(&candidates, gem, class) {
                 let slot = list[i].0;

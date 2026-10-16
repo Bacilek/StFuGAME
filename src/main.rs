@@ -8,6 +8,7 @@ mod attack_me;
 mod arena;
 mod arena_highlights;
 mod attributes;
+mod balance;
 mod control;
 mod coupons;
 mod ctx;
