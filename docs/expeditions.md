@@ -43,7 +43,7 @@ Verified from runs:
 | Podium Climber | 2× | small hurdle (−1) → big hurdle (−2) → winner's podium (15) | `SmallHurdle` → `BigHurdle` → `WinnersPodium` | +10 / piece |
 | Revealing Lady | 1× | socks (0) → cloth pile (0) → couple (12) | `Socks` → `ClothPile` → `RevealingCouple` | +5, failure −5 (user 2026-10-11) |
 | The Sword Trial | 1×, permanent end | sword in stone (6) → bent sword (3) → broken sword (−4) ✱ | `SwordInStone` → `BentSword` → `BrokenSword` | +8 / piece |
-| Bewitched Stew | 1× | cauldron (−2) → witch (−5) → witch's brew (15) (user 2026-10-10; brew +15 server-verified) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
+| Bewitched Stew | 1× | cauldron (+2, server-verified 2026-10-16; the user's original −2 was wrong) → witch (−5) → witch's brew (15) (user 2026-10-10; brew +15 server-verified) | `Well` → `Girl` → `Balloons` | +5, failure −5 |
 | Running Dry | 1× | mugs (0) → draft beer (6) → tapping bartender (6) (user 2026-10-10) | `Mugs` → `DraftBeer` → `Barkeeper` | +5, failure −5 |
 | Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 / piece (polluted fountain keeps appearing to the end, net +4 each), failure 0 (user 2026-10-10, not yet verified) |
 | Plenty of Men in the Sea | 1× | fishing rod (0) → fishing bait/worms (3) → merman (9) (user 2026-10-12; NOT the dragon's `Bait`, which is the princess −2) | `FishingRod` → `FishingBait` → `Merman` | +5, failure −5 (user, not yet verified) |
@@ -77,7 +77,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 | Revealing Lady: task bonus +5, failure −5 | ✅ user 2026-10-11 | 2026-10-07 (target, with a poster): 3 → 30 (+27) = 12 + 10 poster + 5 bonus |
 | Sword Trial +8 / piece (user) | ✅ | 2026-10-07: 4 broken swords, +32 after the pick in round 10 |
 | A poster works only once (used up) | ✅ | 2026-10-07: the second broken sword got no +10 |
-| Bewitched Stew: witch −5, brew +15 | ✅ | 2026-10-07 server; user confirmed 2026-10-10 (cauldron −2 per user, not yet verified) |
+| Bewitched Stew: witch −5, brew +15 | ✅ | 2026-10-07 server; user confirmed 2026-10-10; cauldron is +2 (server shows +2 in every check, user confirmed 2026-10-16; was −2) |
 | Other task bonuses, Sanitary +20 / −5 | ⏳ | pending |
 
 ## Unmapped

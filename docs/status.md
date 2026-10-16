@@ -2,6 +2,7 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Bewitched Stew cauldron (`Well`) corrected to +2 (2026-10-16, user confirmed; server checks always showed +2):** `src/missions.rs` + `docs/expeditions.md`; tests pass; needs a release rebuild. The strategy now sees the cauldron as a gain, not a penalty.
 - **"Why up" epic/weapon texts (2026-10-16, user):** an epic/legendary now reads just `Epic: +56 %` / `Legendary: +56 %` (icon shows the item; "new" is implied). Weapon % is now the average-DAMAGE ratio (`46 → 66, +43 %`), not the `v` ratio: a weapon's `v` is computed against the weapon worn at snapshot time (ratio 1), so it hid the damage and only reflected side stats (Mimimimi11's 46→66 showed +18 %). Other slots: `v` ratio, where `v` = score in main-attribute-point equivalents (main 100 %, CON 80 %, LCK 27 %, others 10 %, + gem), so +538 % means the old item was nearly worthless (e.g. no main attribute/CON). Computed at render, so old days change too. Test passes; needs a release rebuild.
 - **Release built 08:15 2026-10-16: Arena back to 10 XP wins, Academy XP collected normally again, HoK cap; the user starts the bot.**
 - (older) **Release built 2026-10-16 (HoK cap), the user starts the bot.**
