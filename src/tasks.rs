@@ -545,7 +545,9 @@ pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
         gs.tavern.beer_max
     );
     send_or_return!(session, Command::BuyBeer);
-    Outcome::Done
+    // A "Drink beer" task may be finished by this beer: refresh and claim its chest right away (user 2026-10-16)
+    send_or_return!(session, Command::Update);
+    claim_chests(session).await
 }
 
 /// May the bot spin the Wheel of Fortune for lucky coins now? (Also checked by `safe.rs`.)
