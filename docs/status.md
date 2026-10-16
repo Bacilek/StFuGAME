@@ -657,6 +657,7 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 | Attribute cost table/self-correction (`src/attributes.rs`) against real purchases; surplus-gold buying actually triggering | next character that buys several attribute points, or piles up 5×+ the shop reserve | `docs/tasks.md` |
 
 ## Open questions for the user
+- Does a gem in the Assassin's off-hand (Shield slot) count double like a weapon gem? Unknown (user 2026-10-16), tracked in `docs/todo.md`; `gems::weapon_socket` ignores the Shield slot until known.
 - Epic items are never sold → the backpack fills up over time (in the TODO, no decision yet).
 - Unmapped expedition missions: merman, riding, lovebirds (`docs/expeditions.md`).
 - Attribute-purchase key for the challenge (which stats, how split) – not decided yet.
