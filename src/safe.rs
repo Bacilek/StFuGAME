@@ -218,7 +218,7 @@ fn guild_upgrade_ok(gs: &GameState, skill: GuildSkill, current: u16) -> bool {
     gs.guild.as_ref().is_some_and(|g| {
         let own = if skill == GuildSkill::Instructor { g.own_instructor_skill } else { g.own_treasure_skill };
         g.upgrade_price[skill].mushrooms == 0 && g.upgrade_price[skill].silver <= gs.character.silver && own == current
-    })
+    }) || crate::guild::six_price_ok(gs, skill, current)
 }
 
 /// Shell game: only with at least 5 gold and a bet of at most 1/10 of the gold.
@@ -355,6 +355,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     let allowed_spend = match &cmd {
         Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
         Command::BuyBeer => crate::tasks::BEER_MUSHROOMS,
+        Command::GuildIncreaseSkill { skill, current } => session
+            .game_state()
+            .filter(|gs| crate::guild::six_price_ok(gs, *skill, *current))
+            .and_then(|gs| gs.guild.as_ref())
+            .map_or(0, |g| u32::from(g.upgrade_price[*skill].mushrooms)),
         _ => 0,
     };
 
@@ -443,5 +448,18 @@ mod fortress_tests {
         // gems: start and collect (only without mushrooms)
         assert!(is_allowed(&Command::FortressGemStoneSearch));
         assert!(is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 0 }));
+    }
+}
+
+#[cfg(test)]
+mod guild_six_tests {
+    use super::*;
+
+    #[test]
+    fn only_instructor_and_treasure_may_be_upgraded() {
+        assert!(is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Instructor, current: 5 }));
+        assert!(is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Treasure, current: 5 }));
+        // the Pet skill is never bought (not part of the "6/6" the guilds ask for)
+        assert!(!is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Pet, current: 5 }));
     }
 }

@@ -677,6 +677,9 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         if let Outcome::SessionLost = upgrade_guild_surplus(session).await {
             return Outcome::SessionLost;
         }
+        if let Outcome::SessionLost = crate::guild::six_bonuses(session).await {
+            return Outcome::SessionLost;
+        }
         if let Outcome::SessionLost = buy_surplus_attributes(session).await {
             return Outcome::SessionLost;
         }

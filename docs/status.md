@@ -16,6 +16,8 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 - **Main/CON balance in item and gem values (2026-10-16, user):** new `src/balance.rs` (`BALANCE_STRENGTH = 0.25`, `CON_TARGET = 0.8`, one place to calibrate, 0.0 = off); `inventory::value_core` judges items on the resulting (main, CON) pair (raw numbers, no potions), weapons too; `gems.rs` orders non-weapon gems by `inventory::gem_gain`. 4 new tests, 88 pass; NOT built into release, not seen live. Potions and bought attributes deliberately keep their fixed weights (user: attribute buying stays at 100:80:40 – Luck 0.4 only for buying, `attributes::BUY_LUCK_WEIGHT`; compiles, not in the release yet). ⏳ After the rebuild compare the next `inventory.log` decisions of Mimimimi11 (1582/823) and Filminy with the old ones; see `docs/inventory.md`.
 
+- **Guild skills 6/6 (2026-10-16, user, one-time mushroom exception):** `guild::six_bonuses` buys Instructor and Treasure 5 → 6 (500 g + 2 mushrooms each) once per character and skill; `safe.rs` + watchdog allow exactly that price; Pet never. Compiles, tests pass; NOT built into release, not seen live. See `docs/guild.md`.
+
 - **Release built 21:41 2026-10-16** (guild check every 15 min during Exceptional XP + top-of-list log); the user starts the bot.
 
 - **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.

@@ -445,3 +445,92 @@ mod requirement_tests {
         assert!(o(50, 80).key() > o(55, 50).key());
     }
 }
+
+/// One-time purchase of the Instructor and Treasure levels 5 → 6 (user 2026-10-16: guild descriptions ask for "6/6" and the
+/// user wants us to be competitive and wanted members). Each upgrade costs 500 g AND 2 mushrooms, so it is a narrow, priced
+/// exception to the "never spend mushrooms" rule: `safe.rs` lets exactly this command through (`six_price_ok`) and the mushroom
+/// watchdog allows exactly the price. Pet is not part of it. Done once per character and skill (`roster/<character>/guild_six.txt`).
+const SIX_FROM: u16 = 5;
+const SIX_MAX_SILVER: u64 = 50_000; // 500 g
+const SIX_MAX_MUSHROOMS: u16 = 2;
+
+/// May this exact guild upgrade (own skill `current` → 6) be paid with mushrooms? Only Instructor/Treasure at level 5, a price of
+/// at most 500 g and 2 mushrooms that we can pay now.
+pub fn six_price_ok(gs: &sf_api::gamestate::GameState, skill: sf_api::gamestate::guild::GuildSkill, current: u16) -> bool {
+    use sf_api::gamestate::guild::GuildSkill;
+    let Some(g) = gs.guild.as_ref() else { return false };
+    let own = match skill {
+        GuildSkill::Instructor => g.own_instructor_skill,
+        GuildSkill::Treasure => g.own_treasure_skill,
+        GuildSkill::Pet => return false,
+    };
+    let p = &g.upgrade_price[skill];
+    current == SIX_FROM
+        && own == current
+        && p.mushrooms > 0
+        && p.mushrooms <= SIX_MAX_MUSHROOMS
+        && p.silver <= SIX_MAX_SILVER
+        && p.silver <= gs.character.silver
+        && gs.character.mushrooms >= u32::from(p.mushrooms)
+}
+
+fn six_marker() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("guild_six.txt")
+}
+
+fn six_done(skill: sf_api::gamestate::guild::GuildSkill) -> bool {
+    std::fs::read_to_string(six_marker()).is_ok_and(|t| t.lines().any(|l| l.trim() == format!("{skill:?}")))
+}
+
+fn six_mark(skill: sf_api::gamestate::guild::GuildSkill) {
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(six_marker()) {
+        let _ = writeln!(f, "{skill:?}");
+    }
+}
+
+/// Buys the missing level 6 of Instructor and Treasure, one skill per call, once the shop reserve is covered.
+pub async fn six_bonuses(session: &mut SimpleSession) -> Outcome {
+    use sf_api::gamestate::guild::GuildSkill;
+    for skill in [GuildSkill::Instructor, GuildSkill::Treasure] {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some(g) = gs.guild.as_ref() else { return Outcome::Done };
+        if six_done(skill) {
+            continue;
+        }
+        let own = if skill == GuildSkill::Instructor { g.own_instructor_skill } else { g.own_treasure_skill };
+        if own > SIX_FROM {
+            six_mark(skill); // already 6 or more (bought for gold at some point or by hand)
+            continue;
+        }
+        if own != SIX_FROM || !six_price_ok(gs, skill, own) {
+            continue;
+        }
+        let p = &g.upgrade_price[skill];
+        if gs.character.silver < p.silver + crate::shops::reserve() {
+            continue;
+        }
+        report!(
+            "[guild] Buying {skill:?} {own} → {} for {} and {} mushrooms (user: guilds ask for 6/6)",
+            own + 1,
+            crate::report::gold(p.silver),
+            p.mushrooms
+        );
+        if let Err(e) = safe::send(session, Command::GuildIncreaseSkill { skill, current: own }).await {
+            report!("[guild] Error: {e}");
+            return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            report!("[guild] Error: {e}");
+            return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+        }
+        let now = session.game_state().and_then(|gs| gs.guild.as_ref()).map(|g| {
+            if skill == GuildSkill::Instructor { g.own_instructor_skill } else { g.own_treasure_skill }
+        });
+        if now.is_some_and(|n| n > own) {
+            six_mark(skill);
+            report!("[guild] {skill:?} is now {}", own + 1);
+        }
+    }
+    Outcome::Done
+}

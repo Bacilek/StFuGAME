@@ -179,3 +179,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - **Main/CON balance (user 2026-10-16):** the ideal is Constitution = 80 % of the main attribute; items and gems are judged on the resulting pair, slightly less value the further from 100 : 80 (strength 0.25, single constant in `balance.rs`). Raw numbers only (no potions). Luck and secondary attributes stay out of the balance (fixed weights, only matter for power).
 
 - **Buying attributes uses 100 : 80 : 40 (user 2026-10-16):** Luck weighs 0.4 per gold decision when buying (`attributes::BUY_LUCK_WEIGHT`), no main/CON balance; Arena power and item/gem values keep Luck at 0.27 (`arena::LUCK_WEIGHT`) and the balance.
+
+- **Guild skills 6/6 for mushrooms, one time (user 2026-10-16):** every character buys Instructor and Treasure 5 → 6 (500 g + 2 mushrooms each), so that we are competitive and wanted in guilds that ask for 6/6. Narrow exception recorded in CLAUDE.md, enforced in `safe.rs` (`guild::six_price_ok`). Pet never.
