@@ -160,3 +160,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-16 (fortress, correction): Hall of Knights max = min(Fortress level, 8); no upgrades beyond level 8 for now (temporary).
 - 2026-10-16 (fortress): Academy XP is collected only at >= 50 % of its limit or when it would be full within 45 min (server per_hour, no event doubling); collecting a few points every pass is pointless.
 - 2026-10-16 (Rumble for Riches, reversal): losing an Arena fight during the event COSTS gold, so no extra fights beyond the 10 XP wins; afterwards only scrapbook hunts in the Hall of Fame.
+- 2026-10-16 (Academy during the XP event): it fills at the normal speed, a collection just pays 2× XP – no change to when we collect.
