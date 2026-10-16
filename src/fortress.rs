@@ -195,14 +195,12 @@ pub fn hok_affordable(gs: &GameState) -> bool {
         && p.wood <= f.resources[R::Wood].current
         && p.stone <= f.resources[R::Stone].current
         && p.silver <= gs.character.silver
-        && f.hall_of_knights_level < f.buildings[B::Fortress].level.max(HOK_MIN_TARGET)
+        && f.hall_of_knights_level < f.buildings[B::Fortress].level
         && HOK_FAILED.lock().is_ok_and(|x| *x != Some((f.hall_of_knights_level, f.buildings[B::Fortress].level)))
 }
 
-/// The Hall of Knights is taken to at least this level even below it the Fortress level (user 2026-10-15); beyond, up to the
-/// Fortress level. UNVERIFIED that the game lets it exceed the Fortress level: on a refusal `HOK_FAILED` stops the retries
-/// until the Hall or the Fortress changes level.
-const HOK_MIN_TARGET: u16 = 8;
+/// VERIFIED 2026-10-16: the game refuses a Hall of Knights above the Fortress level ("need higher building1", Fortress 6 / Hall 6 -> 7),
+/// so the Hall follows the Fortress; `HOK_FAILED` still stops retries after any other refusal until a level changes.
 /// (Hall of Knights level, Fortress level) at which the last upgrade attempt failed.
 static HOK_FAILED: crate::ctx::PerChar<Option<(u16, u16)>> = crate::ctx::PerChar::new();
 
