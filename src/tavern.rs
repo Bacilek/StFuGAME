@@ -165,6 +165,32 @@ fn feasibility(steps: u8, floors: u8) -> f64 {
     }
 }
 
+/// Measured 2026-10-16 (docs/expedition-analysis.md, "Chain follow-up", 1117 runs): once a chain step is taken, the next one is on
+/// offer in a given round with probability ~0.65 (next round 0.65–0.70, within 2 rounds ~0.85).
+const CHAIN_STEP_CHANCE: f64 = 0.65;
+
+/// Chance of completing a chain of `steps` more steps with `floors` crossroads left: at least `steps` of the `floors`
+/// rounds offer the step we are waiting for (binomial, ~0.65 per round). The round count matters: 3 steps in 9 rounds ≈ 0.99,
+/// in 5 rounds ≈ 0.76, in 3 rounds ≈ 0.27 (Build A Friend: Hand in round 1 → Klaus 45/46, round 3 → 6/8, round 5 → 1/2).
+fn chain_feasibility(steps: u8, floors: u8) -> f64 {
+    if steps == 0 {
+        return 1.0;
+    }
+    if steps > floors {
+        return 0.0;
+    }
+    let q = CHAIN_STEP_CHANCE;
+    let (n, k) = (i32::from(floors), i32::from(steps));
+    // P(X >= k), X ~ Binomial(n, q), via the complement P(X <= k-1)
+    let mut below = 0.0;
+    let mut choose = 1.0; // C(n, i)
+    for i in 0..k {
+        below += choose * q.powi(i) * (1.0 - q).powi(n - i);
+        choose = choose * f64::from(n - i) / f64::from(i + 1);
+    }
+    (1.0 - below).clamp(0.0, 1.0)
+}
+
 /// Points the next round loses because this pick restricts it (journal analysis 2026-10-16, docs/expedition-analysis.md):
 /// after a chicken drumstick (CupCake) the next crossroads has 2 options, after a suckling pig (Cake) only 1, otherwise 3.
 /// Best option on offer next round: 3.7 / 2.6 / 1.7 points on average. A Cake (+5) then equals a Dummy3 (+3) over two rounds,
@@ -179,7 +205,7 @@ fn restriction_cost(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         ExpeditionThing::Cake => (0.0, 1.0),
         _ => return 0.0,
     };
-    // Hot Carnal Craving: the pig IS the target, narrowing the offer does not hide anything
+    // Hot Carnival: the pig IS the target, narrowing the offer does not hide anything
     if enc.typ == exp.target_thing {
         return 0.0;
     }
@@ -246,7 +272,7 @@ fn future_value(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
         (true, Bonus::OnComplete(_)) => 0,
     };
     let payoff = f64::from(rest + bonus) - OPPORTUNITY_COST * f64::from(steps);
-    feasibility(steps, floors) * payoff.max(0.0)
+    chain_feasibility(steps, floors) * payoff.max(0.0)
 }
 
 /// Estimate for a step of an unmapped mission. Items of one mission have consecutive sf-api numbers
@@ -262,7 +288,7 @@ fn unknown_chain_value(exp: &Expedition, t: ExpeditionThing, floors: u8) -> f64 
     }
     let steps = u8::try_from(target_id - t_id).unwrap_or(u8::MAX);
     let payoff = f64::from(UNKNOWN_TARGET_GUESS * 2) - OPPORTUNITY_COST * f64::from(steps - 1);
-    feasibility(steps, floors) * payoff.max(0.0)
+    chain_feasibility(steps, floors) * payoff.max(0.0)
 }
 
 /// How much heroism should rise right after the pick: encounter points + poster + one-time completion bonus.
@@ -911,13 +937,25 @@ mod tests {
     }
 
     #[test]
+    fn chain_feasibility_follows_rounds_left() {
+        assert_eq!(chain_feasibility(0, 3), 1.0);
+        assert_eq!(chain_feasibility(4, 3), 0.0);
+        assert!((chain_feasibility(1, 1) - 0.65).abs() < 1e-9);
+        assert!(chain_feasibility(3, 9) > 0.95);
+        assert!((0.7..0.8).contains(&chain_feasibility(3, 5)));
+        assert!(chain_feasibility(3, 3) < 0.3);
+        // more rounds never hurt
+        assert!(chain_feasibility(2, 6) > chain_feasibility(2, 4));
+    }
+
+    #[test]
     fn restriction_cost_grows_mid_chain() {
         // Klaus mission, Hand taken: the narrowed offer could hide the Feet
         let mid = with(exp(Klaus, 0, 1, 10, 3), &[Hand]);
         let start = exp(Klaus, 0, 1, 10, 3);
         assert!(restriction_cost(&mid, &enc(Cake, 5)) > restriction_cost(&start, &enc(Cake, 5)));
         assert!(restriction_cost(&mid, &enc(CupCake, 3)) > restriction_cost(&start, &enc(CupCake, 3)));
-        // Hot Carnal Craving: the pig is the target itself
+        // Hot Carnival: the pig is the target itself
         assert_eq!(restriction_cost(&exp(Cake, 0, 99, 10, 3), &enc(Cake, 5)), 0.0);
         // a counted target under way (2 of 3 toilet papers)
         assert!(chain_in_progress(&exp(ToiletPaper, 2, 3, 20, 5)));

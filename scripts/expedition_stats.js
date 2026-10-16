@@ -23,11 +23,11 @@ if (fs.existsSync(rosterDir)) {
 // The journal names an unmapped mission by its target item; map those onto the real mission names.
 const ALIAS = {
   Barkeeper: "Running Dry", RidingStan: "Beak to Tail", Merman: "Plenty of Men in the Sea",
-  Klaus: "Build A Friend", Unknown: "Unknown",
+  Klaus: "Build A Friend", Unknown: "Unknown", "Hot Carnal Craving": "Hot Carnival",
 };
 const TIER = {
   "Podium Climber": "S", "Dragon Taming": "S",
-  "Hot Carnal Craving": "A", "Unicorn Whisperer": "A", "Build A Friend": "A",
+  "Hot Carnival": "A", "Unicorn Whisperer": "A", "Build A Friend": "A",
 };
 const missionName = (raw) => {
   const n = raw.replace(/ \((bonus unverified|unknown mission)\)/, "").trim();

@@ -47,7 +47,7 @@ impl Mission {
     pub fn tier(&self) -> u8 {
         match self.name {
             "Podium Climber" | "Dragon Taming" => 0,
-            "Hot Carnal Craving" | "Unicorn Whisperer" | "Build A Friend" => 1,
+            "Hot Carnival" | "Unicorn Whisperer" | "Build A Friend" => 1,
             _ => 2,
         }
     }
@@ -102,7 +102,7 @@ pub const MISSIONS: &[Mission] = &[
         1,
     )),
     // Chicken drumstick (CupCake) and suckling pig (Cake) narrow the next crossroads to 2 and 1 options
-    known("Hot Carnal Craving", &[(Cake, 5)], Bonus::PerItem(3), u8::MAX),
+    known("Hot Carnival", &[(Cake, 5)], Bonus::PerItem(3), u8::MAX),
     known(
         "Unicorn Whisperer",
         &[(UnicornHorn, 1), (Donkey, 3), (Rainbow, 5), (Unicorn, 7)],

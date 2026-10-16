@@ -26,7 +26,7 @@ Plenty of Men in the Sea, Beak to Tail, Gone With the Wind.
 - **88 % reach 40** (987 of 1117). Of the 130 failures, 110 end at 30–39 (near misses), only ~20 are real disasters.
 - Heroism histogram (final): below 35: 54, 35–39: 76, 40–44: 285, 45–49: 323, 50–54: 243, 55+: 136. 63 % of all runs end at 45+, so in most
   runs the points are there – the failures are runs where the target bonus or the chain did not come together.
-- Per mission, ok rate: Podium 100 %, Hot Carnal Craving (pig) 99 %, Dragon 98 %, Unicorn 93 %, Build A Friend 93 %,
+- Per mission, ok rate: Podium 100 %, Hot Carnival (pig) 99 %, Dragon 98 %, Unicorn 93 %, Build A Friend 93 %,
   Toxic Fountain 91 %, Beak to Tail 86 %, Sanitary 85 %, Gone With the Wind 85 %, Running Dry 84 %, Fish 84 %, Fire 83 %,
   Revealing Lady 83 %, Sword Trial 80 %, **Bewitched Stew 74 %** (worst).
   This matches the user's tier list (S: podium/dragon, A: pig/unicorn/Klaus, B: the rest) – tier choice in `choose_expedition` is justified.
@@ -94,8 +94,9 @@ are what makes 40 realistic, and a run without a finished target almost always e
    taking the witch only when brew follows is realistic (needs the follow-up probability above: 65 %).
 
 ## Implemented 2026-10-16 (⏳ verify live after the next release build; compare with `--since`)
-- A+B: `tavern::restriction_cost` subtracts from the score of a CupCake (1.1, +0.5 mid-chain) and a Cake (0, +1.0 mid-chain: a held non-last chain step or some of a counted target found). Zero in the last round and when the pig is the target (Hot Carnal Craving). Tests: `drumstick_is_worse_than_dummy3_pig_is_not`, `restriction_cost_grows_mid_chain`.
-- Raw ids of unknown encounters in the journal (`src/rawid.rs`). Not done: D (needs the ids first), C, F, key-with-lead (the user: 40 beats chests, chests give no XP).
+- A+B: `tavern::restriction_cost` subtracts from the score of a CupCake (1.1, +0.5 mid-chain) and a Cake (0, +1.0 mid-chain: a held non-last chain step or some of a counted target found). Zero in the last round and when the pig is the target (Hot Carnival). Tests: `drumstick_is_worse_than_dummy3_pig_is_not`, `restriction_cost_grows_mid_chain`.
+- C (+F): `tavern::chain_feasibility` replaces the 0.7/0.35 constants for chain steps (and unmapped chains): P(at least `steps` of the remaining rounds offer the next step), 0.65 per round (3 steps: 9 rounds 0.99, 5 rounds 0.76, 3 rounds 0.27) – so a long chain such as Build A Friend is not started late. Bounties and counted targets (toilet paper) keep the old `feasibility`. F needs no separate rule.
+- Raw ids of unknown encounters in the journal (`src/rawid.rs`). Not done: D (needs the ids first), key-with-lead (the user: 40 beats chests, chests give no XP).
 - E (≤ 2 rounds left, 40 not secured: points only): `feasibility` already returns 0 when steps > floors left, so future value vanishes by itself; nothing extra needed.
 
 ## Foreign quest items (e.g. Prince +8 while the mission is Klaus)
@@ -111,7 +112,7 @@ Verdict: grab the foreign +8 whenever offered; no penalty needed (a forced −4 
 - C. Replace `feasibility` by the measured per-step probability (0.68 next round, 0.85 within 2).
 - D. Map Gone With the Wind by its points (+4 / +2 / +6) so it is a proper chain with bonus +10 / −10.
 - E. Late-game rule: with ≤ 2 rounds left and 40 not secured, maximise immediate points (ignore future value).
-- F. Compare Cake behaviour when the mission is Hot Carnal Craving (+3 per pig at the end): this mission already ends at 53 avg,
+- F. Compare Cake behaviour when the mission is Hot Carnival (+3 per pig at the end): this mission already ends at 53 avg,
   so Cake there is clearly right; for other missions it is break-even.
 Success metric: ok rate (share ≥ 40) by mission and overall, plus the near-miss share (35–39). Baseline: 88.4 % overall.
 

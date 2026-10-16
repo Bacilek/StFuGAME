@@ -34,7 +34,7 @@ Verified from runs:
 |---|---|---|---|---|
 | Dummies | – | Dummy 1.0 (1), 2.0 (2), 3.0 (3) | `Dummy1..3` | – |
 | Key and Treasure Chest | 2× | key (0) → treasure chest (0, gold / resources depending on the event) | `Key` → `Suitcase` | – |
-| Hot Carnal Craving | – | chicken drumstick (3, next crossroads only 2 options), suckling pig (5, next crossroads only 1 option) | `CupCake`, `Cake` | +3 / piece (pig) |
+| Hot Carnival | – | chicken drumstick (3, next crossroads only 2 options), suckling pig (5, next crossroads only 1 option) | `CupCake`, `Cake` | +3 / piece (pig) |
 | Bounties | 3× per type | wanted poster (0), the wanted encounter then gives +10 once (the poster is used up) | `*Bounty` | – |
 | Dragon Taming | 2× | bait/princess (−2) → dragon (10) | `Bait` → `Dragon` | +5 / piece |
 | Sanitary Emergency | 3× | toilet paper (0), only when the quest giver asks for it; 3 needed | `ToiletPaper` | +20, failure −5 ⚠ |
@@ -71,7 +71,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 | Chicken drumstick +3, next crossroads only 2 options | ✅ | 2026-10-07: 37 → 40, next round 2 options |
 | Dragon Taming +5 / piece at the end | ✅ | 2026-10-07: 36 → 46 for 2 dragons |
 | Treasure chest appears after the key | ✅ | 2026-10-07: Barkeeper round 1 key, round 2 chest |
-| Hot Carnal Craving: pig → next crossroads 1 option, drumstick → 2 | ✅ | 2026-10-07: Barkeeper rounds 6 and 7 |
+| Hot Carnival: pig → next crossroads 1 option, drumstick → 2 | ✅ | 2026-10-07: Barkeeper rounds 6 and 7 |
 | Sword Trial: 6 / 3 / −4 (FAQ 5 / 2 / −5, the user −4 for the broken one) | ✅ server | 2026-10-07: offer and credited heroism |
 | Revealing Lady: couple +12 | ✅ | 2026-10-07 (Barkeeper, couple not the target, no poster): heroism 16 → 23 = +12 − 5 failure penalty (explained by the user's 2026-10-11 data) |
 | Revealing Lady: task bonus +5, failure −5 | ✅ user 2026-10-11 | 2026-10-07 (target, with a poster): 3 → 30 (+27) = 12 + 10 poster + 5 bonus |
@@ -106,7 +106,7 @@ Since 2026-10-16 (user; `tavern::choose_expedition`):
 1. A Gleeman/event task "travel to <location>": an expedition through that location wins (over tier and length).
 2. The better XP tier (`Mission::tier`, official SFGame Discord tier list, ranks the 14 missions):
    - **S:** Podium Climber (cup/trophy), Dragon Taming
-   - **A:** Hot Carnal Craving (roast pig), Unicorn Whisperer, Build A Friend (Klaus)
+   - **A:** Hot Carnival (roast pig), Unicorn Whisperer, Build A Friend (Klaus)
    - **B:** Toxic Fountain Cure (poisoned well), Revealing Lady (couple), Bewitched Stew (witch), Sanitary Emergency (toilet),
      Extinguished Fire, The Sword Trial (broken sword), Plenty of Men in the Sea (fish), Running Dry (barrel/bartender),
      Beak to Tail (zoo)
