@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Release built 20:11 2026-10-16** (gems: weapon first, Assassin bare-hands experiment, free-article check hardened); the user starts the bot.
+
 - **Weapon first for gems (2026-10-16, user, before the release):** `gems::weapon_socket` – the worn weapon gets the strongest main/All/Legendary gem, else Constitution, replacing a weaker one (better tier or same tier with more power); see `docs/inventory.md`. Needs a release rebuild; untested live.
 
 - **Shop catalog free-item check hardened (2026-10-16, user screenshot of the Mushroom Dealer catalog):** `daily::is_free_article` (sku FREE + price 0 + no `cost`); the catalog also holds Black Market items priced in mushrooms. Needs a release rebuild.
