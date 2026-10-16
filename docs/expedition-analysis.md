@@ -93,6 +93,17 @@ are what makes 40 realistic, and a run without a finished target almost always e
 7. **Bewitched Stew** (worst ok rate 74 %): cauldron +2, witch −5, brew +15, completion +5; the −5 step makes runs fragile; check if
    taking the witch only when brew follows is realistic (needs the follow-up probability above: 65 %).
 
+## Implemented 2026-10-16 (⏳ verify live after the next release build; compare with `--since`)
+- A+B: `tavern::restriction_cost` subtracts from the score of a CupCake (1.1, +0.5 mid-chain) and a Cake (0, +1.0 mid-chain: a held non-last chain step or some of a counted target found). Zero in the last round and when the pig is the target (Hot Carnal Craving). Tests: `drumstick_is_worse_than_dummy3_pig_is_not`, `restriction_cost_grows_mid_chain`.
+- Raw ids of unknown encounters in the journal (`src/rawid.rs`). Not done: D (needs the ids first), C, F, key-with-lead (the user: 40 beats chests, chests give no XP).
+- E (≤ 2 rounds left, 40 not secured: points only): `feasibility` already returns 0 when steps > floors left, so future value vanishes by itself; nothing extra needed.
+
+## Foreign quest items (e.g. Prince +8 while the mission is Klaus)
+Taken for the immediate points only (future value of a foreign chain is 0). The permanent last encounter that a started cycle leaves behind is a risk, measured:
+after taking a Prince in a non-fountain mission (60 runs) the polluted fountain (RoyalFrog −4) was offered 2.7× per run, **picked 0.13× and forced (the only option) 0.05× per run**,
+i.e. ≈ −0.5 expected points against +8 gained. Sword in stone → broken sword −4: offered 0.65×, picked 0.03×, forced 0.02× per run; campfire → burnt campfire (0): harmless.
+Verdict: grab the foreign +8 whenever offered; no penalty needed (a forced −4 after a pig is ~2 % per run).
+
 ## Candidate tactics to test (one change at a time, then rerun the report with `--since`)
 - A. Lower the score of CupCake by ~1.1 (opportunity cost of the next round) and of Cake by ~0 … 1; never take CupCake over a Dummy3.
 - B. Model "next round has fewer options" explicitly: penalty = (expected best option with 3) − (with 2 or 1) for the picked item

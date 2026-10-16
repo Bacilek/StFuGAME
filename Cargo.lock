@@ -2871,6 +2871,7 @@ dependencies = [
  "dotenvy",
  "enum-map",
  "fastrand",
+ "log",
  "reqwest",
  "serde_json",
  "sf-api",

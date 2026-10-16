@@ -83,6 +83,7 @@ Results are in the journal (`checks`), mismatches are reported as `[check] MISMA
 ## Source check 2026-10-16 (in-game encounter overview, `my_input/expeditions.png`)
 Every cycle on the screenshot matches the tables above (points, limits, "after that only the last encounter", bounty 3× per individual
 encounter, drumstick → 2 options, pig → 1 option). Not on the screenshot: Running Dry, Plenty of Men in the Sea, Beak to Tail, Gone With the Wind.
+Seasonal missions (user 2026-10-16): Gone With the Wind = autumn, LoveBirds (Cupid → LovestruckShakes → LoveBirds, sf-api ids 171–173) = Valentine; both are not on the permanent encounter screenshot. Since 2026-10-16 the journal `unmapped` entries of an `Unknown` encounter carry the raw server id ("Unknown(+4) raw id N", `src/rawid.rs`: a `log` logger catching sf-api's "Unknown encounter: N" warning); with those ids a new mission can be mapped.
 Measured frequencies, chain follow-up probabilities and the strategy review: `docs/expedition-analysis.md` (report script `scripts/expedition_stats.js`).
 
 ## Unmapped

@@ -22,6 +22,7 @@ mod inventory;
 mod journal;
 mod missions;
 mod potions;
+mod rawid;
 mod roster;
 mod safe;
 mod schedule;
@@ -442,6 +443,7 @@ fn main() -> ExitCode {
         tray::message_box(&format!("StFuGAME crashed:\n{info}"));
     }));
     enter_project_dir();
+    rawid::init();
     if tray::already_running() {
         tray::message_box("The StFuGAME bot is already running (icon next to the clock).");
         return ExitCode::FAILURE;

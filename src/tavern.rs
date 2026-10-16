@@ -33,6 +33,9 @@ const LAST_FLOOR: u8 = 10;
 /// Average heroism one round yields. A round spent on preparation (a chain step)
 /// therefore "costs" what we would otherwise have collected. Tune from the journal.
 const OPPORTUNITY_COST: f64 = 4.0;
+/// A chicken drumstick (CupCake) is worth this many points less than its +3 over the two rounds it affects
+/// (measured 2026-10-16: 5.6 vs 6.7 points for a Dummy3 + a normal round, see `restriction_cost`).
+const CUPCAKE_COST: f64 = 1.1;
 /// Estimated bonus for the target item of an unknown mission (until it is mapped).
 const UNKNOWN_TARGET_GUESS: i32 = 5;
 /// The most heroism realistically obtainable in one round (poster + dummy ~13,
@@ -160,6 +163,39 @@ fn feasibility(steps: u8, floors: u8) -> f64 {
     } else {
         0.35
     }
+}
+
+/// Points the next round loses because this pick restricts it (journal analysis 2026-10-16, docs/expedition-analysis.md):
+/// after a chicken drumstick (CupCake) the next crossroads has 2 options, after a suckling pig (Cake) only 1, otherwise 3.
+/// Best option on offer next round: 3.7 / 2.6 / 1.7 points on average. A Cake (+5) then equals a Dummy3 (+3) over two rounds,
+/// a CupCake (+3) is ~1.1 worse. With a chain/count of the main mission under way the narrowed offer can also hide the next
+/// step, so the cost grows. Nothing to lose in the last round.
+fn restriction_cost(exp: &Expedition, enc: &ExpeditionEncounter) -> f64 {
+    if floors_after(exp) == 0 {
+        return 0.0;
+    }
+    let (base, mid_chain) = match enc.typ {
+        ExpeditionThing::CupCake => (CUPCAKE_COST, 0.5),
+        ExpeditionThing::Cake => (0.0, 1.0),
+        _ => return 0.0,
+    };
+    // Hot Carnal Craving: the pig IS the target, narrowing the offer does not hide anything
+    if enc.typ == exp.target_thing {
+        return 0.0;
+    }
+    base + if chain_in_progress(exp) { mid_chain } else { 0.0 }
+}
+
+/// Is the main mission mid-way (a chain step held but not the last one, or some of a counted target found)?
+fn chain_in_progress(exp: &Expedition) -> bool {
+    let Some(m) = missions::for_target(exp.target_thing) else { return false };
+    if target_done(exp) {
+        return false;
+    }
+    if m.count > 1 {
+        return exp.target_current > 0;
+    }
+    m.chain.iter().rposition(|(c, _)| has(exp, *c)).is_some_and(|h| h + 1 < m.chain.len())
 }
 
 /// Future value of a pick: what it unlocks (poster, chain step) or brings closer
@@ -334,7 +370,7 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
         }
     }
 
-    let score = |e: &ExpeditionEncounter| f64::from(immediate_gain(exp, e)) + future_value(exp, e);
+    let score = |e: &ExpeditionEncounter| f64::from(immediate_gain(exp, e)) + future_value(exp, e) - restriction_cost(exp, e);
     let mut best = 0;
     for (i, e) in encs.iter().enumerate() {
         if score(e) > score(&encs[best]) {
@@ -511,8 +547,16 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         report!("[tavern] The offer stayed the same after refreshing, treating it as real");
                     }
                     stale_tries = 0;
+                    // sf-api only logs the raw id of an encounter it cannot name; same order as the offer
+                    let unknown_count = encs.iter().filter(|e| e.typ == ExpeditionThing::Unknown).count();
+                    let mut raw_ids = crate::rawid::take_last(unknown_count).into_iter();
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
-                        let note = format!("{:?}({:+})", u.typ, u.heroism);
+                        let mut note = format!("{:?}({:+})", u.typ, u.heroism);
+                        if u.typ == ExpeditionThing::Unknown
+                            && let Some(id) = raw_ids.next()
+                        {
+                            note = format!("{note} raw id {id}");
+                        }
                         report!("[tavern] Unmapped encounter: {note}");
                         if !entry.unmapped.contains(&note) {
                             entry.unmapped.push(note);
@@ -849,6 +893,35 @@ mod tests {
         let e = exp(WinnersPodium, 2, 2, 25, 6);
         assert_eq!(projected_heroism(&e), 45);
         assert_eq!(choose_encounter(&e, &[enc(Dummy1, 2), enc(Key, 0)]), 1);
+    }
+
+    #[test]
+    fn drumstick_is_worse_than_dummy3_pig_is_not() {
+        let e = exp(Dragon, 0, 2, 10, 4);
+        // drumstick (+3, next round 2 options) loses to a Dummy3 (+3) and to a Dummy2 (+2 vs 3 - 1.1)
+        assert_eq!(choose_encounter(&e, &[enc(CupCake, 3), enc(Dummy3, 3)]), 1);
+        assert_eq!(choose_encounter(&e, &[enc(CupCake, 3), enc(Dummy2, 2)]), 1);
+        // but beats a Dummy1
+        assert_eq!(choose_encounter(&e, &[enc(CupCake, 3), enc(Dummy1, 1)]), 0);
+        // the pig (+5) still beats a Dummy3 outside a chain
+        assert_eq!(choose_encounter(&e, &[enc(Cake, 5), enc(Dummy3, 3)]), 0);
+        // in the last round nothing is restricted any more
+        let last = exp(Dragon, 0, 2, 10, 10);
+        assert_eq!(choose_encounter(&last, &[enc(CupCake, 3), enc(Dummy3, 3)]), 0);
+    }
+
+    #[test]
+    fn restriction_cost_grows_mid_chain() {
+        // Klaus mission, Hand taken: the narrowed offer could hide the Feet
+        let mid = with(exp(Klaus, 0, 1, 10, 3), &[Hand]);
+        let start = exp(Klaus, 0, 1, 10, 3);
+        assert!(restriction_cost(&mid, &enc(Cake, 5)) > restriction_cost(&start, &enc(Cake, 5)));
+        assert!(restriction_cost(&mid, &enc(CupCake, 3)) > restriction_cost(&start, &enc(CupCake, 3)));
+        // Hot Carnal Craving: the pig is the target itself
+        assert_eq!(restriction_cost(&exp(Cake, 0, 99, 10, 3), &enc(Cake, 5)), 0.0);
+        // a counted target under way (2 of 3 toilet papers)
+        assert!(chain_in_progress(&exp(ToiletPaper, 2, 3, 20, 5)));
+        assert!(!chain_in_progress(&exp(ToiletPaper, 0, 3, 0, 1)));
     }
 
     #[test]
