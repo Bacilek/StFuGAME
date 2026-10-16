@@ -895,24 +895,32 @@ fn changes(prev: &serde_json::Value, cur: &serde_json::Value, class: &str) -> Ve
             ""
         };
         let (da, db) = (a["d"].as_str().unwrap_or(""), b["d"].as_str().unwrap_or(""));
-        let dmg = match (weapon_avg(da), weapon_avg(db)) {
+        let weapons = (weapon_avg(da), weapon_avg(db));
+        let dmg = match weapons {
             (Some(x), Some(y)) if y >= x * BETTER_WEAPON => Some(format!("{x:.0} → {y:.0}")),
             (None, Some(y)) => Some(format!("{y:.0}")),
             _ => None,
+        };
+        // A weapon's "v" is relative to the weapon worn at snapshot time (so it hides the damage), hence weapons are compared
+        // by average damage and everything else by "v" (user 2026-10-16)
+        let gain = match weapons {
+            (Some(x), Some(y)) if x > 0.0 => Some((y / x - 1.0) * 100.0),
+            _ => match (a["v"].as_f64(), b["v"].as_f64()) {
+                (Some(x), Some(y)) if x > 0.0 => Some((y / x - 1.0) * 100.0),
+                _ => None,
+            },
         };
         let icon = b["icon"].as_str();
         if !rarity.is_empty() {
             // An epic/legendary that was already worn (same item, stats unchanged) never reaches here
             let was = a["epic"].as_bool() == Some(true) || a["legendary"].as_bool() == Some(true);
             if !was || a["icon"] != b["icon"] {
-                let extra = dmg.map(|d| format!(" ({d})")).unwrap_or_default();
-                out.push(change_entry(format!("New {rarity}{}{extra}", slot.to_lowercase()), icon));
+                let label = if rarity == "legendary " { "Legendary" } else { "Epic" };
+                let pct = gain.map(|g| format!(": {g:+.0} %")).unwrap_or_default();
+                out.push(change_entry(format!("{label}{pct}"), icon));
             }
         } else if let Some(d) = dmg {
-            let pct = match (a["v"].as_f64(), b["v"].as_f64()) {
-                (Some(x), Some(y)) if x > 0.0 => format!(", +{:.0} %", (y / x - 1.0) * 100.0),
-                _ => String::new(),
-            };
+            let pct = gain.map(|g| format!(", {g:+.0} %")).unwrap_or_default();
             out.push(change_entry(format!("{d}{pct}"), icon));
         } else if let (Some(x), Some(y)) = (a["v"].as_f64(), b["v"].as_f64())
             && x > 0.0
@@ -1145,7 +1153,7 @@ mod tests {
         assert_eq!(
             changes(&prev, &cur, "Warrior"),
             [
-                serde_json::json!({"t": "New epic weapon (18 → 28)", "icon": "w.png"}),
+                serde_json::json!({"t": "Epic: +56 %", "icon": "w.png"}),
                 serde_json::json!("Best potion setup (main attribute + Constitution + Eternal Life, all maximum size)"),
                 serde_json::json!("Joined Artušova Garda"),
             ]
