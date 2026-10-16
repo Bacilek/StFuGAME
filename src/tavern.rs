@@ -72,7 +72,7 @@ fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Locati
         _ => f64::INFINITY,
     };
     let mut best: Option<usize> = None;
-    for (i, e) in list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec <= thirst) {
+    for (i, e) in list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec.min(crate::tasks::BEER_ALU_SEC) <= thirst) {
         let better = match best {
             None => true,
             Some(b) => {

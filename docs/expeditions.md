@@ -123,3 +123,5 @@ Before 2026-10-16 it was simply "the shortest, ties by ease". Note: tier orderin
 The bot writes every expedition to `logs/expeditions.jsonl` (picks, heroism, keys, chests, verdict).
 Verdict: below 40 = failure, above 45 with a declined key/chest = probably too much heroism instead of chests.
 Tuning constants: `OPPORTUNITY_COST` and `feasibility()` in `src/tavern.rs`.
+
+Expedition price cap (user 2026-10-16): with at least 20 min of Thirst for Adventure a 25-min expedition can still be started (`tavern::choose_expedition` and `tasks::beer_justified` use `min(cost, BEER_ALU_SEC)`). Unverified live.

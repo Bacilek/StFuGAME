@@ -426,9 +426,9 @@ fn gem_task_reaches_gold_chest(tasks: &[Task], chests: &[RewardChest], cost: u64
 }
 
 /// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
-/// cost at most this much.
-#[allow(dead_code)]
-const BEER_ALU_SEC: u32 = 20 * 60;
+/// cost at most this much. Also the cap of an expedition's price (user 2026-10-16: with less Thirst for Adventure than a
+/// 25-min expedition costs, but at least 20 min – e.g. after a beer – the price adapts to 20 min and it can be started).
+pub const BEER_ALU_SEC: u32 = 20 * 60;
 
 /// "Last chest" travel beer (user 2026-10-10, Mrožik missed a 125 g chest by one BustedLands visit with 0 Thirst for
 /// Adventure): ONE beer (1 mushroom) is allowed when the highest unopened Gleeman chest (daily or event) lacks only
@@ -527,7 +527,7 @@ pub fn beer_justified(gs: &GameState) -> bool {
         return false;
     }
     let cheapest = match gs.tavern.available_tasks() {
-        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec).min().unwrap_or(0),
+        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec.min(BEER_ALU_SEC)).min().unwrap_or(0),
         _ => 0,
     };
     gs.tavern.thirst_for_adventure_sec < cheapest.max(1)
