@@ -96,6 +96,9 @@ struct Socket {
 /// The socket for `gem` (index into `sockets`), or None (keep the gem).
 fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
     let new = tier(gem.typ, class);
+    if new >= 3 {
+        return None; // secondary-attribute gems are sold, not socketed (user 2026-10-16)
+    }
     let fit = sockets
         .iter()
         .enumerate()
@@ -251,9 +254,29 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
+/// Loose secondary-attribute gems (tier 3) are sold at once (user 2026-10-16): they are never socketed and not worth a slot.
+async fn sell_secondary_gems(session: &mut SimpleSession) -> Option<Outcome> {
+    loop {
+        let gs = session.game_state()?;
+        let class = gs.character.class;
+        let (pos, gem, ident) = backpack_gems(gs).into_iter().find(|g| tier(g.1.typ, class) >= 3)?;
+        report!("[gems] Selling the loose secondary-attribute gem {:?} {}", gem.typ, gem.value);
+        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+            return Some(fail(&e));
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return Some(fail(&e));
+        }
+        safe::human_pause().await;
+    }
+}
+
 /// Sockets the gems lying in the backpack, strongest first, one per socket, until none has a place left (user 2026-10-16:
 /// gems are not kept back while a socket is empty, mining goes on). `Some(outcome)` = stop the pass.
 async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
+    if let Some(o) = sell_secondary_gems(session).await {
+        return Some(o);
+    }
     let today = Local::now().date_naive();
     for _ in 0..12 {
         if SOCKET_FAILED_ON.lock().is_ok_and(|d| *d == Some(today)) {
@@ -365,7 +388,7 @@ mod tests {
         assert_eq!(choose_socket(&[sock(Some(GemType::Constitution), true, 99.0)], gem(GemType::Intelligence), c), None);
         // a Luck gem is replaced by Constitution, a secondary one by Luck, but not the other way round
         assert_eq!(choose_socket(&[sock(Some(GemType::Luck), false, 1.0)], gem(GemType::Constitution), c), Some(0));
-        assert_eq!(choose_socket(&[sock(Some(GemType::Strength), false, 1.0)], gem(GemType::Luck), c), Some(0));
+        assert_eq!(choose_socket(&[sock(Some(GemType::Strength), false, 1.0)], gem(GemType::Luck), c), Some(0)); // an old secondary gem still gets replaced
         assert_eq!(choose_socket(&[sock(Some(GemType::Luck), false, 1.0)], gem(GemType::Strength), c), None);
         // a secondary gem into nothing but a Luck socket: kept in the backpack
         assert_eq!(choose_socket(&[sock(Some(GemType::Luck), false, 1.0)], gem(GemType::Dexterity), c), None);
@@ -380,7 +403,7 @@ mod tests {
         let list = [sock(None, false, 10.0), sock(None, true, 90.0)];
         // a Luck or secondary gem goes to the weak item, Constitution and main-attribute gems to the strong one
         assert_eq!(choose_socket(&list, gem(GemType::Luck), c), Some(0));
-        assert_eq!(choose_socket(&list, gem(GemType::Strength), c), Some(0));
+        assert_eq!(choose_socket(&list, gem(GemType::Strength), c), None); // secondary: sold, never socketed
         assert_eq!(choose_socket(&list, gem(GemType::Constitution), c), Some(1));
         assert_eq!(choose_socket(&list, gem(GemType::Intelligence), c), Some(1));
     }
