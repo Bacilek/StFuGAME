@@ -1,4 +1,4 @@
-//! Weekly events switched on BY HAND in the app's "Events" tab (user 2026-10-16), each with an end time.
+//! The Exceptional XP event (the only one that costs mushrooms) switched on BY HAND in the app's "Events" tab (user 2026-10-16), each with an end time.
 //!
 //! Why by hand: the XP event lets the bot drink beers for mushrooms (the premium currency); a forgotten switch must never
 //! keep spending them. So an event counts as active for the bot only while ALL of these hold (`tasks::event_active`):
@@ -18,18 +18,7 @@ use sf_api::gamestate::rewards::Event;
 const FILE: &str = "roster/events.json";
 
 /// Events the user can switch on: (event, name in the game, what the bot does differently).
-pub const EVENTS: [(Event, &str, &str); 10] = [
-    (Event::ExceptionalXPEvent, "Exceptional XP", "Beers for mushrooms in the Tavern (up to 10 a day), guild check every 15 min"),
-    (Event::GloriousGoldGalore, "Glorious Gold Galore", "Guild check every 15 min (gold alone never justifies beers)"),
-    (Event::AssemblyOfAwesomeAnimals, "Assembly of Awesome Animals", "Nothing yet"),
-    (Event::FantasticFortressFestivity, "Fantastic Fortress Festivity", "Soldiers looked after every 3 min instead of 5"),
-    (Event::DaysOfDoomedSouls, "Days of Doomed Souls", "Nothing yet"),
-    (Event::WitchesDance, "Witches' Dance", "Nothing yet"),
-    (Event::EpicShoppingSpreeExtravaganza, "Epic Shopping Spree Extravaganza", "Nothing yet"),
-    (Event::EpicQuestExtravaganza, "Epic Quest Extravaganza", "Nothing yet"),
-    (Event::EpicGoodLuckExtravaganza, "Epic Good Luck Extravaganza", "Nothing yet"),
-    (Event::RumbleForRiches, "Rumble for Riches", "Arena opponent whose win pays gold is preferred"),
-];
+pub const EVENTS: [(Event, &str, &str); 1] = [(Event::ExceptionalXPEvent, "Exceptional XP", "Beers for mushrooms in the Tavern (up to 10 a day)")];
 
 fn key(event: Event) -> String {
     format!("{event:?}")

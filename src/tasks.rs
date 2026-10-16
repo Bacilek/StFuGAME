@@ -500,19 +500,20 @@ pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible
     })
 }
 
-/// Is the "Exceptional XP" event running (2x XP)? Server list + end time, and only Friday–Sunday (user 2026-10-16:
-/// the events run Friday 00:01 – Sunday 23:59, on Monday it must be off whatever a stale list says).
+/// May the XP event justify beers (the only event that costs mushrooms)? Switched on by hand in the app with a future end time
+/// (`events.rs`) AND running per the server list (end time in the future, Friday–Sunday; user 2026-10-16: on Monday it must be
+/// off whatever a stale list says). Any one missing = no.
 pub fn xp_event_active(gs: &GameState) -> bool {
-    event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+    crate::events::manual_active(sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+        && event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
 }
 
-/// Is the given weekly event running? Switched on by hand in the app (`events.rs`, with an end time) AND in the server list
-/// with a future end time AND weekday Fri–Sun (see `xp_event_active`); any one missing = not running.
+/// Is the given weekly event running according to the server? List + a future end time + weekday Fri–Sun. Only tweaks
+/// depend on it, never mushrooms (beers: `xp_event_active`).
 pub fn event_active(gs: &GameState, event: sf_api::gamestate::rewards::Event) -> bool {
     use chrono::Datelike;
     let ev = &gs.specials.events;
-    crate::events::manual_active(event)
-        && ev.active.contains(&event)
+    ev.active.contains(&event)
         && ev.ends.is_some_and(|e| e > chrono::Local::now())
         && matches!(chrono::Local::now().weekday(), chrono::Weekday::Fri | chrono::Weekday::Sat | chrono::Weekday::Sun)
 }
