@@ -4,6 +4,8 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 - **"Why up" +1100 % helmets fixed (2026-10-16, user asked "are we counting right?"):** no, the snapshot's `v` came from `inventory::value`, which credits an item with an EMPTY gem slot with the best loose gem in the backpack at snapshot time (Filminy's helmet DEX +50 = 184 instead of 50, the day before 8.9 → +1967 %). Snapshots now use `inventory::value_as_worn` (socketed gem counts, empty slot = 0). Days already written keep the phantom `v` (the % of those days stays wrong; only new snapshots are right). Compiles; needs a release rebuild.
 
+- **Gem marks in the app shrunk (2026-10-16, user: too big):** `.bslot img` (width/height 100 %) out-ranked `.gemmark`, so the gem filled the whole slot; selector is now `.bslot img.gemmark`, 9 px. `app.html` is `include_str!`ed, so it needs a release rebuild.
+
 - **Release built 21:41 2026-10-16** (guild check every 15 min during Exceptional XP + top-of-list log); the user starts the bot.
 
 - **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.
