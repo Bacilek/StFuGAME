@@ -131,6 +131,19 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
 }
 
+/// Rumble for Riches (weekend event, user 2026-10-16): a win pays gold unless the opponent is more than this many ranks
+/// behind us in the Hall of Fame ...
+const RUMBLE_MAX_RANKS_BEHIND: u32 = 50;
+/// ... or has more than this much less honor than we have.
+const RUMBLE_MAX_HONOR_BEHIND: u32 = 955;
+/// The gold-paying opponent is chosen only when we win at least this often against him (a loss pays nothing).
+const RUMBLE_MIN_WIN_CHANCE: f64 = 0.5;
+
+/// Would a win against this opponent pay the Rumble for Riches gold?
+pub fn rumble_pays(our_rank: u32, our_honor: u32, opp_rank: u32, opp_honor: u32) -> bool {
+    opp_rank <= our_rank.saturating_add(RUMBLE_MAX_RANKS_BEHIND) && opp_honor.saturating_add(RUMBLE_MAX_HONOR_BEHIND) >= our_honor
+}
+
 /// One Arena fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     // Always decide on a fresh state (mainly the cooldown)
@@ -148,6 +161,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         _ => None,
     });
     let own_fighter = Fighter::from(&PlayerFighterSquad::new(gs).character);
+    let rumble = crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::RumbleForRiches);
+    let rumble_ours = (gs.character.rank, gs.character.honor);
     let mut ids = gs.arena.enemy_ids;
     if ids.iter().all(|&id| id == 0) {
         match safe::send(session, Command::CheckArena).await {
@@ -157,6 +172,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
 
     let mut task_pick: Option<(f64, String)> = None;
+    // Rumble for Riches: prefer an opponent whose win pays gold, as long as we are not the underdog against him
+    let (our_rank, our_honor) = rumble_ours;
+    let mut gold_pick: Option<(f64, String)> = None;
 
     // Load the opponents' stats and estimate our win chance against each via sf-api's own battle simulator
     // (same one `tournament.rs` uses) instead of the coarse attribute-only `power()` formula.
@@ -181,9 +199,20 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if best.as_ref().is_none_or(|(b, _)| win_chance > *b) {
             best = Some((win_chance, p.name.clone()));
         }
+        if rumble
+            && win_chance >= RUMBLE_MIN_WIN_CHANCE
+            && rumble_pays(our_rank, our_honor, p.rank, p.honor)
+            && gold_pick.as_ref().is_none_or(|(b, _)| win_chance > *b)
+        {
+            gold_pick = Some((win_chance, p.name.clone()));
+        }
         if want_class == Some(p.class) && task_pick.as_ref().is_none_or(|(b, _)| win_chance > *b) {
             task_pick = Some((win_chance, p.name.clone()));
         }
+    }
+    if let Some(pick) = gold_pick {
+        report!("[arena] Rumble for Riches: choosing {} (a win pays gold)", pick.1);
+        best = Some(pick);
     }
     if let Some(pick) = task_pick {
         report!("[arena] Task: win against {:?}, choosing {}", want_class.unwrap_or_default(), pick.1);
@@ -257,6 +286,14 @@ mod tests {
             Constitution => con,
             Luck => lck,
         }
+    }
+
+    #[test]
+    fn rumble_gold_window() {
+        assert!(rumble_pays(1000, 5000, 1050, 4045));
+        assert!(!rumble_pays(1000, 5000, 1051, 5000)); // more than 50 ranks behind
+        assert!(!rumble_pays(1000, 5000, 900, 4044)); // honor more than 955 behind
+        assert!(rumble_pays(1000, 5000, 100, 9000)); // stronger ones always pay
     }
 
     #[test]
