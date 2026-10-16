@@ -506,11 +506,13 @@ pub fn xp_event_active(gs: &GameState) -> bool {
     event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
 }
 
-/// Is the given weekly event running? Server list + a future end time + weekday Fri–Sun (see `xp_event_active`).
+/// Is the given weekly event running? Switched on by hand in the app (`events.rs`, with an end time) AND in the server list
+/// with a future end time AND weekday Fri–Sun (see `xp_event_active`); any one missing = not running.
 pub fn event_active(gs: &GameState, event: sf_api::gamestate::rewards::Event) -> bool {
     use chrono::Datelike;
     let ev = &gs.specials.events;
-    ev.active.contains(&event)
+    crate::events::manual_active(event)
+        && ev.active.contains(&event)
         && ev.ends.is_some_and(|e| e > chrono::Local::now())
         && matches!(chrono::Local::now().weekday(), chrono::Weekday::Fri | chrono::Weekday::Sat | chrono::Weekday::Sun)
 }
@@ -536,6 +538,7 @@ pub fn beer_justified(gs: &GameState) -> bool {
 /// Drinks one beer when `beer_justified` (one per call: the Tavern uses the new Thirst for Adventure before the next).
 pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
+    crate::events::warn_if_unswitched(gs);
     if !beer_justified(gs) {
         return Outcome::Done;
     }

@@ -39,3 +39,10 @@ Academy: NO special handling (2026-10-16). A first attempt assumed the stock fil
 - Verification: ⏳ watch `[tasks] Exceptional XP event: drinking beer n/10` in the logs, the mushroom watchdog must accept each −1.
 
 Correction (user 2026-10-16): the Academy fills at exactly the same speed during the XP event; only the COLLECTION pays 2× XP. So the overflow rules and collection timing stay as they are (`fortress::should_collect`, no event logic).
+
+## Manual event switches in the app (user 2026-10-16) – `src/events.rs`
+- **Events tab** in the app window: one row per event (checkbox + end time + short "what the bot does"), Save button. Stored in `roster/events.json` (`{"ExceptionalXPEvent": "<RFC 3339 end time>"}`, local only; no entry = off).
+- **An event counts as running for the bot (`tasks::event_active`, used by beers, guild check, Rumble, Fortress Festivity) only when ALL hold:** switched on in the app, its end time is in the future, the server's own event list contains it (with a future end time), and it is Friday–Sunday. Anything missing, unreadable or unparsable = NOT running (fails closed). Beers are additionally re-checked in `safe.rs` right before `BuyBeer` (`beer_justified`).
+- **The timer is not a timer:** no task has to fire. The end time is compared with the clock on every single decision, so an expired event stops counting at that second even if the app window is closed or nobody switches it off. On saving, the end time is clamped to the coming Sunday 23:59:59 and a past time is refused. Unit tests: `events::tests` (end second itself is already over, Monday morning off, week-too-long and Monday slips clamped to Sunday, empty file = off).
+- **After a restart the switches persist** (file), the end time keeps working. Nothing is on by default: every Friday the user has to tick the running events (otherwise the log says once per 30 min `[events] The server runs Exceptional XP but it is not switched on in the app … no beers`).
+- Default end time when ticking a row: coming Sunday 23:59 (local PC time = server time for the user).

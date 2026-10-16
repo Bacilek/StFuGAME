@@ -164,7 +164,9 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
                 let running = control::running_names();
                 let eod_pending = serde_json::json!(crate::ctx::eod_pending().into_iter().filter(|n| running.contains(n)).collect::<Vec<_>>());
                 let attack_me = crate::attack_me::active();
+                let events = crate::events::status_json();
                 let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending}, {attack_me})"));
+                let _ = webview.evaluate_script(&format!("window.onEvents && window.onEvents({events})"));
                 tray.set_state(control::overall());
             }
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
@@ -219,6 +221,7 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
         "stop_all" => control::stop_all(),
         "eod" => crate::ctx::request_end_of_day(control::running_names()),
         "attack_me" => crate::attack_me::set(v["on"].as_bool().unwrap_or(false)),
+        "events_set" => crate::events::set_from_ui(&v["events"]),
         "open_browser" => open_dashboard(),
         other => report!("[control] Unknown command from the app window: {other:?}"),
     }
