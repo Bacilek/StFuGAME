@@ -16,6 +16,8 @@ comes anyway, so a gold event fades in value quickly.
 | Days of Doomed Souls | souls can be found on expeditions; 2× souls from luring heroes into the underworld, collecting the soul extractor, Game of Dice and the Wheel of Fortune | We have no souls feature; we expect not to find any. If they show up, keep the existing reward order (mushrooms > gold > hourglasses >>> wood/stone). |
 | Witches' Dance | all equipment can be thrown into the witches' cauldron for twice its selling value (unlocks at level 66 and after collecting all enchantments) | Do not care yet (not unlocked). |
 | Epic Shopping Spree Extravaganza (level 50+) | 5× chance of epics in shops; pet Knilight can be found | Do not care much: epics in shops cost mushrooms (about 15). If an epic ever costs only gold, the normal shop rule applies (better item → buy and equip). Never pay mushrooms for it. |
+| Epic Quest Extravaganza | spending at least 100 and 300 Thirst for Adventure (minutes) on expeditions finds one epic item each | Never aimed at directly. 100 is free every day (every character already found an epic that way); with the 10 XP-event beers (+200) the 300 mark is reached too, so a second epic comes along. Epics are still NEVER sold (inventory space is saved otherwise); the beers' Thirst must actually be spent on expeditions the same day. |
+| Epic Good Luck Extravaganza | better chance of an epic from the Wheel of Fortune; from Game of Dice (not unlocked) | Nothing to do (the free daily spin is taken as before). |
 
 Academy: during Exceptional XP the Academy's XP stock is assumed to fill twice as fast (`fortress::minutes_to_full`), so it is collected earlier and wakes the loop earlier – collecting is free, an early collect costs nothing.
 
