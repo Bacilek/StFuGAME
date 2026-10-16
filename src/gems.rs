@@ -131,14 +131,28 @@ fn sockets(gs: &GameState) -> Vec<(EquipmentSlot, Socket)> {
         .collect()
 }
 
-fn backpack_gem(gs: &GameState) -> Option<(BagPosition, Gem, ItemCommandIdent)> {
-    gs.character.inventory.iter().find_map(|(pos, item)| {
-        let item = item?;
-        match item.typ {
-            ItemType::Gem(g) => Some((pos, g, item.command_ident())),
-            _ => None,
-        }
-    })
+/// Loose gems in the backpack, best first for this class (tier, then strength): the strongest gem is placed first, so it
+/// lands on the best item (user 2026-10-16).
+fn backpack_gems(gs: &GameState) -> Vec<(BagPosition, Gem, ItemCommandIdent)> {
+    let class = gs.character.class;
+    let mut gems: Vec<_> = gs
+        .character
+        .inventory
+        .iter()
+        .filter_map(|(pos, item)| {
+            let item = item?;
+            match item.typ {
+                ItemType::Gem(g) => Some((pos, g, item.command_ident())),
+                _ => None,
+            }
+        })
+        .collect();
+    let power = |g: &Gem| {
+        let (m, o) = inventory::gem_effect(class, *g);
+        m + o
+    };
+    gems.sort_by(|a, b| tier(a.1.typ, class).cmp(&tier(b.1.typ, class)).then(power(&b.1).total_cmp(&power(&a.1))));
+    gems
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
@@ -237,36 +251,59 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
-/// Sockets the gem in the backpack (if any and if a place exists). `Some(outcome)` = stop the pass.
+/// Sockets the gems lying in the backpack, strongest first, one per socket, until none has a place left (user 2026-10-16:
+/// gems are not kept back while a socket is empty, mining goes on). `Some(outcome)` = stop the pass.
 async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
     let today = Local::now().date_naive();
-    if SOCKET_FAILED_ON.lock().is_ok_and(|d| *d == Some(today)) {
-        return None;
-    }
-    let gs = session.game_state()?;
-    let (pos, gem, ident) = backpack_gem(gs)?;
-    let class = gs.character.class;
-    // A stored item that was kept only for its empty gem slot (inventory::keep_for_gem) and beats what is worn once it has
-    // this gem: socket it there first, the inventory logic then equips it (user 2026-10-12)
-    let stored = gs
-        .character
-        .inventory
-        .iter()
-        .filter_map(|(bag, item)| {
-            let item = item?;
-            let eq_slot = item.typ.equipment_slot()?;
-            if !item.can_be_equipped_by(class) || !matches!(item.gem_slot, Some(GemSlot::Empty)) {
-                return None;
+    for _ in 0..12 {
+        if SOCKET_FAILED_ON.lock().is_ok_and(|d| *d == Some(today)) {
+            return None;
+        }
+        let gs = session.game_state()?;
+        let class = gs.character.class;
+        let gems = backpack_gems(gs);
+        let before = gems.len();
+        let list = sockets(gs);
+        let candidates: Vec<Socket> = list.iter().map(|s| s.1).collect();
+        // First gem (best first) that has a place: a stored item kept for its empty gem slot that beats the worn one once it
+        // has this gem (user 2026-10-12: socket it there first, the inventory logic then equips it), else a worn socket
+        let mut placed = None;
+        for (pos, gem, ident) in gems {
+            let stored = gs
+                .character
+                .inventory
+                .iter()
+                .filter_map(|(bag, item)| {
+                    let item = item?;
+                    let eq_slot = item.typ.equipment_slot()?;
+                    if !item.can_be_equipped_by(class) || !matches!(item.gem_slot, Some(GemSlot::Empty)) {
+                        return None;
+                    }
+                    let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+                    let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
+                    (gain > 0.0).then_some((bag, gain))
+                })
+                .max_by(|a, b| a.1.total_cmp(&b.1));
+            if let Some((target, gain)) = stored {
+                report!("[gems] Socketing {:?} {} into a stored backpack item (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
+                placed = Some((Command::PlayerItemMove { from: pos.into(), to: target.into(), item_ident: ident }, "stored item"));
+                break;
             }
-            let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
-            let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
-            (gain > 0.0).then_some((bag, gain))
-        })
-        .max_by(|a, b| a.1.total_cmp(&b.1));
-    if let Some((target, gain)) = stored {
-        report!("[gems] Socketing {:?} {} into a stored backpack item (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
-        if let Err(e) = safe::send(session, Command::PlayerItemMove { from: pos.into(), to: target.into(), item_ident: ident }).await {
-            report!("[gems] Socketing into the stored item failed: {e}");
+            if let Some(i) = choose_socket(&candidates, gem, class) {
+                let slot = list[i].0;
+                report!(
+                    "[gems] Socketing {:?} {} into {slot:?} (now: {})",
+                    gem.typ,
+                    gem.value,
+                    candidates[i].content.map_or("empty".to_string(), |g| format!("{:?} {}", g.typ, g.value))
+                );
+                placed = Some((Command::PlayerItemMove { from: pos.into(), to: slot.into(), item_ident: ident }, "worn item"));
+                break;
+            }
+        }
+        let (cmd, what) = placed?; // None = no gem has a place, keep them
+        if let Err(e) = safe::send(session, cmd).await {
+            report!("[gems] Socketing into the {what} failed: {e}");
             if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
                 *d = Some(today);
             }
@@ -275,39 +312,16 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         if let Err(e) = safe::send(session, Command::Update).await {
             return Some(fail(&e));
         }
-        if session.game_state().and_then(backpack_gem).is_some_and(|g| g.1 == gem) {
-            report!("[gems] The gem is still in the backpack after the move, no more socketing today (request shape unverified)");
+        // Success = one gem fewer in the backpack (other loose gems being there says nothing: with four of them the old
+        // check blocked all further socketing for the day after the first success)
+        if session.game_state().is_none_or(|gs| backpack_gems(gs).len() >= before) {
+            report!("[gems] The backpack still holds {before} gem(s) after the move, no more socketing today (request shape unverified)");
             if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
                 *d = Some(today);
             }
+            return None;
         }
-        return None;
-    }
-    let list = sockets(gs);
-    let candidates: Vec<Socket> = list.iter().map(|s| s.1).collect();
-    let i = choose_socket(&candidates, gem, class)?; // None = keep the gem
-    let slot = list[i].0;
-    report!(
-        "[gems] Socketing {:?} {} into {slot:?} (now: {})",
-        gem.typ,
-        gem.value,
-        candidates[i].content.map_or("empty".to_string(), |g| format!("{:?} {}", g.typ, g.value))
-    );
-    if let Err(e) = safe::send(session, Command::PlayerItemMove { from: pos.into(), to: slot.into(), item_ident: ident }).await {
-        report!("[gems] Socketing failed: {e}");
-        if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
-            *d = Some(today);
-        }
-        return Some(fail(&e));
-    }
-    if let Err(e) = safe::send(session, Command::Update).await {
-        return Some(fail(&e));
-    }
-    if session.game_state().and_then(backpack_gem).is_some() {
-        report!("[gems] The gem is still in the backpack after the move, no more socketing today (request shape unverified)");
-        if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
-            *d = Some(today);
-        }
+        safe::human_pause().await;
     }
     None
 }
