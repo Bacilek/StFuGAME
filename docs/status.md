@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Release built 23:10 2026-10-16** (everything since 21:41: gem holding without a count limit, items compared without gems, main/CON balance in items and gems, attribute buying 100:80:40, server-driven events without weekday check, guild skills 6/6, empty gem ring + smaller gem marks in the app, Why-up fix); the user starts the bot. All "NOT built into release" notes below are resolved by this build; the live checks listed there are still open.
+
 - **"Why up" +1100 % helmets fixed (2026-10-16, user asked "are we counting right?"):** no, the snapshot's `v` came from `inventory::value`, which credits an item with an EMPTY gem slot with the best loose gem in the backpack at snapshot time (Filminy's helmet DEX +50 = 184 instead of 50, the day before 8.9 → +1967 %). Snapshots now use `inventory::value_as_worn` (socketed gem counts, empty slot = 0). Days already written keep the phantom `v` (the % of those days stays wrong; only new snapshots are right). Compiles; needs a release rebuild.
 
 - **Gem marks in the app shrunk (2026-10-16, user: too big):** the user meant the gems socketed in WORN items (paperdoll `.pdslot`, 56 px item sprite): `.pdslot img` (56 px) and `.bslot img` (100 %) out-ranked `.gemmark`, so the mark was as big as the item; selector is now `.bslot img.gemmark,.pdslot img.gemmark`, 12 px. `app.html` is `include_str!`ed, so it needs a release rebuild.
