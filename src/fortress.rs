@@ -237,10 +237,7 @@ fn minutes_to_full(gs: &GameState, r: R) -> Option<u64> {
         return None;
     }
     let left = p.limit.saturating_sub(collectable(gs, r));
-    // Exceptional XP weekend (user 2026-10-16: 2x Academy XP): assume the stock may fill twice as fast; at worst the
-    // free collection happens earlier than needed
-    let per_hour = if r == R::Experience && crate::tasks::xp_event_active(gs) { p.per_hour * 2 } else { p.per_hour };
-    Some(left * 60 / per_hour)
+    Some(left * 60 / p.per_hour)
 }
 
 /// Should the production of `r` be collected now? Half of the limit is ready, or it is about to be full, or it covers what

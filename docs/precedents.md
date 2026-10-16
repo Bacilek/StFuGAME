@@ -158,3 +158,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-16 (full backpack): at 0 free slots and nothing else to free: sell the loose gem, then the most expensive epic; never act with 1 free slot. (Guild) during the XP/Gold event weekend all characters should be in a good guild: re-check the list at start and every 2 h.
 - 2026-10-16 (fortress): the game refuses the Hall of Knights above the Fortress level; the 'at least 8' wish only works once the Fortress itself reaches 8.
 - 2026-10-16 (fortress, correction): Hall of Knights max = min(Fortress level, 8); no upgrades beyond level 8 for now (temporary).
+- 2026-10-16 (fortress): Academy XP is collected only at >= 50 % of its limit or when it would be full within 45 min (server per_hour, no event doubling); collecting a few points every pass is pointless.

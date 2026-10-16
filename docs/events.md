@@ -21,7 +21,7 @@ comes anyway, so a gold event fades in value quickly.
 | Rumble for Riches | Arena wins pay gold, except when the opponent is more than 50 ranks behind us in the Hall of Fame or has more than 955 less honor; limit depends on level, max 50 million gold a day | CODED (`arena::rumble_pays`): among the 3 opponents the bot prefers one whose win pays gold (rank ≤ ours + 50, honor ≥ ours − 955) when the simulated win chance is ≥ 50 %; otherwise the usual best-win-chance pick (task class pick still wins over it). User 2026-10-16: gold is paid after the 10 XP wins too, so during the event the Arena keeps fighting whenever off cooldown (`arena::rumble_unlimited`; risk of losses irrelevant, no mushrooms); the scrapbook hunts do not take the spare cooldown then. |
 | Gloom Set | chance of finding the epic Gloom Set in the weapon shop, magic shop and on expeditions | Nothing special: epics found are kept, shop epics only if they cost gold. |
 
-Academy: during Exceptional XP the Academy's XP stock is assumed to fill twice as fast (`fortress::minutes_to_full`), so it is collected earlier and wakes the loop earlier – collecting is free, an early collect costs nothing.
+Academy: NO special handling (2026-10-16). A first attempt assumed the stock fills twice as fast during the XP event; it made Academy 4/5 characters (limit ~520-738, ~500/h) look "full within 45 min" at once, so they collected 1-31 XP on every pass (user noticed the spam). Reverted: the server's own `per_hour` is used; if it turns out the event doubles only the collected amount, nothing changes for overflow.
 
 ## Rules
 - Beer budget in these events: up to 10 beers a day (the game's daily limit), Friday–Sunday, ONLY while the Exceptional XP event is active.
