@@ -574,7 +574,8 @@ fn snapshot(gs: &GameState) -> serde_json::Value {
                 (*n).to_string(),
                 serde_json::json!({
                     "d": item_desc(i),
-                    "v": (crate::inventory::value(gs, i) * 10.0).round() / 10.0,
+                    // Without the loose backpack gem an empty slot would otherwise be credited with (2026-10-16: +1100 % helmets)
+                    "v": (crate::inventory::value_as_worn(gs, i) * 10.0).round() / 10.0,
                     "epic": i.is_epic(),
                     "legendary": i.is_legendary(),
                     "icon": item_icon(i),

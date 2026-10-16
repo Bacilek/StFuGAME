@@ -178,6 +178,12 @@ fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
     value_core(gs, item, slot, best_backpack_gem(gs))
 }
 
+/// Item value as it really is: a socketed gem counts, an empty slot counts nothing (no hoped-for loose gem). For the
+/// dashboard's day-to-day comparison, which must not jump when a gem merely lies in the backpack at snapshot time.
+pub fn value_as_worn(gs: &GameState, item: &Item) -> f64 {
+    value_core(gs, item, EquipmentSlot::Weapon, None)
+}
+
 /// The value the item would have with `gem` in its (empty) slot.
 pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem) -> f64 {
     value_core(gs, item, slot, Some(gem))
