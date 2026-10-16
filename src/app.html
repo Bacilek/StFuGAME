@@ -59,16 +59,6 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .prog i{display:block;height:100%;background:var(--ink2)}
 #quests{display:none}
 #fort{display:none}
-#events{display:none;max-width:900px}
-.evnote{color:var(--ink2);font-size:13px;margin:0 0 10px}
-.evrow{display:grid;grid-template-columns:24px 230px 190px 1fr;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
-.evrow .evname{font-weight:600}
-.evrow .evrule{color:var(--muted);font-size:12px}
-.evrow .evst{font-size:12px;color:var(--ink2)}
-.evrow.on .evst{color:var(--good);font-weight:600}
-.evrow input[type=datetime-local]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
-.evbar{display:flex;gap:10px;align-items:center;margin-top:12px}
-.evbar .evsaved{color:var(--good);font-size:12px}
 .ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .ftile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px 18px;overflow:hidden}
 .ftile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
@@ -161,7 +151,6 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
     <button id="tabCharts" aria-pressed="false">Charts</button>
     <button id="tabQuests" aria-pressed="false">Quests</button>
     <button id="tabFort" aria-pressed="false">Fortress</button>
-    <button id="tabEvents" aria-pressed="false">Events</button>
   </div>
   <div class="spacer"></div>
   <div class="right">
@@ -176,7 +165,6 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 <main>
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
-  <div id="events"><p class="evnote">Switch on the events that run right now and set when they end. The bot uses the changed rules only while an event is switched on here AND its end time has not passed AND the server reports it. Ending is automatic at the end time (Sunday 23:59 at the latest), you do not have to switch anything off.</p><div id="evrows"><p class="empty">Waiting for status...</p></div><div class="evbar"><button id="evsave">Save</button><span class="evsaved" id="evsaved"></span></div></div>
   <div id="fort"><div id="ftiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
@@ -206,7 +194,6 @@ $("tabChars").addEventListener("click", () => setTab("chars"));
 $("tabCharts").addEventListener("click", () => setTab("charts"));
 $("tabQuests").addEventListener("click", () => setTab("quests"));
 $("tabFort").addEventListener("click", () => setTab("fort"));
-$("tabEvents").addEventListener("click", () => setTab("events"));
 let currentTab = "chars";
 function setTab(tab){
   currentTab = tab;
@@ -214,12 +201,10 @@ function setTab(tab){
   $("tabCharts").setAttribute("aria-pressed", tab === "charts");
   $("tabQuests").setAttribute("aria-pressed", tab === "quests");
   $("tabFort").setAttribute("aria-pressed", tab === "fort");
-  $("tabEvents").setAttribute("aria-pressed", tab === "events");
   $("tiles").style.display = tab === "chars" ? "grid" : "none";
   $("charts").style.display = tab === "charts" ? "block" : "none";
   $("quests").style.display = tab === "quests" ? "block" : "none";
   $("fort").style.display = tab === "fort" ? "block" : "none";
-  $("events").style.display = tab === "events" ? "block" : "none";
   if (tab === "fort") renderFort();
   if (tab === "quests") renderQuests();
 }
@@ -569,54 +554,6 @@ function renderFort(){
   if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has fortress data yet (needs level 25 and a running bot)."; box.appendChild(p); return; }
   shown.forEach(c => box.appendChild(fortTile(c)));
 }
-// ---- Events tab (user 2026-10-16): which weekly events run right now + when they end. Rust (events.rs) compares the end
-// time with the clock at every decision, so an expired event stops counting by itself. Rows keep local edits ("dirty")
-// until Save; the server tick only refreshes untouched rows and the status texts.
-let EVHOLD = 0; // ms timestamp: right after Save the old file state may still arrive once
-const EVROWS = new Map(); // key -> {row, cb, dt, st, dirty}
-function evDefaultEnd(){ // coming Sunday 23:59 local, as a datetime-local value
-  const d = new Date(); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); d.setHours(23, 59, 0, 0);
-  const p = n => String(n).padStart(2, "0");
-  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
-}
-function evLeft(sec){
-  if (sec == null) return "";
-  if (sec <= 0) return "ended";
-  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
-  return (h >= 24 ? Math.floor(h / 24) + " d " + (h % 24) + " h" : h + " h " + m + " min") + " left";
-}
-window.onEvents = list => {
-  const box = $("evrows");
-  if (!EVROWS.size) box.textContent = "";
-  list.forEach(e => {
-    let r = EVROWS.get(e.key);
-    if (!r){
-      const row = document.createElement("div"); row.className = "evrow";
-      const cb = document.createElement("input"); cb.type = "checkbox";
-      const nm = document.createElement("div"); nm.innerHTML = '<div class="evname"></div><div class="evrule"></div>';
-      nm.querySelector(".evname").textContent = e.name; nm.querySelector(".evrule").textContent = e.rule;
-      const dt = document.createElement("input"); dt.type = "datetime-local";
-      const st = document.createElement("div"); st.className = "evst";
-      row.append(cb, nm, dt, st); box.appendChild(row);
-      r = {row, cb, dt, st, dirty: false}; EVROWS.set(e.key, r);
-      const touch = () => { r.dirty = true; $("evsaved").textContent = ""; };
-      cb.addEventListener("change", () => { if (cb.checked && !dt.value) dt.value = evDefaultEnd(); touch(); });
-      dt.addEventListener("input", touch);
-    }
-    if (!r.dirty && Date.now() > EVHOLD){ r.cb.checked = e.active; r.dt.value = e.until_local || ""; }
-    r.row.classList.toggle("on", e.active);
-    r.st.textContent = e.active ? "ON, " + evLeft(e.left_sec) : e.until_local && e.left_sec <= 0 ? "ended" : r.dirty ? "not saved yet" : "off";
-  });
-};
-$("evsave").addEventListener("click", () => {
-  const events = {};
-  EVROWS.forEach((r, key) => {
-    events[key] = r.cb.checked && r.dt.value ? new Date(r.dt.value).toISOString() : null;
-    r.dirty = false;
-  });
-  post({cmd: "events_set", events}); EVHOLD = Date.now() + 3000;
-  $("evsaved").textContent = "Saved";
-});
 window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
 </script>

@@ -500,22 +500,18 @@ pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible
     })
 }
 
-/// May the XP event justify beers (the only event that costs mushrooms)? Switched on by hand in the app with a future end time
-/// (`events.rs`) AND running per the server list (end time in the future, Friday–Sunday; user 2026-10-16: on Monday it must be
-/// off whatever a stale list says). Any one missing = no.
+/// Is the "Exceptional XP" event running (2x XP)? Straight from the server (user 2026-10-16: no manual switch, no hardcoded days):
+/// the event is in the server's list AND the list's end time lies in the future, so it stops by itself the moment the server
+/// stops announcing it or its end passes, on whatever day that is.
 pub fn xp_event_active(gs: &GameState) -> bool {
-    crate::events::manual_active(sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
-        && event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+    event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
 }
 
-/// Is the given weekly event running according to the server? List + a future end time + weekday Fri–Sun. Only tweaks
-/// depend on it, never mushrooms (beers: `xp_event_active`).
+/// Is the given weekly event running according to the server? In its list with a future end time (the end time guards
+/// against a stale list); no weekday is assumed.
 pub fn event_active(gs: &GameState, event: sf_api::gamestate::rewards::Event) -> bool {
-    use chrono::Datelike;
     let ev = &gs.specials.events;
-    ev.active.contains(&event)
-        && ev.ends.is_some_and(|e| e > chrono::Local::now())
-        && matches!(chrono::Local::now().weekday(), chrono::Weekday::Fri | chrono::Weekday::Sat | chrono::Weekday::Sun)
+    ev.active.contains(&event) && ev.ends.is_some_and(|e| e > chrono::Local::now())
 }
 
 /// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.) ONLY during the Exceptional XP event
@@ -539,7 +535,6 @@ pub fn beer_justified(gs: &GameState) -> bool {
 /// Drinks one beer when `beer_justified` (one per call: the Tavern uses the new Thirst for Adventure before the next).
 pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
-    crate::events::warn_if_unswitched(gs);
     if !beer_justified(gs) {
         return Outcome::Done;
     }

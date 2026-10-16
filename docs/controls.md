@@ -104,5 +104,3 @@ New third tab in the app window (`src/app.html`): character tiles with only the 
   Dexterity yellow, Intelligence green, Luck red, All black (every attribute), Legendary orange (main + CON); Constitution purple (copied from `my_input/`).
   Appears after each character's next snapshot (a few minutes after login). Needs a release build.
 
-## Events tab (2026-10-16)
-Manual switches for the weekly events with end times: see `docs/events.md` ("Manual event switches in the app"). Tab "Events" in `app.html`, backend `src/events.rs`.

@@ -12,7 +12,6 @@ mod control;
 mod coupons;
 mod ctx;
 mod daily;
-mod events;
 mod dungeons;
 mod fortress;
 mod gems;
