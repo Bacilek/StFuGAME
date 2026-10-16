@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.
+
 - **Release built 20:11 2026-10-16** (gems: weapon first, Assassin bare-hands experiment, free-article check hardened); the user starts the bot.
 
 - **Weapon first for gems (2026-10-16, user, before the release):** `gems::weapon_socket` – the worn weapon gets the strongest main/All/Legendary gem, else Constitution, replacing a weaker one (better tier or same tier with more power); see `docs/inventory.md`. Needs a release rebuild; untested live.

@@ -30,6 +30,9 @@ const CHECK_EVERY: chrono::Duration = chrono::Duration::hours(6);
 /// bonuses is wasted (user 2026-10-12, PajaRizz), the list is only a few requests.
 /// While the Exceptional XP or Glorious Gold event runs the guild bonuses count double / five-fold (user 2026-10-16): look more often.
 const EVENT_CHECK_EVERY: chrono::Duration = chrono::Duration::hours(2);
+/// While Exceptional XP runs, levels are what counts (user 2026-10-16: the characters in good guilds pulled ahead): look every 15 min,
+/// a slot in a better guild opens whenever a member leaves.
+const XP_EVENT_CHECK_EVERY: chrono::Duration = chrono::Duration::minutes(15);
 /// Without a guild the list is re-checked this often (see below)
 const NO_GUILD_RETRY: chrono::Duration = chrono::Duration::minutes(5);
 /// Most list pages loaded per check (the page parameter of `GroupJoinList` is unverified: we stop at the first page that
@@ -214,6 +217,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         let event = [Event::ExceptionalXPEvent, Event::GloriousGoldGalore].into_iter().any(|e| crate::tasks::event_active(gs, e));
         let every = if gs.guild.is_none() {
             NO_GUILD_RETRY
+        } else if crate::tasks::event_active(gs, Event::ExceptionalXPEvent) {
+            XP_EVENT_CHECK_EVERY
         } else if event {
             EVENT_CHECK_EVERY
         } else {
@@ -246,6 +251,24 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if !skipped.is_empty() {
         report!("[guild] Skipping {} guild(s) whose description asks for skill levels we lack: {}", skipped.len(), skipped.join(", "));
     }
+    // What the list holds at the top, joinable or not, so "why are we not in a better guild" can be read from the log
+    let mut best: Vec<&Offer> = offers.iter().collect();
+    best.sort_by_key(|o| std::cmp::Reverse(o.key()));
+    let top: Vec<String> = best
+        .iter()
+        .take(3)
+        .map(|o| {
+            let why = if o.members >= MAX_MEMBERS {
+                " FULL"
+            } else if unmet_requirement(&o.description, own) {
+                " REQUIREMENT"
+            } else {
+                ""
+            };
+            format!("{} (Instructor {}, Treasure {}, {} members{why})", o.name, o.instructor, o.treasure, o.members)
+        })
+        .collect();
+    report!("[guild] Top of the list ({} guilds): {}", offers.len(), top.join("; "));
     let list = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own);
 
     match &current {
