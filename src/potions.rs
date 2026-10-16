@@ -337,7 +337,9 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
 /// Frees one backpack slot using a potion, if possible. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
-    let Some((step, what)) = room_step(gs) else { return Ok(false) };
+    let Some((step, what)) = room_step(gs).or_else(|| crate::inventory::last_resort_sale(gs).map(|(p, w)| (RoomStep::Sell(p), w))) else {
+        return Ok(false);
+    };
     execute(session, step, &what).await
 }
 

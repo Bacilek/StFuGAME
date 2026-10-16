@@ -207,6 +207,39 @@ fn keep_for_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, cur: f64) -> b
         && value_with_gem(gs, item, slot, gem) > cur
 }
 
+/// Last resort for a COMPLETELY full backpack (0 free slots; user 2026-10-16) when no potion can make room: first sell a loose
+/// gem (the weakest one – it has no socket to go to), then the most expensive epic equipment (for the future toilet only the
+/// number of epics counts, not their price). With one free slot nothing is sold.
+pub fn last_resort_sale(gs: &GameState) -> Option<(BagPosition, String)> {
+    if gs.character.inventory.free_slot().is_some() {
+        return None;
+    }
+    let class = gs.character.class;
+    let worth = |g: &Gem| {
+        let (m, o) = gem_effect(class, *g);
+        m + o
+    };
+    let gem = gs
+        .character
+        .inventory
+        .iter()
+        .filter_map(|(pos, i)| match i?.typ {
+            ItemType::Gem(g) => Some((pos, g)),
+            _ => None,
+        })
+        .min_by(|a, b| worth(&a.1).total_cmp(&worth(&b.1)));
+    if let Some((pos, g)) = gem {
+        return Some((pos, format!("backpack completely full: selling the loose {:?} gem", g.typ)));
+    }
+    gs.character
+        .inventory
+        .iter()
+        .filter_map(|(pos, i)| Some((pos, i?)))
+        .filter(|(_, i)| i.is_epic() && !i.is_unique() && i.typ.equipment_slot().is_some())
+        .max_by_key(|(_, i)| i.price)
+        .map(|(pos, i)| (pos, format!("backpack completely full of epics: selling the most expensive one, {} ({})", describe(i), i.price)))
+}
+
 /// Next inventory management step, or None when there is nothing to do.
 fn next_action(gs: &GameState) -> Option<(Action, String)> {
     let class = gs.character.class;

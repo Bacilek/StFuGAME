@@ -93,3 +93,6 @@ Gold-only upgrades of Treasure/Instructor happen even with no Gleeman task (`tas
 
 ## No guild → retry every 5 min (user 2026-10-12)
 PajaRizz lost BloodLegacy (probably kicked) and the one join attempt failed (`group has no matching join slots`, Legion Mruczków); the 6 h `CHECK_EVERY` then left him guildless with no Instructor/Treasure bonuses. Without a guild the list is now re-checked every `NO_GUILD_RETRY` (5 min); with a guild it stays 6 h. Each retry reloads the list, so full guilds drop out. ⏳ Unverified live. Open idea (not done, asked): hold new expeditions for a limited time until a guild is joined; running expeditions are never interrupted (unknown whether the bonus counts at start or at the end).
+
+## Event weekends (2026-10-16, user)
+During Exceptional XP / Glorious Gold the guild's Instructor bonus counts double and gold five-fold, so a good guild matters more: while one of these events runs the quick-join list is checked every 2 h (`EVENT_CHECK_EVERY`) instead of 6 h. Every start of the bot already checks once at once (no previous check time), so the new build re-checks all characters right away. The user's friends' guild "Smietanka Shakes" (bonuses ~120 % / 130 %) is the kind of guild we want everyone in; the usual switch rule (Instructor AND Treasure ≥ ours + 10, not full, no unmet skill requirements) is unchanged.

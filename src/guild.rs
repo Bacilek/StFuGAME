@@ -18,6 +18,8 @@ use sf_api::{
     misc::from_sf_string,
 };
 
+use sf_api::gamestate::rewards::Event;
+
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 /// How much higher BOTH the Instructor and the Treasure of another guild must be before we leave ours (user 2026-10-11).
@@ -26,6 +28,9 @@ const SWITCH_MARGIN: u32 = 10;
 const CHECK_EVERY: chrono::Duration = chrono::Duration::hours(6);
 /// Without a guild the list is re-checked this often (a failed join, a kick): every hour without Instructor/Treasure
 /// bonuses is wasted (user 2026-10-12, PajaRizz), the list is only a few requests.
+/// While the Exceptional XP or Glorious Gold event runs the guild bonuses count double / five-fold (user 2026-10-16): look more often.
+const EVENT_CHECK_EVERY: chrono::Duration = chrono::Duration::hours(2);
+/// Without a guild the list is re-checked this often (see below)
 const NO_GUILD_RETRY: chrono::Duration = chrono::Duration::minutes(5);
 /// Most list pages loaded per check (the page parameter of `GroupJoinList` is unverified: we stop at the first page that
 /// brings no new guild).
@@ -206,7 +211,14 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         let Ok(mut last) = LAST_CHECK.lock() else { return Outcome::Done };
-        let every = if gs.guild.is_none() { NO_GUILD_RETRY } else { CHECK_EVERY };
+        let event = [Event::ExceptionalXPEvent, Event::GloriousGoldGalore].into_iter().any(|e| crate::tasks::event_active(gs, e));
+        let every = if gs.guild.is_none() {
+            NO_GUILD_RETRY
+        } else if event {
+            EVENT_CHECK_EVERY
+        } else {
+            CHECK_EVERY
+        };
         if last.is_some_and(|t| now - t < every) {
             return Outcome::Done;
         }
