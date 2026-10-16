@@ -138,10 +138,13 @@ pub fn record_purchase(a: AttributeType, paid: u32) {
     save(&levels);
 }
 
-/// Weight of an attribute towards the user's strength formula (same as `arena::weight`): main 100 %, CON 80 %,
-/// LCK 27 %, the other two side attributes 10 % each.
+/// Luck's weight when BUYING attributes (user 2026-10-16: buying stays at 100 : 80 : 40; the Arena power and item values use
+/// `arena::LUCK_WEIGHT` = 0.27, the simulated value).
+const BUY_LUCK_WEIGHT: f64 = 0.4;
+
+/// Weight of an attribute for buying: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 10 % each.
 fn weight(class: Class, a: AttributeType) -> f64 {
-    crate::arena::weight(class, a)
+    if a == AttributeType::Luck { BUY_LUCK_WEIGHT } else { crate::arena::weight(class, a) }
 }
 
 /// Which attribute gives the best weight-per-gold right now, among the main attribute, CON and LCK (user 2026-10-14: the
