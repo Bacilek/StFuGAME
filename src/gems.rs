@@ -91,6 +91,32 @@ struct Socket {
     value: f64,
     /// Weapon or gear with own main/CON/LCK (`inventory::worth_a_gem`); other items never get a gem (user 2026-10-15).
     worth: bool,
+    /// The main-hand weapon: its gem counts double (user 2026-10-16), so it gets the strongest gem.
+    weapon: bool,
+}
+
+/// Strength of a gem for this class (main + side effect, as `gem_effect` counts it).
+fn gem_power(class: Class, g: Gem) -> f64 {
+    let (m, o) = inventory::gem_effect(class, g);
+    m + o
+}
+
+/// The weapon's socket when `gem` (main-attribute/All/Legendary or Constitution) belongs there (user 2026-10-16: a weapon gem counts
+/// double, so a weapon with a gem slot always carries the strongest main gem, else a Constitution one): an empty socket, or one
+/// holding a worse gem (a better tier, or the same tier and more power). The replaced gem is lost.
+fn weapon_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
+    let new = tier(gem.typ, class);
+    if new > 1 {
+        return None;
+    }
+    sockets.iter().position(|s| {
+        s.weapon
+            && s.worth
+            && s.content.is_none_or(|old| {
+                let t = tier(old.typ, class);
+                new < t || (new == t && gem_power(class, gem) > gem_power(class, old))
+            })
+    })
 }
 
 /// The socket for `gem` (index into `sockets`), or None (keep the gem).
@@ -98,6 +124,9 @@ fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
     let new = tier(gem.typ, class);
     if new >= 3 {
         return None; // secondary-attribute gems are sold, not socketed (user 2026-10-16)
+    }
+    if let Some(i) = weapon_socket(sockets, gem, class) {
+        return Some(i);
     }
     let fit = sockets
         .iter()
@@ -129,7 +158,7 @@ fn sockets(gs: &GameState) -> Vec<(EquipmentSlot, Socket)> {
                 GemSlot::Filled(g) => Some(g),
             };
             let worth = inventory::worth_a_gem(gs.character.class, item);
-            Some((slot, Socket { content, epic: item.is_epic(), value: inventory::value(gs, item), worth }))
+            Some((slot, Socket { content, epic: item.is_epic(), value: inventory::value(gs, item), worth, weapon: slot == EquipmentSlot::Weapon }))
         })
         .collect()
 }
@@ -292,6 +321,18 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         // has this gem (user 2026-10-12: socket it there first, the inventory logic then equips it), else a worn socket
         let mut placed = None;
         for (pos, gem, ident) in gems {
+            // The worn weapon comes first (its gem counts double, user 2026-10-16), before any stored item
+            if let Some(i) = weapon_socket(&candidates, gem, class) {
+                let slot = list[i].0;
+                report!(
+                    "[gems] Socketing {:?} {} into the weapon (now: {})",
+                    gem.typ,
+                    gem.value,
+                    candidates[i].content.map_or("empty".to_string(), |g| format!("{:?} {}", g.typ, g.value))
+                );
+                placed = Some((Command::PlayerItemMove { from: pos.into(), to: slot.into(), item_ident: ident }, "weapon"));
+                break;
+            }
             let stored = gs
                 .character
                 .inventory
@@ -357,7 +398,7 @@ mod tests {
         Gem { typ, value: 50 }
     }
     fn sock(content: Option<GemType>, epic: bool, value: f64) -> Socket {
-        Socket { content: content.map(gem), epic, value, worth: true }
+        Socket { content: content.map(gem), epic, value, worth: true, weapon: false }
     }
 
     #[test]
@@ -394,6 +435,26 @@ mod tests {
         assert_eq!(choose_socket(&[sock(Some(GemType::Luck), false, 1.0)], gem(GemType::Dexterity), c), None);
         // no sockets at all
         assert_eq!(choose_socket(&[], gem(GemType::Intelligence), c), None);
+    }
+
+    #[test]
+    fn weapon_gets_the_strongest_gem() {
+        let c = Class::Bard;
+        let weapon = |content: Option<Gem>| Socket { content, epic: false, value: 1.0, worth: true, weapon: true };
+        let strong_epic = sock(None, true, 90.0);
+        // empty weapon socket beats a better item for main and Constitution gems
+        assert_eq!(choose_socket(&[strong_epic, weapon(None)], gem(GemType::Intelligence), c), Some(1));
+        assert_eq!(choose_socket(&[strong_epic, weapon(None)], gem(GemType::Constitution), c), Some(1));
+        // Constitution in the weapon is replaced by a main gem; a stronger main gem replaces a weaker one; never the other way
+        let con = Some(Gem { typ: GemType::Constitution, value: 99 });
+        let weak_main = Some(Gem { typ: GemType::Intelligence, value: 30 });
+        assert_eq!(choose_socket(&[weapon(con)], gem(GemType::Intelligence), c), Some(0));
+        assert_eq!(choose_socket(&[weapon(weak_main)], gem(GemType::Intelligence), c), Some(0));
+        assert_eq!(choose_socket(&[weapon(Some(gem(GemType::Intelligence)))], Gem { typ: GemType::Intelligence, value: 30 }, c), None);
+        assert_eq!(choose_socket(&[weapon(Some(gem(GemType::Intelligence)))], gem(GemType::Constitution), c), None);
+        // a weapon not worth a gem is skipped
+        let junk = Socket { worth: false, ..weapon(None) };
+        assert_eq!(choose_socket(&[junk], gem(GemType::Intelligence), c), None);
     }
 
     #[test]
