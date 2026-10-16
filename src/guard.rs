@@ -69,6 +69,10 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         };
         let earned = gs.character.silver.saturating_sub(silver_before);
         report!("[guard] Pay {}", crate::report::gold(earned));
+        // Exceptional XP event (user 2026-10-16): the beer comes before the next shift; the Tavern then uses its Thirst
+        if crate::tasks::beer_justified(gs) {
+            return crate::tasks::event_beer(session).await;
+        }
     }
 
     let Some(gs) = session.game_state() else { return Outcome::Done };

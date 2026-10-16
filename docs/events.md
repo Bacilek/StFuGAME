@@ -1,8 +1,7 @@
 # Weekly events (Friday 00:01 – Sunday 23:59)
 
 Since 2026-10-16 (user): a wave of game events runs EVERY WEEK from Friday 00:01 to Sunday 23:59 (server time). The user lists the
-events and says how to treat them; this file is the rule book. NOTHING here is implemented yet (2026-10-16: rules recorded,
-the user is still listing further events) – when coding, extend `tasks::beer_justified` / `safe.rs` (see the mushroom rule in CLAUDE.md).
+events and says how to treat them; this file is the rule book. The beer rule is IMPLEMENTED (2026-10-16, `tasks::beer_justified` / `event_beer`, checked again in `safe.rs`); other events are not coded yet (the user is still listing them).
 
 Currency that matters to the user: **XP** (the only real currency). Gold matters less – the higher the level, the more gold
 comes anyway, so a gold event fades in value quickly.
@@ -20,7 +19,10 @@ comes anyway, so a gold event fades in value quickly.
 - The trigger is the XP event, not the gold one. The gold event only makes the beers more profitable.
 - Everything else (never other mushroom spending, hourglasses, skips) is unchanged.
 
-## Open questions (asked 2026-10-16, see status.md)
-- When to drink: all 10 at once at the start of the day (00:01), or one by one whenever Thirst for Adventure runs out? Beers only help if the
-  expeditions actually fit into the day (an expedition takes time; 10 beers ≈ 200 min of extra Thirst).
-- Detecting the event: from the server (event list in the game state) – to be checked in sf-api when coding.
+## Answers (user 2026-10-16) and implementation
+- When: as soon as Thirst for Adventure runs out AND the character is free. A running City Guard shift (5x gold!) is never cancelled; right after it ends (`guard::run` after collecting the pay, before a new shift) the beer is drunk, then the Tavern uses the Thirst.
+- Starts the same day (Friday 2026-10-16) after the shift. On Monday it must be off: `tasks::xp_event_active` needs the event in the server's list, an end time in the future AND weekday Fri–Sun.
+- Gleeman beers are gone for good (user: "for the Gleeman we never drink beers any more", at most a quest may offer mushrooms): `Means.beers = 0`, the travel/quest beer helpers are dead code kept with their tests.
+- All characters drink, even those with few mushrooms (they should all have enough); the only stop is 0 mushrooms.
+- One beer per call; condition: idle, Thirst for Adventure below the cheapest offered expedition, `beer_drunk < beer_max`.
+- Verification: ⏳ watch `[tasks] Exceptional XP event: drinking beer n/10` in the logs, the mushroom watchdog must accept each −1.

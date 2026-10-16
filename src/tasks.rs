@@ -299,7 +299,8 @@ impl Means {
         Means {
             gamble: gs.character.silver >= GAMBLE_MIN_SILVER,
             wheel_spins: u64::from(w.lucky_coins) / LUCKY_COINS_PER_SPIN + u64::from(safe::wheel_is_free(gs)),
-            beers: u64::from(gs.tavern.beer_max.saturating_sub(gs.tavern.beer_drunk)),
+            // Gleeman tasks never get a beer any more (user 2026-10-16); beers are only for the XP event
+            beers: 0,
         }
     }
 }
@@ -426,6 +427,7 @@ fn gem_task_reaches_gold_chest(tasks: &[Task], chests: &[RewardChest], cost: u64
 
 /// Bonus Thirst for Adventure of one beer: 20 minutes (user 2026-10-10). The expedition we want the beer for must
 /// cost at most this much.
+#[allow(dead_code)]
 const BEER_ALU_SEC: u32 = 20 * 60;
 
 /// "Last chest" travel beer (user 2026-10-10, Mrožik missed a 125 g chest by one BustedLands visit with 0 Thirst for
@@ -433,6 +435,7 @@ const BEER_ALU_SEC: u32 = 20 * 60;
 /// one `TravelTo(location)` visit, the Tavern is out of Thirst for Adventure, one of the expeditions on offer passes
 /// that location (and costs at most one beer's worth), and nothing free (gold-only tasks, Arena, City Guard) would
 /// reach the chest anyway. `offered` = (location 1, location 2, Thirst for Adventure cost) of each expedition.
+#[allow(dead_code)]
 pub fn travel_beer_needed(
     tasks: &[Task],
     chests: &[RewardChest],
@@ -467,48 +470,12 @@ pub fn travel_beer_needed(
     })
 }
 
-/// The travel beer is a last-minute task (user 2026-10-10): not before this local hour, when nothing else is left.
-const TRAVEL_BEER_FROM_HOUR: u32 = 22;
-
-/// Marker file with the date of the last travel beer – on disk so a restart cannot allow a second one the same day.
-fn travel_beer_path() -> std::path::PathBuf {
-    std::path::Path::new("roster").join(crate::ctx::name()).join("travel_beer.txt")
-}
-
-fn travel_beer_used_today() -> bool {
-    let today = chrono::Local::now().date_naive().to_string();
-    std::fs::read_to_string(travel_beer_path()).is_ok_and(|t| t.trim() == today)
-}
-
-fn mark_travel_beer_used() {
-    let path = travel_beer_path();
-    if let Some(dir) = path.parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    let _ = std::fs::write(path, chrono::Local::now().date_naive().to_string());
-}
-
-/// `travel_beer_needed` for the daily and the event task list of the current game state (once per day).
-fn travel_beer_justified(gs: &GameState) -> bool {
-    if chrono::Timelike::hour(&chrono::Local::now()) < TRAVEL_BEER_FROM_HOUR
-        || travel_beer_used_today()
-        || gs.tavern.beer_drunk >= gs.tavern.beer_max || gs.tavern.current_action != CurrentAction::Idle {
-        return false;
-    }
-    let AvailableTasks::Expeditions(list) = gs.tavern.available_tasks() else { return false };
-    let offered: Vec<_> = list.iter().map(|e| (e.location_1, e.location_2, e.thirst_for_adventure_sec)).collect();
-    let t = &gs.specials.tasks;
-    let gamble = Means::of(gs).gamble;
-    let thirst = gs.tavern.thirst_for_adventure_sec;
-    travel_beer_needed(&t.daily.tasks, &t.daily.rewards, gamble, thirst, &offered)
-        || travel_beer_needed(&t.event.tasks, &t.event.rewards, gamble, thirst, &offered)
-}
-
 /// "Quest beer" (user 2026-10-11): ONE beer (1 mushroom) for a "Drink beer" task that wants a single beer, when its
 /// points GUARANTEE the highest unopened chest on their own – i.e. earned + free points (Arena, City Guard, shell game,
 /// attributes) fall short of the chest and adding the beer task reaches it. If the chest would still lack a second
 /// mushroom afterwards (e.g. another beer for a location visit), nothing is drunk. Shares the one-mushroom-a-day
 /// budget with the travel beer (`mark_travel_beer_used`); a chest that pays mushrooms back is the `plan` path instead.
+#[allow(dead_code)]
 pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible: bool) -> bool {
     let Some(last) = chests.iter().max_by_key(|c| c.required_points) else { return false };
     if last.opened || last.required_points == 0 || !pays_mushrooms(last) {
@@ -533,48 +500,52 @@ pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible
     })
 }
 
-/// `quest_beer_needed` for the daily and the event list, last-minute like the travel beer (from 22:00, once a day).
-fn quest_beer_justified(gs: &GameState) -> bool {
-    if chrono::Timelike::hour(&chrono::Local::now()) < TRAVEL_BEER_FROM_HOUR
-        || travel_beer_used_today()
+/// Is the "Exceptional XP" event running (2x XP)? Server list + end time, and only Friday–Sunday (user 2026-10-16:
+/// the events run Friday 00:01 – Sunday 23:59, on Monday it must be off whatever a stale list says).
+pub fn xp_event_active(gs: &GameState) -> bool {
+    use chrono::Datelike;
+    let ev = &gs.specials.events;
+    ev.active.contains(&sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+        && ev.ends.is_some_and(|e| e > chrono::Local::now())
+        && matches!(chrono::Local::now().weekday(), chrono::Weekday::Fri | chrono::Weekday::Sat | chrono::Weekday::Sun)
+}
+
+/// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.) ONLY during the Exceptional XP event
+/// (user 2026-10-16, mushrooms explicitly allowed): up to the daily maximum, as soon as the Thirst for Adventure has run
+/// out (less than the cheapest offered expedition needs) and the character is idle (not on an expedition or City Guard).
+pub fn beer_justified(gs: &GameState) -> bool {
+    if !xp_event_active(gs)
         || gs.tavern.beer_drunk >= gs.tavern.beer_max
+        || gs.tavern.current_action != CurrentAction::Idle
+        || gs.character.mushrooms == 0
     {
         return false;
     }
-    let t = &gs.specials.tasks;
-    let gamble = Means::of(gs).gamble;
-    quest_beer_needed(&t.daily.tasks, &t.daily.rewards, gamble) || quest_beer_needed(&t.event.tasks, &t.event.rewards, gamble)
+    let cheapest = match gs.tavern.available_tasks() {
+        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec).min().unwrap_or(0),
+        _ => 0,
+    };
+    gs.tavern.thirst_for_adventure_sec < cheapest.max(1)
 }
 
-/// May the bot drink a beer now? (Also checked by `safe.rs` before `BuyBeer`.)
-pub fn beer_justified(gs: &GameState) -> bool {
-    planned(gs).contains(&Extra::Beer) || travel_beer_justified(gs) || quest_beer_justified(gs)
+/// Drinks one beer when `beer_justified` (one per call: the Tavern uses the new Thirst for Adventure before the next).
+pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    if !beer_justified(gs) {
+        return Outcome::Done;
+    }
+    report!(
+        "[tasks] Exceptional XP event: drinking beer {}/{} ({BEER_MUSHROOMS} mushroom)",
+        gs.tavern.beer_drunk + 1,
+        gs.tavern.beer_max
+    );
+    send_or_return!(session, Command::BuyBeer);
+    Outcome::Done
 }
 
 /// May the bot spin the Wheel of Fortune for lucky coins now? (Also checked by `safe.rs`.)
 pub fn lucky_spin_justified(gs: &GameState) -> bool {
     planned(gs).contains(&Extra::Wheel)
-}
-
-async fn drink_beer(session: &mut SimpleSession) -> Outcome {
-    let Some(gs) = session.game_state() else { return Outcome::Done };
-    if !beer_justified(gs) {
-        return Outcome::Done;
-    }
-    let left = remaining(gs, |t| t == TaskType::DrinkBeer);
-    if !planned(gs).contains(&Extra::Beer) {
-        if !travel_beer_justified(gs) {
-            report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the Drink beer task guarantees the last chest");
-        } else {
-            report!("[tasks] Drinking ONE beer ({BEER_MUSHROOMS} mushroom): the last chest lacks one visit that an offered expedition provides");
-        }
-        // Marked BEFORE the purchase: never a second travel beer, whatever happens next
-        mark_travel_beer_used();
-    } else {
-        report!("[tasks] Drinking a beer ({BEER_MUSHROOMS} mushroom, {left} to go): needed for a chest with enough mushrooms");
-    }
-    send_or_return!(session, Command::BuyBeer);
-    claim_chests(session).await
 }
 
 async fn lucky_spins(session: &mut SimpleSession) -> Outcome {
@@ -708,7 +679,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             return Outcome::SessionLost;
         }
         // Beer last (one per pass: it gives Thirst for Adventure, the Tavern continues before the next one)
-        return drink_beer(session).await;
+        return event_beer(session).await;
     }
     Outcome::Done
 }

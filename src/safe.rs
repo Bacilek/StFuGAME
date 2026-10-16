@@ -64,7 +64,7 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::UpgradeSkill { .. }
             | Command::GuildIncreaseSkill { skill: GuildSkill::Treasure | GuildSkill::Instructor, .. }
             | Command::GambleSilver { .. }
-            // Beer only for the last missing Gleeman task to a chest with mushrooms (user 2026-10-07) or the travel beer (2026-10-10), see tasks::beer_justified
+            // Beer only during the Exceptional XP event (user 2026-10-16), see tasks::beer_justified
             | Command::BuyBeer
             | Command::HallOfFamePage { .. }
             // Read-only refresh of the scrapbook (user 2026-10-12, scrapbook hunt)
@@ -341,7 +341,7 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         return Err(SFError::InvalidRequest("this active potion may not be removed"));
     }
     if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(crate::tasks::beer_justified) {
-        return Err(SFError::InvalidRequest("beer costs a mushroom and is not justified by a task chest"));
+        return Err(SFError::InvalidRequest("beer costs a mushroom and is only allowed during the Exceptional XP event"));
     }
     if let Command::GambleSilver { amount } = &cmd
         && !session.game_state().is_some_and(|gs| gamble_ok(gs, *amount))
