@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Assassin bare-hands experiment (2026-10-16, user asked):** `hunt.rs` now strips only the main-hand weapon on the first bare-hands win of an Assassin, measures the task progress after `Update` and logs `Assassin bare-hands test` (progress log + `hunts.log`); if not counted it strips both from then on. ⏳ needs a release rebuild and an open bare-hands task on Sanek (or another Assassin); then write the verdict into `docs/tasks.md` and hardcode it.
+
 - **Fortress buddies confirmed (2026-10-16, user):** a `Counter-attack target Wecros` line where Wecros is one of our own characters is intended; no code change, recorded in `docs/fortress.md` + `docs/precedents.md`.
 
 - **Secondary-attribute gems are sold automatically (2026-10-16, user, `gems::sell_secondary_gems`):** loose gems of tier 3 (not main/All/Legendary, CON or Luck for the class) are sold for gold at the start of every gem pass and are never socketed (`choose_socket` returns None for them; an old secondary gem in a socket can still be replaced by Luck/CON). Tests pass, NOT built into release, not seen live (look for `[gems] Selling the loose secondary-attribute gem`).

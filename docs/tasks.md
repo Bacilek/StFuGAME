@@ -26,8 +26,11 @@
     far below our rank (e.g. we are 8600th → look at 10000) for a weak player of that class with low honor and beat them.
     Hall of Fame fights do not count towards the 10 XP wins.
   - "Win bare-handed": take the weapon off, beat a weak player low in the Hall of Fame, put the weapon back on.
-    An Assassin has a weapon in both the Weapon and Shield slot (dual-wield) – both come off, both go back on
-    (`src/hunt.rs`, 2026-10-08, ahead of Sanek's first run).
+    An Assassin has a weapon in both the Weapon and Shield slot (dual-wield). UNVERIFIED whether the task needs both off
+    (a Paladin keeps the shield on, but that is a real shield). Since 2026-10-16 an experiment decides it (`ASSASSIN_ONE_HAND`
+    in `src/hunt.rs`): the first bare-hands win strips the main hand ONLY, then `Update` and compares the task's progress;
+    counted -> main hand only from then on, not counted -> both come off from then on. Verdict line `Assassin bare-hands test`
+    in `[hunt]` progress log + `roster/<char>/logs/hunts.log`; the verdict is per run (reset on restart). Record the result here.
   - "Spin the Wheel of Fortune 5×": 1 free, the rest costs lucky coins (collected from offers, ads, …). Do not waste them,
     use them only when a reward would not be reached otherwise.
   - "Drink beer" may ask for 10 beers (10 mushrooms). Only when it brings more (e.g. 10 mushrooms back + the Thirst for
@@ -129,7 +132,7 @@ Event: SpendGoldOnUpgrades 0/200, BuyHourGlasses 0/3, BuyFromShop(Weapon) 2/3, B
 | Expedition through a task location counts for `TravelTo` | ⏳ not verified |
 | Hall of Fame page around a rank (`HallOfFamePage`), fight by name, Arena cooldown after it | ⏳ not verified |
 | Hall of Fame fights do not count towards the XP wins | ✅ 2026-10-07 per the user |
-| Bare hands: `PlayerItemMove` equipment → backpack, fight, `Equip` back | ⏳ not verified |
+| Bare hands: `PlayerItemMove` equipment → backpack, fight, `Equip` back | ⏳ not verified | (Assassin: one vs two weapons – experiment running since 2026-10-16) |
 | New event theme at the daily reset: task list can lag behind the reward-chest reset | ❌ bug, fixed 2026-10-09 (below) |
 
 ## Bug: "invalid chest" spam right after a new event theme starts (found and fixed 2026-10-09)

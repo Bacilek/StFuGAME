@@ -220,16 +220,30 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
     }))
 }
 
+/// Does an Assassin's "bare hands" task count with only the main-hand weapon off? `None` = not tested yet (the first win
+/// strips the main hand only and measures the task's progress, see `run`), `Some(true)` = yes, `Some(false)` = the
+/// off-hand weapon must come off too. Per character, reset on restart (the verdict is logged to `hunts.log`).
+static ASSASSIN_ONE_HAND: crate::ctx::PerChar<Option<bool>> = crate::ctx::PerChar::new();
+
+/// Summed progress of the open "win bare-handed" tasks (daily + event).
+fn bare_hands_progress(gs: &GameState) -> u64 {
+    let t = &gs.specials.tasks;
+    t.daily.tasks.iter().chain(t.event.tasks.iter()).filter(|t| t.typ == TaskType::WinFightsBareHands).map(|t| t.current).sum()
+}
+
 /// The equipment slots to empty for the fight (`None` = nothing to take off for this kind of hunt).
-/// An Assassin carries a weapon in both the Weapon and Shield slot (sf-api types the off-hand item as a Weapon too),
-/// so "bare hands" must take both off, not just the main hand.
+/// An Assassin carries a weapon in both the Weapon and Shield slot (sf-api types the off-hand item as a Weapon too).
+/// Whether "bare hands" needs both off is being tested (`ASSASSIN_ONE_HAND`): main hand only until the test says otherwise.
 fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>> {
     let gs = gs?;
     match hunt {
         Hunt::Class(_) | Hunt::Any { .. } | Hunt::Scrapbook | Hunt::AttackMe => None,
         Hunt::Without(slot) => {
             let mut slots = vec![slot];
-            if slot == EquipmentSlot::Weapon && gs.character.class == Class::Assassin {
+            if slot == EquipmentSlot::Weapon
+                && gs.character.class == Class::Assassin
+                && ASSASSIN_ONE_HAND.lock().is_ok_and(|v| *v == Some(false))
+            {
                 slots.push(EquipmentSlot::Shield);
             }
             Some(slots)
@@ -354,6 +368,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
     }
 
+    // Assassin experiment: main hand off only, is the win counted? (measured after the weapon is back on, below)
+    let experiment = hunt == Hunt::Without(EquipmentSlot::Weapon)
+        && stripped.len() == 1
+        && session.game_state().is_some_and(|gs| gs.character.class == Class::Assassin)
+        && ASSASSIN_ONE_HAND.lock().is_ok_and(|v| v.is_none());
+    let bare_before = session.game_state().map_or(0, bare_hands_progress);
     let scrap_before = scrap_count(session);
     report!("[hunt] Fighting {name}");
     let mut result = "failed";
@@ -394,6 +414,23 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             // inventory::manage will equip it on the next pass anyway (better than an empty slot)
             return fail(&e);
         }
+    }
+    if experiment && result == "win" && !session_lost {
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e);
+        }
+        let after = session.game_state().map_or(0, bare_hands_progress);
+        let counted = after > bare_before;
+        if let Ok(mut v) = ASSASSIN_ONE_HAND.lock() {
+            *v = Some(counted);
+        }
+        let verdict = if counted {
+            "main hand off is enough for an Assassin"
+        } else {
+            "NOT counted with the main hand off only, the off-hand weapon comes off too from now on"
+        };
+        report!("[hunt] Assassin bare-hands test: task progress {bare_before} -> {after}: {verdict}");
+        journal(&format!("Assassin bare-hands test | main hand only | progress {bare_before} -> {after} | {verdict}"));
     }
     if session_lost { Outcome::SessionLost } else { Outcome::Done }
 }
