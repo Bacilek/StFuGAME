@@ -6,7 +6,8 @@ In similar situations it then follows this list. Newest at the bottom.
 | Date | Situation | Decision |
 |---|---|---|
 | 2026-10-07 | Spending mushrooms | Never, under any circumstances, until the user changes it. |
-| 2026-10-07 | Choosing an expedition | The shortest; at equal length an unmapped one, otherwise the easiest to reach 40. |
+| 2026-10-07 | Choosing an expedition | (superseded 2026-10-16, below) The shortest; at equal length an unmapped one, otherwise the easiest to reach 40. |
+| 2026-10-16 | Choosing an expedition | Gleeman/event "travel to" location first; then the better XP tier (S > A > B, official Discord tier list, `Mission::tier`, list in `docs/expeditions.md`); same tier → the shorter one; then unmapped/easiest. Offers are 12.5 and 25 thirst for a long time and 2 short ≈ 1 long, so tier beats length. |
 | 2026-10-07 | Encounters from a foreign mission (not the main task) | Take them only for their immediate heroism, not for future steps. |
 | 2026-10-07 | Conflicting data (user × FAQ × server) | The server is right; toilet paper +20 / −5 per the user until verified. |
 | 2026-10-07 | Reward after a boss | Mushrooms > gold > hourglasses; leftover expedition (Thirst for Adventure ≤ 3 min): mushrooms > hourglasses > gold. |

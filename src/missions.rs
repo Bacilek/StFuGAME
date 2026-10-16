@@ -42,6 +42,16 @@ impl Mission {
         self.chain.last().map_or(Unknown, |(t, _)| *t)
     }
 
+    /// XP tier from the official SFGame Discord tier list (user 2026-10-16): 0 = S, 1 = A, 2 = B.
+    /// Lower is better; used to choose between expeditions of different missions.
+    pub fn tier(&self) -> u8 {
+        match self.name {
+            "Podium Climber" | "Dragon Taming" => 0,
+            "Hot Carnal Craving" | "Unicorn Whisperer" | "Build A Friend" => 1,
+            _ => 2,
+        }
+    }
+
     /// How easily the mission yields heroism: average per round when completed
     /// (step heroism + bonus + avoided penalty) / rounds needed. Higher = easier 40.
     pub fn ease(&self) -> f64 {

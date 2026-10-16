@@ -96,9 +96,21 @@ For an unmapped mission it treats items from the same tens range as the target a
 - Hourglasses are never used.
 
 ## Choosing an expedition
-1. The shortest one (least Thirst for Adventure).
-2. At equal length: an unmapped mission or one with an unverified bonus, otherwise the highest ease.
+Since 2026-10-16 (user; `tavern::choose_expedition`):
+1. A Gleeman/event task "travel to <location>": an expedition through that location wins (over tier and length).
+2. The better XP tier (`Mission::tier`, official SFGame Discord tier list, ranks the 14 missions):
+   - **S:** Podium Climber (cup/trophy), Dragon Taming
+   - **A:** Hot Carnal Craving (roast pig), Unicorn Whisperer, Build A Friend (Klaus)
+   - **B:** Toxic Fountain Cure (poisoned well), Revealing Lady (couple), Bewitched Stew (witch), Sanitary Emergency (toilet),
+     Extinguished Fire, The Sword Trial (broken sword), Plenty of Men in the Sea (fish), Running Dry (barrel/bartender),
+     Beak to Tail (zoo)
+   - An unmapped mission counts as tier A.
+   Why tier beats length: at low levels the offers are always 12.5 and 25 thirst, and a 2× shorter one ≈ one longer one in rewards.
+3. Same tier: the shortest (least Thirst for Adventure).
+4. Same tier and length: an unmapped mission or one with an unverified bonus, otherwise the highest ease.
    Ease = (step heroism + bonus + avoided penalty) / number of rounds. A rough estimate, tune from the journal.
+
+Before 2026-10-16 it was simply "the shortest, ties by ease". Note: tier ordering is ⏳ not yet verified live (expect more S/A expeditions chosen).
 
 ## Journal
 The bot writes every expedition to `logs/expeditions.jsonl` (picks, heroism, keys, chests, verdict).

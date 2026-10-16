@@ -330,6 +330,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-16: **expedition choice by XP tier** (`tavern::choose_expedition`, `Mission::tier`): Gleeman location > tier (S: podium, dragon; A: pig, unicorn, Klaus; B: the rest) > shorter > ease. User: offers are 12.5/25 thirst for a long time, 2 short ≈ 1 long. Tests pass (78). ⏳ verify live after a release rebuild (not built yet; bot still runs the old rule). See `docs/expeditions.md` "Choosing an expedition".
 - The bot is now a **desktop app** (`app.rs`: `tao` window + `wry`/WebView2, served over a custom `app://` protocol,
   not `file://` – see `docs/controls.md`), not just a tray icon. The "StFuGAME bot" shortcut opens a window with a
   **Characters** tab (a tile per character, on/off switch, current activity + live countdown, Thirst for Adventure

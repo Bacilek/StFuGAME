@@ -54,12 +54,15 @@ fn should_skip_wait_with_glass(busy_until: DateTime<Local>, now: DateTime<Local>
 /// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
-/// Picks an expedition: the shortest (cheapest in Thirst for Adventure). At equal length the one where
-/// 40 heroism is easiest; an unknown mission (or one with an unverified bonus) wins ties so we can map it.
-/// A Gleeman/event task "travel to <location>" comes first (user 2026-10-07): an expedition through a wanted
-/// location wins even when it is longer.
+/// Picks an expedition. A Gleeman/event task "travel to <location>" comes first (user 2026-10-07): an expedition
+/// through a wanted location wins even when it is longer. Then the better XP tier (`Mission::tier`, S > A > B;
+/// user 2026-10-16: expeditions are 12.5 and 25 thirst and a 2× shorter one ≈ one longer one, so length does not
+/// matter across tiers). Within a tier the shortest (cheapest in Thirst for Adventure); at equal length the one
+/// where 40 heroism is easiest; an unknown mission (or one with an unverified bonus) wins ties so we can map it.
+/// An unmapped mission counts as tier A.
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
     let visits = |e: &AvailableExpedition| wanted.contains(&e.location_1) || wanted.contains(&e.location_2);
+    let tier = |e: &AvailableExpedition| missions::for_target(e.target).map_or(1, |m| m.tier());
     // Unknown mission or unverified bonus = we want to map it, it wins ties
     let ease = |e: &AvailableExpedition| match missions::for_target(e.target) {
         Some(m) if m.bonus_known => m.ease(),
@@ -71,9 +74,12 @@ fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Locati
             None => true,
             Some(b) => {
                 let b = &list[b];
+                let same_visit = visits(e) == visits(b);
                 (visits(e) && !visits(b))
-                    || (visits(e) == visits(b) && e.thirst_for_adventure_sec < b.thirst_for_adventure_sec)
-                    || (visits(e) == visits(b)
+                    || (same_visit && tier(e) < tier(b))
+                    || (same_visit && tier(e) == tier(b) && e.thirst_for_adventure_sec < b.thirst_for_adventure_sec)
+                    || (same_visit
+                        && tier(e) == tier(b)
                         && e.thirst_for_adventure_sec == b.thirst_for_adventure_sec
                         && ease(e) > ease(b))
             }
@@ -865,12 +871,16 @@ mod tests {
     }
 
     #[test]
-    fn expedition_shortest_then_easiest() {
-        // shorter wins even over easier
-        assert_eq!(choose_expedition(&[avail(Cake, 20), avail(BurntCampfire, 15)], 6000, &[]), Some(1));
-        // same length: suckling pig (8/round) is easier than the fire (4/round)
-        assert_eq!(choose_expedition(&[avail(BurntCampfire, 20), avail(Cake, 20)], 6000, &[]), Some(1));
-        // same length: an unmapped mission wins (Merman was mapped 2026-10-12, so Cupid stands in)
+    fn expedition_tier_then_shortest_then_easiest() {
+        // better tier wins even when longer: dragon (S, 25) over the fire (B, 12.5)
+        assert_eq!(choose_expedition(&[avail(BurntCampfire, 13), avail(Dragon, 25)], 6000, &[]), Some(1));
+        // podium (S, longer) over the pig (A)
+        assert_eq!(choose_expedition(&[avail(Cake, 13), avail(WinnersPodium, 25)], 6000, &[]), Some(1));
+        // same tier: shorter wins (dragon and podium are both S)
+        assert_eq!(choose_expedition(&[avail(Dragon, 25), avail(WinnersPodium, 13)], 6000, &[]), Some(1));
+        // same tier, same length: the easier one (pig 8/round beats Klaus 7.5/round; both A)
+        assert_eq!(choose_expedition(&[avail(Klaus, 20), avail(Cake, 20)], 6000, &[]), Some(1));
+        // same tier, same length: an unmapped mission (tier A) wins the tie (Cupid stands in)
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Cupid, 20)], 6000, &[]), Some(1));
         // not enough Thirst for Adventure for the longer one
         assert_eq!(choose_expedition(&[avail(Cake, 20)], 600, &[]), None);
@@ -883,6 +893,10 @@ mod tests {
         let list = [avail(Cake, 15), far];
         assert_eq!(choose_expedition(&list, 6000, &[Location::SkullIsland]), Some(1));
         assert_eq!(choose_expedition(&list, 6000, &[]), Some(0));
+        // even a worse tier: the task location beats the tier
+        let mut far_b = avail(BurntCampfire, 25);
+        far_b.location_2 = Location::SkullIsland;
+        assert_eq!(choose_expedition(&[avail(Dragon, 13), far_b], 6000, &[Location::SkullIsland]), Some(1));
         // the wanted one must still be affordable
         assert_eq!(choose_expedition(&list, 900, &[Location::SkullIsland]), Some(0));
     }
