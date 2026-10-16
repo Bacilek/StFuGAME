@@ -110,5 +110,16 @@ Success metric: ok rate (share ≥ 40) by mission and overall, plus the near-mis
   back to the real missions (`ALIAS` in `scripts/expedition_stats.js`) and uses the final heroism, which is unaffected.
 - `Well is -2 in the table` (108 mismatches) is the old cauldron value; the server shows +2 (fixed 2026-10-16).
 - Character level differs between journals; expedition difficulty does not seem level-dependent (offers are the same pool), reward size is.
-- The journal does not store per-round cumulative heroism or the offered Suitcase/chest reward separately. If we want deeper analysis
-  (e.g. exact value of a chest, P(40) after round 5), extend `journal::Entry` with `heroism_by_round` and `chest_rewards`.
+- Per-round heroism IS in the journal, inside `checks` ("heroism after picking X in round N: expected a, server has b"); older runs too.
+- The journal's `rewards` is only the boss reward. **The chest (Suitcase) reward is not recorded** – only `chests` (count). Needed before
+  judging keys: log what the chest gave (gold amount, hourglass, event resources) – todo.
+- "n runs, x %" in the per-mission table: `n` = number of runs of that mission, "ok" = share of them that reached 40. Gone With the Wind: 72 of 1117 runs
+  (6.4 % of all expeditions), 61 of 72 ok (85 %), avg final heroism 46.3 → upper B tier (like Beak to Tail 86 %).
+
+## Early lead -> key? (measured 2026-10-16, heroism from `checks`)
+Final result by heroism after round 5 / 6 / 7: **≥ 30 after round 5: 131/131 reached 40; 35–39 after round 6: 114/114; 30–34 after round 6: 96 %;
+35–39 after round 7: 99 %**; below 30 the rate drops to 77–88 %. So with a lead of 35 after round 6 the points are practically safe, and a
+key (and then a chest) costs only a "spare" round. `choose_encounter` today only farms keys when the *projected* heroism is already ≥ 40; it
+does not consider "almost certain" leads. Keys picked in round 8–9 turn into a chest only 54 % / 47 % of the time (round 7: 70 %), so an earlier key
+(round 5–7) is the better gamble – but the chest value is unknown (see above).
+Build A Friend: Hand taken in round 1 → Klaus came 45/46, round 2: 10/11, round 3: 6/8, round 4–5: 2/3; so start the chain only early.
