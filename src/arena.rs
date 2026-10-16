@@ -96,7 +96,7 @@ pub fn xp_wins_on(date: chrono::NaiveDate) -> u8 {
 
 /// Seconds until the Arena is free (with margin), if it still makes sense (fewer than 10 wins).
 pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
-    if usize::from(gs.arena.fights_for_xp) >= MAX_WINS_PER_DAY {
+    if xp_wins_done(gs) {
         return None;
     }
     let free_at = gs.arena.next_free_fight.map_or_else(Local::now, |t| t + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC));
@@ -111,7 +111,18 @@ pub fn secs_until_free(gs: &GameState) -> u64 {
 
 /// Should we go to the Arena? Off cooldown and fewer than 10 wins today.
 pub fn ready(gs: &GameState) -> bool {
-    safe::arena_is_free(gs) && usize::from(gs.arena.fights_for_xp) < MAX_WINS_PER_DAY
+    safe::arena_is_free(gs) && !xp_wins_done(gs)
+}
+
+/// Rumble for Riches runs: wins pay gold even after the 10 XP wins, so the Arena keeps going (user 2026-10-16: the risk of a
+/// loss does not matter, no mushrooms are spent).
+pub fn rumble_unlimited(gs: &GameState) -> bool {
+    crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::RumbleForRiches)
+}
+
+/// The day's 10 XP wins are done and nothing else makes fights worthwhile.
+fn xp_wins_done(gs: &GameState) -> bool {
+    usize::from(gs.arena.fights_for_xp) >= MAX_WINS_PER_DAY && !rumble_unlimited(gs)
 }
 
 fn log_fight(line: &serde_json::Value) {
@@ -261,7 +272,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         None => report!("[arena] Fight done, the server sent no result"),
     }
     let wins = usize::from(fights_for_xp);
-    if wins >= MAX_WINS_PER_DAY {
+    if wins >= MAX_WINS_PER_DAY && !rumble {
         report!("[arena] {wins} wins for XP today, Arena paused until tomorrow");
     } else {
         report!("[arena] Wins for XP today: {wins}/{MAX_WINS_PER_DAY}");

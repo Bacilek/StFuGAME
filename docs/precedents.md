@@ -154,3 +154,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-16 (events): Days of Doomed Souls extras, Witches' Dance and Epic Shopping Spree need no behaviour: no souls/cauldron features yet; shop epics only if they cost gold (the existing 'better item' rule), never mushrooms.
 - 2026-10-16 (events): Epic Quest Extravaganza (epic per 100 / 300 ALU spent) and Epic Good Luck need no extra logic; the XP-event beers reach the 300 mark. Epics are still never sold; keep an eye on backpack space (user: saving space in the inventory).
 - 2026-10-16 (events): Rumble for Riches – the user is fine with min-maxing: challenge opponents at most 50 ranks behind us (and not 955+ honor behind); implemented as a preference at ≥ 50 % win chance. Gloom Set needs no logic.
+- 2026-10-16 (Rumble for Riches): fight on after the 10 XP wins while the event runs (gold is paid, loss risk irrelevant, no mushrooms).

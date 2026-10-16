@@ -40,6 +40,7 @@ fn scrapbook_due(gs: &GameState) -> bool {
     });
     incomplete
         && usize::from(gs.arena.fights_for_xp) >= arena::MAX_WINS_PER_DAY
+        && !arena::rumble_unlimited(gs)
         && NEXT_SCRAPBOOK.lock().is_ok_and(|n| n.is_none_or(|t| chrono::Local::now() >= t))
 }
 
