@@ -171,3 +171,4 @@ User: spending 1–2 soldiers is fine when it pays off in resources. `soldiers_f
 
 ## Hall of Knights cap verified (2026-10-16)
 The server answers `need higher building1` when the Hall of Knights (6) is upgraded above the Fortress level (6): Sanek and Chlamydie at 07:58. The old rule "at least 8" is dropped (`HOK_MIN_TARGET` removed); the Hall goes up only to the Fortress level, so level 8 needs Fortress 8.
+Correction (user 2026-10-16): what he meant was a CAP, not a minimum: the Hall of Knights goes up to min(Fortress level, 8) and no further for now (`HOK_MAX_TARGET`).

@@ -157,3 +157,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-16 (Rumble for Riches): fight on after the 10 XP wins while the event runs (gold is paid, loss risk irrelevant, no mushrooms).
 - 2026-10-16 (full backpack): at 0 free slots and nothing else to free: sell the loose gem, then the most expensive epic; never act with 1 free slot. (Guild) during the XP/Gold event weekend all characters should be in a good guild: re-check the list at start and every 2 h.
 - 2026-10-16 (fortress): the game refuses the Hall of Knights above the Fortress level; the 'at least 8' wish only works once the Fortress itself reaches 8.
+- 2026-10-16 (fortress, correction): Hall of Knights max = min(Fortress level, 8); no upgrades beyond level 8 for now (temporary).
