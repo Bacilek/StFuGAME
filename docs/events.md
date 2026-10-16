@@ -11,6 +11,11 @@ comes anyway, so a gold event fades in value quickly.
 |---|---|---|
 | Exceptional XP | 2× XP from expeditions, daily rewards, Arena fights, Academy, Wheel of Fortune; special pet Luchtablong can be found | **Drink 10 beers in the Tavern** (user explicitly allows mushrooms for this): 10 beers ≈ 200 extra Thirst for Adventure, i.e. as many expeditions as possible at double XP. |
 | Glorious Gold Galore | 5× gold from expeditions, City Guard shifts, Game of Dice (not unlocked yet), Gold Pit (not unlocked yet), Wheel of Fortune; pet Armoruck can be found | Gold alone does NOT justify beers. It is only a bonus on top of the XP event: with both running, the 10 beers/day (Fri+Sat+Sun = 30 mushrooms) are drunk anyway. If the Gold event ran alone: no beers. |
+| Assembly of Awesome Animals | guaranteed fruits from expeditions; pets can be fed 9 fruits a day; shorter travel with premium mounts; 3× fruits from the Wheel of Fortune | We have no pets unlocked, so maybe no fruits (a bonus for the future). Never a reason for beers on its own – the XP-event beers cover it ("two birds with one stone"). Faster expeditions: the loop waits for the server's real end time (`busy_until`), so nothing to change; watch the logged duration of the first expedition. |
+| Fantastic Fortress Festivity | wood and stone in expeditions; only BIG gems in the Gem Mine; unit training time halved; 2× wood/stone from Game of Dice (not unlocked) and the Wheel | Expedition rewards: unchanged order (we never pick wood/stone). Training halved: the soldiers are looked after every 3 min instead of 5 (`fortress::military`), so raids come faster. Gems: nothing to do. |
+| Days of Doomed Souls | souls can be found on expeditions | We have no souls feature; we expect not to find any. If they show up, keep the existing reward order (mushrooms > gold > hourglasses >>> wood/stone). |
+
+Academy: during Exceptional XP the Academy's XP stock is assumed to fill twice as fast (`fortress::minutes_to_full`), so it is collected earlier and wakes the loop earlier – collecting is free, an early collect costs nothing.
 
 ## Rules
 - Beer budget in these events: up to 10 beers a day (the game's daily limit), Friday–Sunday, ONLY while the Exceptional XP event is active.

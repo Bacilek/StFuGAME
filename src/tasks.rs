@@ -503,9 +503,14 @@ pub fn quest_beer_needed(tasks: &[Task], chests: &[RewardChest], gamble_possible
 /// Is the "Exceptional XP" event running (2x XP)? Server list + end time, and only Friday–Sunday (user 2026-10-16:
 /// the events run Friday 00:01 – Sunday 23:59, on Monday it must be off whatever a stale list says).
 pub fn xp_event_active(gs: &GameState) -> bool {
+    event_active(gs, sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+}
+
+/// Is the given weekly event running? Server list + a future end time + weekday Fri–Sun (see `xp_event_active`).
+pub fn event_active(gs: &GameState, event: sf_api::gamestate::rewards::Event) -> bool {
     use chrono::Datelike;
     let ev = &gs.specials.events;
-    ev.active.contains(&sf_api::gamestate::rewards::Event::ExceptionalXPEvent)
+    ev.active.contains(&event)
         && ev.ends.is_some_and(|e| e > chrono::Local::now())
         && matches!(chrono::Local::now().weekday(), chrono::Weekday::Fri | chrono::Weekday::Sat | chrono::Weekday::Sun)
 }

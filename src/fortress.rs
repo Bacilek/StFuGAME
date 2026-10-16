@@ -238,7 +238,10 @@ fn minutes_to_full(gs: &GameState, r: R) -> Option<u64> {
         return None;
     }
     let left = p.limit.saturating_sub(collectable(gs, r));
-    Some(left * 60 / p.per_hour)
+    // Exceptional XP weekend (user 2026-10-16: 2x Academy XP): assume the stock may fill twice as fast; at worst the
+    // free collection happens earlier than needed
+    let per_hour = if r == R::Experience && crate::tasks::xp_event_active(gs) { p.per_hour * 2 } else { p.per_hour };
+    Some(left * 60 / per_hour)
 }
 
 /// Should the production of `r` be collected now? Half of the limit is ready, or it is about to be full, or it covers what
@@ -443,7 +446,13 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         if f.units[U::Soldier].limit == 0 {
             return Outcome::Done; // no Barracks yet
         }
-        *next = Some(now + MILITARY_EVERY);
+        // Fantastic Fortress Festivity (units train in half the time, user 2026-10-16): look more often
+        let every = if crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::FantasticFortressFestivity) {
+            chrono::Duration::minutes(3)
+        } else {
+            MILITARY_EVERY
+        };
+        *next = Some(now + every);
     }
     if let Err(e) = safe::send(session, Command::Update).await {
         return fail(&e, line!());
