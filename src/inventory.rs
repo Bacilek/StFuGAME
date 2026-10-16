@@ -198,19 +198,110 @@ fn describe(item: &Item) -> String {
     format!("{:?}{}", item.typ, if item.is_epic() { " (epic)" } else { "" })
 }
 
-/// An item that is worse only because its gem slot is still empty (user 2026-10-12): with a gem of the strength we mine now
-/// it would beat the equipped one and there is room in the backpack (2 free slots) -> keep it and wait for a gem instead of selling.
-fn keep_for_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, cur: f64) -> bool {
-    let Some(gem) = best_backpack_gem(gs) else { return false };
-    matches!(item.gem_slot, Some(GemSlot::Empty))
-        && gs.character.inventory.count_free_slots() >= 2
-        && value_with_gem(gs, item, slot, gem) > cur
+/// A kept item (or one that takes the place of a worn item) that depends on a gem we do not have yet must beat the worn
+/// one by at least this many main-attribute points once the gem is in (user 2026-10-16: not worth the gem hunt, the
+/// backpack slot and the fuss for +2).
+const KEEP_MIN_GAIN: f64 = 20.0;
+
+/// An item whose value counts on a gem in its still empty slot.
+fn gem_dependent(class: Class, item: &Item) -> bool {
+    matches!(item.gem_slot, Some(GemSlot::Empty)) && worth_a_gem(class, item)
 }
 
-/// Last resort for a COMPLETELY full backpack (0 free slots; user 2026-10-16) when no potion can make room: first sell a loose
-/// gem (the weakest one – it has no socket to go to), then the most expensive epic equipment (for the future toilet only the
-/// number of epics counts, not their price). With one free slot nothing is sold.
-pub fn last_resort_sale(gs: &GameState) -> Option<(BagPosition, String)> {
+/// The gem we expect to get for an empty slot: the loose one, else a main-attribute gem as strong as the best one this
+/// character has ever socketed (the mine produces about that), None when it has never had any.
+fn expected_gem(gs: &GameState) -> Option<Gem> {
+    if let Some(g) = best_backpack_gem(gs) {
+        return Some(g);
+    }
+    let class = gs.character.class;
+    gs.character
+        .equipment
+        .0
+        .iter()
+        .filter_map(|(_, i)| match i.as_ref()?.gem_slot? {
+            GemSlot::Filled(g) => Some(g.value),
+            GemSlot::Empty => None,
+        })
+        .max()
+        .map(|value| Gem { typ: main_gem(class), value })
+}
+
+/// The slot an item competes for (an Assassin's weapon goes into whichever hand is weaker).
+fn target_slot(gs: &GameState, base_slot: EquipmentSlot) -> EquipmentSlot {
+    let class = gs.character.class;
+    if class == Class::Assassin && base_slot == EquipmentSlot::Weapon {
+        let worth = |s: EquipmentSlot| gs.character.equipment.0[s].as_ref().map_or(f64::MIN, |i| value_in(gs, i, s));
+        if worth(EquipmentSlot::Weapon) <= worth(EquipmentSlot::Shield) { EquipmentSlot::Weapon } else { EquipmentSlot::Shield }
+    } else {
+        base_slot
+    }
+}
+
+/// The ONE backpack item kept while we wait for a gem (user 2026-10-12, 2026-10-16): an item with an empty gem slot that
+/// would beat the worn one by at least `KEEP_MIN_GAIN` once the expected gem sits in it. Patient: it stays even when the
+/// backpack gets tight (`swap_kept_item` is the way out), but only one item is ever kept.
+fn keep_candidate(gs: &GameState) -> Option<(BagPosition, EquipmentSlot)> {
+    let class = gs.character.class;
+    let gem = expected_gem(gs)?;
+    gs.character
+        .inventory
+        .iter()
+        .filter_map(|(pos, item)| {
+            let item = item?;
+            let base = item.typ.equipment_slot()?;
+            if item.is_unique() || item.is_epic() || !item.can_be_equipped_by(class) || !gem_dependent(class, item) {
+                return None;
+            }
+            let slot = target_slot(gs, base);
+            let cur = gs.character.equipment.0[slot].as_ref().map_or(-1.0, |c| value_in(gs, c, slot));
+            let gain = value_with_gem(gs, item, slot, gem) - cur;
+            (gain >= KEEP_MIN_GAIN).then_some((pos, slot, gain))
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+        .map(|(pos, slot, _)| (pos, slot))
+}
+
+/// Backpack completely full and nothing else can make room (user 2026-10-16): put on the item kept for its gem and sell the
+/// worn one with its gem. We are weaker until a gem turns up, but a slot is saved. Returns true when it was done.
+pub async fn swap_kept_item(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    if gs.character.inventory.free_slot().is_some() {
+        return Ok(false);
+    }
+    let Some((pos, slot)) = keep_candidate(gs) else { return Ok(false) };
+    let Some(Some(item)) = gs.character.inventory.backpack.get(pos.backpack_pos()) else { return Ok(false) };
+    let ident = item.command_ident();
+    let what = format!("backpack completely full: putting on {} (kept for a gem) and selling the worn {slot:?}", describe(item));
+    report!("[inventory] {what}");
+    journal(&format!("{what} | {}", detail(item)));
+    if let Err(e) = safe::send(session, Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident: ident }).await {
+        return err_of(&e);
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return err_of(&e);
+    }
+    // The worn item took the place of the one we put on; sell it right away (else the pass would put it back)
+    let Some(gs) = session.game_state() else { return Ok(true) };
+    let Some(Some(old)) = gs.character.inventory.backpack.get(pos.backpack_pos()) else { return Ok(true) };
+    if old.command_ident() == ident {
+        return Ok(true); // the move did not happen
+    }
+    let (old_ident, price) = (old.command_ident(), old.price);
+    journal(&format!("selling the swapped-out worn item | {}", detail(old)));
+    if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: old_ident }).await {
+        return err_of(&e);
+    }
+    report!("[inventory] Sold for {}", crate::report::gold(u64::from(price)));
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return err_of(&e);
+    }
+    Ok(true)
+}
+
+/// Last resort for a COMPLETELY full backpack (0 free slots; user 2026-10-16) when no potion can make room: sell a loose
+/// gem (the weakest one – it has no socket to go to). With one free slot nothing is sold.
+pub fn last_resort_gem(gs: &GameState) -> Option<(BagPosition, String)> {
     if gs.character.inventory.free_slot().is_some() {
         return None;
     }
@@ -219,17 +310,22 @@ pub fn last_resort_sale(gs: &GameState) -> Option<(BagPosition, String)> {
         let (m, o) = gem_effect(class, *g);
         m + o
     };
-    let gem = gs
-        .character
+    gs.character
         .inventory
         .iter()
         .filter_map(|(pos, i)| match i?.typ {
             ItemType::Gem(g) => Some((pos, g)),
             _ => None,
         })
-        .min_by(|a, b| worth(&a.1).total_cmp(&worth(&b.1)));
-    if let Some((pos, g)) = gem {
-        return Some((pos, format!("backpack completely full: selling the loose {:?} gem", g.typ)));
+        .min_by(|a, b| worth(&a.1).total_cmp(&worth(&b.1)))
+        .map(|(pos, g)| (pos, format!("backpack completely full: selling the loose {:?} gem", g.typ)))
+}
+
+/// The very last resort: the most expensive epic equipment (for the future toilet only the number of epics counts, not
+/// their price).
+pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
+    if gs.character.inventory.free_slot().is_some() {
+        return None;
     }
     gs.character
         .inventory
@@ -243,6 +339,7 @@ pub fn last_resort_sale(gs: &GameState) -> Option<(BagPosition, String)> {
 /// Next inventory management step, or None when there is nothing to do.
 fn next_action(gs: &GameState) -> Option<(Action, String)> {
     let class = gs.character.class;
+    let keep = keep_candidate(gs).map(|k| k.0);
     for (pos, item) in gs.character.inventory.iter() {
         let Some(item) = item else { continue };
         let Some(base_slot) = item.typ.equipment_slot() else { continue };
@@ -257,16 +354,13 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         }
         // Assassins dual-wield (a weapon in both Weapon and Shield): a weapon drop can go into either hand,
         // so it competes against whichever of the two is currently weaker (or empty).
-        let slot = if class == Class::Assassin && base_slot == EquipmentSlot::Weapon {
-            let worth = |s: EquipmentSlot| gs.character.equipment.0[s].as_ref().map_or(f64::MIN, |i| value_in(gs, i, s));
-            if worth(EquipmentSlot::Weapon) <= worth(EquipmentSlot::Shield) { EquipmentSlot::Weapon } else { EquipmentSlot::Shield }
-        } else {
-            base_slot
-        };
+        let slot = target_slot(gs, base_slot);
         let new = value_in(gs, item, slot);
         let current = gs.character.equipment.0[slot].as_ref();
         let cur = current.map_or(-1.0, |i| value_in(gs, i, slot));
-        if new > cur {
+        // An item that only wins on a gem it does not have yet must win clearly over a worn one that stands on its own
+        let margin = if gem_dependent(class, item) && current.is_some_and(|c| !gem_dependent(class, c)) { KEEP_MIN_GAIN } else { 0.0 };
+        if new > cur + margin {
             let what = match current {
                 Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
                 None => format!("equipping {} into the empty {slot:?} slot (value {new:.1})", describe(item)),
@@ -274,7 +368,7 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
             return Some((Action::Equip { pos, slot }, what));
         }
         if !item.is_epic() {
-            if keep_for_gem(gs, item, slot, cur) {
+            if keep == Some(pos) {
                 continue;
             }
             return Some((
@@ -327,6 +421,14 @@ pub fn detail(item: &Item) -> String {
             Some(GemSlot::Filled(g)) => format!("filled {:?}+{}", g.typ, g.value),
         }
     )
+}
+
+/// For the `Result<bool, Outcome>` helpers: a lost session propagates, any other error just means "nothing done".
+fn err_of(e: &sf_api::error::SFError) -> Result<bool, Outcome> {
+    match fail(e) {
+        Outcome::SessionLost => Err(Outcome::SessionLost),
+        _ => Ok(false),
+    }
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {

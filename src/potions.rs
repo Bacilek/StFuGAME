@@ -337,10 +337,17 @@ fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
 /// Frees one backpack slot using a potion, if possible. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
-    let Some((step, what)) = room_step(gs).or_else(|| crate::inventory::last_resort_sale(gs).map(|(p, w)| (RoomStep::Sell(p), w))) else {
-        return Ok(false);
-    };
-    execute(session, step, &what).await
+    // Potions first, then a loose gem, then the item kept for a gem (swapped for the worn one), then an epic
+    let step = room_step(gs).or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)));
+    if let Some((step, what)) = step {
+        return execute(session, step, &what).await;
+    }
+    if crate::inventory::swap_kept_item(session).await? {
+        return Ok(true);
+    }
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    let Some((p, what)) = crate::inventory::last_resort_epic(gs) else { return Ok(false) };
+    execute(session, RoomStep::Sell(p), &what).await
 }
 
 /// Replaces a drunk secondary-stat potion with a better target potion from the backpack at once, no full backpack
