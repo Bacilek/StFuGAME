@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use sf_api::command::AttributeType;
+use sf_api::{command::AttributeType, gamestate::character::Class};
 
 /// Silver cost of the Nth gold-bought attribute point (1-indexed), levels 1..=216. Source: the public cost
 /// table at sf.kalais.net/english/attributes.html (1 gold = 100 silver), user-provided 2026-10-09. Not a smooth
@@ -138,16 +138,20 @@ pub fn record_purchase(a: AttributeType, paid: u32) {
     save(&levels);
 }
 
-/// Which attribute gives the best gain per gold right now (main attribute and CON judged by the 100 : 80 balance of
-/// `balance.rs`, user 2026-10-16, Luck with its fixed weight), among the main attribute, CON and LCK (user 2026-10-14: the
+/// Weight of an attribute towards the user's strength formula (same as `arena::weight`): main 100 %, CON 80 %,
+/// LCK 27 %, the other two side attributes 10 % each.
+fn weight(class: Class, a: AttributeType) -> f64 {
+    crate::arena::weight(class, a)
+}
+
+/// Which attribute gives the best weight-per-gold right now, among the main attribute, CON and LCK (user 2026-10-14: the
 /// secondary attributes are never bought, not even for their 10 %). Ties favor the main attribute, then CON, LCK.
-pub fn best_attribute(gs: &sf_api::gamestate::GameState) -> AttributeType {
-    let class = gs.character.class;
+pub fn best_attribute(class: Class) -> AttributeType {
     ATTRS
         .into_iter()
         .filter(|&a| a == class.main_attribute() || matches!(a, AttributeType::Constitution | AttributeType::Luck))
         .max_by(|&a, &b| {
-            let ratio = |x: AttributeType| crate::inventory::attribute_point_gain(gs, x) / f64::from(next_price(x));
+            let ratio = |x: AttributeType| weight(class, x) / f64::from(next_price(x));
             ratio(a).partial_cmp(&ratio(b)).unwrap_or(std::cmp::Ordering::Equal)
         })
         .unwrap_or(class.main_attribute())

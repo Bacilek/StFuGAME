@@ -132,7 +132,7 @@ fn attribute_for_task(gs: &GameState) -> Option<AttributeType> {
     open_tasks(gs).find_map(|t| match t.typ {
         TaskType::Upgrade(a) => Some(a),
         TaskType::UpgradeAnyAttribute | TaskType::SpendGoldOnUpgrades => {
-            Some(crate::attributes::best_attribute(gs))
+            Some(crate::attributes::best_attribute(gs.character.class))
         }
         _ => None,
     })
@@ -184,7 +184,7 @@ pub async fn buy_surplus_attributes(session: &mut SimpleSession) -> Outcome {
         if gs.character.silver <= floor + last_price {
             return Outcome::Done;
         }
-        let attribute = crate::attributes::best_attribute(gs);
+        let attribute = crate::attributes::best_attribute(gs.character.class);
         let current = gs.character.attribute_basis[attribute];
         let silver = gs.character.silver;
         send_or_return!(session, Command::UpgradeSkill { attribute, next_attribute: current + 1 });
