@@ -268,6 +268,11 @@ fn keep_candidate(gs: &GameState) -> Option<(BagPosition, EquipmentSlot)> {
         .map(|(pos, slot, _)| (pos, slot))
 }
 
+/// Is an item lying in the backpack waiting for a gem (the kept one, see `keep_candidate`)?
+pub fn waiting_for_gem(gs: &GameState) -> bool {
+    keep_candidate(gs).is_some()
+}
+
 /// Backpack completely full and nothing else can make room (user 2026-10-16): put on the item kept for its gem and sell the
 /// worn one with its gem. We are weaker until a gem turns up, but a slot is saved. Returns true when it was done.
 pub async fn swap_kept_item(session: &mut SimpleSession) -> Result<bool, Outcome> {

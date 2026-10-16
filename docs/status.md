@@ -8,6 +8,8 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 - **Empty gem slot circle in the app (2026-10-16, user):** `roster::gem_json` now returns `{"empty": true}` for an item with an empty gem slot (null = no slot), `app.html::gemMark` draws a small empty ring in the corner + tooltip line "Gem slot: empty". Shows on worn items and backpack items; days/`now.json` written before the rebuild still say null for empty slots until the next snapshot. Needs a release rebuild.
 
+- **Gem holding rewritten (2026-10-16, user, after PajaRizz skipped a dungeon with a full backpack: 4 loose Luck gems + epic belt in 7 slots; the `Inventory full` line is only in the rolling 100-message log, so the exact time is unknown):** no limit on held gems, but one slot always stays free. `gems::run` collects with ≥ 2 free slots, or with 1 free when the gem is needed (empty/worse socket on a worn item, `inventory::waiting_for_gem` = an item in the backpack waits for a gem, Gleeman gem task), and afterwards sells the weakest loose gem if the backpack ended up full (`sell_unplaced_gem`). Compiles; NOT built into release, not seen live. Open idea (not done): write `Inventory full, skipping the fight` into `notes.log` so it survives the log rotation.
+
 - **Release built 21:41 2026-10-16** (guild check every 15 min during Exceptional XP + top-of-list log); the user starts the bot.
 
 - **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.

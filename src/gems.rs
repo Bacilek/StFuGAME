@@ -6,8 +6,8 @@
 //!  * 1 slot is free but the gem will be socketed right away (an empty socket, or a worse gem to replace).
 //!
 //! A search starts when the mine is idle and the gold left afterwards is at least 2x the shop reserve plus what the fortress
-//! wants for its next build (user 2026-10-14; wood/stone are ignored). Up to 1 gem (2 with 6+ free slots) is held in the
-//! backpack for a future item with a slot. Luck/secondary gems go to the item we replace soonest, Constitution/main gems to
+//! wants for its next build (user 2026-10-14; wood/stone are ignored). Gems are held in the
+//! backpack for a future item with a slot, as many as fit while one slot stays free (user 2026-10-16). Luck/secondary gems go to the item we replace soonest, Constitution/main gems to
 //! the best, hardest-to-replace one.
 //!
 //! Worth of a gem for a class (`tier`, lower is better): 0 = main attribute / "all attributes" / legendary, 1 = Constitution,
@@ -59,8 +59,6 @@ fn mark_collected(t: DateTime<Local>) {
     }
     let _ = std::fs::write(collected_path(), t.to_rfc3339());
 }
-/// Backpack gems held for a future item (1; 2 when at least this many slots are free).
-const HOLD_TWO_FREE: usize = 6;
 /// A search leaves at least this multiple of the shop reserve in gold (user 2026-10-14; wood and stone do not matter, a
 /// search costs next to nothing in them) on top of what the fortress wants for its next build.
 const SEARCH_RESERVE_MULTIPLE: u64 = 2;
@@ -231,14 +229,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         let free = gs.character.inventory.count_free_slots();
         let class = gs.character.class;
         let list: Vec<Socket> = sockets(gs).iter().map(|s| s.1).collect();
-        let fits_now = f.gem_search.target.is_some_and(|typ| choose_socket(&list, Gem { typ, value: 0 }, class).is_some());
-        // Holding a gem for a future item with a free slot is fine: 1, or 2 with plenty of room (user 2026-10-14)
-        let held = gs.character.inventory.iter().filter(|(_, i)| i.is_some_and(|i| matches!(i.typ, ItemType::Gem(_)))).count();
-        let cap = if free >= HOLD_TWO_FREE { 2 } else { 1 };
+        let fits_now = f.gem_search.target.is_some_and(|typ| choose_socket(&list, Gem { typ, value: 0 }, class).is_some())
+            || inventory::waiting_for_gem(gs);
+        // Any number of gems may be held for future items, as long as one slot stays free (user 2026-10-16)
         // The "find a gem" task (daily/event) is only done once the gem is collected (Mrožik 2026-10-15: still 0/1 while the
         // search ran), so with the task open one free slot is enough
         let for_task = free >= 1 && crate::tasks::gem_task_wanted(gs, f.gem_search.cost.silver);
-        if fits_now && free >= 1 || free >= 2 && held < cap || for_task {
+        if fits_now && free >= 1 || free >= 2 || for_task {
             report!("[gems] Collecting the mined gem ({:?}, {free} free backpack slots)", f.gem_search.target);
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
@@ -248,6 +245,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 return fail(&e);
             }
             if let Some(o) = socket_backpack_gem(session).await {
+                return o;
+            }
+            // A gem collected on the last free slot that nobody wanted after all is sold, one slot stays free (user 2026-10-16)
+            if let Some(o) = sell_unplaced_gem(session).await {
                 return o;
             }
         } else {
@@ -281,6 +282,22 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return fail(&e);
     }
     Outcome::Done
+}
+
+/// The backpack is completely full after a collect and the gem found no socket: sell the weakest loose gem (user 2026-10-16:
+/// gems may be held in any number, but one slot always stays free for Dungeons loot).
+async fn sell_unplaced_gem(session: &mut SimpleSession) -> Option<Outcome> {
+    let gs = session.game_state()?;
+    let (pos, what) = inventory::last_resort_gem(gs)?;
+    let ident = gs.character.inventory.backpack.get(pos.backpack_pos())?.as_ref()?.command_ident();
+    report!("[gems] {what}");
+    if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+        return Some(fail(&e));
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return Some(fail(&e));
+    }
+    None
 }
 
 /// Loose secondary-attribute gems (tier 3) are sold at once (user 2026-10-16): they are never socketed and not worth a slot.
