@@ -12,6 +12,8 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 - **Events are read from the server only (2026-10-16, user):** the manual Events tab was built and removed again. `tasks::event_active` = in the server list + `ends` in the future, NO weekday check any more (beers stop by themselves when the server stops announcing the XP event, any day). Open: whether a long-running session refreshes the `events` list (a new event may be noticed late; ended ones are caught by `ends`). Compiles; NOT built into release.
 
+- **Items are compared without gems (2026-10-16, user):** `inventory::value_in` ignores socketed gems except Legendary/All ones, empty slots count nothing (`Gems::Rare`); the dashboard `v` keeps socketed gems (`Gems::Socketed`). `keep_candidate` now only keeps an item for a gem when the worn item has no gem slot. Effects after a release rebuild: stored epics that win on stats (Filminy gloves 46/46/46, Mimimimi11 amulet 40x5) get put on at the next inventory pass and the swapped-out non-epic item is sold WITH its gem (a temporary dip until new gems arrive; swapped-out epics stay in the backpack). Compiles, 84 tests pass; NOT built into release, not seen live. See `docs/inventory.md`.
+
 - **Release built 21:41 2026-10-16** (guild check every 15 min during Exceptional XP + top-of-list log); the user starts the bot.
 
 - **Guild check every 15 min during Exceptional XP + `Top of the list` log line (2026-10-16, user):** `guild::XP_EVENT_CHECK_EVERY`; needs a release rebuild (bot must be exited first). See `docs/guild.md`.

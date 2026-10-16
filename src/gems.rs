@@ -350,21 +350,14 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
                 placed = Some((Command::PlayerItemMove { from: pos.into(), to: slot.into(), item_ident: ident }, "weapon"));
                 break;
             }
-            let stored = gs
-                .character
-                .inventory
-                .iter()
-                .filter_map(|(bag, item)| {
-                    let item = item?;
-                    let eq_slot = item.typ.equipment_slot()?;
-                    if !item.can_be_equipped_by(class) || !matches!(item.gem_slot, Some(GemSlot::Empty)) {
-                        return None;
-                    }
-                    let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
-                    let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
-                    (gain > 0.0).then_some((bag, gain))
-                })
-                .max_by(|a, b| a.1.total_cmp(&b.1));
+            // Only the item kept for a gem (`inventory::keep_candidate`: a worn item without any slot would be beaten once it has this gem)
+            let stored = inventory::kept_item(gs).and_then(|bag| {
+                let item = gs.character.inventory.backpack.get(bag.backpack_pos())?.as_ref()?;
+                let eq_slot = item.typ.equipment_slot()?;
+                let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+                let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
+                (gain > 0.0).then_some((bag, gain))
+            });
             if let Some((target, gain)) = stored {
                 report!("[gems] Socketing {:?} {} into a stored backpack item (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
                 placed = Some((Command::PlayerItemMove { from: pos.into(), to: target.into(), item_ident: ident }, "stored item"));

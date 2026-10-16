@@ -111,16 +111,23 @@ pub fn worth_a_gem(class: Class, item: &Item) -> bool {
         || item.attributes[class.main_attribute()] + item.attributes[AttributeType::Constitution] + item.attributes[AttributeType::Luck] > 0
 }
 
-/// Item value core. A socketed gem counts fully (it cannot be taken out, so swapping the item loses it); an empty gem
-/// slot counts `potential` (a gem we expect to put there), if given.
-fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, potential: Option<Gem>) -> f64 {
+/// Which socketed gems count in an item's value.
+#[derive(Clone, Copy, PartialEq)]
+enum Gems {
+    /// Every socketed gem (what the character really has: dashboard).
+    Socketed,
+    /// Only Legendary and All gems (user 2026-10-16: gems are cheap and mined all the time, so items are compared by their own
+    /// stats; a socketed gem of those two rare kinds is the exception). An empty slot is worth nothing unless a `potential` gem
+    /// is given (only to judge an item kept for a gem).
+    Rare,
+}
+
+fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, potential: Option<Gem>) -> f64 {
     let ch = &gs.character;
-    // (user 2026-10-15) An empty slot only counts on an item that is worth keeping without the gem: main attribute, CON or
-    // at least LCK of its own. Side-stat-only gear never wins on a gem we merely hope to socket. Weapons are exempt (damage).
     let gem = match item.gem_slot {
-        Some(GemSlot::Filled(g)) => Some(g),
-        Some(GemSlot::Empty) if worth_a_gem(ch.class, item) => potential,
-        Some(GemSlot::Empty) | None => None,
+        Some(GemSlot::Filled(g)) if mode == Gems::Socketed || matches!(g.typ, GemType::All | GemType::Legendary) => Some(g),
+        Some(GemSlot::Empty) if mode == Gems::Rare && worth_a_gem(ch.class, item) => potential,
+        _ => None,
     };
     let (gem_main, gem_other) = gem.map_or((0.0, 0.0), |g| gem_effect(ch.class, g));
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
@@ -173,20 +180,21 @@ fn damage_points(damage: f64, damage_ref: f64, main_total: f64) -> f64 {
 /// + their other stats (80 % CON, 27 % LCK, 10 % secondary; the main one is already in the damage via M).
 /// The slot only matters for weapons: it decides which currently equipped item's main attribute gets
 /// subtracted from the total (relevant for Assassins, who have a weapon in both `Weapon` and `Shield`).
-/// A socketed gem is counted fully, an empty gem slot only as the loose backpack gem it can take right now (user 2026-10-15).
+/// Decisions ignore socketed gems except Legendary/All ones and empty slots count nothing (user 2026-10-16: gems are cheap, items
+/// are compared by their own stats).
 fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
-    value_core(gs, item, slot, best_backpack_gem(gs))
+    value_core(gs, item, slot, Gems::Rare, None)
 }
 
 /// Item value as it really is: a socketed gem counts, an empty slot counts nothing (no hoped-for loose gem). For the
 /// dashboard's day-to-day comparison, which must not jump when a gem merely lies in the backpack at snapshot time.
 pub fn value_as_worn(gs: &GameState, item: &Item) -> f64 {
-    value_core(gs, item, EquipmentSlot::Weapon, None)
+    value_core(gs, item, EquipmentSlot::Weapon, Gems::Socketed, None)
 }
 
 /// The value the item would have with `gem` in its (empty) slot.
 pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem) -> f64 {
-    value_core(gs, item, slot, Some(gem))
+    value_core(gs, item, slot, Gems::Rare, Some(gem))
 }
 
 /// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
@@ -260,12 +268,21 @@ fn keep_candidate(gs: &GameState) -> Option<(BagPosition, EquipmentSlot)> {
                 return None;
             }
             let slot = target_slot(gs, base);
+            // A worn item WITH a slot would get a gem as well, so the two are equal on that count and the plain comparison decides
+            if gs.character.equipment.0[slot].as_ref().is_some_and(|c| c.gem_slot.is_some()) {
+                return None;
+            }
             let cur = gs.character.equipment.0[slot].as_ref().map_or(-1.0, |c| value_in(gs, c, slot));
             let gain = value_with_gem(gs, item, slot, gem) - cur;
             (gain >= KEEP_MIN_GAIN).then_some((pos, slot, gain))
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .map(|(pos, slot, _)| (pos, slot))
+}
+
+/// Position of the item kept for a gem, if any.
+pub fn kept_item(gs: &GameState) -> Option<BagPosition> {
+    keep_candidate(gs).map(|k| k.0)
 }
 
 /// Is an item lying in the backpack waiting for a gem (the kept one, see `keep_candidate`)?
@@ -369,9 +386,7 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         let new = value_in(gs, item, slot);
         let current = gs.character.equipment.0[slot].as_ref();
         let cur = current.map_or(-1.0, |i| value_in(gs, i, slot));
-        // An item that only wins on a gem it does not have yet must win clearly over a worn one that stands on its own
-        let margin = if gem_dependent(class, item) && current.is_some_and(|c| !gem_dependent(class, c)) { KEEP_MIN_GAIN } else { 0.0 };
-        if new > cur + margin {
+        if new > cur {
             let what = match current {
                 Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
                 None => format!("equipping {} into the empty {slot:?} slot (value {new:.1})", describe(item)),
@@ -428,7 +443,7 @@ pub fn detail(item: &Item) -> String {
         attrs.join(" "),
         match item.gem_slot {
             None => "none".to_string(),
-            Some(GemSlot::Empty) => "EMPTY (counts as a potential gem)".to_string(),
+            Some(GemSlot::Empty) => "EMPTY".to_string(),
             Some(GemSlot::Filled(g)) => format!("filled {:?}+{}", g.typ, g.value),
         }
     )
