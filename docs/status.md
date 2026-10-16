@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
+- **Shop catalog free-item check hardened (2026-10-16, user screenshot of the Mushroom Dealer catalog):** `daily::is_free_article` (sku FREE + price 0 + no `cost`); the catalog also holds Black Market items priced in mushrooms. Needs a release rebuild.
+
 - **Assassin bare-hands experiment (2026-10-16, user asked):** `hunt.rs` now strips only the main-hand weapon on the first bare-hands win of an Assassin, measures the task progress after `Update` and logs `Assassin bare-hands test` (progress log + `hunts.log`); if not counted it strips both from then on. ⏳ needs a release rebuild and an open bare-hands task on Sanek (or another Assassin); then write the verdict into `docs/tasks.md` and hardcode it.
 
 - **Fortress buddies confirmed (2026-10-16, user):** a `Counter-attack target Wecros` line where Wecros is one of our own characters is intended; no code change, recorded in `docs/fortress.md` + `docs/precedents.md`.

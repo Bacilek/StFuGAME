@@ -111,11 +111,7 @@ async fn claim_welcome_pack(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     };
     let Some(articles) = v["catalog"]["articles"].as_array() else { return Outcome::Done };
-    let free: Vec<String> = articles
-        .iter()
-        .filter(|a| a["price"]["amount"].as_u64() == Some(0))
-        .filter_map(|a| a["identifier"].as_str().map(str::to_string))
-        .collect();
+    let free: Vec<String> = articles.iter().filter(|a| is_free_article(a)).filter_map(|a| a["identifier"].as_str().map(str::to_string)).collect();
     for identifier in free {
         report!("[rewards] Free shop item: {identifier}, claiming");
         if let Err(e) = safe::send_raw_only(session, custom("ShopCheckout", &["1", &identifier, ""])).await {
@@ -133,6 +129,34 @@ async fn claim_welcome_pack(session: &mut SimpleSession) -> Outcome {
         let _ = std::fs::write(welcome_pack_marker(), identifier);
     }
     Outcome::Done
+}
+
+/// A catalog article that really costs nothing: `sku` "FREE", `price.amount` exactly 0 AND no `cost` entries (the Black Market
+/// items are paid in COINS = mushrooms through `cost`, `sku` "BLACKMARKET", user screenshot 2026-10-16).
+fn is_free_article(a: &Value) -> bool {
+    a["sku"].as_str() == Some("FREE")
+        && a["price"]["amount"].as_u64() == Some(0)
+        && a["cost"].as_array().is_none_or(|c| c.is_empty())
+}
+
+#[cfg(test)]
+mod free_article_tests {
+    use super::is_free_article;
+    use serde_json::json;
+
+    #[test]
+    fn welcome_pack_is_free() {
+        assert!(is_free_article(&json!({"sku": "FREE", "price": {"amount": 0, "currency": null}})));
+    }
+
+    #[test]
+    fn black_market_and_paid_items_are_not() {
+        let bm = json!({"sku": "BLACKMARKET", "price": {"amount": 0}, "cost": [{"type": "COINS", "amount": 799}]});
+        assert!(!is_free_article(&bm));
+        assert!(!is_free_article(&json!({"sku": "FREE", "price": {"amount": 0}, "cost": [{"type": "COINS", "amount": 5}]})));
+        assert!(!is_free_article(&json!({"sku": "FREE", "price": {"amount": 129}})));
+        assert!(!is_free_article(&json!({"price": {"amount": 0}})));
+    }
 }
 
 /// In how many seconds something can be collected (calendar or free spin), if known.

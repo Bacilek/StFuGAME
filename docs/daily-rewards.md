@@ -44,3 +44,4 @@
   check happens in `daily::claim_welcome_pack` itself, re-fetching the catalog and checking `price.amount == 0`
   fresh every time (never a hardcoded identifier) before ever calling `ShopCheckout`.
 - **Not yet verified live** – written from a capture, not yet seen running against the real server end to end.
+- **Hardened 2026-10-16 (user screenshot `my_input/what.png`: a catalog dump with `sku: BLACKMARKET` items paid in COINS = mushrooms through `cost`, e.g. 799):** `daily::is_free_article` now requires `sku == "FREE"`, `price.amount == 0` AND no `cost` entries, so Black Market / mushroom-priced items can never pass as "free" (unit tests). The Black Market (deeds, trophy shelves, …) is paid with mushrooms – never touch it.
