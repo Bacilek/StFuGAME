@@ -540,7 +540,7 @@ fn announce_epics(gs: &GameState) {
         }
         list.push(key);
         if !baseline {
-            crate::shops::alert(&format!("{}: an EPIC item is in the backpack: {}", crate::ctx::name(), detail(item)));
+            crate::shops::note(&format!("{}: an EPIC item is in the backpack: {}", crate::ctx::name(), detail(item)));
         }
     }
 }

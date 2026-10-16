@@ -264,15 +264,14 @@ fn remember_wares(session: &SimpleSession) {
     }
 }
 
-/// Log line + `roster/alerts.txt` + a popup for something the user wants to hear about.
-pub fn alert(text: &str) {
+/// Log line + `roster/alerts.txt`, no popup: for things the user may want to read later (epic drops; user 2026-10-16: the
+/// popup for every epic was annoying). A popup (`tray::message_box`) is only for a crash or a bot that is stuck/stopped.
+pub fn note(text: &str) {
     report!("[ALERT] {text}");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("roster/alerts.txt") {
         use std::io::Write;
         let _ = writeln!(f, "{} {text}", Local::now().format("%Y-%m-%d %H:%M:%S"));
     }
-    let text = text.to_string();
-    std::thread::spawn(move || crate::tray::message_box(&text));
 }
 
 /// Epic items seen in the shops so far (per character), so each one is announced once.
@@ -280,7 +279,7 @@ static SEEN_EPICS: crate::ctx::PerChar<Vec<String>> = crate::ctx::PerChar::new()
 
 /// Tells the user about an epic item in a shop (user 2026-10-12: the Gloom event until 18.10. brings a new epic set to the
 /// shops and expeditions – "let me know when one drops, whether it costs gold or mushrooms"). Epics are rare in the shops
-/// (none among ~200 offers logged), so this stays on for everything epic: log line, `roster/alerts.txt` and a popup.
+/// (none among ~200 offers logged), so this stays on for everything epic: log line and `roster/alerts.txt` (no popup).
 fn announce_epics(gs: &GameState) {
     for (pos, item) in gs.shops.values().flat_map(|s| s.iter()) {
         if !item.is_epic() {
@@ -310,7 +309,7 @@ fn announce_epics(gs: &GameState) {
             pos.pos + 1,
             inventory::detail(item)
         );
-        alert(&text);
+        note(&text);
     }
 }
 
