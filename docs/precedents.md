@@ -183,3 +183,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - **Guild skills 6/6 for mushrooms, one time (user 2026-10-16):** every character buys Instructor and Treasure 5 → 6 (500 g + 2 mushrooms each), so that we are competitive and wanted in guilds that ask for 6/6. Narrow exception recorded in CLAUDE.md, enforced in `safe.rs` (`guild::six_price_ok`). Pet never.
 
 - **Popups only when something is wrong (user 2026-10-16):** no popup for epic drops (log + `roster/alerts.txt` only). Popups are for a crash or a stopped/stuck bot; a "character is stuck" detection does not exist yet.
+- **What counts as "stuck" (user 2026-10-16, all three accepted):** no real action for hours, the same error repeating, an unknown encounter/situation. One popup per kind per 6 h per character (`src/stuck.rs`).

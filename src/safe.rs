@@ -366,7 +366,13 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     let mushrooms_before = session.game_state().map(|gs| gs.character.mushrooms);
     let silver_before = session.game_state().map(|gs| gs.character.silver);
     let xp_before = session.game_state().map(|gs| (gs.character.level, gs.character.experience, gs.character.next_level_xp));
+    let desc = crate::stuck::describe(&cmd);
     let res = session.send_raw(cmd).await;
+    match &res {
+        Ok(_) => crate::stuck::after(&desc, true, None),
+        Err(e) if !crate::tavern::is_session_error(e) => crate::stuck::after(&desc, false, Some(&e.to_string())),
+        Err(_) => {}
+    }
     // Gold and mushrooms gained (for the daily report of the character challenge)
     if let (Some(s0), Some(m0), Some((l0, x0, next0)), Some(gs)) =
         (silver_before, mushrooms_before, xp_before, session.game_state())

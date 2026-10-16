@@ -104,3 +104,6 @@ New third tab in the app window (`src/app.html`): character tiles with only the 
   Dexterity yellow, Intelligence green, Luck red, All black (every attribute), Legendary orange (main + CON); Constitution purple (copied from `my_input/`).
   Appears after each character's next snapshot (a few minutes after login). Needs a release build.
 
+
+## "Stuck" popups (2026-10-16, user) – `src/stuck.rs`
+Popups only when something is wrong; epic drops no longer pop up. Raised at most once per 6 h per kind per character (log `[STUCK]`, `roster/alerts.txt`, one popup): (1) no real (non-read-only) request for 8 hours (read-only = Update, UpdateDungeons, Hall of Fame page, Scrapbook view, Custom guild queries; the counter restarts after a gap of an hour or more between any requests, i.e. after a switch-off); (2) the same command fails with the same server error 10 times in a row, no success of that command in between; (3) an unmapped expedition encounter (`tavern.rs`, once per encounter and day; the bot carries on). Hooked in `safe::send_raw`. The thresholds (`IDLE_HOURS`, `SAME_ERROR_LIMIT`, `REPEAT`) are constants at the top of `stuck.rs`. Tune after seeing false positives (a character that has finished everything may be idle by design).

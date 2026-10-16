@@ -584,6 +584,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                             note = format!("{note} raw id {id}");
                         }
                         report!("[tavern] Unmapped encounter: {note}");
+                        crate::stuck::unknown(&format!("unmapped expedition encounter {note}"));
                         if !entry.unmapped.contains(&note) {
                             entry.unmapped.push(note);
                         }

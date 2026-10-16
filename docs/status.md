@@ -2,7 +2,7 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 
-- **No popup for epics (2026-10-16, user):** `shops::note` replaces `shops::alert` for epic drops (shops and backpack); log + `roster/alerts.txt` only. Needs a release rebuild. Open: a popup for a stuck character (needs a stuck detection).
+- **No popup for epics (2026-10-16, user):** `shops::note` replaces `shops::alert` for epic drops (shops and backpack); log + `roster/alerts.txt` only. Needs a release rebuild. Stuck popups now exist (`src/stuck.rs`, docs/controls.md): 8 h without a real action, the same error 10x in a row, an unmapped encounter; compiles, 1 test, NOT in the release; watch for false positives.
 
 - **Release built 23:10 2026-10-16** (everything since 21:41: gem holding without a count limit, items compared without gems, main/CON balance in items and gems, attribute buying 100:80:40, server-driven events without weekday check, guild skills 6/6, empty gem ring + smaller gem marks in the app, Why-up fix); the user starts the bot. All "NOT built into release" notes below are resolved by this build; the live checks listed there are still open.
 

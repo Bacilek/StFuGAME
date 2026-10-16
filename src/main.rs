@@ -29,6 +29,7 @@ mod safe;
 mod schedule;
 mod scrapbook;
 mod session;
+mod stuck;
 mod shops;
 mod stable;
 mod tasks;
