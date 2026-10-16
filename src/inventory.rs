@@ -158,6 +158,21 @@ fn raw_totals(gs: &GameState, skip: Option<EquipmentSlot>) -> (f64, f64) {
     (m, c)
 }
 
+/// What one more bought point of `a` adds to the character right now: main attribute and Constitution through the balance
+/// (`balance.rs`), Luck and the secondary attributes with their fixed weights.
+pub fn attribute_point_gain(gs: &GameState, a: AttributeType) -> f64 {
+    let class = gs.character.class;
+    let (m, c) = raw_totals(gs, None);
+    let now = crate::balance::value_of(m, c);
+    if a == class.main_attribute() {
+        crate::balance::value_of(m + 1.0, c) - now
+    } else if a == AttributeType::Constitution {
+        crate::balance::value_of(m, c + 1.0) - now
+    } else {
+        crate::arena::weight(class, a)
+    }
+}
+
 /// What a loose gem would add to the character right now (in an empty socket), balance included (`balance.rs`).
 pub fn gem_gain(gs: &GameState, g: Gem) -> f64 {
     let (m, c) = raw_totals(gs, None);
