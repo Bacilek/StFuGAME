@@ -262,7 +262,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
     let collected = last_collected();
     let idle = f.gem_search.finish.is_none_or(|t| t <= Local::now() && collected == Some(t));
-    if !idle || !crate::shops::pass_done() {
+    if !idle {
         return Outcome::Done;
     }
     let cost = f.gem_search.cost;

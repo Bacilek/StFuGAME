@@ -6,8 +6,9 @@
 //! mushrooms or hourglasses to finish a build (`FortressBuildFinish` only with `mushrooms: 0`, which is also what the
 //! game wants after a build timer ran out).
 //!
-//! Gold priority (user 2026-10-11): better items > fortress > spinning the shops > guild upgrades > attributes, so a build
-//! is only started after the day's shop pass (`shops::pass_done`). The shop reserve does NOT apply to the fortress
+//! Gold priority (user 2026-10-11): better items > fortress > spinning the shops > guild upgrades > attributes. Since
+//! 2026-10-17 (user: "the fortress should run during the whole day") a build no longer waits for the day's shop pass
+//! or the Tavern. The shop reserve does NOT apply to the fortress
 //! (user 2026-10-11): the build may use all the gold.
 
 use chrono::Local;
@@ -166,9 +167,6 @@ fn upcoming(f: &Fortress, char_level: u16, count: usize) -> Vec<(B, u16)> {
 /// Barracks upgrade is not affordable: the soldiers' raids bring the resources, so stopping them would deadlock.
 fn barracks_due(gs: &GameState) -> Option<chrono::DateTime<Local>> {
     let f = gs.fortress.as_ref()?;
-    if !crate::shops::pass_done() {
-        return None;
-    }
     let mut lv: Vec<u16> = ALL.iter().map(|&b| f.buildings[b].level).collect();
     let at = match f.building_upgrade.target {
         Some(t) => {
@@ -328,9 +326,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
     // 3. The Hall of Knights (user 2026-10-12/14): instant, allowed while another building is being built (probably not while
     // the Fortress itself is), so whenever it is affordable it goes before the next build. Never above the Fortress level.
-    if !crate::shops::pass_done() {
-        return Outcome::Done;
-    }
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
     if hok_affordable(gs) {
