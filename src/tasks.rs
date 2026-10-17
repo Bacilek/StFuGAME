@@ -529,22 +529,104 @@ pub fn beer_justified(gs: &GameState) -> bool {
         AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec.min(BEER_ALU_SEC)).min().unwrap_or(0),
         _ => 0,
     };
-    gs.tavern.thirst_for_adventure_sec < cheapest.max(1)
+    gs.tavern.thirst_for_adventure_sec < cheapest.max(1) || BURST_LEFT.lock().is_ok_and(|b| *b > 0)
 }
 
-/// Drinks one beer when `beer_justified` (one per call: the Tavern uses the new Thirst for Adventure before the next).
+/// Beers drunk in one go when the Thirst for Adventure has run out (user 2026-10-17): 5 × 20 min refill the full 100 min.
+const BEER_BURST: u32 = 5;
+/// Beers still allowed in the burst under way (0 otherwise); lets `beer_justified` accept the 2nd..5th beer although the
+/// first one has already refilled the Thirst for Adventure. Always reset at the end of `event_beer`.
+static BURST_LEFT: crate::ctx::PerChar<u32> = crate::ctx::PerChar::new();
+
+/// Why a beer that looks due is NOT drunk (user 2026-10-17: Filminy and Novotné waited ~3.3 h for the next beer/Thirst
+/// on 2026-10-17 and nothing recorded why). Written to roster/<character>/logs/beer.log whenever the reason changes.
+pub fn log_beer_state(gs: &GameState, tavern_done: bool) {
+    if !xp_event_active(gs) || gs.tavern.beer_drunk >= gs.tavern.beer_max {
+        return;
+    }
+    let cheapest = match gs.tavern.available_tasks() {
+        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec.min(BEER_ALU_SEC)).min(),
+        _ => None,
+    };
+    let thirst = gs.tavern.thirst_for_adventure_sec;
+    if cheapest.is_some_and(|c| thirst >= c) {
+        return;
+    }
+    let reason = if gs.character.mushrooms == 0 {
+        "no mushrooms".to_string()
+    } else if gs.tavern.current_action != CurrentAction::Idle {
+        format!("busy: {}", match gs.tavern.current_action { CurrentAction::CityGuard { .. } => "City Guard", CurrentAction::Expedition => "expedition", CurrentAction::Quest { .. } => "quest", _ => "other" })
+    } else if cheapest.is_none() {
+        "no expedition list on offer (not Expeditions), thirst below 1 s needed".to_string()
+    } else if beer_justified(gs) {
+        format!("justified, not drunk in this pass (tavern_done={tavern_done})")
+    } else {
+        "not justified (unknown)".to_string()
+    };
+    static LAST: crate::ctx::PerChar<String> = crate::ctx::PerChar::new();
+    let Ok(mut last) = LAST.lock() else { return };
+    if *last == reason {
+        return;
+    }
+    *last = reason.clone();
+    use std::io::Write;
+    let path = crate::ctx::log_path("beer.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(
+            f,
+            "{} beers {}/{}, thirst {} s, cheapest {:?} s, mushrooms {}: {reason}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            gs.tavern.beer_drunk,
+            gs.tavern.beer_max,
+            thirst,
+            cheapest,
+            gs.character.mushrooms
+        );
+    }
+}
+
+/// Drinks beers when `beer_justified`: up to `BEER_BURST` in a row (user 2026-10-17: at 0 Thirst for Adventure drink 5 at
+/// once to get the full 100 min back), fewer when the daily maximum, the mushrooms or the Thirst cap (100 min) run out.
 pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
     if !beer_justified(gs) {
         return Outcome::Done;
     }
-    report!(
-        "[tasks] Exceptional XP event: drinking beer {}/{} ({BEER_MUSHROOMS} mushroom)",
-        gs.tavern.beer_drunk + 1,
-        gs.tavern.beer_max
-    );
-    send_or_return!(session, Command::BuyBeer);
-    // A "Drink beer" task may be finished by this beer: refresh and claim its chest right away (user 2026-10-16)
+    let room = crate::roster::MAX_THIRST_SEC.saturating_sub(gs.tavern.thirst_for_adventure_sec) / BEER_ALU_SEC;
+    let left = u32::from(gs.tavern.beer_max.saturating_sub(gs.tavern.beer_drunk));
+    let n = BEER_BURST.min(room.max(1)).min(left).min(gs.character.mushrooms / BEER_MUSHROOMS.max(1));
+    if let Ok(mut b) = BURST_LEFT.lock() {
+        *b = n;
+    }
+    for _ in 0..n {
+        let Some(gs) = session.game_state() else { break };
+        if !beer_justified(gs) {
+            break;
+        }
+        report!(
+            "[tasks] Exceptional XP event: drinking beer {}/{} ({BEER_MUSHROOMS} mushroom, burst of {n})",
+            gs.tavern.beer_drunk + 1,
+            gs.tavern.beer_max
+        );
+        if let Err(e) = safe::send(session, Command::BuyBeer).await {
+            report!("[tasks] Beer failed: {e}");
+            break;
+        }
+        if let Ok(mut b) = BURST_LEFT.lock() {
+            *b = b.saturating_sub(1);
+        }
+        if safe::send(session, Command::Update).await.is_err() {
+            break;
+        }
+        safe::human_pause().await;
+    }
+    if let Ok(mut b) = BURST_LEFT.lock() {
+        *b = 0;
+    }
+    // A "Drink beer" task may be finished by these beers: refresh and claim its chest right away (user 2026-10-16)
     send_or_return!(session, Command::Update);
     claim_chests(session).await
 }

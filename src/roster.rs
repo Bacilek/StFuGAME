@@ -720,7 +720,7 @@ pub fn write_quests(gs: &GameState) {
 
 /// The character's current state for the dashboard card (user 2026-10-08).
 /// Thirst for Adventure (ALU) at full: `sf-api` itself checks against this constant for "full day" (100 min).
-const MAX_THIRST_SEC: u32 = 6000;
+pub const MAX_THIRST_SEC: u32 = 6000;
 
 /// What the character is doing right now, for the app window's tile: a short label and, when known,
 /// the time it ends (so the tile can show a countdown).

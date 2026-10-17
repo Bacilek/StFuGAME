@@ -361,6 +361,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
 
+        // Why a due event beer is not drunk (roster/<character>/logs/beer.log, user 2026-10-17)
+        if let Some(gs) = session.game_state() {
+            tasks::log_beer_state(gs, tavern_done);
+        }
+
         // Nothing to do: wait until the Arena or Dungeons become free (+ random margin), at most 30 min
         // Sleep until the nearest event (`schedule::next`: Arena/hunts, Dungeons, City Guard, midnight, daily reward,
         // reports, fortress, end of the expedition), at most 30 min

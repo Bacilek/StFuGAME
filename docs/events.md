@@ -35,7 +35,7 @@ Academy: NO special handling (2026-10-16). A first attempt assumed the stock fil
 - Starts the same day (Friday 2026-10-16) after the shift. On Monday it must be off: `tasks::xp_event_active` needs the event in the server list and an end time in the future (the weekday check was dropped later the same day, see the end of this file).
 - Gleeman beers are gone for good (user: "for the Gleeman we never drink beers any more", at most a quest may offer mushrooms): `Means.beers = 0`, the travel/quest beer helpers are dead code kept with their tests.
 - All characters drink, even those with few mushrooms (they should all have enough); the only stop is 0 mushrooms.
-- One beer per call; condition: idle, Thirst for Adventure below the cheapest offered expedition, `beer_drunk < beer_max`.
+- (2026-10-17, user: burst of up to 5 beers at 0 Thirst, `BEER_BURST`) One beer per call before that; condition: idle, Thirst for Adventure below the cheapest offered expedition, `beer_drunk < beer_max`.
 - Verification: ⏳ watch `[tasks] Exceptional XP event: drinking beer n/10` in the logs, the mushroom watchdog must accept each −1.
 
 Correction (user 2026-10-16): the Academy fills at exactly the same speed during the XP event; only the COLLECTION pays 2× XP. So the overflow rules and collection timing stay as they are (`fortress::should_collect`, no event logic).
