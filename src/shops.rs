@@ -85,11 +85,6 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     guard.as_mut().map(f)
 }
 
-/// Has today's shop pass run (better items come before the fortress, user 2026-10-11)?
-pub fn pass_done() -> bool {
-    with_day(|d| d.done).unwrap_or(false)
-}
-
 /// Today's reserve in silver: the most expensive gold item for our class seen today. Other gold spending
 /// (attributes, guild skill for tasks) keeps this much so a better item can still be bought (user 2026-10-07).
 pub fn reserve() -> u64 {
@@ -432,7 +427,7 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
             potion_buys += 1;
             report!("[shops] Potion: {what}");
             let (pos, remove) = match step {
-                crate::potions::ShopStep::Drink(pos) | crate::potions::ShopStep::Keep(pos) => (pos, None),
+                crate::potions::ShopStep::Drink(pos) => (pos, None),
                 crate::potions::ShopStep::Replace(slot, pos) => (pos, Some(slot)),
             };
             match buy(session, pos).await {

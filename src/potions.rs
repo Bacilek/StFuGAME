@@ -1,19 +1,14 @@
-//! Potions (user 2026-10-07). At most 3 active potions. Target set: main attribute + Constitution + Eternal Life
-//! (+25 % HP, 7 days); without an Eternal Life potion the third one is Luck (unless Luck is at the crit cap, then the bigger secondary attribute). Stat potions last 3 days, sizes 10/15/25 %. Importance = strength gained by the 100/80/40/10 formula (size × attribute without potions × weight), see `importance`.
-//! Drinking the same type AND size again extends it by its full duration (+3 days, Eternal Life +7; user 2026-10-14: no cap, the main character runs 12-15 days), so such a potion in the backpack is drunk at once (`bag_step`); a different type or size overwrites the remaining time. Only for gold (Eternal Life usually costs mushrooms).
-//! - A target potion is missing and a slot is free → drink one from the backpack, otherwise buy the biggest for gold.
-//! - Stock: keep up to `MAX_STOCK` potions of any type in the backpack (better some than none, they are cheap, buying
-//!   them spins the shop and they can be sold any time). Target types first; non-target ones are the first to go.
-//! - Backpack full:
-//!   - an active potion that is not a target, or a smaller stat one of a target type, is removed and a better target
-//!     potion from the backpack drunk instead (user 2026-10-09: drinking replaces the active potion's remaining time
-//!     rather than adding to it, but waiting for it to run low doesn't preserve more value – ongoing small-potion
-//!     refills would just keep delaying the swap forever – so once the backpack is full and a strictly better potion
-//!     is waiting, swap immediately regardless of days left on the active one),
-//!   - otherwise the least important potion in the backpack is drunk (when it stacks onto an active one); a useful one (main/CON/Luck) swaps in for a less important active potion instead of being sold; else it is sold.
-//!   - A bigger potion for a smaller active one is bought and swapped in only with a full backpack, with room it
-//!     goes to the stock.
-//! - Eternal Life is never removed or sold.
+//! Potions (user 2026-10-07, reworked 2026-10-17). At most 3 active potions. Only four kinds are worth anything, in this
+//! order of importance (user 2026-10-17): main attribute > Eternal Life > Constitution > Luck (Luck not at the crit cap; the
+//! top three that are available get the three slots, so Luck only gets one when there is no Eternal Life). Within a kind the
+//! biggest one wins (10/15/25 %, 3 days; Eternal Life +25 % HP, 7 days). Only for gold.
+//! - No stock: a potion never waits in the backpack (backpack space is for gems first). Whatever lands there is settled at once
+//!   (`bag_action`): a secondary-attribute potion (or one outranked by all three active ones) is SOLD; a wanted kind is drunk
+//!   when its kind is not active (free slot, or it replaces a less important active potion) or when it is at least as big as
+//!   the active one of its kind (same size extends by the full duration, a bigger one replaces it, user 2026-10-09/14); a
+//!   smaller one than the active one is sold. Eternal Life is never sold or removed.
+//! - Shops (`shop_step`): buy only what is drunk right away: a wanted kind that is not active (free slot or less important
+//!   active potion to replace) or a bigger one than the active one of its kind. Secondary potions are never bought.
 //!
 //! Shop purchases run in `shops.rs` after equipment upgrades and before spinning (they may go below the reserve).
 
@@ -27,9 +22,6 @@ use sf_api::{
 };
 
 use crate::{safe, session::SimpleSession, tavern::Outcome};
-
-/// How many potions to keep in the backpack.
-pub const MAX_STOCK: usize = 4;
 
 pub fn potion(item: &Item) -> Option<&Potion> {
     match &item.typ {
@@ -95,95 +87,34 @@ fn luck_capped(gs: &GameState) -> bool {
     f64::from(pre[sf_api::command::AttributeType::Luck]) >= 20.0 * f64::from(level)
 }
 
-/// The 3 potion types we want active, in priority order: main attribute, CON, then Eternal Life; without it Luck – unless
-/// Luck is at the crit cap (user 2026-10-09), then the bigger of the two secondary attributes.
-pub fn targets(gs: &GameState) -> [PotionType; 3] {
-    use sf_api::command::AttributeType as A;
+/// The kinds we want active, most important first (at most 3): main attribute, Eternal Life (when active / in the backpack /
+/// for gold in a shop), Constitution, Luck (unless at the crit cap). User 2026-10-17: main > Eternal Life > CON > Luck.
+pub fn targets(gs: &GameState) -> Vec<PotionType> {
     let life = active(gs).iter().any(|(_, p)| p.typ == PotionType::EternalLife)
         || in_bag(gs, PotionType::EternalLife).is_some()
         || in_shop(gs, PotionType::EternalLife).is_some();
-    let main_attr = gs.character.class.main_attribute();
-    let main = PotionType::from(main_attr);
-    let third = if life {
-        PotionType::EternalLife
-    } else if !luck_capped(gs) {
-        PotionType::Luck
-    } else {
-        let (pre, _, _) = bare_attributes(gs);
-        let side = [A::Strength, A::Dexterity, A::Intelligence].into_iter().filter(|a| *a != main_attr).max_by_key(|a| pre[*a]);
-        side.map_or(PotionType::Luck, PotionType::from)
-    };
-    [main, PotionType::Constitution, third]
+    let mut t = vec![PotionType::from(gs.character.class.main_attribute())];
+    if life {
+        t.push(PotionType::EternalLife);
+    }
+    t.push(PotionType::Constitution);
+    if !luck_capped(gs) {
+        t.push(PotionType::Luck);
+    }
+    t.truncate(3);
+    t
 }
 
-/// How much a potion is worth to us: the strength it adds by the user's formula (main 100 %, CON 80 %, Luck 27 %, the two
-/// other attributes 10 %; user 2026-10-09) = potion size × the attribute without potions (base + equipment, which is
-/// what the game's potion bonus is a percentage of) × that weight. So a small main-attribute potion (10 % × 100) and a big
-/// Luck one (25 % × 40) compare by what the character really has. Luck stops counting at the crit cap (50 % crit =
-/// Luck ≥ 20 × level; only the part below the cap is worth anything). Eternal Life is always the most valuable.
+/// How much a potion is worth to us: its kind decides (main attribute > Eternal Life > CON > Luck), the size breaks ties
+/// within a kind. 0 = not wanted (secondary attributes, a kind outranked by three better ones).
 fn importance(gs: &GameState, p: &Potion) -> f64 {
-    use sf_api::command::AttributeType;
-    if p.typ == PotionType::EternalLife {
-        return 1e6;
-    }
-    let (pre, class, level) = bare_attributes(gs);
-    let Some(attr) = [
-        AttributeType::Strength,
-        AttributeType::Dexterity,
-        AttributeType::Intelligence,
-        AttributeType::Constitution,
-        AttributeType::Luck,
-    ]
-    .into_iter()
-    .find(|a| PotionType::from(*a) == p.typ) else {
-        return 0.0;
-    };
-    let mut gain = f64::from(pre[attr]) * p.size.effect();
-    if attr == AttributeType::Luck {
-        gain = gain.min((20.0 * f64::from(level) - f64::from(pre[attr])).max(0.0));
-    }
-    gain * crate::arena::weight(class, attr)
+    let tg = targets(gs);
+    let Some(i) = tg.iter().position(|t| *t == p.typ) else { return 0.0 };
+    (tg.len() - i) as f64 * 1000.0 + p.size.effect() * 100.0
 }
 
 fn describe(item: &Item) -> String {
     potion(item).map_or_else(|| format!("{:?}", item.typ), |p| format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0))
-}
-
-/// Potions in the backpack (the stock).
-pub fn stock(gs: &GameState) -> usize {
-    bag_potions(gs).len()
-}
-
-/// Can a potion be bought just to spin the shop? (stock not full)
-pub fn stock_has_room(gs: &GameState) -> bool {
-    stock(gs) < MAX_STOCK
-}
-
-/// Next thing to drink from the backpack: a missing target potion while a slot is free. Falls back to the best
-/// non-target potion sitting in the backpack (user 2026-10-08: even a secondary attribute helps a bit in a fight,
-/// better active than rotting in the backpack or eventually sold) – it gets swapped out later once a target
-/// potion turns up (`removal_ok` already allows removing a non-target active one).
-fn bag_step(gs: &GameState) -> Option<(BagPosition, &Item)> {
-    let act = active(gs);
-    // Same type AND same size as an active target potion extends it (+3 days, Eternal Life +7; user 2026-10-14), so it is
-    // drunk at once instead of sitting in the backpack. A different size would overwrite the remaining time instead.
-    let tg = targets(gs);
-    if let Some((pos, item, _)) = bag_potions(gs).into_iter().find(|(_, _, p)| {
-        tg.contains(&p.typ) && act.iter().any(|(_, a)| a.typ == p.typ && a.size.effect() == p.size.effect())
-    }) {
-        return Some((pos, item));
-    }
-    if act.len() >= 3 {
-        return None;
-    }
-    if let Some(step) = targets(gs).into_iter().filter(|t| !act.iter().any(|(_, p)| p.typ == *t)).find_map(|t| in_bag(gs, t)) {
-        return Some(step);
-    }
-    bag_potions(gs)
-        .into_iter()
-        .filter(|(_, _, p)| !act.iter().any(|(_, a)| a.typ == p.typ))
-        .max_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))
-        .map(|(pos, i, _)| (pos, i))
 }
 
 /// May this active potion be removed? Never Eternal Life; any other active potion can be swapped out for a
@@ -192,31 +123,42 @@ pub fn removal_ok(gs: &GameState, slot: usize) -> bool {
     active(gs).iter().any(|(i, p)| *i == slot && p.typ != PotionType::EternalLife)
 }
 
+/// The active potion to push out for a potion of importance `new`: the least important removable one, if it is worth less.
+fn weakest_removable(gs: &GameState, new: f64) -> Option<(usize, &Potion)> {
+    active(gs)
+        .into_iter()
+        .filter(|(slot, p)| removal_ok(gs, *slot) && importance(gs, p) < new)
+        .min_by(|a, b| importance(gs, a.1).total_cmp(&importance(gs, b.1)))
+}
+
 /// What to buy in the shops now.
 #[derive(Debug)]
 pub enum ShopStep {
-    /// Buy and drink (a free slot for a missing target potion)
+    /// Buy and drink (a free slot for a missing wanted potion)
     Drink(ShopPosition),
-    /// Remove the active potion in this slot, buy and drink the bigger one
+    /// Remove the active potion in this slot, buy and drink the new one
     Replace(usize, ShopPosition),
-    /// Buy and keep in the backpack (stock)
-    Keep(ShopPosition),
 }
 
+/// Buys only potions that are drunk right away: a wanted kind that is not active, or a bigger one than the active one.
 pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
     let act = active(gs);
-    let bag_full = gs.character.inventory.free_slot().is_none();
     for t in targets(gs) {
-        let current = act.iter().find(|(_, p)| p.typ == t);
+        if in_bag(gs, t).is_some() {
+            continue; // settled from the backpack first
+        }
         let Some((pos, item)) = in_shop(gs, t) else { continue };
         let Some(new) = potion(item) else { continue };
-        match current {
-            None if act.len() < 3 && in_bag(gs, t).is_none() => {
+        match act.iter().find(|(_, p)| p.typ == t) {
+            None if act.len() < 3 => {
                 return Some((ShopStep::Drink(pos), format!("buying and drinking {}", describe(item))));
             }
-            // Swap in a bigger one only with a full backpack (user 2026-10-07); days left on the active one don't
-            // matter (user 2026-10-09, see module docs); otherwise it goes to the stock
-            Some((slot, cur)) if t != PotionType::EternalLife && bag_full && new.size.effect() > cur.size.effect() => {
+            None => {
+                if let Some((slot, old)) = weakest_removable(gs, importance(gs, new)) {
+                    return Some((ShopStep::Replace(slot, pos), format!("replacing {:?} with {}", old.typ, describe(item))));
+                }
+            }
+            Some((slot, cur)) if t != PotionType::EternalLife && new.size.effect() > cur.size.effect() => {
                 return Some((
                     ShopStep::Replace(*slot, pos),
                     format!("replacing {:?} {:.0} % with {}", cur.typ, cur.size.effect() * 100.0, describe(item)),
@@ -225,34 +167,12 @@ pub fn shop_step(gs: &GameState) -> Option<(ShopStep, String)> {
             _ => {}
         }
     }
-    // Stock: the most important potion available for gold, if the stock has room or it beats the least important one
-    let (pos, item, p) =
-        shop_potions(gs).into_iter().max_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))?;
-    let new = importance(gs, p);
-    let worst = bag_potions(gs).into_iter().map(|(_, _, p)| importance(gs, p)).min_by(f64::total_cmp);
-    if stock_has_room(gs) || worst.is_some_and(|w| new > w) {
-        return Some((ShopStep::Keep(pos), format!("buying {} for the stock ({} in the backpack)", describe(item), stock(gs))));
-    }
     None
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
     report!("[potions] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
-}
-
-/// Drinks missing target potions from the backpack. Sends nothing when there is nothing to do.
-pub async fn drink_from_bag(session: &mut SimpleSession) -> Outcome {
-    for _ in 0..3 {
-        let Some(gs) = session.game_state() else { return Outcome::Done };
-        let Some((pos, item)) = bag_step(gs) else { return Outcome::Done };
-        report!("[potions] Drinking {} from the backpack", describe(item));
-        let cmd = Command::UsePotion { from: pos.into(), item_ident: item.command_ident() };
-        if let Err(e) = safe::send(session, cmd).await {
-            return fail(&e);
-        }
-    }
-    Outcome::Done
 }
 
 /// Removes an active potion (before a better one is drunk).
@@ -263,82 +183,59 @@ pub async fn remove(session: &mut SimpleSession, slot: usize) -> Outcome {
     }
 }
 
-/// How to free one backpack slot with a potion.
+/// What to do with a potion lying in the backpack.
 enum RoomStep {
-    /// Remove the active potion in this slot and drink this better target potion from the backpack
+    /// Remove the active potion in this slot and drink this better potion from the backpack
     Swap(usize, BagPosition),
-    /// Drink it (stacks onto an active one of the same type)
+    /// Drink it (extends or replaces the active one of its kind, or takes a free slot)
     Drink(BagPosition),
     Sell(BagPosition),
 }
 
-/// A target potion waits in the backpack (its type not active) while a less important removable one is active:
-/// remove that one and drink the target. `only_secondary`: the removed one must be a non-target (secondary stat)
-/// potion – that is the swap done at once, without waiting for a full backpack (user 2026-10-09).
-fn target_swap(gs: &GameState, only_secondary: bool) -> Option<(RoomStep, String)> {
+/// The next thing to do with the potions in the backpack (see the module docs); `None` = the backpack holds no potion.
+fn bag_action(gs: &GameState) -> Option<(RoomStep, String)> {
     let act = active(gs);
-    let tg = targets(gs);
-    for t in tg {
-        if act.iter().any(|(_, p)| p.typ == t) {
+    let mut bag = bag_potions(gs);
+    bag.sort_by(|a, b| importance(gs, b.2).total_cmp(&importance(gs, a.2)));
+    for (pos, item, p) in bag {
+        let sell = |why: &str| (p.typ != PotionType::EternalLife).then(|| (RoomStep::Sell(pos), format!("{why}: selling {}", describe(item))));
+        if importance(gs, p) == 0.0 {
+            if let Some(s) = sell("not a wanted potion") {
+                return Some(s);
+            }
             continue;
         }
-        let Some((pos, item)) = in_bag(gs, t) else { continue };
-        let Some(new) = potion(item) else { continue };
-        let removable = act
-            .iter()
-            .filter(|(slot, p)| {
-                removal_ok(gs, *slot)
-                    && importance(gs, p) < importance(gs, new)
-                    && (!only_secondary || !tg.contains(&p.typ))
-            })
-            .min_by(|a, b| importance(gs, a.1).total_cmp(&importance(gs, b.1)));
-        if let Some((slot, old)) = removable {
-            let why = if only_secondary { "better target potion in the backpack" } else { "backpack full" };
-            return Some((RoomStep::Swap(*slot, pos), format!("{why}: removing the active {:?}, drinking {}", old.typ, describe(item))));
+        match act.iter().find(|(_, a)| a.typ == p.typ) {
+            Some((_, a)) if p.size.effect() >= a.size.effect() => {
+                return Some((RoomStep::Drink(pos), format!("drinking {} (extends/replaces the active one)", describe(item))));
+            }
+            Some(_) => {
+                if let Some(s) = sell("smaller than the active one") {
+                    return Some(s);
+                }
+            }
+            None if act.len() < 3 => return Some((RoomStep::Drink(pos), format!("drinking {} from the backpack", describe(item)))),
+            None => {
+                if let Some((slot, old)) = weakest_removable(gs, importance(gs, p)) {
+                    return Some((
+                        RoomStep::Swap(slot, pos),
+                        format!("removing the active {:?}, drinking {}", old.typ, describe(item)),
+                    ));
+                }
+                if let Some(s) = sell("outranked by the active potions") {
+                    return Some(s);
+                }
+            }
         }
     }
     None
 }
 
-fn room_step(gs: &GameState) -> Option<(RoomStep, String)> {
-    let act = active(gs);
-    // 1. A better target potion waits in the backpack while a removable (non-target, or smaller same-type) one is active
-    if let Some(step) = target_swap(gs, false) {
-        return Some(step);
-    }
-    // 2. The least important potion in the backpack: drink it if it stacks; a useful one (main/CON/Luck) rather replaces a
-    // less useful active potion than gets sold (user 2026-10-09); anything else is sold
-    let (pos, item, p) =
-        bag_potions(gs).into_iter().min_by(|a, b| importance(gs, a.2).total_cmp(&importance(gs, b.2)))?;
-    if act.iter().any(|(_, a)| a.typ == p.typ && p.size.effect() >= a.size.effect()) {
-        return Some((RoomStep::Drink(pos), format!("backpack full: drinking {} (replaces the active one)", describe(item))));
-    }
-    // A bigger active one of the same type makes this one redundant (sold below); otherwise look for a worse active potion
-    if p.typ != PotionType::EternalLife
-        && importance(gs, p) > 0.0
-        && !act.iter().any(|(_, a)| a.typ == p.typ)
-        && let Some((slot, old)) = act
-            .iter()
-            .filter(|(slot, a)| removal_ok(gs, *slot) && importance(gs, a) < importance(gs, p))
-            .min_by(|a, b| importance(gs, a.1).total_cmp(&importance(gs, b.1)))
-    {
-        return Some((
-            RoomStep::Swap(*slot, pos),
-            format!("backpack full: removing the active {:?}, drinking {} instead of selling it", old.typ, describe(item)),
-        ));
-    }
-    if p.typ != PotionType::EternalLife {
-        Some((RoomStep::Sell(pos), format!("backpack full: selling {}", describe(item))))
-    } else {
-        None
-    }
-}
-
-/// Frees one backpack slot using a potion, if possible. Returns true when a slot was freed.
+/// Frees one backpack slot: a potion in the backpack is settled first, then a loose gem, then the item kept for a gem (swapped
+/// for the worn one), then an epic. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
-    // Potions first, then a loose gem, then the item kept for a gem (swapped for the worn one), then an epic
-    let step = room_step(gs).or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)));
+    let step = bag_action(gs).or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)));
     if let Some((step, what)) = step {
         return execute(session, step, &what).await;
     }
@@ -348,14 +245,6 @@ pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
     let Some((p, what)) = crate::inventory::last_resort_epic(gs) else { return Ok(false) };
     execute(session, RoomStep::Sell(p), &what).await
-}
-
-/// Replaces a drunk secondary-stat potion with a better target potion from the backpack at once, no full backpack
-/// needed (user 2026-10-09). Returns true when a swap was made.
-async fn swap_secondary(session: &mut SimpleSession) -> Result<bool, Outcome> {
-    let Some(gs) = session.game_state() else { return Ok(false) };
-    let Some((step, what)) = target_swap(gs, true) else { return Ok(false) };
-    execute(session, step, &what).await
 }
 
 async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Result<bool, Outcome> {
@@ -383,13 +272,12 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
     }
 }
 
-/// Keeps the stock at `MAX_STOCK`: extra potions go from the least important (drink if it stacks, else sell).
-pub async fn trim_stock(session: &mut SimpleSession) -> Outcome {
-    for _ in 0..3 {
-        if session.game_state().is_none_or(|gs| stock(gs) <= MAX_STOCK) {
-            return Outcome::Done;
-        }
-        match make_room(session).await {
+/// Settles every potion in the backpack (drink or sell, see the module docs). Sends nothing when there is none.
+pub async fn drink_from_bag(session: &mut SimpleSession) -> Outcome {
+    for _ in 0..8 {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let Some((step, what)) = bag_action(gs) else { return Outcome::Done };
+        match execute(session, step, &what).await {
             Ok(true) => {}
             Ok(false) => return Outcome::Done,
             Err(o) => return o,
@@ -398,12 +286,14 @@ pub async fn trim_stock(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
-/// Every pass of the main loop: drink missing target potions; with a full backpack free one slot via a potion.
+/// Same as `drink_from_bag`; called after a potion bought for spinning landed in the backpack.
+pub async fn trim_stock(session: &mut SimpleSession) -> Outcome {
+    drink_from_bag(session).await
+}
+
+/// Every pass of the main loop: settle the potions in the backpack; with a full backpack free one slot.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Outcome::SessionLost = drink_from_bag(session).await {
-        return Outcome::SessionLost;
-    }
-    if let Err(Outcome::SessionLost) = swap_secondary(session).await {
         return Outcome::SessionLost;
     }
     if session.game_state().is_some_and(|gs| gs.character.inventory.free_slot().is_none())

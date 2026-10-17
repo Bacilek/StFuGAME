@@ -1,5 +1,12 @@
 # Potions
 
+## CURRENT RULES (user 2026-10-17, replace the older rules below where they differ)
+- Four kinds are worth anything, importance **main attribute > Eternal Life > Constitution > Luck** (Luck not at the crit cap). Three active slots: the top three available kinds (Luck only without Eternal Life). Within a kind the biggest wins; we want the strongest potion of each of these kinds on the character.
+- **No stock.** A potion never waits in the backpack (space goes to gems): `potions::bag_action` settles it at once: secondary-attribute potion → sold immediately (also ones bought); wanted kind not active → drunk (free slot, or removes a less important active one); same kind active and the new one is as big or bigger → drunk (same size extends, bigger replaces); smaller than the active one, or outranked by all three active ones → sold. Eternal Life is never sold or removed.
+- Shops (`shop_step`): buy only what is drunk right away (missing wanted kind, or bigger than the active one of that kind, replacing even with free backpack space); never secondary potions; max 4 purchases a day. Potions bought only to spin the shop are settled right after (`trim_stock` = same settle).
+- `make_room`: a potion in the backpack first, then a loose gem, then the kept item, then an epic (potions never occupy space for long).
+- OLD text below (stock of 4, secondary potions drunk, swap only with a full backpack, importance by gained strength) is superseded.
+
 ## Rules (from the user, 2026-10-07)
 - At most 3 different active potions. Types: STR, DEX, INT, CON, LUCK (10 / 15 / 25 %, 3 days) and Eternal Life
   (+25 % HP directly, 7 days).
