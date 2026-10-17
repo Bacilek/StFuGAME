@@ -220,6 +220,20 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
         "eod" => crate::ctx::request_end_of_day(control::running_names()),
         "attack_me" => crate::attack_me::set(v["on"].as_bool().unwrap_or(false)),
         "open_browser" => open_dashboard(),
+        "trainer" => save_trainer_answer(&v["data"]),
         other => report!("[control] Unknown command from the app window: {other:?}"),
+    }
+}
+
+/// One answer of the Inventory trainer tab (user 2026-10-17): appended as one JSON line to `roster/trainer.jsonl`, together
+/// with the scenario it answers, so the rules can be derived from the answers later (`docs/trainer.md`).
+fn save_trainer_answer(data: &serde_json::Value) {
+    use std::io::Write;
+    let _ = std::fs::create_dir_all("roster");
+    match std::fs::OpenOptions::new().create(true).append(true).open("roster/trainer.jsonl") {
+        Ok(mut f) => {
+            let _ = writeln!(f, "{data}");
+        }
+        Err(e) => report!("[control] Could not save a trainer answer: {e}"),
     }
 }

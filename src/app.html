@@ -58,6 +58,20 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
 #quests{display:none}
+#trainer{display:none;max-width:980px}
+.trtop{display:flex;align-items:center;gap:8px;margin-bottom:10px} .trnav{margin-left:auto;display:flex;gap:6px}
+.trgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} .trcol{display:flex;flex-direction:column;gap:12px}
+.trbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:0}
+#trainer>.trbox{margin-top:12px}
+.trinc{border-color:var(--good);border-width:2px}
+.trh{font-weight:700;color:var(--ink2);margin-bottom:4px} .trmuted{color:var(--muted)}
+.tritem{font-size:13px;padding:2px 0;border-bottom:1px dotted var(--line);font-family:ui-monospace,Consolas,monospace}
+.tritem.epic{color:var(--alu);font-weight:600} .tritem.trfree{color:var(--muted)}
+button.tract{display:block;width:100%;text-align:left;margin:4px 0}
+.trtargets{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px 18px}
+button.trtgt{text-align:left;font:12px ui-monospace,Consolas,monospace;padding:3px 8px}
+.trnote{width:100%;margin:8px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--ink);font:inherit}
+button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;cursor:default}
 #fort{display:none}
 .ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .ftile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px 18px;overflow:hidden}
@@ -151,6 +165,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
     <button id="tabCharts" aria-pressed="false">Charts</button>
     <button id="tabQuests" aria-pressed="false">Quests</button>
     <button id="tabFort" aria-pressed="false">Fortress</button>
+    <button id="tabTrainer" aria-pressed="false">Inventory trainer</button>
   </div>
   <div class="spacer"></div>
   <div class="right">
@@ -166,6 +181,7 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
   <div id="fort"><div id="ftiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
+  <div id="trainer"></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
 <dialog id="card"><div id="cardbody"></div><form method="dialog"><button class="close" aria-label="Close">✕</button></form></dialog>
@@ -194,6 +210,7 @@ $("tabChars").addEventListener("click", () => setTab("chars"));
 $("tabCharts").addEventListener("click", () => setTab("charts"));
 $("tabQuests").addEventListener("click", () => setTab("quests"));
 $("tabFort").addEventListener("click", () => setTab("fort"));
+$("tabTrainer").addEventListener("click", () => setTab("trainer"));
 let currentTab = "chars";
 function setTab(tab){
   currentTab = tab;
@@ -201,10 +218,13 @@ function setTab(tab){
   $("tabCharts").setAttribute("aria-pressed", tab === "charts");
   $("tabQuests").setAttribute("aria-pressed", tab === "quests");
   $("tabFort").setAttribute("aria-pressed", tab === "fort");
+  $("tabTrainer").setAttribute("aria-pressed", tab === "trainer");
   $("tiles").style.display = tab === "chars" ? "grid" : "none";
   $("charts").style.display = tab === "charts" ? "block" : "none";
   $("quests").style.display = tab === "quests" ? "block" : "none";
   $("fort").style.display = tab === "fort" ? "block" : "none";
+  $("trainer").style.display = tab === "trainer" ? "block" : "none";
+  if (tab === "trainer") TR.open();
   if (tab === "fort") renderFort();
   if (tab === "quests") renderQuests();
 }
@@ -517,6 +537,190 @@ function renderQuests(){
   if (!allOpen(q.daily)) det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
   if (q.event && !allOpen(q.event)) det.appendChild(qSection("Event quests", q.event, true));
 }
+// ---- Inventory trainer tab (user 2026-10-17): generated inventory scenarios; the user picks the right move, the answers go to
+// roster/trainer.jsonl (one line per answer, with the full scenario) so the rules can be derived from them. Scenario n is
+// always the same (seeded), so answers can be replayed against the bot's logic.
+const TR = (() => {
+  const SLOTS = ["Weapon","Helmet","Armor","Gloves","Boots","Belt","Ring","Amulet","Talisman"];
+  const MAIN = {Warrior:"STR",Scout:"DEX",Mage:"INT",Assassin:"DEX",BattleMage:"STR",Berserker:"STR",Druid:"DEX",DemonHunter:"DEX",Bard:"INT",Necromancer:"INT",Paladin:"STR",PlagueDoctor:"DEX"};
+  const ATTRS = ["STR","DEX","INT"];
+  const BAG = 15;
+  const LS = "trainerAnswers";
+  let answers = {}; try { answers = JSON.parse(localStorage.getItem(LS) || "{}"); } catch (e) {}
+  const saveLocal = () => { try { localStorage.setItem(LS, JSON.stringify(answers)); } catch (e) {} };
+  let n = 1, sc = null, picked = null, history = [];
+
+  const rng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const pick = (r, xs) => xs[Math.floor(r() * xs.length)];
+  const wpick = (r, pairs) => { let t = pairs.reduce((s, p) => s + p[1], 0), x = r() * t; for (const [v, w] of pairs) { if ((x -= w) < 0) return v; } return pairs[0][0]; };
+  const between = (r, a, b) => a + r() * (b - a);
+
+  function genItem(r, c, slot, q, epic) {
+    const unit = c.attrs[c.main] / 9 * q;
+    const a = {};
+    if (epic) {
+      const v = Math.round(unit * 0.55);
+      const set = wpick(r, [[[c.main, "CON", "LCK"], 3], [["STR", "DEX", "INT", "CON", "LCK"], 2], [[c.main, "CON"], 1]]);
+      for (const k of set) a[k] = v;
+    } else {
+      const k = wpick(r, [[c.main, 6], ["CON", 2], ["LCK", 1.2], [pick(r, ATTRS.filter(x => x !== c.main)), 1.3]]);
+      a[k] = Math.round(unit * between(r, 0.6, 1.1));
+      if (r() < 0.35) { const k2 = pick(r, [c.main, "CON", "LCK"]); if (k2 !== k) a[k2] = Math.round(unit * between(r, 0.25, 0.6)); }
+    }
+    const hasSlot = r() < 0.7;
+    const gem = !hasSlot ? null : (r() < 0.5 ? { empty: true } : genGem(r, c));
+    return { slot, epic: !!epic, a, gem };
+  }
+  function genGem(r, c) {
+    const t = wpick(r, [[c.main, 4], ["CON", 3], ["LCK", 2.5], [pick(r, ATTRS.filter(x => x !== c.main)), 3.5], ["ALL", 0.4]]);
+    return { t, v: Math.round(c.level * between(r, 0.45, 1.0)) };
+  }
+  function genPotion(r, c) {
+    const t = wpick(r, [[c.main, 4], ["CON", 3.5], ["LCK", 3], [pick(r, ATTRS.filter(x => x !== c.main)), 3], ["LIFE", 0.9]]);
+    const big = c.level >= 35;
+    const size = t === "LIFE" ? 25 : wpick(r, big ? [[10, 3], [15, 3], [25, 2.5]] : [[10, 4], [15, 3]]);
+    return { t, size };
+  }
+  function generate(i) {
+    const r = rng(i * 7919 + 13);
+    const cls = pick(r, Object.keys(MAIN));
+    const level = Math.round(wpick(r, [[between(r, 25, 60), 2], [between(r, 60, 140), 3], [between(r, 140, 300), 3]]));
+    const main = MAIN[cls];
+    const m = Math.round(level * between(r, 3.5, 6));
+    const c = { cls, level, main, attrs: { [main]: m, CON: Math.round(m * between(r, 0.4, 1.05)), LCK: Math.round(m * between(r, 0.12, 0.4)) } };
+    const quality = between(r, 0.7, 1.3);
+    c.equip = SLOTS.map(s => genItem(r, c, s, quality * between(r, 0.8, 1.2), r() < 0.12));
+    // active potions with the days left (a big potion with 1 day left is worth little, with 10 days a lot)
+    const nAct = wpick(r, [[0, 1], [1, 1.5], [2, 3], [3, 4.5]]);
+    const kinds = []; c.active = [];
+    for (let k = 0; k < nAct; k++) { const p = genPotion(r, c); if (kinds.includes(p.t)) continue; kinds.push(p.t); p.days = p.t === "LIFE" ? Math.ceil(between(r, 1, 7)) : Math.ceil(between(r, 1, 11)); c.active.push(p); }
+    // backpack
+    const free = wpick(r, [[0, 1], [1, 3], [2, 2.5], [3, 2], [5, 1.5], [8, 1]]);
+    c.bag = [];
+    const fillable = BAG - free;
+    const mix = [["epic", 1.4], ["gem", 3], ["potion", 2.4], ["item", 1.6], ["kept", 0.8]];
+    for (let k = 0; k < fillable; k++) {
+      const kind = wpick(r, mix);
+      if (kind === "epic") c.bag.push({ kind, it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.8, 1.2), true) });
+      else if (kind === "gem") c.bag.push({ kind, gem: genGem(r, c) });
+      else if (kind === "potion") c.bag.push({ kind, p: genPotion(r, c) });
+      else if (kind === "item") c.bag.push({ kind, it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.4, 0.9), false) });
+      else c.bag.push({ kind: "kept", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.9, 1.3), false) });
+    }
+    const inKind = wpick(r, [["gem", 3], ["mine", 1.5], ["potion", 3], ["item", 2.6], ["epic", 2.4]]);
+    if (inKind === "gem" || inKind === "mine") c.incoming = { kind: "gem", mine: inKind === "mine", gem: genGem(r, c) };
+    else if (inKind === "potion") c.incoming = { kind: "potion", p: genPotion(r, c) };
+    else if (inKind === "epic") c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.8, 1.4), true) };
+    else c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.7, 1.4), false) };
+    c.free = BAG - c.bag.length;
+    return c;
+  }
+
+  const gemTxt = g => g.empty ? "◇ empty slot" : "◆ " + g.t + "+" + g.v;
+  const statTxt = it => Object.entries(it.a).map(([k, v]) => k + "+" + v).join(" ");
+  const itemTxt = it => it.slot + (it.epic ? " ★EPIC" : "") + "  " + statTxt(it) + "  " + (it.gem ? gemTxt(it.gem) : "(no gem slot)");
+  const potTxt = p => p.t === "LIFE" ? "Eternal Life" : p.t + " " + p.size + " %";
+  const bagTxt = b => b.kind === "gem" ? "Gem " + gemTxt(b.gem) : b.kind === "potion" ? "Potion " + potTxt(b.p) : (b.kind === "epic" ? "★ " : b.kind === "kept" ? "(waiting for a gem) " : "") + itemTxt(b.it);
+
+  const h = (tag, cls, text, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
+
+  function actionsFor(c) {
+    const inc = c.incoming, A = [];
+    const slotTargets = () => c.equip.map((e, i) => ({ id: i, label: itemTxt(e) }));
+    const bagTargets = () => c.bag.map((b, i) => ({ id: i, label: bagTxt(b) }));
+    if (inc.kind === "item") {
+      A.push({ id: "equip_sell", label: "Equip it, sell the old " + inc.it.slot });
+      A.push({ id: "equip_keep", label: "Equip it, keep the old one in the backpack" });
+      A.push({ id: "keep", label: "Keep it in the backpack (waiting for a gem / later)" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
+      A.push({ id: "equip_keep_sell", label: "Equip it, keep the old one, sell this to make room:", target: bagTargets });
+    } else if (inc.kind === "gem") {
+      A.push({ id: "socket", label: "Socket it into:", target: slotTargets });
+      A.push({ id: "replace", label: "Replace the gem of (the old one is lost):", target: slotTargets });
+      A.push({ id: "keep", label: "Keep it in the backpack" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
+      if (inc.mine) A.push({ id: "leave", label: "Leave it in the mine (do not collect yet)" });
+    } else {
+      A.push({ id: "drink", label: "Drink it (free slot / extends / replaces the active one of its kind)" });
+      A.push({ id: "swap", label: "Remove this active potion and drink it:", target: () => c.active.map((p, i) => ({ id: i, label: potTxt(p) + ", " + p.days + " d left" })) });
+      A.push({ id: "keep", label: "Keep it in the backpack" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
+    }
+    A.push({ id: "unsure", label: "I don't know / depends (explain in the note)" });
+    return A;
+  }
+
+  function render() {
+    const root = $("trainer"); root.textContent = "";
+    sc = generate(n);
+    const c = sc; picked = null;
+    const done = Object.keys(answers).length;
+    const top = h("div", "trtop", null, root);
+    h("b", null, "Scenario #" + n, top);
+    h("span", "trmuted", "  answered: " + done, top);
+    const nav = h("span", "trnav", null, top);
+    const prev = h("button", null, "◀ Back", nav); prev.onclick = () => { if (history.length) { n = history.pop(); render(); } };
+    const skip = h("button", null, "Skip ▶", nav); skip.onclick = () => { history.push(n); n++; render(); };
+
+    const g = h("div", "trgrid", null, root);
+    const L = h("div", "trcol", null, g), R = h("div", "trcol", null, g);
+
+    const ch = h("div", "trbox", null, L);
+    h("div", "trh", pretty(c.cls) + ", level " + c.level + " (main " + c.main + ")", ch);
+    const ratio = Math.round(c.attrs.CON / c.attrs[c.main] * 100);
+    h("div", null, c.main + " " + c.attrs[c.main] + "   CON " + c.attrs.CON + " (" + ratio + " % of main, ideal 80)   LCK " + c.attrs.LCK, ch);
+
+    const eq = h("div", "trbox", null, L);
+    h("div", "trh", "Worn", eq);
+    c.equip.forEach(e => h("div", "tritem" + (e.epic ? " epic" : ""), itemTxt(e), eq));
+
+    const po = h("div", "trbox", null, L);
+    h("div", "trh", "Active potions", po);
+    if (!c.active.length) h("div", "trmuted", "none", po);
+    c.active.forEach(p => h("div", "tritem", potTxt(p) + " – " + p.days + (p.days === 1 ? " day" : " days") + " left", po));
+
+    const bg = h("div", "trbox", null, R);
+    h("div", "trh", "Backpack " + c.bag.length + "/" + BAG + " (" + c.free + " free)", bg);
+    c.bag.forEach(b => h("div", "tritem" + (b.kind === "epic" ? " epic" : ""), bagTxt(b), bg));
+    for (let k = 0; k < c.free; k++) h("div", "tritem trfree", "– free –", bg);
+
+    const inc = h("div", "trbox trinc", null, R);
+    h("div", "trh", "NEW: " + (c.incoming.kind === "gem" ? (c.incoming.mine ? "a gem is ready in the mine" : "a gem") : c.incoming.kind === "potion" ? "a potion" : c.incoming.it.epic ? "an epic item" : "an item"), inc);
+    h("div", "tritem", c.incoming.kind === "gem" ? gemTxt(c.incoming.gem) : c.incoming.kind === "potion" ? potTxt(c.incoming.p) : itemTxt(c.incoming.it), inc);
+
+    const q = h("div", "trbox", null, root);
+    h("div", "trh", "What is the right move?", q);
+    const acts = actionsFor(c);
+    const tgtBox = h("div", "trtargets", null, q);
+    const noteBox = h("input", "trnote", null, q); noteBox.placeholder = "Note (why / exception) – optional";
+    const submit = h("button", "trsubmit", "Save answer and go to the next ▶", q); submit.disabled = true;
+    const btns = [];
+    acts.forEach(a => {
+      const b = h("button", "tract", a.label, q); q.insertBefore(b, tgtBox); btns.push(b);
+      b.onclick = () => {
+        btns.forEach(x => x.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true");
+        picked = { action: a.id }; tgtBox.textContent = "";
+        if (a.target) {
+          submit.disabled = true;
+          a.target().forEach(t => { const tb = h("button", "trtgt", t.label, tgtBox); tb.onclick = () => { picked.target = t.id; picked.targetLabel = t.label; [...tgtBox.children].forEach(x => x.setAttribute("aria-pressed", "false")); tb.setAttribute("aria-pressed", "true"); submit.disabled = false; }; });
+          if (!a.target().length) h("div", "trmuted", "(nothing to pick)", tgtBox);
+        } else submit.disabled = false;
+      };
+    });
+    submit.onclick = () => {
+      if (!picked) return;
+      const rec = { n, ts: new Date().toISOString(), choice: picked, note: noteBox.value.trim(), scenario: c };
+      answers[n] = picked.action; saveLocal();
+      post({ cmd: "trainer", data: rec });
+      history.push(n); n = nextUnanswered(n + 1); render();
+    };
+  }
+  const nextUnanswered = from => { let k = from; while (answers[k]) k++; return k; };
+  return { open() { n = nextUnanswered(1); history = []; render(); } };
+})();
 // ---- Fortress tab (user 2026-10-14): one tile per character with a fortress: building levels, the running build and the plan,
 // resources (current/limit, uncollected production), soldiers, Hall of Knights, snapshot time.
 const clock = iso => iso ? new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "?";
