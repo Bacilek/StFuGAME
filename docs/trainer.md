@@ -28,3 +28,11 @@ answers and writes them into the bot (`inventory.rs`, `gems.rs`, `potions.rs`).
 1. User answers scenarios (the more the better). 2. Claude reads `roster/trainer.jsonl`, groups by scenario family, lists the rules +
 contradictions, asks about the contradictions. 3. Rules go to `docs/precedents.md` and the code; optionally a "what the bot would do now"
 column to expose differences.
+
+## "What the bot does today" (added 2026-10-17)
+After the user picks a move (and a target when needed) a box shows what the bot would do now, green "same" / red "different", with a
+one-line reason (so a wrong pick can be explained). It is NOT the Rust code: `botMove` in `app.html` mirrors the documented rules
+(potions: kinds main > Eternal Life > CON > Luck, size ≥ active → drink, smaller → sold, days left ignored; gems: secondary sold, empty
+socket → socket, else keep only with ≥ 2 free; items: value without gems, only worn Legendary/All gems count, epics never sold, keep
+while waiting for a gem). When a log line disagrees with the mirror, fix the mirror. Each saved answer also stores `bot` and `match`.
+Scenario mix: some characters have all sockets filled (`emptyP`), so "gem with no socket" cases occur.

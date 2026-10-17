@@ -72,6 +72,8 @@ button.tract{display:block;width:100%;text-align:left;margin:4px 0}
 button.trtgt{text-align:left;font:12px ui-monospace,Consolas,monospace;padding:3px 8px}
 .trnote{width:100%;margin:8px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--ink);font:inherit}
 button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;cursor:default}
+.trbot{margin:6px 0;padding:8px 10px;border-radius:8px;font-size:13px;border:1px solid var(--line)} .trbot:empty{display:none}
+.trbot.same{border-color:var(--good)} .trbot.diff{border-color:var(--bad)} .trbot.same b{color:var(--good)} .trbot.diff b{color:var(--bad)}
 #fort{display:none}
 .ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .ftile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px 18px;overflow:hidden}
@@ -568,7 +570,7 @@ const TR = (() => {
       if (r() < 0.35) { const k2 = pick(r, [c.main, "CON", "LCK"]); if (k2 !== k) a[k2] = Math.round(unit * between(r, 0.25, 0.6)); }
     }
     const hasSlot = r() < 0.7;
-    const gem = !hasSlot ? null : (r() < 0.5 ? { empty: true } : genGem(r, c));
+    const gem = !hasSlot ? null : (r() < c.emptyP ? { empty: true } : genGem(r, c));
     return { slot, epic: !!epic, a, gem };
   }
   function genGem(r, c) {
@@ -589,6 +591,7 @@ const TR = (() => {
     const m = Math.round(level * between(r, 3.5, 6));
     const c = { cls, level, main, attrs: { [main]: m, CON: Math.round(m * between(r, 0.4, 1.05)), LCK: Math.round(m * between(r, 0.12, 0.4)) } };
     const quality = between(r, 0.7, 1.3);
+    c.emptyP = wpick(r, [[0, 3], [0.2, 3], [0.5, 2]]); // some characters have every socket filled
     c.equip = SLOTS.map(s => genItem(r, c, s, quality * between(r, 0.8, 1.2), r() < 0.12));
     // active potions with the days left (a big potion with 1 day left is worth little, with 10 days a lot)
     const nAct = wpick(r, [[0, 1], [1, 1.5], [2, 3], [3, 4.5]]);
@@ -610,8 +613,8 @@ const TR = (() => {
     const inKind = wpick(r, [["gem", 3], ["mine", 1.5], ["potion", 3], ["item", 2.6], ["epic", 2.4]]);
     if (inKind === "gem" || inKind === "mine") c.incoming = { kind: "gem", mine: inKind === "mine", gem: genGem(r, c) };
     else if (inKind === "potion") c.incoming = { kind: "potion", p: genPotion(r, c) };
-    else if (inKind === "epic") c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.8, 1.4), true) };
-    else c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.7, 1.4), false) };
+    else if (inKind === "epic") c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.7, 1.3), true) };
+    else c.incoming = { kind: "item", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.5, 1.25), false) };
     c.free = BAG - c.bag.length;
     return c;
   }
@@ -652,6 +655,58 @@ const TR = (() => {
     A.push({ id: "unsure", label: "I don't know / depends (explain in the note)" });
     return A;
   }
+
+  // What the bot does TODAY, mirrored from the Rust rules (inventory.rs / gems.rs / potions.rs) in a simplified form, so the user
+  // sees after his pick whether the bot agrees and why not. Not the real code: when it disagrees with the log, fix this mirror.
+  const WEIGHT = { main: 1, CON: 0.8, LCK: 0.27, other: 0.1 };
+  const tier = (g, c) => (g.t === c.main || g.t === "ALL") ? 0 : g.t === "CON" ? 1 : g.t === "LCK" ? 2 : 3;
+  const val = (it, c) => {
+    let v = 0;
+    for (const [k, x] of Object.entries(it.a)) v += x * (k === c.main ? WEIGHT.main : k === "CON" ? WEIGHT.CON : k === "LCK" ? WEIGHT.LCK : WEIGHT.other);
+    if (it.gem && !it.gem.empty && it.gem.t === "ALL") v += it.gem.v * 2.27; // only worn Legendary/All gems count (user 2026-10-16)
+    return v;
+  };
+  const gemVal = (g, c) => g.t === "ALL" ? g.v * 2.27 : g.t === c.main ? g.v : g.t === "CON" ? g.v * 0.8 : g.t === "LCK" ? g.v * 0.27 : g.v * 0.1;
+  const potKinds = (c, extra) => {
+    const life = c.active.some(p => p.t === "LIFE") || c.bag.some(b => b.kind === "potion" && b.p.t === "LIFE") || (extra && extra.t === "LIFE");
+    return [c.main, ...(life ? ["LIFE"] : []), "CON", "LCK"].slice(0, 3);
+  };
+  const potImp = (p, tg) => { const i = tg.indexOf(p.t); return i < 0 ? 0 : (tg.length - i) * 1000 + p.size; };
+  function botMove(c) {
+    const inc = c.incoming;
+    if (inc.kind === "potion") {
+      const p = inc.p, tg = potKinds(c, p), imp = potImp(p, tg);
+      if (!imp) return { action: "sell", why: "not one of the wanted kinds (main > Eternal Life > CON > Luck, top 3): sold at once" };
+      const same = c.active.find(a => a.t === p.t);
+      if (same) return p.size >= same.size ? { action: "drink", why: "same kind active and this one is as big or bigger: drunk (extends/replaces). Days left are NOT considered" }
+        : { action: "sell", why: "smaller than the active " + potTxt(same) + ": sold (days left are NOT considered, a big potion is never kept in the backpack)" };
+      if (c.active.length < 3) return { action: "drink", why: "kind not active and a slot is free: drunk" };
+      let weakest = null;
+      c.active.forEach((a, i) => { if (a.t !== "LIFE" && potImp(a, tg) < imp && (!weakest || potImp(a, tg) < potImp(c.active[weakest.i], tg))) weakest = { i }; });
+      if (weakest) return { action: "swap", target: weakest.i, why: "all slots full: the least important active potion (" + potTxt(c.active[weakest.i]) + ") is removed, this one drunk" };
+      return { action: "sell", why: "outranked by all three active potions: sold" };
+    }
+    if (inc.kind === "gem") {
+      const g = inc.gem, t = tier(g, c);
+      if (t >= 3) return { action: "sell", why: "secondary-attribute gem: never socketed, sold at once" + (inc.mine ? " (collected first)" : "") };
+      const emptyIdx = c.equip.findIndex(e => e.gem && e.gem.empty);
+      if (emptyIdx >= 0) return { action: "socket", target: emptyIdx, why: "an empty gem slot exists: socketed (weapon first when it fits, otherwise the biggest gain)" };
+      const waiting = c.bag.some(b => b.kind === "kept");
+      if (waiting && c.free >= 2) return { action: "keep", why: "an item in the backpack waits for a gem: kept for it" };
+      if (c.free >= 2) return { action: "keep", why: "no empty socket, but there is room (at least 1 slot stays free after it): held in stock" };
+      if (inc.mine) return { action: "leave", why: "only 1 free slot and no socket wants it: left in the mine (one slot always stays free)" };
+      return { action: "sell", why: "no socket and the last free slot must stay free: sold" };
+    }
+    const it = inc.it, wi = c.equip.findIndex(e => e.slot === it.slot), w = c.equip[wi];
+    const vn = val(it, c), vw = val(w, c);
+    if (vn > vw) return { action: w.epic ? "equip_keep" : "equip_sell", why: "better without gems (" + vn.toFixed(0) + " > " + vw.toFixed(0) + ")" + (w.epic ? ": the old one is an epic, never sold" : ": equipped, the old one sold") };
+    if (it.epic) return { action: "keep", why: "not better (" + vn.toFixed(0) + " ≤ " + vw.toFixed(0) + ") but an epic: never sold, kept" };
+    const gems = c.bag.filter(b => b.kind === "gem").map(b => b.gem).filter(g => tier(g, c) <= 1);
+    const best = gems.reduce((m, g) => Math.max(m, gemVal(g, c)), 0);
+    if (it.gem && it.gem.empty && best && vn + best > vw && c.free >= 2) return { action: "keep", why: "with the gem we hold it would beat the worn one (" + (vn + best).toFixed(0) + " > " + vw.toFixed(0) + "): kept waiting for the gem" };
+    return { action: "sell", why: "not better (" + vn.toFixed(0) + " ≤ " + vw.toFixed(0) + ") and nothing to wait for: sold" };
+  }
+  const ACT_LABEL = { equip_sell: "equip, sell the old one", equip_keep: "equip, keep the old one", keep: "keep in the backpack", sell: "sell it", socket: "socket it", replace: "replace a gem", leave: "leave it in the mine", drink: "drink it", swap: "remove an active potion and drink it" };
 
   function render() {
     const root = $("trainer"); root.textContent = "";
@@ -695,8 +750,19 @@ const TR = (() => {
     h("div", "trh", "What is the right move?", q);
     const acts = actionsFor(c);
     const tgtBox = h("div", "trtargets", null, q);
+    const botBox = h("div", "trbot", null, q);
     const noteBox = h("input", "trnote", null, q); noteBox.placeholder = "Note (why / exception) – optional";
     const submit = h("button", "trsubmit", "Save answer and go to the next ▶", q); submit.disabled = true;
+    const bot = botMove(c);
+    const reveal = () => {
+      botBox.textContent = "";
+      const same = picked.action === bot.action && (bot.action !== "swap" || picked.target === bot.target);
+      picked.bot = bot; picked.match = same;
+      const tl = bot.target != null ? " → " + (bot.action === "swap" ? potTxt(c.active[bot.target]) : itemTxt(c.equip[bot.target])) : "";
+      botBox.className = "trbot " + (same ? "same" : "diff");
+      h("b", null, (same ? "✓ The bot does the same today" : "✗ The bot does something else today") + ": " + (ACT_LABEL[bot.action] || bot.action) + tl, botBox);
+      h("div", null, bot.why, botBox);
+    };
     const btns = [];
     acts.forEach(a => {
       const b = h("button", "tract", a.label, q); q.insertBefore(b, tgtBox); btns.push(b);
@@ -705,14 +771,15 @@ const TR = (() => {
         picked = { action: a.id }; tgtBox.textContent = "";
         if (a.target) {
           submit.disabled = true;
-          a.target().forEach(t => { const tb = h("button", "trtgt", t.label, tgtBox); tb.onclick = () => { picked.target = t.id; picked.targetLabel = t.label; [...tgtBox.children].forEach(x => x.setAttribute("aria-pressed", "false")); tb.setAttribute("aria-pressed", "true"); submit.disabled = false; }; });
+          botBox.textContent = "";
+          a.target().forEach(t => { const tb = h("button", "trtgt", t.label, tgtBox); tb.onclick = () => { picked.target = t.id; picked.targetLabel = t.label; [...tgtBox.children].forEach(x => x.setAttribute("aria-pressed", "false")); tb.setAttribute("aria-pressed", "true"); submit.disabled = false; reveal(); }; });
           if (!a.target().length) h("div", "trmuted", "(nothing to pick)", tgtBox);
-        } else submit.disabled = false;
+        } else { submit.disabled = false; reveal(); }
       };
     });
     submit.onclick = () => {
       if (!picked) return;
-      const rec = { n, ts: new Date().toISOString(), choice: picked, note: noteBox.value.trim(), scenario: c };
+      const rec = { n, ts: new Date().toISOString(), match: picked.match, bot: picked.bot, choice: { action: picked.action, target: picked.target, targetLabel: picked.targetLabel }, note: noteBox.value.trim(), scenario: c };
       answers[n] = picked.action; saveLocal();
       post({ cmd: "trainer", data: rec });
       history.push(n); n = nextUnanswered(n + 1); render();
