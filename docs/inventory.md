@@ -89,7 +89,5 @@ Ideal = Constitution at 80 % of the main attribute (1000 : 800). Item and gem va
 - (2026-10-16, user) Bought attributes: no balance, fixed weights per gold 100 : 80 : 40 (Luck 0.4 only here, `attributes::BUY_LUCK_WEIGHT`; the rest of the code uses 0.27).
 
 **Verified 2026-10-17 (user):** gems can only be socketed into a worn item. `gems.rs` equips the kept item first, then socketing.
-n## Loose gems max 2 (2026-10-18, user)
-Only the 2 best loose gems stay in the backpack (`gems::MAX_LOOSE_GEMS`, `sell_excess_gems`); new items never arrive ten at a time and gems block slots for epics/potions. Replaces the "any number while one slot stays free" holding rule.
 ## Loose gems go first (2026-10-18, user)
 No cap and no active selling. When a backpack slot is needed for anything (epic, potion, hunt stripping), `gems::free_slot` runs first (`potions::make_room`): a gem with a place is socketed (worn item worse), otherwise the weakest loose gem is sold (`inventory::spare_gem`). Replaces the "any number while one slot stays free" holding rule for the moment a slot is wanted; the no-epics hunt uses only this step.
