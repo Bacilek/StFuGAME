@@ -64,6 +64,9 @@ fn mark_collected(t: DateTime<Local>) {
 const SEARCH_RESERVE_MULTIPLE: u64 = 2;
 /// A socketing that did not change anything stops further attempts for the rest of the day (unverified request shape).
 static SOCKET_FAILED_ON: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
+/// Moving a gem onto a STORED backpack item changed nothing (Filminy 2026-10-17: the CON gem stayed loose and the empty
+/// slot of the worn chest plate was never tried): no more attempts on stored items today, worn sockets still work.
+static STORED_FAILED_ON: crate::ctx::PerChar<Option<chrono::NaiveDate>> = crate::ctx::PerChar::new();
 
 /// 0 = best ... 3 = worst for this class.
 fn tier(typ: GemType, class: Class) -> u8 {
@@ -362,7 +365,8 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
                 break;
             }
             // Only the item kept for a gem (`inventory::keep_candidate`: a worn item without any slot would be beaten once it has this gem)
-            let stored = inventory::kept_item(gs).and_then(|bag| {
+            let stored_blocked = STORED_FAILED_ON.lock().is_ok_and(|d| *d == Some(today));
+            let stored = inventory::kept_item(gs).filter(|_| !stored_blocked).and_then(|bag| {
                 let item = gs.character.inventory.backpack.get(bag.backpack_pos())?.as_ref()?;
                 let eq_slot = item.typ.equipment_slot()?;
                 let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
@@ -389,6 +393,12 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         let (cmd, what) = placed?; // None = no gem has a place, keep them
         if let Err(e) = safe::send(session, cmd).await {
             report!("[gems] Socketing into the {what} failed: {e}");
+            if what == "stored item" {
+                if let Ok(mut d) = STORED_FAILED_ON.lock() {
+                    *d = Some(today);
+                }
+                continue;
+            }
             if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
                 *d = Some(today);
             }
@@ -400,6 +410,13 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         // Success = one gem fewer in the backpack (other loose gems being there says nothing: with four of them the old
         // check blocked all further socketing for the day after the first success)
         if session.game_state().is_none_or(|gs| backpack_gems(gs).len() >= before) {
+            if what == "stored item" {
+                report!("[gems] The backpack still holds {before} gem(s) after the move into the stored item, no more tries on stored items today; worn sockets next");
+                if let Ok(mut d) = STORED_FAILED_ON.lock() {
+                    *d = Some(today);
+                }
+                continue;
+            }
             report!("[gems] The backpack still holds {before} gem(s) after the move, no more socketing today (request shape unverified)");
             if let Ok(mut d) = SOCKET_FAILED_ON.lock() {
                 *d = Some(today);
