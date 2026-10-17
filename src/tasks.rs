@@ -4,7 +4,7 @@
 //! - Upgrade guild skill: the cheaper of Treasure/Instructor (Instructor on a tie), gold only,
 //! - Increase attribute X / any attribute / spend gold on upgrades: buy attributes for gold (the best weight-per-gold
 //!   one from `attributes.rs` when the task lets us choose freely), plus the same choice for genuinely surplus gold
-//!   (`buy_surplus_attributes`, no task needed, above 10× the shop reserve),
+//!   (`buy_surplus_attributes`, no task needed, above 20× the shop reserve),
 //! - Win the shell game: smallest bet, only after the Tavern and the shops (gold is low then) and only when its points
 //!   are needed to reach a chest that the remaining "natural" tasks (Arena, Dungeons, City Guard) would not reach.
 //!
@@ -113,7 +113,7 @@ async fn upgrade_guild(session: &mut SimpleSession) -> Outcome {
 async fn upgrade_guild_surplus(session: &mut SimpleSession) -> Outcome {
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        // After the upgrade 1× the most expensive shop item must remain (user 2026-10-11, lowered from 5×; the surplus attributes keep 10×, user 2026-10-14)
+        // After the upgrade 1× the most expensive shop item must remain (user 2026-10-11, lowered from 5×; the surplus attributes keep 20×, user 2026-10-18; was 10× since 2026-10-14)
         let Some((skill, current)) = guild_skill_keeping(gs, crate::shops::reserve() + crate::fortress::gold_needed(gs)) else {
             return Outcome::Done;
         };
@@ -172,7 +172,7 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
 /// (spinning the shop burns gold on the buy/sell spread), spend the surplus on whichever attribute is currently
 /// the best weight-per-gold. No task needed - unlike `buy_attributes`, this never runs just because a task asks
 /// for it, only when gold is genuinely abundant.
-const SURPLUS_RESERVE_MULTIPLE: u64 = 10;
+const SURPLUS_RESERVE_MULTIPLE: u64 = 20;
 
 /// Spends gold on attributes once it piles up far above the shop reserve, even with no open attribute task.
 /// Keeps at least `SURPLUS_RESERVE_MULTIPLE × reserve` in gold, same floor logic as `buy_attributes`.
