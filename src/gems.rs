@@ -136,7 +136,13 @@ fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
                 let t = tier(old.typ, class);
                 t >= 2 && t > new
             }
-        });
+        })
+        .collect::<Vec<_>>();
+    // A socket that is empty or holds a secondary-attribute gem costs nothing to fill; a Luck gem is only replaced when there is no
+    // such socket (user 2026-10-17, trainer: a Strength gem went into the boots' secondary socket, not over the gloves' Luck gem)
+    let free = |s: &Socket| s.content.is_none_or(|g| tier(g.typ, class) >= 3);
+    let fit = if fit.iter().any(|(_, s)| free(s)) { fit.into_iter().filter(|(_, s)| free(s)).collect() } else { fit };
+    let fit = fit.into_iter();
     let by = |a: &(usize, &Socket), b: &(usize, &Socket)| (a.1.epic, a.1.value).partial_cmp(&(b.1.epic, b.1.value)).unwrap_or(std::cmp::Ordering::Equal);
     // Constitution and main-attribute gems go to the item that is best and hardest to replace; Luck and secondary gems to the
     // item we will swap out soonest (user 2026-10-14)
@@ -414,6 +420,16 @@ mod tests {
     }
     fn sock(content: Option<GemType>, epic: bool, value: f64) -> Socket {
         Socket { content: content.map(gem), epic, value, worth: true, weapon: false }
+    }
+
+    /// 2026-10-17 (trainer #4): a main gem fills a socket with a secondary gem before it replaces a Luck gem, even on a better item.
+    #[test]
+    fn free_sockets_before_replacing_a_luck_gem() {
+        let sockets = [sock(Some(GemType::Luck), true, 90.0), sock(Some(GemType::Dexterity), false, 50.0)];
+        assert_eq!(choose_socket(&sockets, gem(GemType::Strength), Class::Warrior), Some(1));
+        // without a free one the Luck gem is replaced
+        let sockets = [sock(Some(GemType::Luck), true, 90.0), sock(Some(GemType::Constitution), false, 50.0)];
+        assert_eq!(choose_socket(&sockets, gem(GemType::Strength), Class::Warrior), Some(0));
     }
 
     #[test]

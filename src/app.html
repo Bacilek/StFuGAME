@@ -632,7 +632,7 @@ const TR = (() => {
       else if (kind === "gem") c.bag.push({ kind, gem: genGem(r, c) });
       else if (kind === "potion") c.bag.push({ kind, p: genPotion(r, c) });
       else if (kind === "item") c.bag.push({ kind, it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.4, 0.9), false) });
-      else c.bag.push({ kind: "kept", it: genItem(r, c, pick(r, SLOTS), quality * between(r, 0.9, 1.3), false) });
+      else { const k = genItem(r, c, pick(r, SLOTS), quality * between(r, 0.9, 1.3), false); k.gem = { empty: true }; c.bag.push({ kind: "kept", it: k }); }
     }
     const inKind = wpick(r, [["gem", 3], ["mine", 1.5], ["potion", 3], ["item", 2.6], ["epic", 2.4]]);
     if (inKind === "gem" || inKind === "mine") c.incoming = { kind: "gem", mine: inKind === "mine", gem: genGem(r, c) };
@@ -654,53 +654,88 @@ const TR = (() => {
 
   // What the bot does TODAY, mirrored from the Rust rules (inventory.rs / gems.rs / potions.rs) in a simplified form, so the user
   // sees after his pick whether the bot agrees and why not. Not the real code: when it disagrees with the log, fix this mirror.
-  const WEIGHT = { main: 1, CON: 0.8, LCK: 0.27, other: 0.1 };
+  // Updated 2026-10-17 after the first 16 answers (gem replacement, slot bonus, kept smaller potions).
   const tier = (g, c) => (g.t === c.main || g.t === "ALL") ? 0 : g.t === "CON" ? 1 : g.t === "LCK" ? 2 : 3;
   const val = (it, c) => {
     let v = 0;
-    for (const [k, x] of Object.entries(it.a)) v += x * (k === c.main ? WEIGHT.main : k === "CON" ? WEIGHT.CON : k === "LCK" ? WEIGHT.LCK : WEIGHT.other);
+    for (const [k, x] of Object.entries(it.a)) v += x * (k === c.main ? 1 : k === "CON" ? 0.8 : k === "LCK" ? 0.27 : 0.1);
     if (it.gem && !it.gem.empty && it.gem.t === "ALL") v += it.gem.v * 2.27; // only worn Legendary/All gems count (user 2026-10-16)
     return v;
   };
   const gemVal = (g, c) => g.t === "ALL" ? g.v * 2.27 : g.t === c.main ? g.v : g.t === "CON" ? g.v * 0.8 : g.t === "LCK" ? g.v * 0.27 : g.v * 0.1;
+  // own main/CON/LCK stats (inventory::worth_a_gem); weapons always
+  const worth = (it, c) => it.slot === "Weapon" || (it.a[c.main] || 0) + (it.a.CON || 0) + (it.a.LCK || 0) > 0;
+  // a socket that is empty or holds a Luck/secondary gem (inventory::gem_dependent)
+  const usable = (it, c) => !!it.gem && worth(it, c) && (it.gem.empty || (tier(it.gem, c) >= 2));
+  // the gem we can expect (inventory::expected_gem): the best main/CON gem in the backpack, else as strong as the best worn one
+  const expected = c => {
+    const bag = c.bag.filter(b => b.kind === "gem" && tier(b.gem, c) <= 1).map(b => b.gem).sort((a, b) => gemVal(b, c) - gemVal(a, c))[0];
+    if (bag) return { g: bag, held: true };
+    const worn = c.equip.filter(e => e.gem && !e.gem.empty).map(e => e.gem.v);
+    return worn.length ? { g: { t: c.main, v: Math.max(...worn) }, held: false } : null;
+  };
+  const slotBonus = (it, c) => { const e = expected(c); return e && usable(it, c) ? gemVal(e.g, c) : 0; };
   const potKinds = (c, extra) => {
     const life = c.active.some(p => p.t === "LIFE") || c.bag.some(b => b.kind === "potion" && b.p.t === "LIFE") || (extra && extra.t === "LIFE");
     return [c.main, ...(life ? ["LIFE"] : []), "CON", "LCK"].slice(0, 3);
   };
   const potImp = (p, tg) => { const i = tg.indexOf(p.t); return i < 0 ? 0 : (tg.length - i) * 1000 + p.size; };
+  // gems.rs choose_socket: a worn socket for the gem (index into c.equip) or null
+  function gemTarget(c, g) {
+    const t = tier(g, c);
+    if (t >= 3) return null;
+    const cands = c.equip.map((e, i) => ({ e, i })).filter(x => x.e.gem && worth(x.e, c) && (x.e.gem.empty || (tier(x.e.gem, c) >= 2 && tier(x.e.gem, c) > t)));
+    const better = (x) => x.e.slot === "Weapon" && t <= 1; // the weapon takes main/CON gems first (its gem counts double)
+    const w = cands.find(better);
+    if (w) return w.i;
+    if (!cands.length) return null;
+    const byVal = (a, b) => (a.e.epic - b.e.epic) || (val(a.e, c) - val(b.e, c));
+    // sockets that are empty or hold a secondary gem cost nothing to fill; a Luck gem is only replaced when there is no such socket
+    // (user 2026-10-17, trainer #4/#14)
+    const free = cands.filter(x => x.e.gem.empty || tier(x.e.gem, c) >= 3);
+    const pool = free.length ? free : cands;
+    // main/CON gems go to the best, hardest-to-replace item; Luck to the one swapped out soonest
+    return (t <= 1 ? pool.sort(byVal).reverse()[0] : pool.sort(byVal)[0]).i;
+  }
   function botMove(c) {
     const inc = c.incoming;
+    const pressure = c.free <= 1 ? "tight" : "room";
     if (inc.kind === "potion") {
       const p = inc.p, tg = potKinds(c, p), imp = potImp(p, tg);
-      if (!imp) return { action: "sell", why: "not one of the wanted kinds (main > Eternal Life > CON > Luck, top 3): sold at once" };
+      if (!imp) return { action: "sell", why: "a secondary-attribute potion (or Luck while Eternal Life is in play): sold at once (it only serves for spinning the shops)" };
       const same = c.active.find(a => a.t === p.t);
-      if (same) return p.size >= same.size ? { action: "drink", why: "same kind active and this one is as big or bigger: drunk (extends/replaces). Days left are NOT considered" }
-        : { action: "sell", why: "smaller than the active " + potTxt(same) + ": sold (days left are NOT considered, a big potion is never kept in the backpack)" };
-      if (c.active.length < 3) return { action: "drink", why: "kind not active and a slot is free: drunk" };
+      if (same) {
+        if (p.size >= same.size) return { action: "drink", why: "same kind active and this one is as big or bigger: drunk (same size extends, bigger replaces)" };
+        if (pressure === "tight" && same.days <= 3) return { action: "drink", why: "space is tight and the active bigger one has only " + same.days + " d left: the smaller one is drunk instead" };
+        return { action: "keep", why: "smaller than the active " + potTxt(same) + ": kept in the backpack (user 2026-10-17); only drunk when space is tight and the active one runs out soon, sold last of all" };
+      }
+      if (c.active.length < 3) return { action: "drink", why: "kind not active and a slot is free: drunk at once" };
       let weakest = null;
       c.active.forEach((a, i) => { if (a.t !== "LIFE" && potImp(a, tg) < imp && (!weakest || potImp(a, tg) < potImp(c.active[weakest.i], tg))) weakest = { i }; });
       if (weakest) return { action: "swap", target: weakest.i, why: "all slots full: the least important active potion (" + potTxt(c.active[weakest.i]) + ") is removed, this one drunk" };
-      return { action: "sell", why: "outranked by all three active potions: sold" };
+      return { action: "keep", why: "outranked by all three active potions: kept (sold only when nothing else can be sold)" };
     }
     if (inc.kind === "gem") {
       const g = inc.gem, t = tier(g, c);
       if (t >= 3) return { action: "sell", why: "secondary-attribute gem: never socketed, sold at once" + (inc.mine ? " (collected first)" : "") };
-      const emptyIdx = c.equip.findIndex(e => e.gem && e.gem.empty);
-      if (emptyIdx >= 0) return { action: "socket", target: emptyIdx, why: "an empty gem slot exists: socketed (weapon first when it fits, otherwise the biggest gain)" };
-      const waiting = c.bag.some(b => b.kind === "kept");
-      if (waiting && c.free >= 2) return { action: "keep", why: "an item in the backpack waits for a gem: kept for it" };
-      if (c.free >= 2) return { action: "keep", why: "no empty socket, but there is room (at least 1 slot stays free after it): held in stock" };
-      if (inc.mine) return { action: "leave", why: "only 1 free slot and no socket wants it: left in the mine (one slot always stays free)" };
+      // an item kept for a gem (inventory::keep_candidate): with the expected gem it beats the worn one by at least 20
+      const wornOf = it => c.equip.find(e => e.slot === it.slot);
+      const kept = !!expected(c) && c.bag.some(b => b.kind === "kept" && usable(b.it, c) && !wornOf(b.it).gem && val(b.it, c) + slotBonus(b.it, c) - val(wornOf(b.it), c) >= 20);
+      const i = gemTarget(c, g);
+      if (i != null && c.equip[i].slot === "Weapon") return { action: "socket", target: i, why: "the weapon's gem counts double: it takes the strongest main/CON gem" };
+      if (kept) return { action: "keep", why: "an item in the backpack waits for a gem: kept for it (socketed there first, then the item is equipped)" };
+      if (i != null) return { action: "socket", target: i, why: "socketed into the best item that can use it" + (c.equip[i].gem.empty ? "" : " (replaces its " + c.equip[i].gem.t + " gem, which is worth less)") };
+      if (c.free >= 2) return { action: "keep", why: "no socket can use it, but there is room (one slot always stays free): held in stock" };
+      if (inc.mine) return { action: "leave", why: "only 1 free slot and no socket wants it: left in the mine" };
       return { action: "sell", why: "no socket and the last free slot must stay free: sold" };
     }
     const it = inc.it, wi = c.equip.findIndex(e => e.slot === it.slot), w = c.equip[wi];
-    const vn = val(it, c), vw = val(w, c);
-    if (vn > vw) return { action: w.epic ? "equip_keep" : "equip_sell", why: "better without gems (" + vn.toFixed(0) + " > " + vw.toFixed(0) + ")" + (w.epic ? ": the old one is an epic, never sold" : ": equipped, the old one sold") };
-    if (it.epic) return { action: "keep", why: "not better (" + vn.toFixed(0) + " ≤ " + vw.toFixed(0) + ") but an epic: never sold, kept" };
-    const gems = c.bag.filter(b => b.kind === "gem").map(b => b.gem).filter(g => tier(g, c) <= 1);
-    const best = gems.reduce((m, g) => Math.max(m, gemVal(g, c)), 0);
-    if (it.gem && it.gem.empty && best && vn + best > vw && c.free >= 2) return { action: "keep", why: "with the gem we hold it would beat the worn one (" + (vn + best).toFixed(0) + " > " + vw.toFixed(0) + "): kept waiting for the gem" };
-    return { action: "sell", why: "not better (" + vn.toFixed(0) + " ≤ " + vw.toFixed(0) + ") and nothing to wait for: sold" };
+    const vn = val(it, c), vw = val(w, c), nb = slotBonus(it, c), cb = slotBonus(w, c);
+    if (vn > vw && vn + nb > vw + cb) return { action: w.epic ? "equip_keep" : "equip_sell", why: "better by its own stats (" + vn.toFixed(0) + " > " + vw.toFixed(0) + ")" + (cb ? " even counting the worn item's gem socket (+" + cb.toFixed(0) + ")" : "") + (w.epic ? ": the old one is an epic, never sold" : ": equipped, the old one sold") };
+    if (it.epic) return { action: "keep", why: vn > vw ? "better on its own, but the worn item has a gem socket worth +" + cb.toFixed(0) + " that this one lacks: the epic is kept (never sold)" : "not better but an epic: never sold, kept" };
+    const e = expected(c);
+    if (usable(it, c) && !w.gem && e && vn + nb - vw >= 20) return { action: "keep", why: "with a gem in its socket (" + (e.held ? "one we hold" : "we expect one") + ") it beats the worn one (" + (vn + nb).toFixed(0) + " vs " + vw.toFixed(0) + "): kept, the gem goes in first and then it is equipped" };
+    return { action: "sell", why: "not better (" + vn.toFixed(0) + " ≤ " + vw.toFixed(0) + (cb ? ", worn item's socket +" + cb.toFixed(0) : "") + ") and nothing to wait for: sold" };
   }
   const ACT_LABEL = { equip_sell: "equip, sell the old one", equip_keep: "equip, keep the old one", keep: "keep in the backpack", sell: "sell it", socket: "socket it", replace: "replace a gem", leave: "leave it in the mine", drink: "drink it", swap: "remove an active potion and drink it" };
 
@@ -800,7 +835,8 @@ const TR = (() => {
     const clearPick = () => { [...equipEls, ...potEls, ...bagEls].forEach(e => { if (e) { e.classList.remove("trpick", "trchosen"); e.onclick = null; } }); };
     const reveal = () => {
       botBox.textContent = "";
-      const same = picked.action === bot.action && (bot.action !== "swap" || picked.target === bot.target);
+      const norm = a => a === "replace" ? "socket" : a;
+      const same = norm(picked.action) === bot.action && (bot.target == null || picked.target === bot.target);
       picked.bot = bot; picked.match = same;
       const tl = bot.target != null ? " → " + (bot.action === "swap" ? potTxt(c.active[bot.target]) : itemTxt(c.equip[bot.target])) : "";
       botBox.className = "trbot " + (same ? "same" : "diff");

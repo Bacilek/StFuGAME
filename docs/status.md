@@ -797,3 +797,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - **Stuck popup fix (2026-10-17):** Gone With the Wind steps (raw ids 191–193) no longer raise popups (`missions::KNOWN_UNNAMED_IDS`); other unknown encounters: one popup a day in total. Needs a release rebuild.
 - **Gem marks enlarged a bit (2026-10-17, user):** worn 18 px (was 12), backpack 15 px, empty ring 13 px. Needs the release rebuild.
 - **Release built 03:04 2026-10-17** (visual Inventory trainer, Druid INT fix, Gone With the Wind popup fix, larger gem marks).
+- **Trainer analysis implemented (2026-10-17):** slot bonus in item comparison (`inventory::slot_bonus`, `replaceable`), free sockets before replacing Luck (`gems::choose_socket`), smaller potions kept (`potions::Pressure`), trainer mirror updated. 92 tests green. Needs a release rebuild. Watch `inventory.log`: epics staying in the bag next to a worn socket item, a kept item with a secondary gem getting the gem.

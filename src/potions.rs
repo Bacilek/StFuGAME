@@ -192,8 +192,30 @@ enum RoomStep {
     Sell(BagPosition),
 }
 
-/// The next thing to do with the potions in the backpack (see the module docs); `None` = the backpack holds no potion.
-fn bag_action(gs: &GameState) -> Option<(RoomStep, String)> {
+/// How short of backpack space we are (user 2026-10-17): a smaller potion of a wanted kind is KEPT while there is room, drunk when
+/// space gets tight and the bigger active one has little time left, sold only when nothing else can be sold.
+#[derive(Clone, Copy, PartialEq)]
+enum Pressure {
+    Room,
+    Tight,
+    Desperate,
+}
+
+/// Days an active potion still lasts.
+fn days_left(p: &Potion) -> f64 {
+    p.expires.map_or(999.0, |e| (e - Local::now()).num_minutes() as f64 / 1440.0)
+}
+
+/// A bigger active potion with at most this many days left is worth replacing by a smaller one of the same kind (a small one
+/// lasts 3 days) when space is tight.
+const REPLACE_WHEN_DAYS_LEFT: f64 = 3.0;
+
+fn describe_p(p: &Potion) -> String {
+    format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0)
+}
+
+/// The next thing to do with the potions in the backpack (see the module docs); `None` = nothing to do.
+fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> {
     let act = active(gs);
     let mut bag = bag_potions(gs);
     bag.sort_by(|a, b| importance(gs, b.2).total_cmp(&importance(gs, a.2)));
@@ -209,11 +231,20 @@ fn bag_action(gs: &GameState) -> Option<(RoomStep, String)> {
             Some((_, a)) if p.size.effect() >= a.size.effect() => {
                 return Some((RoomStep::Drink(pos), format!("drinking {} (extends/replaces the active one)", describe(item))));
             }
-            Some(_) => {
-                if let Some(s) = sell("smaller than the active one") {
-                    return Some(s);
+            Some((_, a)) => match pressure {
+                Pressure::Room | Pressure::Tight if pressure == Pressure::Room || days_left(a) > REPLACE_WHEN_DAYS_LEFT => {}
+                Pressure::Tight => {
+                    return Some((
+                        RoomStep::Drink(pos),
+                        format!("space is tight and the active {} has {:.1} days left: drinking {} instead", describe_p(a), days_left(a), describe(item)),
+                    ));
                 }
-            }
+                _ => {
+                    if let Some(s) = sell("smaller than the active one, nothing else to sell") {
+                        return Some(s);
+                    }
+                }
+            },
             None if act.len() < 3 => return Some((RoomStep::Drink(pos), format!("drinking {} from the backpack", describe(item)))),
             None => {
                 if let Some((slot, old)) = weakest_removable(gs, importance(gs, p)) {
@@ -222,7 +253,9 @@ fn bag_action(gs: &GameState) -> Option<(RoomStep, String)> {
                         format!("removing the active {:?}, drinking {}", old.typ, describe(item)),
                     ));
                 }
-                if let Some(s) = sell("outranked by the active potions") {
+                if pressure == Pressure::Desperate
+                    && let Some(s) = sell("outranked by the active potions, nothing else to sell")
+                {
                     return Some(s);
                 }
             }
@@ -235,7 +268,9 @@ fn bag_action(gs: &GameState) -> Option<(RoomStep, String)> {
 /// for the worn one), then an epic. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
-    let step = bag_action(gs).or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)));
+    let step = bag_action(gs, Pressure::Tight)
+        .or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)))
+        .or_else(|| bag_action(gs, Pressure::Desperate));
     if let Some((step, what)) = step {
         return execute(session, step, &what).await;
     }
@@ -276,7 +311,8 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
 pub async fn drink_from_bag(session: &mut SimpleSession) -> Outcome {
     for _ in 0..8 {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        let Some((step, what)) = bag_action(gs) else { return Outcome::Done };
+        let free = gs.character.inventory.iter().filter(|(_, i)| i.is_none()).count();
+        let Some((step, what)) = bag_action(gs, if free <= 1 { Pressure::Tight } else { Pressure::Room }) else { return Outcome::Done };
         match execute(session, step, &what).await {
             Ok(true) => {}
             Ok(false) => return Outcome::Done,

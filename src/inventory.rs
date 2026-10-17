@@ -181,6 +181,8 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, pote
     let gem = match item.gem_slot {
         Some(GemSlot::Filled(g)) if mode == Gems::Socketed || matches!(g.typ, GemType::All | GemType::Legendary) => Some(g),
         Some(GemSlot::Empty) if mode == Gems::Rare && worth_a_gem(ch.class, item) => potential,
+        // A socket holding a Luck/secondary gem is as good as empty: a better gem replaces it (user 2026-10-17)
+        Some(GemSlot::Filled(g)) if mode == Gems::Rare && replaceable(ch.class, g) && worth_a_gem(ch.class, item) => potential,
         _ => None,
     };
     let (gem_main, gem_con, gem_rest) = gem.map_or((0.0, 0.0, 0.0), |g| gem_parts(ch.class, g));
@@ -278,9 +280,30 @@ fn describe(item: &Item) -> String {
 /// backpack slot and the fuss for +2).
 const KEEP_MIN_GAIN: f64 = 20.0;
 
-/// An item whose value counts on a gem in its still empty slot.
+/// A gem that adds neither the main attribute nor Constitution (Luck, secondary attributes): a main/CON gem may replace it
+/// (user 2026-10-17). Legendary and All gems are never replaced.
+fn replaceable(class: Class, g: Gem) -> bool {
+    let (m, c, _) = gem_parts(class, g);
+    !matches!(g.typ, GemType::All | GemType::Legendary) && m == 0.0 && c == 0.0
+}
+
+/// An item whose value counts on a gem in its empty (or Luck/secondary-gem) slot.
 fn gem_dependent(class: Class, item: &Item) -> bool {
-    matches!(item.gem_slot, Some(GemSlot::Empty)) && worth_a_gem(class, item)
+    let usable = match item.gem_slot {
+        Some(GemSlot::Empty) => true,
+        Some(GemSlot::Filled(g)) => replaceable(class, g),
+        None => false,
+    };
+    usable && worth_a_gem(class, item)
+}
+
+/// What the gem we can expect would add to this item's value (0 when its slot is not usable or no gem is expected). An item
+/// with a usable gem socket is worth more than the same item without (user 2026-10-17).
+fn slot_bonus(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
+    if !gem_dependent(gs.character.class, item) {
+        return 0.0;
+    }
+    expected_gem(gs).map_or(0.0, |g| (value_with_gem(gs, item, slot, g) - value_in(gs, item, slot)).max(0.0))
 }
 
 /// The gem we expect to get for an empty slot: the loose one, else a main-attribute gem as strong as the best one this
@@ -447,7 +470,11 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         let new = value_in(gs, item, slot);
         let current = gs.character.equipment.0[slot].as_ref();
         let cur = current.map_or(-1.0, |i| value_in(gs, i, slot));
-        if new > cur {
+        // A worn item with a usable gem socket would get the expected gem: a plainly better item without a socket must beat
+        // that too (user 2026-10-17, trainer #2); an item with its own usable socket is only equipped once better as it is
+        let new_bonus = slot_bonus(gs, item, slot);
+        let cur_bonus = current.map_or(0.0, |c| slot_bonus(gs, c, slot));
+        if new > cur && new + new_bonus > cur + cur_bonus {
             let what = match current {
                 Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
                 None => format!("equipping {} into the empty {slot:?} slot (value {new:.1})", describe(item)),
@@ -584,6 +611,19 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 2026-10-17 (trainer): a Luck or secondary-attribute gem may be replaced, a main/CON/All/Legendary one never.
+    #[test]
+    fn only_luck_and_secondary_gems_are_replaceable() {
+        let g = |typ| Gem { typ, value: 50 };
+        assert!(replaceable(Class::Warrior, g(GemType::Luck)));
+        assert!(replaceable(Class::Warrior, g(GemType::Intelligence)));
+        assert!(!replaceable(Class::Warrior, g(GemType::Strength)));
+        assert!(!replaceable(Class::Warrior, g(GemType::Constitution)));
+        assert!(!replaceable(Class::Warrior, g(GemType::All)));
+        assert!(!replaceable(Class::Warrior, g(GemType::Legendary)));
+        assert!(replaceable(Class::Druid, g(GemType::Strength)));
+    }
 
     /// 2026-10-07: weapon 13–15 vs 9–15. Higher damage wins unless the new one adds a lot of main attribute.
     /// 2026-10-10 (Wecros): from level 11 on bare hands deal more than a starter weapon, the game then ignores the weapon.

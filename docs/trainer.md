@@ -44,3 +44,13 @@ from the backpack) are chosen by clicking the real tile, which pulses orange whi
 (sf-api `Class::main_attribute`: Warrior/Paladin/BattleMage/Berserker STR; Scout/Assassin/DemonHunter/PlagueDoctor DEX; Mage/Druid/Bard/Necromancer INT).
 Sprites: `roster/assets/items/{type}_{model}_1_1.png` (a list of existing models per slot type is embedded in `TR`), gems `assets/gems/<Full name>.png`,
 potions `12_<id>_1_1.png`.
+
+## Rules derived from the first 16 answers (2026-10-17) – implemented
+1. **A usable gem socket has a value** (empty, or holding a Luck/secondary gem – `inventory::replaceable`): item value for the keep/equip decision = own stats + the expected gem (`inventory::slot_bonus`: best main/CON gem in the backpack, else as strong as the best worn one). So: (a) a plainly better item WITHOUT a socket does not replace a worn item WITH a usable socket if the socket bonus outweighs the difference (epics stay in the backpack, never sold); (b) a new item with a usable socket that beats the worn one by ≥ 20 once the gem is in is kept (`keep_candidate`, now also for sockets holding a Luck/secondary gem), the gem goes in first, then it is equipped; without a gem at hand it waits (only when the worn item has no socket).
+2. **Gem placement:** main/CON gem → best (epic first) item among sockets that are empty or hold a secondary gem; a Luck gem is replaced only when no such socket exists (`gems::choose_socket`). Replacing a secondary gem is free.
+3. **Potions:** drink at once; many in the backpack → biggest first, all wanted kinds into free slots. Secondary potions: sold. A SMALLER potion of a kind whose bigger one is active is KEPT (not sold) while there is room; when space is tight (≤ 1 free slot) it is drunk instead if the active bigger one has ≤ 3 days left; sold only when nothing else can be sold (`potions::Pressure`, `make_room` order: potions (tight) → loose gem → potions (desperate) → kept item → epic).
+4. Trainer mirror (`botMove`) now follows the real code (replace gems, free-socket preference, slot bonus, keep candidate with the "worn item has a socket" skip); replaying the 16 answers gives 12/16 agreement, the rest are open questions below.
+## Open questions after the first 16
+- #12: the weapon (epic) holds a Luck gem +93 and a CON +73 gem arrives; real code replaces the weapon's Luck gem (weapon gem counts double), the user socketed a worn secondary gem instead.
+- #16: a Luck gem +151 – chest plate or gloves (both hold INT gems); the bot picks the item "swapped out soonest".
+- #2 was answered with a mis-click (keep it, the old item stays and gets the gem).
