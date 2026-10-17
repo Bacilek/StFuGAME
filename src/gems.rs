@@ -224,9 +224,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(o) = socket_backpack_gem(session).await {
         return o;
     }
-    if let Some(o) = sell_excess_gems(session).await {
-        return o;
-    }
 
     // 2. A finished search: collect when there is room
     let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -326,23 +323,29 @@ async fn sell_secondary_gems(session: &mut SimpleSession) -> Option<Outcome> {
     }
 }
 
-/// Loose gems kept in stock for new equipment (user 2026-10-18): more only waste backpack slots, ten new items never arrive at once.
-const MAX_LOOSE_GEMS: usize = 2;
-
-/// Sells the loose gems beyond the best `MAX_LOOSE_GEMS` (`backpack_gems` is sorted best first).
-async fn sell_excess_gems(session: &mut SimpleSession) -> Option<Outcome> {
-    loop {
-        let gs = session.game_state()?;
-        let (pos, gem, ident) = backpack_gems(gs).into_iter().nth(MAX_LOOSE_GEMS)?;
-        report!("[gems] More than {MAX_LOOSE_GEMS} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
-        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
-            return Some(fail(&e));
-        }
-        if let Err(e) = safe::send(session, Command::Update).await {
-            return Some(fail(&e));
-        }
-        safe::human_pause().await;
+/// Frees a backpack slot with the loose gems (user 2026-10-18): they are the FIRST thing to go when room is needed for anything
+/// (epic, potion, ...). A gem with a place is socketed (worn item worse), otherwise the weakest one is sold. No active selling
+/// otherwise: loose gems just sit there until a slot is wanted. `true` = a slot was freed.
+pub async fn free_slot(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let before = session.game_state().map_or(0, |gs| backpack_gems(gs).len());
+    if before == 0 {
+        return Ok(false);
     }
+    if let Some(o) = socket_backpack_gem(session).await {
+        return Err(o);
+    }
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    if backpack_gems(gs).len() < before {
+        return Ok(true);
+    }
+    let Some((pos, what)) = inventory::spare_gem(gs) else { return Ok(false) };
+    let Some(ident) = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()).map(|i| i.command_ident()) else {
+        return Ok(false);
+    };
+    report!("[gems] {what}");
+    safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await.map_err(|e| fail(&e))?;
+    safe::send(session, Command::Update).await.map_err(|e| fail(&e))?;
+    Ok(true)
 }
 
 /// Sockets the gems lying in the backpack, strongest first, one per socket, until none has a place left (user 2026-10-16:

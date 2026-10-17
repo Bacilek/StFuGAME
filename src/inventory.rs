@@ -417,6 +417,11 @@ pub fn last_resort_gem(gs: &GameState) -> Option<(BagPosition, String)> {
     if gs.character.inventory.free_slot().is_some() {
         return None;
     }
+    spare_gem(gs)
+}
+
+/// The weakest loose gem (it has no socket to go to), whatever the number of free slots.
+pub fn spare_gem(gs: &GameState) -> Option<(BagPosition, String)> {
     let class = gs.character.class;
     let worth = |g: &Gem| {
         let (m, o) = gem_effect(class, *g);
@@ -430,7 +435,7 @@ pub fn last_resort_gem(gs: &GameState) -> Option<(BagPosition, String)> {
             _ => None,
         })
         .min_by(|a, b| worth(&a.1).total_cmp(&worth(&b.1)))
-        .map(|(pos, g)| (pos, format!("backpack completely full: selling the loose {:?} gem", g.typ)))
+        .map(|(pos, g)| (pos, format!("selling the loose {:?} gem to make room", g.typ)))
 }
 
 /// The very last resort: the most expensive epic equipment (for the future toilet only the number of epics counts, not

@@ -192,4 +192,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-17 (gems): a gem can only be socketed into a currently WORN item, never into an item lying in the backpack; an item kept for a gem must be put on first.
 - 2026-10-17 (event beers): at 0 Thirst for Adventure drink up to 5 beers at once (refills the 100 min), still max 10 a day, only during the Exceptional XP event.
 - 2026-10-17 (guild): never judge a switch on cached own totals; read them fresh with ViewGuild (sum of members), stay when that fails.
-- 2026-10-18 (gems): hold at most 2 loose gems (the best), sell the rest; the no-epics Gleeman hunt never drinks/sells potions to make room, it just skips when the epics do not fit.
+- 2026-10-18 (gems): no active selling and no cap; loose gems are the FIRST thing sacrificed (socketed if the worn item is worse, else sold) whenever a slot is needed for anything (epic, potion, ...); the no-epics Gleeman hunt frees room only that way, never with potions.

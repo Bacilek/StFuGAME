@@ -264,12 +264,14 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
     None
 }
 
-/// Frees one backpack slot: a potion in the backpack is settled first, then a loose gem, then the item kept for a gem (swapped
+/// Frees one backpack slot: a loose gem goes first (socketed or sold, `gems::free_slot`), then a potion, then the item kept for a gem (swapped
 /// for the worn one), then an epic. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    if crate::gems::free_slot(session).await? {
+        return Ok(true);
+    }
     let Some(gs) = session.game_state() else { return Ok(false) };
     let step = bag_action(gs, Pressure::Tight)
-        .or_else(|| crate::inventory::last_resort_gem(gs).map(|(p, w)| (RoomStep::Sell(p), w)))
         .or_else(|| bag_action(gs, Pressure::Desperate));
     if let Some((step, what)) = step {
         return execute(session, step, &what).await;
