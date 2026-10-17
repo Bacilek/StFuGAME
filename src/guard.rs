@@ -32,6 +32,19 @@ pub fn guard_hours(now: DateTime<Local>) -> u8 {
     u8::try_from(hours.clamp(1, MAX_HOURS)).unwrap_or(1)
 }
 
+/// Permanent journal of the shifts (roster/<character>/logs/guard.log, never trimmed, local only), so a gap in the
+/// day can be explained later: the progress log only keeps the last 100 lines.
+fn journal(msg: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("guard.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {msg}", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
 /// Seconds until midnight.
 pub fn secs_until_midnight(now: DateTime<Local>) -> u64 {
     u64::from(24 * 3600 - now.num_seconds_from_midnight())
@@ -63,12 +76,14 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         }
         let silver_before = gs.character.silver;
         report!("[guard] Shift ({hours} h) finished, collecting the pay");
+        journal(&format!("shift of {hours} h finished (was due {})", busy_until.format("%H:%M:%S")));
         let gs = match safe::send(session, Command::FinishWork).await {
             Ok(gs) => gs,
             Err(e) => return fail(&e),
         };
         let earned = gs.character.silver.saturating_sub(silver_before);
         report!("[guard] Pay {}", crate::report::gold(earned));
+        journal(&format!("pay {}", crate::report::gold(earned)));
         // Exceptional XP event (user 2026-10-16): the beer comes before the next shift; the Tavern then uses its Thirst
         if crate::tasks::beer_justified(gs) {
             return crate::tasks::event_beer(session).await;
@@ -96,6 +111,7 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         Ok(gs) => {
             if let CurrentAction::CityGuard { busy_until, .. } = gs.tavern.current_action {
                 report!("[guard] Shift ends at {}", busy_until.format("%H:%M"));
+                journal(&format!("shift of {hours} h started, ends {}", busy_until.format("%H:%M:%S")));
             }
             Outcome::Done
         }

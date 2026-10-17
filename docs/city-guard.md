@@ -58,3 +58,6 @@
 | Beer near the checkpoint correctly lets the Tavern run before a new shift starts (staleness fix) | ⏳ not verified |
 | Hourglass skip fires only in genuine crunch cases, `quicksand_glasses` decreases by exactly 1, no mushroom involvement | ⏳ not verified (rare case, needs a live beer-near-midnight occurrence) |
 | What happens to an in-progress expedition exactly at the midnight reset | ❓ unknown, not something this feature needs to answer (avoided via the 15-min margin) |
+
+## Journal
+Every shift start/finish/pay is appended to `roster/<character>/logs/guard.log` (local, never trimmed) to explain gaps later.
