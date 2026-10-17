@@ -106,9 +106,9 @@ pub fn after(desc: &(String, bool), result_ok: bool, error: Option<&str>) {
     }
 }
 
-/// An encounter/situation the bot does not know (once per `what` and day). The bot carries on.
+/// An encounter/situation the bot does not know (one popup per day for all of them: an expedition shows several at once, 2026-10-17). The bot carries on.
 pub fn unknown(what: &str) {
-    raise(&format!("unknown {what}"), &format!("unknown situation: {what} – the bot carries on, please map it (docs/expeditions.md)"), Duration::hours(24));
+    raise("unknown encounter", &format!("unknown situation: {what} – the bot carries on, please map it (docs/expeditions.md)"), Duration::hours(24));
 }
 
 #[cfg(test)]

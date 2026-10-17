@@ -163,3 +163,7 @@ pub fn is_known(t: ExpeditionThing) -> bool {
         || t.is_bounty_for().is_some()
         || matches!(t, Key | Suitcase | Dummy1 | Dummy2 | Dummy3 | CupCake)
 }
+
+/// Raw server ids the bot cannot name (sf-api has no `ExpeditionThing` for them) but that are understood: Gone With the Wind (autumn,
+/// leaf blower +4 → leaf swirl +2 → Leafbold +6, user 2026-10-10; ids seen 2026-10-17). They never raise the "stuck" popup.
+pub const KNOWN_UNNAMED_IDS: [i64; 3] = [191, 192, 193];

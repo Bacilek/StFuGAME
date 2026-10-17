@@ -578,13 +578,17 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     let mut raw_ids = crate::rawid::take_last(unknown_count).into_iter();
                     for u in encs.iter().filter(|e| !missions::is_known(e.typ)) {
                         let mut note = format!("{:?}({:+})", u.typ, u.heroism);
+                        let mut known_gap = false;
                         if u.typ == ExpeditionThing::Unknown
                             && let Some(id) = raw_ids.next()
                         {
                             note = format!("{note} raw id {id}");
+                            known_gap = missions::KNOWN_UNNAMED_IDS.contains(&id);
                         }
                         report!("[tavern] Unmapped encounter: {note}");
-                        crate::stuck::unknown(&format!("unmapped expedition encounter {note}"));
+                        if !known_gap {
+                            crate::stuck::unknown(&format!("unmapped expedition encounter {note}"));
+                        }
                         if !entry.unmapped.contains(&note) {
                             entry.unmapped.push(note);
                         }
