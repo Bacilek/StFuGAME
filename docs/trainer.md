@@ -36,3 +36,11 @@ one-line reason (so a wrong pick can be explained). It is NOT the Rust code: `bo
 socket → socket, else keep only with ≥ 2 free; items: value without gems, only worn Legendary/All gems count, epics never sold, keep
 while waiting for a gem). When a log line disagrees with the mirror, fix the mirror. Each saved answer also stores `bot` and `match`.
 Scenario mix: some characters have all sockets filled (`emptyP`), so "gem with no socket" cases occur.
+
+## Visual version (2026-10-17, user: "make it visual, like the character tiles")
+The tab reuses `charPanel` (paper doll, attributes, potions – potions now also show "N days left") and the backpack grid from the character
+card. The NEW item is a big highlighted tile. Moves needing a target (socket / replace a gem, remove an active potion, sell something
+from the backpack) are chosen by clicking the real tile, which pulses orange while it is selectable. Fixed: Druid's main attribute is INT
+(sf-api `Class::main_attribute`: Warrior/Paladin/BattleMage/Berserker STR; Scout/Assassin/DemonHunter/PlagueDoctor DEX; Mage/Druid/Bard/Necromancer INT).
+Sprites: `roster/assets/items/{type}_{model}_1_1.png` (a list of existing models per slot type is embedded in `TR`), gems `assets/gems/<Full name>.png`,
+potions `12_<id>_1_1.png`.

@@ -58,9 +58,9 @@ table.mini{width:auto;border-collapse:collapse} table.mini td{padding:2px 18px 2
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:110px;display:inline-block;vertical-align:middle;margin-left:6px}
 .prog i{display:block;height:100%;background:var(--ink2)}
 #quests{display:none}
-#trainer{display:none;max-width:980px}
+#trainer{display:none;max-width:1180px}
 .trtop{display:flex;align-items:center;gap:8px;margin-bottom:10px} .trnav{margin-left:auto;display:flex;gap:6px}
-.trgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} .trcol{display:flex;flex-direction:column;gap:12px}
+.trgrid{display:grid;grid-template-columns:minmax(420px,520px) 1fr;gap:12px;align-items:start} .trcol{display:flex;flex-direction:column;gap:12px}
 .trbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:0}
 #trainer>.trbox{margin-top:12px}
 .trinc{border-color:var(--good);border-width:2px}
@@ -72,6 +72,11 @@ button.tract{display:block;width:100%;text-align:left;margin:4px 0}
 button.trtgt{text-align:left;font:12px ui-monospace,Consolas,monospace;padding:3px 8px}
 .trnote{width:100%;margin:8px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--ink);font:inherit}
 button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;cursor:default}
+.bslot .trstat,.pdslot .trstat{position:absolute;left:0;right:0;bottom:0;font-size:9px;line-height:1.15;background:#000b;color:#fff;text-align:center;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden;white-space:nowrap}
+.trnew{display:flex;align-items:center;gap:14px} .bslot.trbig{width:84px;height:84px;flex:none} .trdesc{font:13px ui-monospace,Consolas,monospace}
+.trpick{cursor:pointer;outline:3px solid #e0a000;outline-offset:1px;animation:trpulse 1s infinite} .trchosen{outline:3px solid var(--good);animation:none}
+@keyframes trpulse{50%{outline-color:#e0a00040}} .trhint{margin:6px 0;color:var(--ink2);font-size:13px;min-height:1em}
+#trainer .pdpot small{font-weight:400;color:var(--muted)}
 .trbot{margin:6px 0;padding:8px 10px;border-radius:8px;font-size:13px;border:1px solid var(--line)} .trbot:empty{display:none}
 .trbot.same{border-color:var(--good)} .trbot.diff{border-color:var(--bad)} .trbot.same b{color:var(--good)} .trbot.diff b{color:var(--bad)}
 #fort{display:none}
@@ -398,7 +403,7 @@ function charPanel(parent, o){
       const short = String(p.t).replace(/^(\w+)\s+(\d+)\s*%/, (_,n,v)=>(ab[n]||n)+" "+v+"%");
       const c = mk("div","pdpot",null,pp); c.title = p.t;
       if (p.icon){ const im = mk("img",null,null,c); im.src = p.icon; im.onerror = ()=>{ im.remove(); }; }
-      c.append(short); }); }
+      c.append(short); if (p.days != null) mk("small", null, p.days + (p.days === 1 ? " day" : " days") + " left", c); }); }
 }
 
 // A socketed gem (user 2026-10-15): a small coloured gem in the slot's corner (sprite per type, `roster/assets/gems/`;
@@ -539,13 +544,28 @@ function renderQuests(){
   if (!allOpen(q.daily)) det.appendChild(qSection("Daily quests (Goblin Gleeman)", q.daily, false));
   if (q.event && !allOpen(q.event)) det.appendChild(qSection("Event quests", q.event, true));
 }
-// ---- Inventory trainer tab (user 2026-10-17): generated inventory scenarios; the user picks the right move, the answers go to
-// roster/trainer.jsonl (one line per answer, with the full scenario) so the rules can be derived from them. Scenario n is
-// always the same (seeded), so answers can be replayed against the bot's logic.
+// ---- Inventory trainer tab (user 2026-10-17): generated inventory scenarios shown like the character card (paper doll, attributes,
+// potions with days left, backpack grid); the user picks the right move (clicking the actual item when a target is needed), the
+// bot's current choice is revealed, the answers go to roster/trainer.jsonl (one line per answer, with the full scenario).
+// Scenario n is always the same (seeded), so answers can be replayed against the bot's logic.
 const TR = (() => {
-  const SLOTS = ["Weapon","Helmet","Armor","Gloves","Boots","Belt","Ring","Amulet","Talisman"];
-  const MAIN = {Warrior:"STR",Scout:"DEX",Mage:"INT",Assassin:"DEX",BattleMage:"STR",Berserker:"STR",Druid:"DEX",DemonHunter:"DEX",Bard:"INT",Necromancer:"INT",Paladin:"STR",PlagueDoctor:"DEX"};
+  const SLOTS = ["Weapon","Helmet","Chest plate","Gloves","Boots","Belt","Ring","Amulet","Talisman"];
+  const SLOT_TYP = { Weapon: 1, Helmet: 6, "Chest plate": 3, Gloves: 5, Boots: 4, Belt: 7, Ring: 9, Amulet: 8, Talisman: 10 };
+  const MODELS = {
+    1: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,50,51,52,53,54,55,56,57,58,59,60],
+    3: [1,2,3,4,5,6,7,8,9,10,50,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,100,101,102,103,104,105,106],
+    4: [1,2,3,4,5,6,7,8,9,10,50,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,100,101,102,103,104,106,107],
+    5: [1,2,3,4,5,6,7,8,9,10,50,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,100,101,102,103,104,106],
+    6: [1,2,3,4,5,6,7,8,9,10,50,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,100,101,102,103,104,105,107],
+    7: [1,2,3,4,5,6,7,8,9,10,50,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,100,101,102,103,104,105,107],
+    8: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68],
+    9: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68],
+    10: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,50,51,52,53,54,55,56,57,58,59,60]
+  };
+  // main attribute per class (sf-api Class::main_attribute): Druid, Bard, Necromancer and Mage use INT
+  const MAIN = {Warrior:"STR",Paladin:"STR",BattleMage:"STR",Berserker:"STR",Scout:"DEX",Assassin:"DEX",DemonHunter:"DEX",PlagueDoctor:"DEX",Mage:"INT",Druid:"INT",Bard:"INT",Necromancer:"INT"};
   const ATTRS = ["STR","DEX","INT"];
+  const FULL = { STR: "Strength", DEX: "Dexterity", INT: "Intelligence", CON: "Constitution", LCK: "Luck", ALL: "All" };
   const BAG = 15;
   const LS = "trainerAnswers";
   let answers = {}; try { answers = JSON.parse(localStorage.getItem(LS) || "{}"); } catch (e) {}
@@ -557,6 +577,7 @@ const TR = (() => {
   const wpick = (r, pairs) => { let t = pairs.reduce((s, p) => s + p[1], 0), x = r() * t; for (const [v, w] of pairs) { if ((x -= w) < 0) return v; } return pairs[0][0]; };
   const between = (r, a, b) => a + r() * (b - a);
 
+  const statTxt = it => Object.entries(it.a).map(([k, v]) => k + "+" + v).join(" ");
   function genItem(r, c, slot, q, epic) {
     const unit = c.attrs[c.main] / 9 * q;
     const a = {};
@@ -571,7 +592,8 @@ const TR = (() => {
     }
     const hasSlot = r() < 0.7;
     const gem = !hasSlot ? null : (r() < c.emptyP ? { empty: true } : genGem(r, c));
-    return { slot, epic: !!epic, a, gem };
+    const typ = SLOT_TYP[slot];
+    return { slot, epic: !!epic, a, gem, icon: "assets/items/" + typ + "_" + pick(r, MODELS[typ]) + "_1_1.png" };
   }
   function genGem(r, c) {
     const t = wpick(r, [[c.main, 4], ["CON", 3], ["LCK", 2.5], [pick(r, ATTRS.filter(x => x !== c.main)), 3.5], ["ALL", 0.4]]);
@@ -589,11 +611,12 @@ const TR = (() => {
     const level = Math.round(wpick(r, [[between(r, 25, 60), 2], [between(r, 60, 140), 3], [between(r, 140, 300), 3]]));
     const main = MAIN[cls];
     const m = Math.round(level * between(r, 3.5, 6));
-    const c = { cls, level, main, attrs: { [main]: m, CON: Math.round(m * between(r, 0.4, 1.05)), LCK: Math.round(m * between(r, 0.12, 0.4)) } };
+    const c = { cls, level, main, attrs: { STR: 0, DEX: 0, INT: 0, CON: Math.round(m * between(r, 0.4, 1.05)), LCK: Math.round(m * between(r, 0.12, 0.4)) } };
+    for (const k of ATTRS) c.attrs[k] = k === main ? m : Math.round(m * between(r, 0.1, 0.3));
     const quality = between(r, 0.7, 1.3);
     c.emptyP = wpick(r, [[0, 3], [0.2, 3], [0.5, 2]]); // some characters have every socket filled
     c.equip = SLOTS.map(s => genItem(r, c, s, quality * between(r, 0.8, 1.2), r() < 0.12));
-    // active potions with the days left (a big potion with 1 day left is worth little, with 10 days a lot)
+    // active potions with the days left (a big potion with 1 day left is worth little, with 10 a lot)
     const nAct = wpick(r, [[0, 1], [1, 1.5], [2, 3], [3, 4.5]]);
     const kinds = []; c.active = [];
     for (let k = 0; k < nAct; k++) { const p = genPotion(r, c); if (kinds.includes(p.t)) continue; kinds.push(p.t); p.days = p.t === "LIFE" ? Math.ceil(between(r, 1, 7)) : Math.ceil(between(r, 1, 11)); c.active.push(p); }
@@ -620,41 +643,13 @@ const TR = (() => {
   }
 
   const gemTxt = g => g.empty ? "◇ empty slot" : "◆ " + g.t + "+" + g.v;
-  const statTxt = it => Object.entries(it.a).map(([k, v]) => k + "+" + v).join(" ");
   const itemTxt = it => it.slot + (it.epic ? " ★EPIC" : "") + "  " + statTxt(it) + "  " + (it.gem ? gemTxt(it.gem) : "(no gem slot)");
   const potTxt = p => p.t === "LIFE" ? "Eternal Life" : p.t + " " + p.size + " %";
   const bagTxt = b => b.kind === "gem" ? "Gem " + gemTxt(b.gem) : b.kind === "potion" ? "Potion " + potTxt(b.p) : (b.kind === "epic" ? "★ " : b.kind === "kept" ? "(waiting for a gem) " : "") + itemTxt(b.it);
-
   const h = (tag, cls, text, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
-
-  function actionsFor(c) {
-    const inc = c.incoming, A = [];
-    const slotTargets = () => c.equip.map((e, i) => ({ id: i, label: itemTxt(e) }));
-    const bagTargets = () => c.bag.map((b, i) => ({ id: i, label: bagTxt(b) }));
-    if (inc.kind === "item") {
-      A.push({ id: "equip_sell", label: "Equip it, sell the old " + inc.it.slot });
-      A.push({ id: "equip_keep", label: "Equip it, keep the old one in the backpack" });
-      A.push({ id: "keep", label: "Keep it in the backpack (waiting for a gem / later)" });
-      A.push({ id: "sell", label: "Sell it" });
-      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
-      A.push({ id: "equip_keep_sell", label: "Equip it, keep the old one, sell this to make room:", target: bagTargets });
-    } else if (inc.kind === "gem") {
-      A.push({ id: "socket", label: "Socket it into:", target: slotTargets });
-      A.push({ id: "replace", label: "Replace the gem of (the old one is lost):", target: slotTargets });
-      A.push({ id: "keep", label: "Keep it in the backpack" });
-      A.push({ id: "sell", label: "Sell it" });
-      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
-      if (inc.mine) A.push({ id: "leave", label: "Leave it in the mine (do not collect yet)" });
-    } else {
-      A.push({ id: "drink", label: "Drink it (free slot / extends / replaces the active one of its kind)" });
-      A.push({ id: "swap", label: "Remove this active potion and drink it:", target: () => c.active.map((p, i) => ({ id: i, label: potTxt(p) + ", " + p.days + " d left" })) });
-      A.push({ id: "keep", label: "Keep it in the backpack" });
-      A.push({ id: "sell", label: "Sell it" });
-      A.push({ id: "keep_sell", label: "Keep it, sell this from the backpack to make room:", target: bagTargets });
-    }
-    A.push({ id: "unsure", label: "I don't know / depends (explain in the note)" });
-    return A;
-  }
+  // for charPanel / gemMark: gem sprites are named by the full attribute
+  const markOf = g => g ? (g.empty ? g : { t: FULL[g.t], v: g.v }) : null;
+  const potIcon = p => "assets/items/12_" + (p.t === "LIFE" ? 16 : (p.size === 10 ? 0 : p.size === 15 ? 5 : 10) + ({ STR: 1, DEX: 2, INT: 3, CON: 4, LCK: 5 })[p.t]) + "_1_1.png";
 
   // What the bot does TODAY, mirrored from the Rust rules (inventory.rs / gems.rs / potions.rs) in a simplified form, so the user
   // sees after his pick whether the bot agrees and why not. Not the real code: when it disagrees with the log, fix this mirror.
@@ -708,14 +703,48 @@ const TR = (() => {
   }
   const ACT_LABEL = { equip_sell: "equip, sell the old one", equip_keep: "equip, keep the old one", keep: "keep in the backpack", sell: "sell it", socket: "socket it", replace: "replace a gem", leave: "leave it in the mine", drink: "drink it", swap: "remove an active potion and drink it" };
 
+  function actionsFor(c) {
+    const inc = c.incoming, A = [];
+    if (inc.kind === "item") {
+      A.push({ id: "equip_sell", label: "Equip it, sell the old " + inc.it.slot });
+      A.push({ id: "equip_keep", label: "Equip it, keep the old one in the backpack" });
+      A.push({ id: "keep", label: "Keep it in the backpack (waiting for a gem / later)" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell an item from the backpack to make room →", pick: "bag" });
+      A.push({ id: "equip_keep_sell", label: "Equip it, keep the old one, sell an item from the backpack to make room →", pick: "bag" });
+    } else if (inc.kind === "gem") {
+      A.push({ id: "socket", label: "Socket it into a worn item →", pick: "equip" });
+      A.push({ id: "replace", label: "Replace the gem of a worn item (the old gem is lost) →", pick: "equip" });
+      A.push({ id: "keep", label: "Keep it in the backpack" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell an item from the backpack to make room →", pick: "bag" });
+      if (inc.mine) A.push({ id: "leave", label: "Leave it in the mine (do not collect yet)" });
+    } else {
+      A.push({ id: "drink", label: "Drink it (free slot / extends / replaces the active one of its kind)" });
+      A.push({ id: "swap", label: "Remove an active potion and drink this one →", pick: "active" });
+      A.push({ id: "keep", label: "Keep it in the backpack" });
+      A.push({ id: "sell", label: "Sell it" });
+      A.push({ id: "keep_sell", label: "Keep it, sell an item from the backpack to make room →", pick: "bag" });
+    }
+    A.push({ id: "unsure", label: "I don't know / depends (explain in the note)" });
+    return A;
+  }
+
+  const tile = (parent, cls, icon, label, tipHead, tipText) => {
+    const s = h("div", "bslot " + cls, null, parent);
+    if (icon) { const im = h("img", null, null, s); im.src = icon; im.onerror = () => { im.remove(); }; }
+    if (label) h("span", "trstat", label, s);
+    const tip = h("div", "tip", null, s); h("b", null, tipHead, tip); h("div", null, tipText, tip);
+    return s;
+  };
+
   function render() {
     const root = $("trainer"); root.textContent = "";
     sc = generate(n);
     const c = sc; picked = null;
-    const done = Object.keys(answers).length;
     const top = h("div", "trtop", null, root);
     h("b", null, "Scenario #" + n, top);
-    h("span", "trmuted", "  answered: " + done, top);
+    h("span", "trmuted", "  answered: " + Object.keys(answers).length, top);
     const nav = h("span", "trnav", null, top);
     const prev = h("button", null, "◀ Back", nav); prev.onclick = () => { if (history.length) { n = history.pop(); render(); } };
     const skip = h("button", null, "Skip ▶", nav); skip.onclick = () => { history.push(n); n++; render(); };
@@ -723,37 +752,51 @@ const TR = (() => {
     const g = h("div", "trgrid", null, root);
     const L = h("div", "trcol", null, g), R = h("div", "trcol", null, g);
 
-    const ch = h("div", "trbox", null, L);
-    h("div", "trh", pretty(c.cls) + ", level " + c.level + " (main " + c.main + ")", ch);
-    const ratio = Math.round(c.attrs.CON / c.attrs[c.main] * 100);
-    h("div", null, c.main + " " + c.attrs[c.main] + "   CON " + c.attrs.CON + " (" + ratio + " % of main, ideal 80)   LCK " + c.attrs.LCK, ch);
+    // left: the character card, same look as the Characters tab
+    const equip = {};
+    c.equip.forEach(e => { equip[e.slot] = { icon: e.icon, d: itemTxt(e), epic: e.epic, gem: markOf(e.gem) }; });
+    const attrs = {};
+    for (const k of ["STR", "DEX", "INT", "CON", "LCK"]) attrs[k] = { total: c.attrs[k], base: c.attrs[k], bonus: 0 };
+    const pots = c.active.map(p => ({ t: (p.t === "LIFE" ? "EternalLife" : FULL[p.t] + " " + p.size + " %"), icon: potIcon(p), days: p.days }));
+    charPanel(L, { name: pretty(c.cls), guild: null, level: c.level, portrait: "assets/none.png", equip, attrs, potions: pots, derived: { main: c.main } });
+    h("div", "trmuted", c.main + " main · CON is " + Math.round(c.attrs.CON / c.attrs[c.main] * 100) + " % of main (ideal 80 %)", L);
+    // tiles that can be clicked as a target
+    const doll = L.querySelector(".paperdoll");
+    const AREA = { Weapon: "weapon", Helmet: "hat", "Chest plate": "breast", Gloves: "gloves", Boots: "boots", Belt: "belt", Ring: "ring", Amulet: "amulet", Talisman: "talisman" };
+    const equipEls = c.equip.map(e => [...doll.querySelectorAll(".pdslot")].find(s => s.style.gridArea.replace(/\s/g, "") === AREA[e.slot]));
+    equipEls.forEach((s, i) => { if (s) h("span", "trstat", statTxt(c.equip[i]), s); });
+    const potEls = [...L.querySelectorAll(".pdpot")];
 
-    const eq = h("div", "trbox", null, L);
-    h("div", "trh", "Worn", eq);
-    c.equip.forEach(e => h("div", "tritem" + (e.epic ? " epic" : ""), itemTxt(e), eq));
-
-    const po = h("div", "trbox", null, L);
-    h("div", "trh", "Active potions", po);
-    if (!c.active.length) h("div", "trmuted", "none", po);
-    c.active.forEach(p => h("div", "tritem", potTxt(p) + " – " + p.days + (p.days === 1 ? " day" : " days") + " left", po));
+    // right: the new thing, the backpack, the question
+    const inc = c.incoming;
+    const nb = h("div", "trbox trinc", null, R);
+    h("div", "trh", "NEW: " + (inc.kind === "gem" ? (inc.mine ? "a gem is ready in the mine" : "a gem") : inc.kind === "potion" ? "a potion" : inc.it.epic ? "an epic item" : "an item"), nb);
+    const nrow = h("div", "trnew", null, nb);
+    if (inc.kind === "gem") tile(nrow, "trbig", "assets/gems/" + FULL[inc.gem.t] + ".png", "+" + inc.gem.v, "Gem", gemTxt(inc.gem));
+    else if (inc.kind === "potion") tile(nrow, "trbig", potIcon(inc.p), inc.p.t === "LIFE" ? "LIFE" : inc.p.t + " " + inc.p.size + "%", "Potion", potTxt(inc.p));
+    else { const t = tile(nrow, "trbig" + (inc.it.epic ? " epic" : ""), inc.it.icon, statTxt(inc.it), inc.it.slot, itemTxt(inc.it)); gemMark(t, t.querySelector(".tip"), markOf(inc.it.gem)); }
+    h("div", "trdesc", inc.kind === "gem" ? gemTxt(inc.gem) : inc.kind === "potion" ? potTxt(inc.p) : itemTxt(inc.it), nrow);
 
     const bg = h("div", "trbox", null, R);
     h("div", "trh", "Backpack " + c.bag.length + "/" + BAG + " (" + c.free + " free)", bg);
-    c.bag.forEach(b => h("div", "tritem" + (b.kind === "epic" ? " epic" : ""), bagTxt(b), bg));
-    for (let k = 0; k < c.free; k++) h("div", "tritem trfree", "– free –", bg);
+    const bag = h("div", "bag", null, bg);
+    const bagEls = c.bag.map(b => {
+      let t;
+      if (b.kind === "gem") t = tile(bag, "", "assets/gems/" + FULL[b.gem.t] + ".png", "+" + b.gem.v, "Gem", gemTxt(b.gem));
+      else if (b.kind === "potion") t = tile(bag, "", potIcon(b.p), b.p.t === "LIFE" ? "LIFE" : b.p.t + " " + b.p.size + "%", "Potion", potTxt(b.p));
+      else { t = tile(bag, b.it.epic ? "epic" : "", b.it.icon, statTxt(b.it), b.kind === "kept" ? "Waiting for a gem" : b.it.slot, itemTxt(b.it)); gemMark(t, t.querySelector(".tip"), markOf(b.it.gem)); }
+      return t;
+    });
+    for (let k = 0; k < c.free; k++) h("div", "bslot empty", null, bag);
 
-    const inc = h("div", "trbox trinc", null, R);
-    h("div", "trh", "NEW: " + (c.incoming.kind === "gem" ? (c.incoming.mine ? "a gem is ready in the mine" : "a gem") : c.incoming.kind === "potion" ? "a potion" : c.incoming.it.epic ? "an epic item" : "an item"), inc);
-    h("div", "tritem", c.incoming.kind === "gem" ? gemTxt(c.incoming.gem) : c.incoming.kind === "potion" ? potTxt(c.incoming.p) : itemTxt(c.incoming.it), inc);
-
-    const q = h("div", "trbox", null, root);
+    const q = h("div", "trbox", null, R);
     h("div", "trh", "What is the right move?", q);
-    const acts = actionsFor(c);
-    const tgtBox = h("div", "trtargets", null, q);
+    const hint = h("div", "trhint", null, q);
     const botBox = h("div", "trbot", null, q);
     const noteBox = h("input", "trnote", null, q); noteBox.placeholder = "Note (why / exception) – optional";
     const submit = h("button", "trsubmit", "Save answer and go to the next ▶", q); submit.disabled = true;
     const bot = botMove(c);
+    const clearPick = () => { [...equipEls, ...potEls, ...bagEls].forEach(e => { if (e) { e.classList.remove("trpick", "trchosen"); e.onclick = null; } }); };
     const reveal = () => {
       botBox.textContent = "";
       const same = picked.action === bot.action && (bot.action !== "swap" || picked.target === bot.target);
@@ -764,16 +807,22 @@ const TR = (() => {
       h("div", null, bot.why, botBox);
     };
     const btns = [];
-    acts.forEach(a => {
-      const b = h("button", "tract", a.label, q); q.insertBefore(b, tgtBox); btns.push(b);
+    actionsFor(c).forEach(a => {
+      const b = h("button", "tract", a.label, q); q.insertBefore(b, hint); btns.push(b);
       b.onclick = () => {
         btns.forEach(x => x.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true");
-        picked = { action: a.id }; tgtBox.textContent = "";
-        if (a.target) {
+        picked = { action: a.id }; clearPick(); botBox.textContent = ""; botBox.className = "trbot"; hint.textContent = "";
+        if (a.pick) {
           submit.disabled = true;
-          botBox.textContent = "";
-          a.target().forEach(t => { const tb = h("button", "trtgt", t.label, tgtBox); tb.onclick = () => { picked.target = t.id; picked.targetLabel = t.label; [...tgtBox.children].forEach(x => x.setAttribute("aria-pressed", "false")); tb.setAttribute("aria-pressed", "true"); submit.disabled = false; reveal(); }; });
-          if (!a.target().length) h("div", "trmuted", "(nothing to pick)", tgtBox);
+          hint.textContent = "Now click the " + (a.pick === "equip" ? "worn item" : a.pick === "bag" ? "backpack item" : "active potion") + " on the screen.";
+          const list = a.pick === "equip" ? equipEls : a.pick === "bag" ? bagEls : potEls;
+          const labels = a.pick === "equip" ? c.equip.map(itemTxt) : a.pick === "bag" ? c.bag.map(bagTxt) : c.active.map(p => potTxt(p) + ", " + p.days + " d left");
+          if (!list.length) hint.textContent = "(nothing to pick)";
+          list.forEach((el, i) => {
+            if (!el) return;
+            el.classList.add("trpick");
+            el.onclick = ev => { ev.stopPropagation(); list.forEach(x => x && x.classList.remove("trchosen")); el.classList.add("trchosen"); picked.target = i; picked.targetLabel = labels[i]; hint.textContent = "Chosen: " + labels[i]; submit.disabled = false; reveal(); };
+          });
         } else { submit.disabled = false; reveal(); }
       };
     });
@@ -786,8 +835,9 @@ const TR = (() => {
     };
   }
   const nextUnanswered = from => { let k = from; while (answers[k]) k++; return k; };
-  return { open() { n = nextUnanswered(1); history = []; render(); } };
+  return { generate, botMove, actionsFor, open() { n = nextUnanswered(1); history = []; render(); } };
 })();
+
 // ---- Fortress tab (user 2026-10-14): one tile per character with a fortress: building levels, the running build and the plan,
 // resources (current/limit, uncollected production), soldiers, Hall of Knights, snapshot time.
 const clock = iso => iso ? new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "?";
