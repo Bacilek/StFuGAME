@@ -88,6 +88,7 @@ Measured frequencies, chain follow-up probabilities and the strategy review: `do
 
 ## Unmapped
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`. **Verified from the journals 2026-10-16** (72 runs, shown as `Unknown`): the three steps arrive as `Unknown(+4)`, `Unknown(+2)`, `Unknown(+6)` and completing the chain gives +10 on top (55 journal mismatches of exactly +10, 15 of +20 with a poster). The ids stay unknown; to map it we would need to tell the steps apart by their points (see `docs/todo.md`).
+  **Raw ids (2026-10-18, 12 runs of 8 characters):** 191 = leaf blower +4, 192 = leaf swirl +2, 193 = Leafbold +6, **1019 = the poster of this mission (+0 heroism)**. Evidence: every run that ended with a +20 completion mismatch had picked 1019 earlier, runs without it ended with +10; picking it itself is always +0 (checks OK). All four ids are in `missions::KNOWN_UNNAMED_IDS` (no "stuck" popup). The bot already takes 1019 (assumed future +5), which matches the +10 extra it brings; the completion bonus is still not modelled for unmapped missions.
 - Missions from sf-api the FAQ does not know: (merman is mapped since 2026-10-12, see the table),
   lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).
 - LoveBirds (Valentine, February): not mappable before it appears in the Tavern; sf-api ids 171–173 exist, points/bonus come from the journal then.
