@@ -45,6 +45,7 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::ExpeditionSkipWait { typ: TimeSkip::Glass }
             | Command::CheckArena
             | Command::ViewPlayer { .. }
+            | Command::ViewGuild { .. }
             | Command::Fight { use_mushroom: false, .. }
             | Command::UpdateDungeons
             // Reward of a redeemed coupon waiting in the Mail (user 2026-10-09); only a Coupon-type mail, see `claimable_ok`

@@ -190,3 +190,4 @@ In similar situations it then follows this list. Newest at the bottom.
 | 2026-10-17 | Gem socket is worth something; free sockets first; smaller potions kept | From the Inventory trainer (16 answers): see `docs/trainer.md` "Rules derived". Slot bonus in item comparison, secondary/empty sockets before replacing a Luck gem, smaller potion of an active kind kept (drunk when space is tight and the active one has ≤ 3 days left, sold last). |
 - 2026-10-17 (gems): a gem can only be socketed into a currently WORN item, never into an item lying in the backpack; an item kept for a gem must be put on first.
 - 2026-10-17 (event beers): at 0 Thirst for Adventure drink up to 5 beers at once (refills the 100 min), still max 10 a day, only during the Exceptional XP event.
+- 2026-10-17 (guild): never judge a switch on cached own totals; read them fresh with ViewGuild (sum of members), stay when that fails.
