@@ -6,7 +6,7 @@
 //!  * 1 slot is free but the gem will be socketed right away (an empty socket, or a worse gem to replace).
 //!
 //! A search starts when the mine is idle and the gold left afterwards is at least 2x the shop reserve plus what the fortress
-//! wants for its next build (user 2026-10-14; wood/stone are ignored). Gems are held in the
+//! wants for its next build (user 2026-10-14; wood/stone are ignored). Gems are held (at most 2 loose, user 2026-10-18) in the
 //! backpack for a future item with a slot, as many as fit while one slot stays free (user 2026-10-16). Luck/secondary gems go to the item we replace soonest, Constitution/main gems to
 //! the best, hardest-to-replace one.
 //!
@@ -224,6 +224,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(o) = socket_backpack_gem(session).await {
         return o;
     }
+    if let Some(o) = sell_excess_gems(session).await {
+        return o;
+    }
 
     // 2. A finished search: collect when there is room
     let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -313,6 +316,25 @@ async fn sell_secondary_gems(session: &mut SimpleSession) -> Option<Outcome> {
         let class = gs.character.class;
         let (pos, gem, ident) = backpack_gems(gs).into_iter().find(|g| tier(g.1.typ, class) >= 3)?;
         report!("[gems] Selling the loose secondary-attribute gem {:?} {}", gem.typ, gem.value);
+        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+            return Some(fail(&e));
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return Some(fail(&e));
+        }
+        safe::human_pause().await;
+    }
+}
+
+/// Loose gems kept in stock for new equipment (user 2026-10-18): more only waste backpack slots, ten new items never arrive at once.
+const MAX_LOOSE_GEMS: usize = 2;
+
+/// Sells the loose gems beyond the best `MAX_LOOSE_GEMS` (`backpack_gems` is sorted best first).
+async fn sell_excess_gems(session: &mut SimpleSession) -> Option<Outcome> {
+    loop {
+        let gs = session.game_state()?;
+        let (pos, gem, ident) = backpack_gems(gs).into_iter().nth(MAX_LOOSE_GEMS)?;
+        report!("[gems] More than {MAX_LOOSE_GEMS} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
         if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
             return Some(fail(&e));
         }

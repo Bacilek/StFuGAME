@@ -73,7 +73,7 @@
   while holding 1 epic and having a free backpack slot. `hunt::Hunt::NoEpics`: every equipped epic/legendary item (`is_epic`, >= model 50)
   is moved to the backpack, the Hall of Fame fight is done (opponent power <= 50 % of ours), everything is equipped back. It first
   checks that the backpack has at least as many free slots as items to take off (`count_free_slots`) and otherwise skips
-  without touching anything. `WinFightsNoGear` is still not mapped. Not verified live yet.
+  without touching anything (since 2026-10-18 it does NOT free slots by drinking/selling potions, user: not worth it). `WinFightsNoGear` is still not mapped. Not verified live yet.
 - Attribute tasks before spinning (`attributes_needed`, called from `shops.rs` before the first spin): when some unopened
   chest is above earned + natural points and within reach with the attribute tasks (+ affordable costly tasks).
   They still keep the shop reserve. Otherwise attributes come after the shops as before.

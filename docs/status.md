@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Gems max 2 loose + no sacrifices for the no-epics hunt (2026-10-18, user, NOT in a release yet):** `gems::sell_excess_gems` sells loose gems beyond the best 2 (after socketing, every Gem Mine pass; supersedes "any number of loose gems" of 2026-10-16). `hunt::ensure_room` skips `potions::make_room` for `Hunt::NoEpics`: if the epics do not fit in free slots, the task is skipped (nothing sold/drunk).
+
 - **Gone With the Wind poster identified (2026-10-18, NOT in a release yet):** raw id 1019 = the mission's poster (+0, doubles the completion bonus +10 → +20); added to `KNOWN_UNNAMED_IDS`, no more popup. Details in docs/expeditions.md.
 
 - **Surplus attribute floor 10× → 20× the shop reserve (2026-10-18, user, NOT in a release yet):** `tasks::SURPLUS_RESERVE_MULTIPLE = 20`; gold-bought stat upgrades without a task now start only above 20× the most expensive shop item (+ fortress needs). Needs a release rebuild.

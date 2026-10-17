@@ -261,7 +261,8 @@ async fn ensure_room(session: &mut SimpleSession, hunt: Hunt) -> Result<bool, Ou
     let count = |s: &SimpleSession| s.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
     let mut free = count(session);
     // E.g. an Assassin needs 2 slots for bare hands; Sanek's fight tasks stayed blocked all day with 1 free slot
-    while free < slots.len() {
+    // NoEpics never sacrifices potions or anything else for room (user 2026-10-18): not worth it for a 4-point task
+    while free < slots.len() && !matches!(hunt, Hunt::NoEpics) {
         if !crate::potions::make_room(session).await? {
             break;
         }
