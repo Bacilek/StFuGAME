@@ -795,3 +795,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - **Inventory trainer tab written (2026-10-17, user request):** app tab with endless seeded inventory scenarios (active potions show days left); answers go to `roster/trainer.jsonl`. Needs a release rebuild (app.html is embedded). Next: user answers, Claude derives rules, see `docs/trainer.md`.
 - **Release built 02:53 2026-10-17** (stuck popups, no epic popup, fortress/gem mining all day, potions rework, Inventory trainer tab with bot comparison).
 - **Stuck popup fix (2026-10-17):** Gone With the Wind steps (raw ids 191–193) no longer raise popups (`missions::KNOWN_UNNAMED_IDS`); other unknown encounters: one popup a day in total. Needs a release rebuild.
+- **Gem marks enlarged a bit (2026-10-17, user):** worn 18 px (was 12), backpack 15 px, empty ring 13 px. Needs the release rebuild.
