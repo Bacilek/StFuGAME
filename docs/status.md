@@ -796,3 +796,4 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - **Release built 02:53 2026-10-17** (stuck popups, no epic popup, fortress/gem mining all day, potions rework, Inventory trainer tab with bot comparison).
 - **Stuck popup fix (2026-10-17):** Gone With the Wind steps (raw ids 191–193) no longer raise popups (`missions::KNOWN_UNNAMED_IDS`); other unknown encounters: one popup a day in total. Needs a release rebuild.
 - **Gem marks enlarged a bit (2026-10-17, user):** worn 18 px (was 12), backpack 15 px, empty ring 13 px. Needs the release rebuild.
+- **Release built 03:04 2026-10-17** (visual Inventory trainer, Druid INT fix, Gone With the Wind popup fix, larger gem marks).
