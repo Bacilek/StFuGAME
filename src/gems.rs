@@ -367,11 +367,19 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
                 let eq_slot = item.typ.equipment_slot()?;
                 let cur = gs.character.equipment.0[eq_slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
                 let gain = inventory::value_with_gem(gs, item, eq_slot, gem) - cur;
-                (gain > 0.0).then_some((bag, gain))
+                (gain > 0.0).then_some((bag, gain, eq_slot, item.command_ident()))
             });
-            if let Some((target, gain)) = stored {
-                report!("[gems] Socketing {:?} {} into a stored backpack item (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
-                placed = Some((Command::PlayerItemMove { from: pos.into(), to: target.into(), item_ident: ident }, "stored item"));
+            if let Some((target, gain, eq_slot, item_ident)) = stored {
+                // A gem can only go into a WORN item (user 2026-10-17): put the kept item on first, then socket it
+                report!("[gems] Putting on the item kept for a gem, then socketing {:?} {} into it (it will be worth {gain:.1} more than the worn one)", gem.typ, gem.value);
+                if let Err(e) = safe::send(session, Command::Equip { from_pos: target.into(), to_slot: eq_slot, item_ident }).await {
+                    report!("[gems] Putting on the kept item failed: {e}");
+                    return Some(fail(&e));
+                }
+                if let Err(e) = safe::send(session, Command::Update).await {
+                    return Some(fail(&e));
+                }
+                placed = Some((Command::PlayerItemMove { from: pos.into(), to: eq_slot.into(), item_ident: ident }, "kept item, now worn"));
                 break;
             }
             if let Some(i) = choose_socket(&candidates, gem, class) {

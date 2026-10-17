@@ -87,3 +87,5 @@ Ideal = Constitution at 80 % of the main attribute (1000 : 800). Item and gem va
 - Gem placement: the weapon still gets the strongest main gem first; every other place goes to the loose gem with the biggest `inventory::gem_gain` (balance included), e.g. with CON lacking a CON gem goes before a main one. Replacement rules by tier (never replace a main/CON gem) unchanged.
 - NOT changed yet: potions (`potions.rs`) and bought attributes (`attributes.rs`) still use the fixed weights.
 - (2026-10-16, user) Bought attributes: no balance, fixed weights per gold 100 : 80 : 40 (Luck 0.4 only here, `attributes::BUY_LUCK_WEIGHT`; the rest of the code uses 0.27).
+
+**Verified 2026-10-17 (user):** gems can only be socketed into a worn item. `gems.rs` equips the kept item first, then socketing.
