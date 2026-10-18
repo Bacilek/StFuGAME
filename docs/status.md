@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Gem slot weight in item comparison (2026-10-18, user, NOT in a release yet):** Mrožik swapped epic gloves INT/CON/LCK +43 with a socketed CON gem +75 for +46-all gloves with no slot because socketed main/CON gems were ignored. Now `inventory::value_core` counts a socketed main/CON/All/Legendary gem fully (Luck/secondary stay replaceable) and `expected_gem` (what an empty slot is worth) is the loose gem with the best `gem_gain`, else a gem of the lacking kind (Constitution below 80 % of main, else main) as strong as the best worn one. Mrožik should swap back to the +43 gloves on the next inventory pass after a release.
+
 - **Release built 11:54 2026-10-18** (potion downgrade fix: smaller replaces bigger active only with < 24 h left; everything above marked 'NOT in a release yet' from today is in). The user starts the bot.
 
 - **Potions: "no potion downgrade" popup fixed + new rule (2026-10-18, NOT in a release yet):** the server refuses drinking a smaller potion while a bigger one of the same kind is active (overnight popup "UsePotion failed 10 times", Mimimimi11/PajaRizz/Filminy, the old Tight rule did it every pass). Now `potions::bag_action`: a smaller potion replaces the bigger active one ONLY when that has < 24 h left (`REPLACE_BELOW_DAYS`, user) by `RemovePotion` + drink (`RoomStep::Swap`); otherwise it is kept until the active one expires, sold only as a last resort. A bigger/equal potion from the backpack is drunk at once. Needs a release rebuild.

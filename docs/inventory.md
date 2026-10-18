@@ -91,3 +91,5 @@ Ideal = Constitution at 80 % of the main attribute (1000 : 800). Item and gem va
 **Verified 2026-10-17 (user):** gems can only be socketed into a worn item. `gems.rs` equips the kept item first, then socketing.
 ## Loose gems go first (2026-10-18, user)
 No cap and no active selling. When a backpack slot is needed for anything (epic, potion, hunt stripping), `gems::free_slot` runs first (`potions::make_room`): a gem with a place is socketed (worn item worse), otherwise the weakest loose gem is sold (`inventory::spare_gem`). Replaces the "any number while one slot stays free" holding rule for the moment a slot is wanted; the no-epics hunt uses only this step.
+n## Gem slot weight (2026-10-18, user)
+Socketed main/CON/All/Legendary gems count fully in `inventory::value_core` (Luck/secondary stay replaceable); an item with a usable empty slot gets `slot_bonus` of `expected_gem`: the loose gem with the best `gem_gain`, else a gem of the lacking kind (Constitution below `CON_TARGET` x main, else main) as strong as the best worn gem. Case: Mrožik, gloves +46 (no slot) replaced +43 with CON gem +75.

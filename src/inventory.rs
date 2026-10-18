@@ -179,7 +179,8 @@ enum Gems {
 fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, potential: Option<Gem>) -> f64 {
     let ch = &gs.character;
     let gem = match item.gem_slot {
-        Some(GemSlot::Filled(g)) if mode == Gems::Socketed || matches!(g.typ, GemType::All | GemType::Legendary) => Some(g),
+        // A socketed main/CON gem stays in the item for good, so it counts fully (user 2026-10-18); Luck/secondary ones are replaceable (below)
+        Some(GemSlot::Filled(g)) if mode == Gems::Socketed || !replaceable(ch.class, g) => Some(g),
         Some(GemSlot::Empty) if mode == Gems::Rare && worth_a_gem(ch.class, item) => potential,
         // A socket holding a Luck/secondary gem is as good as empty: a better gem replaces it (user 2026-10-17)
         Some(GemSlot::Filled(g)) if mode == Gems::Rare && replaceable(ch.class, g) && worth_a_gem(ch.class, item) => potential,
@@ -309,10 +310,19 @@ fn slot_bonus(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
 /// The gem we expect to get for an empty slot: the loose one, else a main-attribute gem as strong as the best one this
 /// character has ever socketed (the mine produces about that), None when it has never had any.
 fn expected_gem(gs: &GameState) -> Option<Gem> {
-    if let Some(g) = best_backpack_gem(gs) {
+    let class = gs.character.class;
+    // The gem we would use NOW (user 2026-10-18): the loose one that helps the build most (`gem_gain`, balance included)
+    let loose = gs.character.inventory.backpack.iter().flatten().filter_map(|i| match i.typ {
+        ItemType::Gem(g) => Some(g),
+        _ => None,
+    });
+    if let Some(g) = loose.max_by(|a, b| gem_gain(gs, *a).total_cmp(&gem_gain(gs, *b))) {
         return Some(g);
     }
-    let class = gs.character.class;
+    // else a gem of the kind the build lacks (Constitution below the 80 % target, else the main attribute) as strong as the
+    // best one worn (the mine produces about that)
+    let (m, c) = raw_totals(gs, None);
+    let typ = if c < crate::balance::CON_TARGET * m { GemType::Constitution } else { main_gem(class) };
     gs.character
         .equipment
         .0
@@ -322,7 +332,7 @@ fn expected_gem(gs: &GameState) -> Option<Gem> {
             GemSlot::Empty => None,
         })
         .max()
-        .map(|value| Gem { typ: main_gem(class), value })
+        .map(|value| Gem { typ, value })
 }
 
 /// The slot an item competes for (an Assassin's weapon goes into whichever hand is weaker).
