@@ -23,6 +23,8 @@ on every character; chose full automation (precedents.md).
   `ClaimableClaim`. `safe.rs` allows both only for a Coupon-type mail that is in our own `gs.mail.claimables`. No mushrooms spent.
 - Unit tests: `payment_string` against both captured samples.
 
+## 2026-10-18: every code listed so far expired (user) and was removed from `roster/coupons.txt`. Add new ones the same way.
+
 ## Level-gated codes (user 2026-10-11)
 Some codes need character level 50 (`ZSOMBEY-GL58`, `N3UTR4L-4KNQ`, `WAVES-PCJ4`, `NIISA-EYX8`, `CHAZE-4B8B`, `RICARES-ZH6D`: 25 mushrooms + 125 lucky coins each). A line in `roster/coupons.txt` may be `CODE min_level=50`; the bot ignores the code (no POST, no state entry) until `character.level` reaches it, because a rejection is final per character. Reward mushrooms are a gain, not spending. The service answer for a too-low level is unknown, hence the gate.
 
