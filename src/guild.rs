@@ -181,6 +181,71 @@ fn describe(o: &Offer) -> String {
 
 static LAST_CHECK: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
 
+/// Every join/leave/kick goes to `roster/<character>/logs/guild.log` as well: `progress.log` keeps only 100 messages, so a
+/// join-leave loop (Pagan 2026-10-17/18, a guild's leader complained) could not be reconstructed afterwards.
+fn glog(msg: String) {
+    use std::io::Write;
+    report!("{msg}");
+    let path = crate::ctx::log_path("guild.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {msg}", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
+/// Guilds we do not join again for a while: ones we left ourselves (`LEFT_AVOID`) and ones that kicked us (`KICKED_AVOID`).
+/// Kept per character in `roster/<character>/guild_avoid.txt` (`name<TAB>until-rfc3339`) and the last guild we saw us in in
+/// `guild_last.txt`, so a kick is noticed even across a restart (user 2026-10-18: Pagan kept coming back to a guild whose
+/// members found it annoying; the bonuses had not changed, so it was not the switch margin).
+const LEFT_AVOID: chrono::Duration = chrono::Duration::hours(24);
+const KICKED_AVOID: chrono::Duration = chrono::Duration::days(7);
+
+fn char_file(name: &str) -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join(name)
+}
+
+fn avoided() -> Vec<String> {
+    let now = Local::now();
+    std::fs::read_to_string(char_file("guild_avoid.txt"))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| {
+            let (name, until) = l.split_once('\t')?;
+            (until.parse::<DateTime<Local>>().ok()? > now).then(|| name.to_string())
+        })
+        .collect()
+}
+
+fn avoid(name: &str, how_long: chrono::Duration) {
+    let now = Local::now();
+    let mut lines: Vec<String> = std::fs::read_to_string(char_file("guild_avoid.txt"))
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| l.split_once('\t').is_some_and(|(n, u)| n != name && u.parse::<DateTime<Local>>().is_ok_and(|u| u > now)))
+        .map(str::to_string)
+        .collect();
+    lines.push(format!("{name}\t{}", (now + how_long).to_rfc3339()));
+    let _ = std::fs::write(char_file("guild_avoid.txt"), lines.join("\n") + "\n");
+}
+
+/// Notices a kick (we had a guild last time, now none, and did not leave on purpose) and remembers the current guild.
+fn track_membership(current: Option<&str>) {
+    let last = std::fs::read_to_string(char_file("guild_last.txt")).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    match (last, current) {
+        (Some(l), None) => {
+            glog(format!("[guild] No longer in {l} (kicked or left): not joining it again for {} days", KICKED_AVOID.num_days()));
+            avoid(&l, KICKED_AVOID);
+            let _ = std::fs::remove_file(char_file("guild_last.txt"));
+        }
+        (l, Some(c)) if l.as_deref() != Some(c) => {
+            let _ = std::fs::write(char_file("guild_last.txt"), c);
+        }
+        _ => {}
+    }
+}
+
 fn fail(e: &sf_api::error::SFError) -> Outcome {
     report!("[guild] Error: {e}");
     if crate::tavern::is_session_error(e) { Outcome::SessionLost } else { Outcome::Done }
@@ -223,6 +288,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let now = Local::now();
     {
         let Some(gs) = session.game_state() else { return Outcome::Done };
+        track_membership(gs.guild.as_ref().map(|g| g.name.as_str()));
         // A task wants a guild fight: stay (checked before the timer, so we leave right after the task is done)
         if gs.guild.is_some() && guild_fight_task_open(gs) {
             return Outcome::Done;
@@ -295,7 +361,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         })
         .collect();
     report!("[guild] Top of the list ({} guilds): {}", offers.len(), top.join("; "));
-    let list = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own);
+    let avoid_list = avoided();
+    let list: Vec<Offer> = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own)
+        .into_iter()
+        .filter(|o| !avoid_list.contains(&o.name))
+        .collect();
 
     match &current {
         Some((name, instructor, treasure)) if list.is_empty() => {
@@ -305,10 +375,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         Some((name, instructor, treasure)) => {
-            report!(
+            glog(format!(
                 "[guild] Leaving {name} (Instructor {instructor}, Treasure {treasure}) for a better guild: {}",
                 describe(&list[0])
-            );
+            ));
+            avoid(name, LEFT_AVOID);
+            let _ = std::fs::remove_file(char_file("guild_last.txt"));
             if let Err(e) = safe::send(session, custom("GroupRemoveMember", &[&player_id.to_string()])).await {
                 return fail(&e);
             }
@@ -321,10 +393,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
 
     for offer in list.iter().take(MAX_ATTEMPTS) {
-        report!("[guild] Joining {}", describe(offer));
+        glog(format!("[guild] Joining {}", describe(offer)));
         match safe::send(session, custom("GroupJoin", &[&offer.raw_name, "int"])).await {
             Ok(gs) if gs.guild.as_ref().is_some_and(|g| g.name == offer.name) => {
-                report!("[guild] Joined {}", offer.name);
+                glog(format!("[guild] Joined {}", offer.name));
+                let _ = std::fs::write(char_file("guild_last.txt"), &offer.name);
                 return Outcome::Done;
             }
             Ok(_) => report!("[guild] Joining {} did not work, trying the next one", offer.name),

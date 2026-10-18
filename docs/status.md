@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Guild join/leave loop guard (2026-10-18, user, Pagan was reported by a guildmate; NOT in a release yet):** `guild.log` per character, kicked guild avoided 7 days, own-left guild 24 h (`docs/guild.md`). Cause of Pagan's loop unconfirmed (log rotated): the kick+rejoin theory.
 - **Fortress generic order changed (2026-10-18, user, NOT in a release yet):** after each new Fortress level the Laborers' Quarters come BEFORE the Academy (then Academy, Barracks to 4, Treasury, Gem Mine, next Fortress). The dictated PLAN up to Fortress 6 is unchanged (Academy 6, then Laborers' Quarters 6). `fortress::pick_generic`.
 - **All coupon codes expired and removed (2026-10-18, user):** `roster/coupons.txt` is empty (header only), the level-50 codes are gone too. The coupon code itself stays for future codes.
 - **New TODO (2026-10-18, user): Witch (unlocks at level 66)** in `docs/todo.md` with sub-todos mechanics, throw into cauldron, enchant, juice. Plan only, nothing implemented.
