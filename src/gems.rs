@@ -226,20 +226,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return o;
     }
 
-    // Never more than MAX_LOOSE loose gems (user 2026-10-18): the weakest extra ones are sold
-    loop {
-        let Some(gs) = session.game_state() else { return Outcome::Done };
-        let loose = backpack_gems(gs);
-        let Some(&(pos, gem, ident)) = loose.last().filter(|_| loose.len() > MAX_LOOSE) else { break };
-        report!("[gems] More than {MAX_LOOSE} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
-        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
-            return fail(&e);
-        }
-        if let Err(e) = safe::send(session, Command::Update).await {
-            return fail(&e);
-        }
-        safe::human_pause().await;
+    if let Some(o) = trim_loose(session).await {
+        return o;
     }
+
 
     // 2. A finished search: collect when there is room
     let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -250,13 +240,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(t) = finished {
         let mut free = gs.character.inventory.count_free_slots();
         let target = f.gem_search.target;
-        // At most MAX_LOOSE loose gems and a slot always free (user 2026-10-18). When either limit is hit, a mined gem of a better
-        // tier replaces the weakest loose one (sold), otherwise it stays in the mine.
+        // Backpack completely full: a mined gem of a better tier replaces the weakest loose one (sold); otherwise it waits.
+        // With a free slot it is always collected, a worthless one is sold right after (user 2026-10-18).
         let class = gs.character.class;
-        let loose = backpack_gems(gs);
-        if loose.len() >= MAX_LOOSE || free == 0 {
-            let weakest = loose.last().filter(|w| target.is_some_and(|t| tier(t, class) < tier(w.1.typ, class)));
-            if let Some(&(pos, gem, ident)) = weakest {
+        if free == 0 {
+            let weakest = backpack_gems(gs).last().copied().filter(|w| target.is_some_and(|t| tier(t, class) < tier(w.1.typ, class)));
+            if let Some((pos, gem, ident)) = weakest {
                 report!("[gems] Selling the loose {:?} gem {} to make room for the better mined {target:?}", gem.typ, gem.value);
                 if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
                     return fail(&e);
@@ -264,13 +253,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 if let Err(e) = safe::send(session, Command::Update).await {
                     return fail(&e);
                 }
-                let Some(gs) = session.game_state() else { return Outcome::Done };
-                free = gs.character.inventory.count_free_slots();
-                if backpack_gems(gs).len() >= MAX_LOOSE {
-                    free = 0;
-                }
-            } else {
-                free = 0;
+                free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
             }
         }
         // Collected with ONE free slot as well (user 2026-10-18): a gem nobody wants is sold right after (below), so the mine never
@@ -287,7 +270,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             if let Some(o) = socket_backpack_gem(session).await {
                 return o;
             }
-            // A gem collected on the last free slot that nobody wanted after all is sold, one slot stays free (user 2026-10-16)
+            // A gem nobody wants is sold right away: over the loose limit, or when it took the last free slot
+            if let Some(o) = trim_loose(session).await {
+                return o;
+            }
             if let Some(o) = sell_unplaced_gem(session).await {
                 return o;
             }
@@ -322,6 +308,23 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return fail(&e);
     }
     Outcome::Done
+}
+
+/// Never more than MAX_LOOSE loose gems (user 2026-10-18): the weakest extra ones are sold.
+async fn trim_loose(session: &mut SimpleSession) -> Option<Outcome> {
+    loop {
+        let gs = session.game_state()?;
+        let loose = backpack_gems(gs);
+        let &(pos, gem, ident) = loose.last().filter(|_| loose.len() > MAX_LOOSE)?;
+        report!("[gems] More than {MAX_LOOSE} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
+        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+            return Some(fail(&e));
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return Some(fail(&e));
+        }
+        safe::human_pause().await;
+    }
 }
 
 /// The backpack is completely full after a collect and the gem found no socket: sell the weakest loose gem (user 2026-10-16:

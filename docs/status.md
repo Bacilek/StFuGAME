@@ -21,7 +21,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
 
 
 
-- **Gem holding: max 2 loose gems AND a free slot (2026-10-18, user, NOT in a release yet; replaces the "no cap" rule of 2026-10-16):** `gems::MAX_LOOSE = 2`. `gems::run` sells the weakest loose gems above 2 each pass; a finished gem is collected only while loose < 2 and a slot is free, otherwise only if its type (`gem_search.target`) is a better tier than the weakest loose gem (that one is sold), else it waits in the mine. Mining keeps starting regardless.
+- **Gem holding: max 2 loose gems AND a free slot (2026-10-18, user, NOT in a release yet; replaces the "no cap" rule of 2026-10-16):** `gems::MAX_LOOSE = 2`. A finished gem is ALWAYS collected when a slot is free, then socketed or, if it is not better (Luck/secondary), sold at once (`trim_loose` sells the weakest above 2, secondary gems are sold on sight). Backpack completely full: a mined gem of a better tier replaces the weakest loose one, else it waits in the mine. Mining keeps starting regardless.
 - **Loose gems go first when room is needed (2026-10-18, user, NOT in a release yet):** no active selling (the max-2 idea was dropped). `gems::free_slot`: socket a gem that has a place (worn item worse), else sell the weakest; `potions::make_room` tries it BEFORE potions/epics (works with any number of free slots, `inventory::spare_gem`). The no-epics Gleeman hunt (`hunt::ensure_room`) frees room ONLY this way, never with potions; if gems do not suffice it skips the task.
 - **Release built 02:00 2026-10-18** (surplus attributes 20×; raw id 1019 known; loose gems first to go when a slot is needed; no-epics hunt frees room only with gems). The user starts the bot.
 
