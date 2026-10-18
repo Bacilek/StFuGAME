@@ -197,3 +197,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-18 (items/gems): an item with a gem slot gets the full weight of the gem we would use now (loose gem with the best gain, else the lacking kind: CON below 80 % of main, else main); a socketed main/CON gem counts fully. Supersedes "items are compared without gems" for main/CON gems.
 - 2026-10-18 (attributes): read the purchase counter from the server (`attribute_times_bought`) instead of guessing; (gems): collect a finished gem with one free slot, sell the unwanted one.
 - 2026-10-18 (shops): shop pass right after midnight (00:03) instead of after the Tavern; repeat later in the day when gold suffices for an upgrade or a spin; fortress gold has priority over spinning all day.
+- 2026-10-18 (fortress): if the next build waits 3 h for gold alone (wood/stone ready), warn the user (popup + alerts.txt, 12 h repeat) – shops/spinning are served first, the user may revisit the priority.

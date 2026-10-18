@@ -203,6 +203,11 @@ pub fn hok_affordable(gs: &GameState) -> bool {
 const HOK_MAX_TARGET: u16 = 8;
 static HOK_FAILED: crate::ctx::PerChar<Option<(u16, u16)>> = crate::ctx::PerChar::new();
 
+/// Since when the next build has been waiting for gold alone (reset when it starts or something else is missing).
+static GOLD_SHORT_SINCE: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = crate::ctx::PerChar::new();
+/// ... and after how many hours the user is warned.
+const GOLD_SHORT_WARN_HOURS: i64 = 3;
+
 /// Gold the fortress will want for its next planned build (0 without a fortress / plan). The fortress is not a one-off
 /// spend like the shops (user 2026-10-14: the bot comes back to it many times a day until builds take days), so the lower
 /// priority gold spending – spinning the shops, guild upgrades without a task, surplus attributes, gem searches – leaves
@@ -364,7 +369,35 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let cost = f.buildings[next].upgrade_cost;
     let silver = gs.character.silver;
     if !f.can_build(next, silver) {
+        // Only GOLD is missing (wood and stone are there): the shops and spinning get the gold first (user 2026-10-18), so warn
+        // the user when the build has been waiting for gold alone for hours, to reconsider the priorities
+        let gold_only = cost.wood <= f.resources[R::Wood].current
+            && cost.stone <= f.resources[R::Stone].current
+            && cost.silver > silver
+            && !f.in_use(next);
+        let since = GOLD_SHORT_SINCE.lock().ok().and_then(|mut s| {
+            if !gold_only {
+                *s = None;
+                return None;
+            }
+            Some(*s.get_or_insert_with(Local::now))
+        });
+        if let Some(since) = since
+            && Local::now() - since >= chrono::Duration::hours(GOLD_SHORT_WARN_HOURS)
+        {
+            crate::stuck::fortress_gold_short(&format!(
+                "the fortress build {next:?} level {} has waited for gold since {} (needs {}, has {}); wood and stone are ready. \
+                 Shops and spinning get the gold first.",
+                f.buildings[next].level + 1,
+                since.format("%H:%M"),
+                crate::report::gold(cost.silver),
+                crate::report::gold(silver)
+            ));
+        }
         return Outcome::Done; // not enough wood/stone/gold (or level cap, or soldiers in training for the Barracks)
+    }
+    if let Ok(mut s) = GOLD_SHORT_SINCE.lock() {
+        *s = None;
     }
     report!(
         "[fortress] Building {next:?} level {} ({} min, wood {}, stone {}, {})",

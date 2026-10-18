@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Warning: fortress build starved of gold (2026-10-18, user, NOT in a release yet):** since the shops/spinning get gold right after midnight, `fortress::run` tracks (`GOLD_SHORT_SINCE`) how long the next build has waited for GOLD alone (wood and stone ready, not busy); after 3 h `stuck::fortress_gold_short` raises a popup + `roster/alerts.txt` line (once per 12 h per character) so the priorities can be reconsidered.
+
 - **Shops right after midnight (2026-10-18, user, NOT in a release yet):** `shops::run` no longer waits for the Tavern: the day's full pass runs at 00:03 (after an `Update`), later in the day `best_upgrade` becoming affordable (gold from chests, City Guard pay, ...) triggers another full pass (at most every 20 min) and spare gold above reserve + next fortress build triggers the spin-only `respin`. Fortress keeps priority over spinning all day. Reason: the levels no longer jump during the day, so the new wares matter at midnight.
 
 - **Release built 13:10 2026-10-18:** attribute prices read from the server counter `attribute_times_bought` (learned price per level beyond the table, no MISMATCH log, `roster/attribute_prices.json`); the Gem Mine collects a finished gem with ONE free slot (an unwanted gem is sold right after, the mine never stalls); the weapon swap loop fix and the gem slot weight are in too.

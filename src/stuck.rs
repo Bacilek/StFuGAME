@@ -65,6 +65,12 @@ fn raise(kind: &str, text: &str, repeat: Duration) {
     std::thread::spawn(move || crate::tray::message_box(&text));
 }
 
+/// The fortress build has been waiting for GOLD alone for hours (the shops and spinning get the gold first, user 2026-10-18):
+/// a warning so the user can reconsider the priorities. Once per 12 h per character.
+pub fn fortress_gold_short(text: &str) {
+    raise("fortress-gold", text, Duration::hours(12));
+}
+
 /// What `after` needs to know about a request (taken before it is sent, the command is moved by then): (variant name, read-only).
 pub fn describe(cmd: &Command) -> (String, bool) {
     (variant(cmd), read_only(cmd))
