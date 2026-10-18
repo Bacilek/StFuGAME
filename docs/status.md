@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Release built 00:08 2026-10-19** (everything since 13:32 on 10-18: Witch TODO, bugs.md trimmed, guild.log + avoid kicked guilds, Laborers' Quarters before the Academy, worn gem vs empty socket + weapon gem x2, secondary attributes 2 %, new expedition choice). The user starts the bot. Live checks: `guild.log`, `[gems]` lines, Tavern choices.
 - **Expedition choice changed (2026-10-19, user, NOT in a release yet):** open travel task met by neither offer -> shorter; same tier -> best own success rate (journals) before length. `docs/expeditions.md`.
 - **Secondary attributes weigh 2 % (2026-10-19, user; was 10 %; NOT in a release yet):** one constant `arena::SIDE_WEIGHT` used by Arena power, `weight()` (potions, attribute buying), item and gem values (`All` gem too). Tests adjusted. Effects: secondary-stat items/gems/potions lose almost all value; Arena opponent ranking changes slightly.
 - **Worn gem vs empty-socket item (2026-10-18, user, Pagan, NOT in a release yet):** `inventory::compare` - an item with a usable socket is compared with the worn one WITHOUT its gems; no socket -> worn gem counts fully, a weapon gem double. See `docs/inventory.md`.
