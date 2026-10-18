@@ -49,3 +49,10 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 - Enchant priority: right after better items. Everything of the day's type that is non-epic and unwanted → witch (swaps, spinning, leftovers);
   during spinning buy that type so the sale pays 2×. Never buy for mushrooms because of it.
 - Gem items MAY go into the cauldron (user 2026-10-19: gems are cheap to remake; we sell gem items too). Epics still never.
+
+## Raw format of `witchshop` (verified 2026-10-19 against the game)
+- From idx 5 on: triples `(slot id, enchant id, unlock timestamp)`, nine of them. Third value 0 = locked, non-zero = unlocked at that time.
+  Capture: only the ring triple `9/91/1792068112` has a timestamp; the user had exactly the ring enchant unlocked (a second one unlocks 2026-10-19 14:00).
+- sf-api 0.4.4 `Witch::update` is WRONG for this: it trusts idx 4 (= 1) as count and reads the first triple (gloves, 51 → ShadowOfTheCowboy) as unlocked.
+  → Parse the raw `witchshop` ourselves (unlocked = third value ≠ 0); never use `witch.enchantments` for the decision. The `EnchantmentIdent` for `WitchEnchant` is `i + 1` of the triple position, but its constructor is crate-private → needs a check of how to send it (maybe `Command::Custom`).
+- TODO: after 14:00 capture again and check that a second triple gets a timestamp.
