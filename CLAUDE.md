@@ -62,7 +62,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
     - `Encounters` → `ExpeditionPickEncounter { pos }`, `Boss` → `ExpeditionContinue`, `Rewards` → `ExpeditionPickReward { pos }`,
     - `Waiting` → wait until `busy_until` and send `Update` (never skip with mushrooms), `Finished` → end.
 - Missions, rules and open questions: `docs/expeditions.md` (machine-readable in `src/missions.rs`). Unknown missions/encounters do not stop the bot; they are logged to the journal (`unmapped`), then ask the user and fill them in.
-- Choosing an expedition: the shortest, ties go to an unmapped one, otherwise the easiest to reach 40 (`Mission::ease`).
+- Choosing an expedition (`tavern::choose_expedition`, user 2026-10-19): (1) one passing a wanted task location; (2) an open travel task that neither offer meets -> the shorter; (3) better XP tier; (4) same tier -> better OUR success rate of reaching 40 (from the journals, unmapped/unverified mission first); (5) shorter, then `Mission::ease`.
 - Strategy (src/tavern.rs): secure 40 heroism (including bonuses/penalties at the end), then only keys and chests and never drop below 40.
   Until then score = immediate gain + future value (poster, chain step) weighted by the chance of completing it before round 10.
 - Items of foreign cycles (not the main mission) only for their immediate heroism, never for future steps.

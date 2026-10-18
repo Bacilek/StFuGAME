@@ -57,13 +57,25 @@ fn should_skip_wait_with_glass(busy_until: DateTime<Local>, now: DateTime<Local>
 /// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
-/// Picks an expedition. A Gleeman/event task "travel to <location>" comes first (user 2026-10-07): an expedition
-/// through a wanted location wins even when it is longer. Then the better XP tier (`Mission::tier`, S > A > B;
-/// user 2026-10-16: expeditions are 12.5 and 25 thirst and a 2× shorter one ≈ one longer one, so length does not
-/// matter across tiers). Within a tier the shortest (cheapest in Thirst for Adventure); at equal length the one
-/// where 40 heroism is easiest; an unknown mission (or one with an unverified bonus) wins ties so we can map it.
-/// An unmapped mission counts as tier A.
+/// Picks an expedition, in this order (user 2026-10-19):
+/// 1. a Gleeman/event task "travel to <location>": an expedition through a wanted location wins even when longer (2026-10-07);
+/// 2. when such a task is still open but NEITHER expedition on offer passes its location: the shorter one (cheaper in Thirst for
+///    Adventure = more expeditions today = the best chance to meet the location);
+/// 3. the better XP tier (`Mission::tier`, S > A > B; user 2026-10-16: a 2x shorter one ~ one longer one, so length does not matter
+///    across tiers). An unmapped mission counts as tier A;
+/// 4. within a tier the better OUR success rate of reaching 40 heroism (`success_rates`, from every character's journal, smoothed);
+///    an unknown mission (or one with an unverified bonus) beats everything here so we can map it;
+/// 5. then the shorter one, and finally the one where 40 heroism is easiest on paper (`Mission::ease`).
 fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
+    choose_expedition_with(list, thirst, wanted, &success_rates())
+}
+
+fn choose_expedition_with(
+    list: &[AvailableExpedition],
+    thirst: u32,
+    wanted: &[Location],
+    rates: &std::collections::HashMap<String, (u32, u32)>,
+) -> Option<usize> {
     let visits = |e: &AvailableExpedition| wanted.contains(&e.location_1) || wanted.contains(&e.location_2);
     let tier = |e: &AvailableExpedition| missions::for_target(e.target).map_or(1, |m| m.tier());
     // Unknown mission or unverified bonus = we want to map it, it wins ties
@@ -71,27 +83,62 @@ fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Locati
         Some(m) if m.bonus_known => m.ease(),
         _ => f64::INFINITY,
     };
+    let rate = |e: &AvailableExpedition| match missions::for_target(e.target) {
+        Some(m) if m.bonus_known => {
+            let (runs, ok) = rates.get(m.name).copied().unwrap_or((0, 0));
+            (f64::from(ok) + 1.0) / (f64::from(runs) + 2.0)
+        }
+        _ => f64::INFINITY,
+    };
+    let affordable: Vec<usize> =
+        list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec.min(crate::tasks::BEER_ALU_SEC) <= thirst).map(|(i, _)| i).collect();
+    let shorter_for_quest = !wanted.is_empty() && !affordable.iter().any(|&i| visits(&list[i]));
+    use std::cmp::Ordering::Equal;
+    // Greater = `a` is the better choice
+    let cmp = |a: &AvailableExpedition, b: &AvailableExpedition| {
+        visits(a)
+            .cmp(&visits(b))
+            .then_with(|| if shorter_for_quest { b.thirst_for_adventure_sec.cmp(&a.thirst_for_adventure_sec) } else { Equal })
+            .then_with(|| tier(b).cmp(&tier(a)))
+            .then_with(|| rate(a).total_cmp(&rate(b)))
+            .then_with(|| b.thirst_for_adventure_sec.cmp(&a.thirst_for_adventure_sec))
+            .then_with(|| ease(a).total_cmp(&ease(b)))
+    };
     let mut best: Option<usize> = None;
-    for (i, e) in list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec.min(crate::tasks::BEER_ALU_SEC) <= thirst) {
-        let better = match best {
-            None => true,
-            Some(b) => {
-                let b = &list[b];
-                let same_visit = visits(e) == visits(b);
-                (visits(e) && !visits(b))
-                    || (same_visit && tier(e) < tier(b))
-                    || (same_visit && tier(e) == tier(b) && e.thirst_for_adventure_sec < b.thirst_for_adventure_sec)
-                    || (same_visit
-                        && tier(e) == tier(b)
-                        && e.thirst_for_adventure_sec == b.thirst_for_adventure_sec
-                        && ease(e) > ease(b))
-            }
-        };
-        if better {
+    for i in affordable {
+        if best.is_none_or(|b| cmp(&list[i], &list[b]) == std::cmp::Ordering::Greater) {
             best = Some(i);
         }
     }
     best
+}
+
+/// (finished runs, runs that reached 40 heroism) per mission name over every character's `expeditions.jsonl`; re-read at most hourly.
+fn success_rates() -> std::collections::HashMap<String, (u32, u32)> {
+    use std::{collections::HashMap, sync::Mutex, time::{Duration, Instant}};
+    static CACHE: Mutex<Option<(Instant, HashMap<String, (u32, u32)>)>> = Mutex::new(None);
+    let Ok(mut cache) = CACHE.lock() else { return HashMap::new() };
+    if let Some((at, map)) = cache.as_ref() {
+        if at.elapsed() < Duration::from_secs(3600) {
+            return map.clone();
+        }
+    }
+    let mut map: HashMap<String, (u32, u32)> = HashMap::new();
+    for dir in std::fs::read_dir("roster").into_iter().flatten().flatten() {
+        let Ok(text) = std::fs::read_to_string(dir.path().join("logs").join("expeditions.jsonl")) else { continue };
+        for line in text.lines() {
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+            let Some(name) = v["mission"].as_str() else { continue };
+            let name = name.split(" (").next().unwrap_or(name).to_string();
+            let e = map.entry(name).or_insert((0, 0));
+            e.0 += 1;
+            if v["verdict"].as_str() != Some("failure: below 40") {
+                e.1 += 1;
+            }
+        }
+    }
+    *cache = Some((Instant::now(), map.clone()));
+    map
 }
 
 fn has(exp: &Expedition, t: ExpeditionThing) -> bool {
@@ -984,6 +1031,38 @@ mod tests {
             location_2: Default::default(),
             special: None,
         }
+    }
+
+    /// The tests run without journal statistics (every mission has the same smoothed rate) unless they pass their own.
+    fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
+        choose_expedition_with(list, thirst, wanted, &Default::default())
+    }
+
+    /// 2026-10-19 (user): same tier -> the better success rate of reaching 40 heroism wins, even over a shorter one.
+    #[test]
+    fn same_tier_better_success_rate_wins() {
+        // dragon and podium are both S: podium is shorter, but dragon succeeds far more often
+        let rates: std::collections::HashMap<String, (u32, u32)> = [
+            (missions::for_target(Dragon).unwrap().name.to_string(), (20, 20)),
+            (missions::for_target(WinnersPodium).unwrap().name.to_string(), (20, 12)),
+        ]
+        .into();
+        let list = [avail(Dragon, 25), avail(WinnersPodium, 13)];
+        assert_eq!(choose_expedition_with(&list, 6000, &[], &rates), Some(0));
+        // a better tier still beats the rate
+        let s_vs_b = [avail(BurntCampfire, 13), avail(Dragon, 25)];
+        let low_s: std::collections::HashMap<String, (u32, u32)> =
+            [(missions::for_target(Dragon).unwrap().name.to_string(), (20, 10))].into();
+        assert_eq!(choose_expedition_with(&s_vs_b, 6000, &[], &low_s), Some(1));
+    }
+
+    /// 2026-10-19 (user): an open travel task that neither expedition satisfies -> the shorter one, before the tier.
+    #[test]
+    fn open_location_task_that_neither_offer_meets_takes_the_shorter() {
+        let list = [avail(Dragon, 25), avail(BurntCampfire, 13)];
+        assert_eq!(choose_expedition(&list, 6000, &[Location::SkullIsland]), Some(1));
+        // no open task: the tier decides again
+        assert_eq!(choose_expedition(&list, 6000, &[]), Some(0));
     }
 
     #[test]

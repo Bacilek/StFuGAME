@@ -200,3 +200,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-18 (fortress): if the next build waits 3 h for gold alone (wood/stone ready), warn the user (popup + alerts.txt, 12 h repeat) – shops/spinning are served first, the user may revisit the priority.
 - 2026-10-18 (fortress vs spinning): spinning may take gold from later fortress builds during the day; the user does not want it solved now, only the 3 h warning.
 | 2026-10-19 | Secondary attributes weight | 2 % each of the two secondary attributes everywhere (was 10 %): Arena power, items, potions, gems, attribute buying (`arena::SIDE_WEIGHT`). |
+| 2026-10-19 | Expedition choice | Open travel task not met by either offer -> shorter; same tier -> better own success rate of 40 heroism (then shorter, ease). See docs/expeditions.md. |

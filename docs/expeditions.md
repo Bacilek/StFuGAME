@@ -126,3 +126,6 @@ Verdict: below 40 = failure, above 45 with a declined key/chest = probably too m
 Tuning constants: `OPPORTUNITY_COST` and `feasibility()` in `src/tavern.rs`.
 
 Expedition price cap (user 2026-10-16): with at least 20 min of Thirst for Adventure a 25-min expedition can still be started (`tavern::choose_expedition` and `tasks::beer_justified` use `min(cost, BEER_ALU_SEC)`). Unverified live.
+
+## Expedition choice order (2026-10-19, user) – `tavern::choose_expedition`
+1. an expedition through a location wanted by an open Gleeman/event travel task; 2. when such a task is open but neither offer passes the location: the SHORTER one (more expeditions today = more chances); 3. better tier (S > A > B); 4. within a tier the better success rate of reaching 40 heroism over all characters' `expeditions.jsonl` (`success_rates`, smoothed `(ok+1)/(runs+2)`, re-read hourly; a failure is `verdict == "failure: below 40"`); an unmapped or bonus-unverified mission still wins here so it gets mapped; 5. shorter, then `Mission::ease`. Tests: `same_tier_better_success_rate_wins`, `open_location_task_that_neither_offer_meets_takes_the_shorter`.
