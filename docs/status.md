@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Release built 11:54 2026-10-18** (potion downgrade fix: smaller replaces bigger active only with < 24 h left; everything above marked 'NOT in a release yet' from today is in). The user starts the bot.
+
 - **Potions: "no potion downgrade" popup fixed + new rule (2026-10-18, NOT in a release yet):** the server refuses drinking a smaller potion while a bigger one of the same kind is active (overnight popup "UsePotion failed 10 times", Mimimimi11/PajaRizz/Filminy, the old Tight rule did it every pass). Now `potions::bag_action`: a smaller potion replaces the bigger active one ONLY when that has < 24 h left (`REPLACE_BELOW_DAYS`, user) by `RemovePotion` + drink (`RoomStep::Swap`); otherwise it is kept until the active one expires, sold only as a last resort. A bigger/equal potion from the backpack is drunk at once. Needs a release rebuild.
 
 
