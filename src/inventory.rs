@@ -258,19 +258,24 @@ pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem
     value_core(gs, item, slot, Gems::Rare, Some(gem))
 }
 
-/// (new value, worn value) on equal footing. When the new item has a usable gem socket of its own (empty, or holding a Luck/secondary
+/// (new value, worn value) on equal footing. When the new OR the worn item has a usable gem socket (empty, or holding a Luck/secondary
 /// gem), the worn item's socketed Main/CON gem is NOT counted for the worn item: the socket can be filled again with a freshly mined
 /// gem, so the old gem is no advantage (user 2026-10-18, Pagan: a shop weapon with an empty slot and +10 % damage must beat his
 /// weapon with a STR gem). With a new item WITHOUT a socket the worn gem counts in full (a weapon's twice).
 pub fn compare(gs: &GameState, new: &Item, worn: Option<&Item>, slot: EquipmentSlot) -> (f64, f64) {
     let class = gs.character.class;
-    let open = worth_a_gem(class, new)
-        && match new.gem_slot {
-            Some(GemSlot::Empty) => true,
-            Some(GemSlot::Filled(g)) => replaceable(class, g),
-            None => false,
-        };
-    let mode = if open { Gems::Bare } else { Gems::Rare };
+    let usable_socket = |item: &Item| {
+        worth_a_gem(class, item)
+            && match item.gem_slot {
+                Some(GemSlot::Empty) => true,
+                Some(GemSlot::Filled(g)) => replaceable(class, g),
+                None => false,
+            }
+    };
+    // Symmetric: a usable socket on EITHER side drops the socketed Main/CON gems of both. Judged by the new item alone, an item with
+    // an empty socket beat the gem-bearing worn one, and once worn the gem-bearing one beat it back: endless swapping (Pagan
+    // 2026-10-19, two talismans, 30+ swaps in 6 minutes that ate every inventory pass and stalled his Tavern).
+    let mode = if usable_socket(new) || worn.is_some_and(usable_socket) { Gems::Bare } else { Gems::Rare };
     (value_core(gs, new, slot, mode, None), worn.map_or(-1.0, |w| value_core(gs, w, slot, mode, None)))
 }
 
@@ -755,5 +760,24 @@ mod tests {
         let belt_new = item(ItemType::Belt, &[(Con, 104)], Some(GemSlot::Empty));
         let (nb, cb) = compare(&gs, &belt_new, Some(&belt), EquipmentSlot::Belt);
         assert!(nb > cb, "belt {nb:.1} vs {cb:.1}");
+    }
+
+    /// 2026-10-19 (Pagan, Mimimimi11: 30+ swaps in 6 minutes): an item with an empty socket and one with a socketed main gem must not
+    /// each beat the other depending on which is worn.
+    #[test]
+    fn gem_item_and_empty_socket_item_do_not_swap_forever() {
+        use AttributeType::{Constitution as Con, Luck, Strength as Str};
+        let mut gs = GameState::default();
+        gs.character.class = Class::BattleMage;
+        gs.character.level = 100;
+        gs.character.attribute_basis[Str] = 1000;
+        gs.character.attribute_basis[Con] = 500;
+        let a = item(ItemType::Talisman, &[(Str, 92)], Some(GemSlot::Filled(Gem { typ: GemType::Constitution, value: 147 })));
+        let b = item(ItemType::Talisman, &[(Str, 46), (Con, 46), (Luck, 46)], Some(GemSlot::Empty));
+        gs.character.equipment.0[EquipmentSlot::Talisman] = Some(a.clone());
+        let (b_new, a_worn) = compare(&gs, &b, Some(&a), EquipmentSlot::Talisman);
+        gs.character.equipment.0[EquipmentSlot::Talisman] = Some(b.clone());
+        let (a_new, b_worn) = compare(&gs, &a, Some(&b), EquipmentSlot::Talisman);
+        assert!(!(b_new > a_worn && a_new > b_worn), "endless swap: b over a {b_new:.1}>{a_worn:.1}, a over b {a_new:.1}>{b_worn:.1}");
     }
 }
