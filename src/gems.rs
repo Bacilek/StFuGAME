@@ -30,6 +30,8 @@ use sf_api::{
 use crate::{inventory, safe, session::SimpleSession, tavern::Outcome};
 
 const EVERY: chrono::Duration = chrono::Duration::minutes(10);
+/// Loose gems kept in the backpack at most (user 2026-10-18), on top of the rule that one slot stays free.
+const MAX_LOOSE: usize = 2;
 
 static NEXT: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
 /// `gem_search.finish` of the last gem we collected: the server does not clear it, so without this a collected gem would
@@ -224,6 +226,21 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return o;
     }
 
+    // Never more than MAX_LOOSE loose gems (user 2026-10-18): the weakest extra ones are sold
+    loop {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let loose = backpack_gems(gs);
+        let Some(&(pos, gem, ident)) = loose.last().filter(|_| loose.len() > MAX_LOOSE) else { break };
+        report!("[gems] More than {MAX_LOOSE} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
+        if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+            return fail(&e);
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e);
+        }
+        safe::human_pause().await;
+    }
+
     // 2. A finished search: collect when there is room
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
@@ -233,24 +250,27 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(t) = finished {
         let mut free = gs.character.inventory.count_free_slots();
         let target = f.gem_search.target;
-        // Backpack full, but a loose Luck gem sits in it and the mined gem is better (main/All/Legendary/Constitution): sell the
-        // Luck gem to make room (user 2026-10-18)
-        if free == 0 {
-            let class = gs.character.class;
-            let better = target.is_some_and(|t| tier(t, class) < 2);
-            let luck_loose = backpack_gems(gs).iter().any(|g| tier(g.1.typ, class) == 2);
-            if better && luck_loose {
-                let pos = backpack_gems(gs).into_iter().rev().find(|g| tier(g.1.typ, class) == 2);
-                if let Some((pos, gem, ident)) = pos {
-                    report!("[gems] Selling the loose Luck gem {} to make room for the better mined {target:?}", gem.value);
-                    if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
-                        return fail(&e);
-                    }
-                    if let Err(e) = safe::send(session, Command::Update).await {
-                        return fail(&e);
-                    }
-                    free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+        // At most MAX_LOOSE loose gems and a slot always free (user 2026-10-18). When either limit is hit, a mined gem of a better
+        // tier replaces the weakest loose one (sold), otherwise it stays in the mine.
+        let class = gs.character.class;
+        let loose = backpack_gems(gs);
+        if loose.len() >= MAX_LOOSE || free == 0 {
+            let weakest = loose.last().filter(|w| target.is_some_and(|t| tier(t, class) < tier(w.1.typ, class)));
+            if let Some(&(pos, gem, ident)) = weakest {
+                report!("[gems] Selling the loose {:?} gem {} to make room for the better mined {target:?}", gem.typ, gem.value);
+                if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+                    return fail(&e);
                 }
+                if let Err(e) = safe::send(session, Command::Update).await {
+                    return fail(&e);
+                }
+                let Some(gs) = session.game_state() else { return Outcome::Done };
+                free = gs.character.inventory.count_free_slots();
+                if backpack_gems(gs).len() >= MAX_LOOSE {
+                    free = 0;
+                }
+            } else {
+                free = 0;
             }
         }
         // Collected with ONE free slot as well (user 2026-10-18): a gem nobody wants is sold right after (below), so the mine never

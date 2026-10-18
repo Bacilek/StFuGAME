@@ -151,7 +151,7 @@ User fact: the Hall of Knights (HoK) cannot be started while another building is
 - Open: when to start a Gem Mine search (a gem costs 150 g, 50 min) – proposal pending with the user; the HoK-during-Fortress-build question above.
 
 ## Luck gem swapped for a better mined gem (2026-10-18, user)
-- Full backpack + loose Luck gem + mined gem of tier 0-1 (`gems::run` step 2): sell the Luck gem, collect the new one. No count limit on held gems.
+- Max 2 loose gems (`MAX_LOOSE`) and a free slot; a mined gem of a better tier replaces the weakest loose one (sold), else stays in the mine. Extras above 2 are sold each pass.
 
 ## Gem Mine rule + fortress gold (2026-10-14, user answers) – `src/gems.rs`, `fortress::gold_needed`
 - A gem search starts when the mine is idle (after the day's shop pass) and the gold LEFT afterwards is at least 2× the shop reserve plus the gold of the fortress' next planned build. Wood/stone are ignored (they cost next to nothing).
