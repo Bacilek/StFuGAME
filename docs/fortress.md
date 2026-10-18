@@ -150,6 +150,9 @@ User fact: the Hall of Knights (HoK) cannot be started while another building is
 - **Fortress tab** in the app window (`roster/<character>/fortress.json` written by `fortress::write_snapshot`, read by `control::status_json`): per character building levels, Hall of Knights, resources (current/limit + uncollected, ⚠ when ≥ 80 % of the production limit), soldiers, gem search, running build with countdown, next build + what it waits for, the next 4 planned builds, snapshot time.
 - Open: when to start a Gem Mine search (a gem costs 150 g, 50 min) – proposal pending with the user; the HoK-during-Fortress-build question above.
 
+## Luck gem swapped for a better mined gem (2026-10-18, user)
+- Full backpack + loose Luck gem + mined gem of tier 0-1 (`gems::run` step 2): sell the Luck gem, collect the new one. No count limit on held gems.
+
 ## Gem Mine rule + fortress gold (2026-10-14, user answers) – `src/gems.rs`, `fortress::gold_needed`
 - A gem search starts when the mine is idle (after the day's shop pass) and the gold LEFT afterwards is at least 2× the shop reserve plus the gold of the fortress' next planned build. Wood/stone are ignored (they cost next to nothing).
 - (2026-10-16, user: do not hoard) Gems are socketed at once, strongest first, one per socket, in a loop (`socket_backpack_gem`); a gem is only held when no socket wants it. Older rule: up to 1 gem is held in the backpack for a future item with a socket (2 with 6+ free slots, `HOLD_TWO_FREE`); a finished gem is collected when it can be socketed right now or when fewer gems than that are held and ≥ 2 slots are free. SUPERSEDED the same day: gems are held without a count limit while one slot stays free, see `docs/precedents.md` "Gem holding".

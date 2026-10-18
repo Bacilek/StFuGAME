@@ -231,11 +231,32 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let collected = last_collected();
     let finished = f.gem_search.finish.filter(|t| *t <= now && collected != Some(*t));
     if let Some(t) = finished {
-        let free = gs.character.inventory.count_free_slots();
+        let mut free = gs.character.inventory.count_free_slots();
+        let target = f.gem_search.target;
+        // Backpack full, but a loose Luck gem sits in it and the mined gem is better (main/All/Legendary/Constitution): sell the
+        // Luck gem to make room (user 2026-10-18)
+        if free == 0 {
+            let class = gs.character.class;
+            let better = target.is_some_and(|t| tier(t, class) < 2);
+            let luck_loose = backpack_gems(gs).iter().any(|g| tier(g.1.typ, class) == 2);
+            if better && luck_loose {
+                let pos = backpack_gems(gs).into_iter().rev().find(|g| tier(g.1.typ, class) == 2);
+                if let Some((pos, gem, ident)) = pos {
+                    report!("[gems] Selling the loose Luck gem {} to make room for the better mined {target:?}", gem.value);
+                    if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
+                        return fail(&e);
+                    }
+                    if let Err(e) = safe::send(session, Command::Update).await {
+                        return fail(&e);
+                    }
+                    free = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+                }
+            }
+        }
         // Collected with ONE free slot as well (user 2026-10-18): a gem nobody wants is sold right after (below), so the mine never
         // stalls on a nearly full backpack; only a completely full one waits
         if free >= 1 {
-            report!("[gems] Collecting the mined gem ({:?}, {free} free backpack slots)", f.gem_search.target);
+            report!("[gems] Collecting the mined gem ({target:?}, {free} free backpack slots)");
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
             }
