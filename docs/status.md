@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Fortress generic order changed (2026-10-18, user, NOT in a release yet):** after each new Fortress level the Laborers' Quarters come BEFORE the Academy (then Academy, Barracks to 4, Treasury, Gem Mine, next Fortress). The dictated PLAN up to Fortress 6 is unchanged (Academy 6, then Laborers' Quarters 6). `fortress::pick_generic`.
 - **All coupon codes expired and removed (2026-10-18, user):** `roster/coupons.txt` is empty (header only), the level-50 codes are gone too. The coupon code itself stays for future codes.
 - **New TODO (2026-10-18, user): Witch (unlocks at level 66)** in `docs/todo.md` with sub-todos mechanics, throw into cauldron, enchant, juice. Plan only, nothing implemented.
 - **Release built 13:32 2026-10-18** (gem holding: max 2 loose gems, always collect with a free slot and sell the worthless one at once, better tier replaces the weakest when the backpack is full). The user starts the bot.

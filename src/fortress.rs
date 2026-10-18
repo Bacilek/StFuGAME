@@ -85,8 +85,8 @@ const BARRACKS_TARGET: u16 = 4;
 /// bottleneck is BUILD TIME, so the income buildings (Woodcutter's Hut, Quarry) are never upgraded further.
 /// Before each new Fortress level (current level `n`), in this order (user 2026-10-15: "whenever we raise the Fortress we
 /// raise the Laborers' Quarters and the Academy too"):
-/// 1. the Academy up to `n` from Fortress 6 (XP, the priority),
-/// 2. the Laborers' Quarters up to `n` (they shorten every later build),
+/// 1. the Laborers' Quarters up to `n` (they shorten every later build; before the Academy since 2026-10-18, user),
+/// 2. the Academy up to `n` from Fortress 6 (XP),
 /// 3. the Barracks up to `BARRACKS_TARGET` (the user does not want more: the bot checks constantly, soldiers never pile up),
 /// 4. the Treasury up to `n` (user 2026-10-15: not that expensive, more epics/gems/elixirs to collect; after the Academy and
 ///    the Laborers' Quarters, the Barracks first),
@@ -100,11 +100,11 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
         return Some(B::Fortress);
     }
     let cap = n.min(max_level.max(1));
-    if n >= 6 && level(B::Academy) < cap {
-        return Some(B::Academy);
-    }
     if level(B::LaborersQuarters) < cap {
         return Some(B::LaborersQuarters);
+    }
+    if n >= 6 && level(B::Academy) < cap {
+        return Some(B::Academy);
     }
     if level(B::Barracks) < cap.min(BARRACKS_TARGET) {
         return Some(B::Barracks);
@@ -897,11 +897,11 @@ mod tests {
         assert_eq!(generic(t3, 30), Some(B::Treasury));
         let t6 = &[(B::Fortress, 6), (B::LaborersQuarters, 6), (B::Treasury, 6), (B::Barracks, 4), (B::GemMine, 1), (B::Academy, 6)];
         assert_eq!(generic(t6, 30), Some(B::Fortress));
-        // Fortress 7: the Academy first, then the Laborers' Quarters, then the Treasury
+        // Fortress 7: the Laborers' Quarters first (user 2026-10-18), then the Academy, then the Treasury
         let f7 = &[(B::Fortress, 7), (B::LaborersQuarters, 6), (B::Academy, 6), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
-        assert_eq!(generic(f7, 30), Some(B::Academy));
-        let f7a = &[(B::Fortress, 7), (B::LaborersQuarters, 6), (B::Academy, 7), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
-        assert_eq!(generic(f7a, 30), Some(B::LaborersQuarters));
+        assert_eq!(generic(f7, 30), Some(B::LaborersQuarters));
+        let f7a = &[(B::Fortress, 7), (B::LaborersQuarters, 7), (B::Academy, 6), (B::Treasury, 3), (B::Barracks, 4), (B::GemMine, 1)];
+        assert_eq!(generic(f7a, 30), Some(B::Academy));
         let f7b = &[(B::Fortress, 7), (B::LaborersQuarters, 7), (B::Academy, 7), (B::Treasury, 6), (B::Barracks, 4), (B::GemMine, 1)];
         assert_eq!(generic(f7b, 30), Some(B::Treasury));
         // the Gem Mine only goes further from character level 125; never the Wall or the resource buildings
