@@ -201,18 +201,6 @@ enum Pressure {
     Desperate,
 }
 
-/// Days an active potion still lasts.
-fn days_left(p: &Potion) -> f64 {
-    p.expires.map_or(999.0, |e| (e - Local::now()).num_minutes() as f64 / 1440.0)
-}
-
-/// A bigger active potion with at most this many days left is worth replacing by a smaller one of the same kind (a small one
-/// lasts 3 days) when space is tight.
-const REPLACE_WHEN_DAYS_LEFT: f64 = 3.0;
-
-fn describe_p(p: &Potion) -> String {
-    format!("{:?} {:.0} %", p.typ, p.size.effect() * 100.0)
-}
 
 /// The next thing to do with the potions in the backpack (see the module docs); `None` = nothing to do.
 fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> {
@@ -231,15 +219,11 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
             Some((_, a)) if p.size.effect() >= a.size.effect() => {
                 return Some((RoomStep::Drink(pos), format!("drinking {} (extends/replaces the active one)", describe(item))));
             }
-            Some((slot, a)) => match pressure {
-                Pressure::Room | Pressure::Tight if pressure == Pressure::Room || days_left(a) > REPLACE_WHEN_DAYS_LEFT => {}
-                Pressure::Tight => {
-                    return Some((
-                        RoomStep::Swap(*slot, pos),
-                        format!("space is tight and the active {} has {:.1} days left: removing it and drinking {} (the server refuses a downgrade)", describe_p(a), days_left(a), describe(item)),
-                    ));
-                }
-                _ => {
+            // A smaller potion can never replace a bigger active one (the server refuses a downgrade, and removing the bigger one
+            // for a smaller one is a loss): keep it until the active one expires, sell it only when nothing else can be sold
+            Some(_) => match pressure {
+                Pressure::Room | Pressure::Tight => {}
+                Pressure::Desperate => {
                     if let Some(s) = sell("smaller than the active one, nothing else to sell") {
                         return Some(s);
                     }
