@@ -14,6 +14,13 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] Truhly u Goblin Gleemana: porovnat řádky `[tasks] daily/event chest …` v logu (body + odměny) s tím, co ukazuje hra (`docs/tasks.md`)
 - [ ] Otevřená otázka (`docs/status.md`): přejít s hodnotou itemů (inventář/obchody/gemy, ne Arena power) na kalibrované váhy ze simulace (`src/weaponsim.rs`, `docs/inventory.md`)?
 
+- [ ] Čarodějnice / Witch (user 2026-10-18; odemyká se na levelu 66; zatím jen plán, nic neimplementovat bez zadání):
+  - [ ] Mechanika: zjistit, jak Witch ve hře funguje (sf-api `gs.witch`, příkazy, odemčení, cooldowny), zachytit požadavky; zapsat do nového `docs/witch.md`
+  - [ ] Throw into cauldron: házení předmětů do kotle (peníze, progress) – co se hodí, cena, odměny
+  - [ ] Enchant: očarování předmětů – ceny, výběr předmětu, bez hub
+  - [ ] Juice: lektvar/džus – co dělá, ceny, kdy vařit
+  - Pravidlo: nikdy za houby (viz CLAUDE.md); každý příkaz až po ověření do `safe.rs`.
+
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
 - [ ] (2026-10-18, zatím neřešit) Spinning může přes den brát gold, který by fortress potřebovala na DALŠÍ buildy (spin šetří jen cenu jednoho následujícího buildu). Pokud přijde varování "build čeká na gold", přehodnotit priority (např. šetřit gold na víc buildů dopředu).
 - [ ] **Assassin: počítá se gem v off-hand (Shield slot) dvojnásobně jako ve zbrani?** (user 2026-10-16, neví) – zjistit: Assassinovi dát stejný gem do off-handu a porovnat `derived.damage` v `roster/<postava>/days/*.json` před/po (nebo user v klientu porovná damage). Do té doby se Shield slot v `gems::weapon_socket` NEbere jako zbraň. Pokud ano, rozšířit `Socket.weapon` na Shield u Assassina.

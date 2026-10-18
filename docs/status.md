@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **New TODO (2026-10-18, user): Witch (unlocks at level 66)** in `docs/todo.md` with sub-todos mechanics, throw into cauldron, enchant, juice. Plan only, nothing implemented.
 - **Release built 13:32 2026-10-18** (gem holding: max 2 loose gems, always collect with a free slot and sell the worthless one at once, better tier replaces the weakest when the backpack is full). The user starts the bot.
 - **Release built 13:23 2026-10-18** (shops right after midnight + repeat passes when gold arrives, fortress gold-starvation warning after 3 h; attribute prices from the server counter and the Gem Mine with one free slot were built earlier today). The user starts the bot.
 
