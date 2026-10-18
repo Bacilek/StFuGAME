@@ -362,10 +362,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         .collect();
     report!("[guild] Top of the list ({} guilds): {}", offers.len(), top.join("; "));
     let avoid_list = avoided();
-    let list: Vec<Offer> = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own)
-        .into_iter()
-        .filter(|o| !avoid_list.contains(&o.name))
-        .collect();
+    let all = candidates(offers.clone(), current.as_ref().map(|(n, i, t)| (n.as_str(), *i, *t)), own);
+    let mut list: Vec<Offer> = all.iter().filter(|o| !avoid_list.contains(&o.name)).cloned().collect();
+    // Never stay without a guild (user 2026-10-18): when the only joinable guilds are avoided ones, join the best of them anyway
+    if list.is_empty() && current.is_none() {
+        list = all;
+    }
 
     match &current {
         Some((name, instructor, treasure)) if list.is_empty() => {
