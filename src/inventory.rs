@@ -112,6 +112,9 @@ fn item_parts(class: Class, item: &Item) -> (f64, f64, f64) {
     (main, con, score(class, item) - main - 0.8 * con)
 }
 
+/// The game doubles the effect of a gem socketed in the main weapon.
+const WEAPON_GEM_FACTOR: f64 = 2.0;
+
 /// Raw main attribute and Constitution of the character (bought points + worn items + their socketed gems; no potions or
 /// other bonuses, user 2026-10-16), leaving out the item worn in `skip`.
 fn raw_totals(gs: &GameState, skip: Option<EquipmentSlot>) -> (f64, f64) {
@@ -129,8 +132,9 @@ fn raw_totals(gs: &GameState, skip: Option<EquipmentSlot>) -> (f64, f64) {
         c += ic;
         if let Some(GemSlot::Filled(g)) = item.gem_slot {
             let (gm, gc, _) = gem_parts(ch.class, g);
-            m += gm;
-            c += gc;
+            let k = if slot == EquipmentSlot::Weapon { WEAPON_GEM_FACTOR } else { 1.0 };
+            m += gm * k;
+            c += gc * k;
         }
     }
     (m, c)
@@ -152,19 +156,31 @@ enum Gems {
     /// stats; a socketed gem of those two rare kinds is the exception). An empty slot is worth nothing unless a `potential` gem
     /// is given (only to judge an item kept for a gem).
     Rare,
+    /// Like `Rare`, but a worn Main/CON gem does NOT count either: used when the rival item has a usable socket of its own, so the
+    /// gem can simply be mined again for it (user 2026-10-18, Pagan). Only Legendary/All gems still count (rare, kept).
+    Bare,
 }
 
 fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, potential: Option<Gem>) -> f64 {
     let ch = &gs.character;
     let gem = match item.gem_slot {
         // A socketed main/CON gem stays in the item for good, so it counts fully (user 2026-10-18); Luck/secondary ones are replaceable (below)
-        Some(GemSlot::Filled(g)) if mode == Gems::Socketed || !replaceable(ch.class, g) => Some(g),
+        Some(GemSlot::Filled(g))
+            if mode == Gems::Socketed
+                || (mode == Gems::Rare && !replaceable(ch.class, g))
+                || (mode == Gems::Bare && matches!(g.typ, GemType::All | GemType::Legendary)) =>
+        {
+            Some(g)
+        }
         Some(GemSlot::Empty) if mode == Gems::Rare && worth_a_gem(ch.class, item) => potential,
         // A socket holding a Luck/secondary gem is as good as empty: a better gem replaces it (user 2026-10-17)
         Some(GemSlot::Filled(g)) if mode == Gems::Rare && replaceable(ch.class, g) && worth_a_gem(ch.class, item) => potential,
         _ => None,
     };
     let (gem_main, gem_con, gem_rest) = gem.map_or((0.0, 0.0, 0.0), |g| gem_parts(ch.class, g));
+    // A gem in the main weapon counts double in the game (user 2026-10-16/18)
+    let k = if matches!(item.typ, ItemType::Weapon { .. }) && slot == EquipmentSlot::Weapon { WEAPON_GEM_FACTOR } else { 1.0 };
+    let (gem_main, gem_con, gem_rest) = (gem_main * k, gem_con * k, gem_rest * k);
     let (item_main, item_con, item_rest) = item_parts(ch.class, item);
     let ItemType::Weapon { min_dmg, max_dmg } = item.typ else {
         // The item on top of the rest of the build, main attribute and Constitution judged together (balance.rs)
@@ -240,6 +256,22 @@ pub fn value_as_worn(gs: &GameState, item: &Item) -> f64 {
 /// The value the item would have with `gem` in its (empty) slot.
 pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem) -> f64 {
     value_core(gs, item, slot, Gems::Rare, Some(gem))
+}
+
+/// (new value, worn value) on equal footing. When the new item has a usable gem socket of its own (empty, or holding a Luck/secondary
+/// gem), the worn item's socketed Main/CON gem is NOT counted for the worn item: the socket can be filled again with a freshly mined
+/// gem, so the old gem is no advantage (user 2026-10-18, Pagan: a shop weapon with an empty slot and +10 % damage must beat his
+/// weapon with a STR gem). With a new item WITHOUT a socket the worn gem counts in full (a weapon's twice).
+pub fn compare(gs: &GameState, new: &Item, worn: Option<&Item>, slot: EquipmentSlot) -> (f64, f64) {
+    let class = gs.character.class;
+    let open = worth_a_gem(class, new)
+        && match new.gem_slot {
+            Some(GemSlot::Empty) => true,
+            Some(GemSlot::Filled(g)) => replaceable(class, g),
+            None => false,
+        };
+    let mode = if open { Gems::Bare } else { Gems::Rare };
+    (value_core(gs, new, slot, mode, None), worn.map_or(-1.0, |w| value_core(gs, w, slot, mode, None)))
 }
 
 /// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
@@ -458,9 +490,8 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         // Assassins dual-wield (a weapon in both Weapon and Shield): a weapon drop can go into either hand,
         // so it competes against whichever of the two is currently weaker (or empty).
         let slot = target_slot(gs, base_slot);
-        let new = value_in(gs, item, slot);
         let current = gs.character.equipment.0[slot].as_ref();
-        let cur = current.map_or(-1.0, |i| value_in(gs, i, slot));
+        let (new, cur) = compare(gs, item, current, slot);
         // A worn item with a usable gem socket would get the expected gem: a plainly better item without a socket must beat
         // that too (user 2026-10-17, trainer #2); an item with its own usable socket is only equipped once better as it is
         let new_bonus = slot_bonus(gs, item, slot);
@@ -668,5 +699,61 @@ mod tests {
         assert!(weapon_value(14.0, 50.0) > weapon_value(12.0, 56.0));
         // with a small character attribute the attribute matters more: 12 × (1 + 16/20) = 21.6 > 14 × (1 + 10/20) = 21
         assert!(weapon_value(12.0, 16.0) > weapon_value(14.0, 10.0));
+    }
+
+    fn item(typ: ItemType, attrs: &[(AttributeType, u32)], gem: Option<GemSlot>) -> Item {
+        let mut attributes = enum_map::EnumMap::default();
+        for (a, v) in attrs {
+            attributes[*a] = *v;
+        }
+        Item {
+            typ,
+            price: 0,
+            mushroom_price: 0,
+            full_model_id: 0,
+            model_id: 0,
+            class: None,
+            type_specific_val: 0,
+            attributes,
+            gem_slot: gem,
+            rune: None,
+            enchantment: None,
+            color: 0,
+            upgrade_count: 0,
+            item_quality: 0,
+            is_washed: false,
+        }
+    }
+
+    /// 2026-10-18 (user, Pagan the Battle Mage with a STR gem 147 in the weapon and a CON gem 110 in the belt): a shop item with an
+    /// EMPTY socket is compared with the worn one without its socketed gem (a new gem can be mined for it), a shop item WITHOUT a socket
+    /// meets the worn gem in full, a weapon's twice.
+    #[test]
+    fn empty_socket_beats_a_worn_gem_when_the_stats_are_better() {
+        use AttributeType::{Constitution as Con, Luck, Strength as Str};
+        let mut gs = GameState::default();
+        gs.character.class = Class::BattleMage;
+        gs.character.level = 100;
+        gs.character.attribute_basis[Str] = 1000;
+        gs.character.attribute_basis[Con] = 500;
+        gs.character.attribute_additions[Str] = 1000;
+        let gem = |typ, value| Some(GemSlot::Filled(Gem { typ, value }));
+        let worn_weapon = item(ItemType::Weapon { min_dmg: 90, max_dmg: 106 }, &[(Luck, 88)], gem(GemType::Strength, 147));
+        let belt = item(ItemType::Belt, &[(Str, 85)], gem(GemType::Constitution, 110));
+        gs.character.equipment.0[EquipmentSlot::Weapon] = Some(worn_weapon.clone());
+        gs.character.equipment.0[EquipmentSlot::Belt] = Some(belt.clone());
+        let weapon_luck = item(ItemType::Weapon { min_dmg: 95, max_dmg: 113 }, &[(Luck, 103)], Some(GemSlot::Empty));
+        let weapon_con = item(ItemType::Weapon { min_dmg: 98, max_dmg: 118 }, &[(Con, 107)], Some(GemSlot::Empty));
+        let (a, w) = compare(&gs, &weapon_luck, Some(&worn_weapon), EquipmentSlot::Weapon);
+        let (b, _) = compare(&gs, &weapon_con, Some(&worn_weapon), EquipmentSlot::Weapon);
+        assert!(b > w && b > a, "CON weapon {b:.1} must beat the worn {w:.1} and the Luck one {a:.1}");
+        // the same weapon without a socket loses against the worn gem (doubled)
+        let no_slot = Item { gem_slot: None, ..weapon_con.clone() };
+        let (n, w2) = compare(&gs, &no_slot, Some(&worn_weapon), EquipmentSlot::Weapon);
+        assert!(n < w2, "without a socket {n:.1} must lose to the worn gem weapon {w2:.1}");
+        // belt: CON 104 with an empty socket vs STR 85 + CON gem 110 worn
+        let belt_new = item(ItemType::Belt, &[(Con, 104)], Some(GemSlot::Empty));
+        let (nb, cb) = compare(&gs, &belt_new, Some(&belt), EquipmentSlot::Belt);
+        assert!(nb > cb, "belt {nb:.1} vs {cb:.1}");
     }
 }

@@ -171,8 +171,7 @@ fn best_upgrade(gs: &GameState) -> Option<(ShopPosition, &Item, f64, f64)> {
         .filter(|(_, i)| u64::from(i.price) <= ch.silver && i.can_be_equipped_by(ch.class))
         .filter_map(|(pos, i)| {
             let slot = i.typ.equipment_slot()?;
-            let new = inventory::value(gs, i);
-            let cur = ch.equipment.0[slot].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+            let (new, cur) = inventory::compare(gs, i, ch.equipment.0[slot].as_ref(), slot);
             (new > cur).then_some((pos, i, new, cur))
         })
         .max_by(|a, b| (a.2 - a.3).total_cmp(&(b.2 - b.3)))
@@ -422,8 +421,7 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
         let ch = &gs.character;
         for (pos, i) in gs.shops.values().flat_map(|s| s.iter()) {
             if matches!(i.typ, ItemType::Weapon { .. }) && i.can_be_equipped_by(ch.class) {
-                let new = inventory::value(gs, i);
-                let cur = ch.equipment.0[sf_api::gamestate::items::EquipmentSlot::Weapon].as_ref().map_or(-1.0, |c| inventory::value(gs, c));
+                let (new, cur) = inventory::compare(gs, i, ch.equipment.0[sf_api::gamestate::items::EquipmentSlot::Weapon].as_ref(), sf_api::gamestate::items::EquipmentSlot::Weapon);
                 inventory::journal(&format!(
                     "[shops] offer {:?} slot {}: {} | value {new:.1} vs equipped {cur:.1}, our gold {}",
                     pos.typ,
