@@ -231,12 +231,12 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
             Some((_, a)) if p.size.effect() >= a.size.effect() => {
                 return Some((RoomStep::Drink(pos), format!("drinking {} (extends/replaces the active one)", describe(item))));
             }
-            Some((_, a)) => match pressure {
+            Some((slot, a)) => match pressure {
                 Pressure::Room | Pressure::Tight if pressure == Pressure::Room || days_left(a) > REPLACE_WHEN_DAYS_LEFT => {}
                 Pressure::Tight => {
                     return Some((
-                        RoomStep::Drink(pos),
-                        format!("space is tight and the active {} has {:.1} days left: drinking {} instead", describe_p(a), days_left(a), describe(item)),
+                        RoomStep::Swap(*slot, pos),
+                        format!("space is tight and the active {} has {:.1} days left: removing it and drinking {} (the server refuses a downgrade)", describe_p(a), days_left(a), describe(item)),
                     ));
                 }
                 _ => {

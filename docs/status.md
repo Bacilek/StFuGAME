@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **"no potion downgrade" popup fixed (2026-10-18, NOT in a release yet):** the server refuses drinking a smaller potion while a bigger one of the same kind is active; `potions::bag_action` (Pressure::Tight, active has <= 3 days left) did exactly that every pass and showed the "UsePotion failed 10 times" popup (Mimimimi11, PajaRizz, Filminy overnight). Now it REMOVES the active one first and then drinks the smaller (`RoomStep::Swap`). Needs a release rebuild.
+
 - **Loose gems go first when room is needed (2026-10-18, user, NOT in a release yet):** no active selling (the max-2 idea was dropped). `gems::free_slot`: socket a gem that has a place (worn item worse), else sell the weakest; `potions::make_room` tries it BEFORE potions/epics (works with any number of free slots, `inventory::spare_gem`). The no-epics Gleeman hunt (`hunt::ensure_room`) frees room ONLY this way, never with potions; if gems do not suffice it skips the task.
 - **Release built 02:00 2026-10-18** (surplus attributes 20×; raw id 1019 known; loose gems first to go when a slot is needed; no-epics hunt frees room only with gems). The user starts the bot.
 
