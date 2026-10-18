@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Shops right after midnight (2026-10-18, user, NOT in a release yet):** `shops::run` no longer waits for the Tavern: the day's full pass runs at 00:03 (after an `Update`), later in the day `best_upgrade` becoming affordable (gold from chests, City Guard pay, ...) triggers another full pass (at most every 20 min) and spare gold above reserve + next fortress build triggers the spin-only `respin`. Fortress keeps priority over spinning all day. Reason: the levels no longer jump during the day, so the new wares matter at midnight.
+
 - **Release built 13:10 2026-10-18:** attribute prices read from the server counter `attribute_times_bought` (learned price per level beyond the table, no MISMATCH log, `roster/attribute_prices.json`); the Gem Mine collects a finished gem with ONE free slot (an unwanted gem is sold right after, the mine never stalls); the weapon swap loop fix and the gem slot weight are in too.
 
 - **Release built 12:29 2026-10-18** (weapon swap loop fix, gem slot weight: socketed main/CON gems count fully, empty slot valued with the gem we need now). The user starts the bot; check Květoš's inventory.log for the swapping to stop.

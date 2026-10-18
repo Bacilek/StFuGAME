@@ -327,8 +327,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             tavern_done = before.0 == CurrentAction::Idle;
         }
 
-        // Shops once a day after the Tavern is done (before City Guard, the best items to sell are in by now)
-        if let tavern::Outcome::SessionLost = shops::run(session, tavern_done).await {
+        // Shops: a full pass right after midnight, later passes when gold arrives (user 2026-10-18), see src/shops.rs
+        if let tavern::Outcome::SessionLost = shops::run(session).await {
             return tavern::Outcome::SessionLost;
         }
 

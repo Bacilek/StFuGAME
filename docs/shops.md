@@ -1,3 +1,5 @@
+> 2026-10-18 (user): the shop pass is now right after midnight (00:03), no longer after the Tavern; later passes when gold arrives (see `src/shops.rs::run`). Older text below says "after the Tavern".
+
 # Shops (Weapon Shop, Magic Shop)
 
 ## Rules (from the user, 2026-10-07)

@@ -12,7 +12,7 @@
 | `arena.rs` | Arena: 3 opponents via `ViewPlayer`, strength by the formula, fight, log `roster/<character>/logs/arena.jsonl`. Limit `fights_for_xp` < 10. `power()` is shared with Dungeons and inventory. |
 | `dungeons.rs` | Dungeons: `UpdateDungeons`, enemies via `Dungeons::current_enemy` (sf-api data), choice, fight. |
 | `inventory.rs` | Inventory: equip better / sell worse, keep epics. Weapons by damage. |
-| `shops.rs` | Weapon Shop + Magic Shop once a day after the Tavern: gold-only upgrades, spinning above the daily reserve. |
+| `shops.rs` | Weapon Shop + Magic Shop a full pass at 00:03 + later passes when gold arrives: gold-only upgrades, spinning above the daily reserve. |
 | `guild.rs` | Guild: once a day the quick-join list, join the best / switch to a clearly better one (Custom commands). |
 | `session.rs` | Our copy of sf-api's `SimpleSession` with `send_raw` (raw response for keys sf-api ignores). |
 | `tasks.rs` | Goblin Gleeman + event tasks: chests, guild skill, attributes, shell game (shop purchases in shops.rs, dungeon pick in dungeons.rs). |

@@ -1,4 +1,4 @@
-//! Weapon Shop and Magic Shop, once a day after the Tavern is done (the whole Thirst for Adventure used up).
+//! Weapon Shop and Magic Shop: a full pass right after midnight (00:03, user 2026-10-18), later in the day again when gold arrives.
 //! Buys ONLY for gold (`mushroom_price == 0`), never for mushrooms, never `RefreshShop` (costs a mushroom).
 //! 1. Upgrades: a gold item better than the equipped one (by `inventory::value`) → buy, `inventory::manage` equips it
 //!    and sells the old one (never epic items). Upgrades may use all the gold.
@@ -39,6 +39,8 @@ struct Day {
     done: bool,
     /// A later spin-only round failed to buy (full backpack, unchanged offer): no more of them today
     respin_blocked: bool,
+    /// When the last full pass ran (a later one for an upgrade that became affordable is throttled by it)
+    last_pass: Option<chrono::DateTime<Local>>,
     /// Fingerprint of the wares as the last pass or spin round left them: a different one later (shop rerolled by hand
     /// or by the game) means new offers nobody has looked at yet, so the full pass runs again.
     wares: String,
@@ -80,7 +82,7 @@ fn with_day<T>(f: impl FnOnce(&mut Day) -> T) -> Option<T> {
     let today = Local::now().date_naive();
     if guard.as_ref().is_none_or(|d| d.date != today) {
         let (seen, carry) = load_reserve(today);
-        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false, respin_blocked: false, wares: String::new() });
+        *guard = Some(Day { date: today, reserve: seen.max(carry), seen, carry, done: false, respin_blocked: false, last_pass: None, wares: String::new() });
     }
     guard.as_mut().map(f)
 }
@@ -308,12 +310,20 @@ fn announce_epics(gs: &GameState) {
     }
 }
 
-/// Shopping once a day after the Tavern is done. Sends nothing when there is nothing to do.
-pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
+/// The shops are visited right after midnight (user 2026-10-18; not after the Tavern any more: the levels no longer jump during
+/// the day), a few minutes late so the shops have restarted.
+const FIRST_PASS_MINUTE: u32 = 3;
+
+/// A later full pass because an upgrade became affordable is at most this often.
+const REPASS_EVERY: chrono::Duration = chrono::Duration::minutes(20);
+
+/// Shopping: a full pass right after midnight, later in the day again when gold arrives (a better item became affordable → a
+/// full pass at most every 20 min, only a spin is possible → `respin`). Sends nothing when there is nothing to do.
+pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(gs) = session.game_state() {
         announce_epics(gs);
     }
-    if !tavern_done {
+    if chrono::Timelike::hour(&Local::now()) == 0 && chrono::Timelike::minute(&Local::now()) < FIRST_PASS_MINUTE {
         return Outcome::Done;
     }
     match with_day(|d| d.done) {
@@ -322,14 +332,29 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
             let Some(gs) = session.game_state() else { return Outcome::Done };
             let now = wares(gs);
             if with_day(|d| d.wares == now).unwrap_or(true) {
-                return respin(session).await;
+                // Gold that arrived since the pass (Gleeman chest, City Guard pay, ...) may now afford a better item
+                let late = best_upgrade(gs).is_some()
+                    && with_day(|d| d.last_pass.is_none_or(|t| Local::now() - t >= REPASS_EVERY)).unwrap_or(false);
+                if !late {
+                    return respin(session).await;
+                }
+                report!("[shops] An upgrade is affordable now, going through the shops again");
+            } else {
+                report!("[shops] The wares changed since the last pass (rerolled?), going through them again");
             }
-            report!("[shops] The wares changed since the last pass (rerolled?), going through them again");
             with_day(|d| d.respin_blocked = false);
         }
-        Some(false) => {}
+        Some(false) => {
+            // The wares must be the new day's: refresh the state first
+            if let Err(e) = safe::send(session, Command::Update).await {
+                return fail(&e);
+            }
+        }
     }
-    with_day(|d| d.done = true);
+    with_day(|d| {
+        d.done = true;
+        d.last_pass = Some(Local::now());
+    });
     let outcome = shop(session).await;
     remember_wares(session);
     if let Some(gs) = session.game_state() {

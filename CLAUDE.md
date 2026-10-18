@@ -92,7 +92,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Shops
 - Description and verification status: `docs/shops.md`.
-- Weapon Shop and Magic Shop once a day after the Tavern is done. ONLY for gold (`mushroom_price == 0`), never `RefreshShop`.
+- Weapon Shop and Magic Shop a full pass right after midnight (00:03, user 2026-10-18; no longer after the Tavern), later in the day again when gold arrives (an affordable upgrade → full pass at most every 20 min, spare gold above the reserve → spin only). The fortress uses gold all day, before spinning. ONLY for gold (`mushroom_price == 0`), never `RefreshShop`.
 - Better item (even slightly) → buy and equip. Spare gold above the reserve (most expensive gold item seen today) → spin
   (buy the cheapest, sell it right away) until all items cost mushrooms. Never buy or sell epic items when spinning.
 - Hourglasses for gold may be bought when spinning (kept, never used).
