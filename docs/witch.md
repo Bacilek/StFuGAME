@@ -27,5 +27,25 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
   one triple has a timestamp (1792068112 = ~3.5 days before the capture). sf-api therefore sees only the first one (ShadowOfTheCowboy) as unlocked
   → VERIFY which enchantments the game shows as unlocked and what the flag/timestamp means.
 
-## Open questions (asked 2026-10-19)
-See `docs/status.md`.
+
+## Enchantments (user 2026-10-19; "quests" also means expeditions)
+| Item | Enchantment | Effect |
+|---|---|---|
+| Helmet | Adventurer's Archaeological Aura | +10 % XP on quests |
+| Armor | Mario's Beard | +50 % mushrooms on quests |
+| Gloves | Shadow of the Cowboy | you attack first (random if the enemy has it too) |
+| Boots | Many-Feet Boots (user wrote "36963-Feet") | quests 30 s shorter (thirst unchanged, only time) |
+| Weapon | Sword of Vengeance | +5 % crit damage of this weapon |
+| Amulet | Unholy Acquisitiveness | +10 % chance to find items on quests |
+| Belt | Thirsty Wanderer | first beer of the day free, beer cap 11 a day |
+| Ring | The Grave Robber's Prayer | +10 % gold from quests |
+| Talisman | Robber Baron Ritual | +20 gold from the Arena |
+- Ring example seen in the game: "+10 gold bonus on expeditions" (the user's wording of the ring enchant's action text).
+- The enchant stays on the ITEM; a swap of equipment needs a new enchant (gold; price probably grows with level).
+- Gems cannot be removed from an item. Epic items NEVER go into the cauldron.
+- Belt idea (not allowed yet, ask first): a free first beer = a beer without a mushroom; would be a new mushroom exception for CLAUDE.md.
+
+## Decisions (user 2026-10-19, also in precedents.md)
+- Enchant priority: right after better items. Everything of the day's type that is non-epic and unwanted → witch (swaps, spinning, leftovers);
+  during spinning buy that type so the sale pays 2×. Never buy for mushrooms because of it.
+- Open: an item with a socketed gem is lost with the gem when dropped – conservative plan: do not drop gem items unless the user says so.

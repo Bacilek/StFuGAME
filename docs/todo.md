@@ -20,7 +20,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [ ] Enchant: očarování předmětů – ceny, výběr předmětu, bez hub
   - [ ] Juice: lektvar/džus – co dělá, ceny, kdy vařit
   - Zadání (user 2026-10-19, vše v `docs/witch.md`): Witch denně vykupuje 1 typ itemu za 2× shopovou cenu → veškerý prodej toho typu (výměna vybavy, protáčení obchodů) směřovat k ní; z obětovaných itemů (nejspíš sdílené po serveru) se 24 h vaří nový enchantment; v Enchant tabu jde na každý typ itemu dát jeden pevný enchantment (nevybíráme, platíme goldy za aplikaci).
-  - [ ] **User vypíše seznam enchantmentů** (co který dělá, pro který typ itemu) → zapsat do `docs/witch.md`
+  - [x] Seznam enchantmentů od usera zapsán do `docs/witch.md`
   - [ ] Ověřit capture a dnešní typ itemu (sf-api `witch.required_item`), viz `docs/witch.md`
   - Pravidlo: nikdy za houby (viz CLAUDE.md); každý příkaz až po ověření do `safe.rs`.
 
