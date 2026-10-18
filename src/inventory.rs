@@ -82,28 +82,6 @@ pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
     }
 }
 
-/// The gem lying loose in the backpack (ready to be socketed) that is worth the most to this class, with its REAL type
-/// (user 2026-10-15: Pjotr, a Necromancer, held a Strength gem +86 that was valued like an Intelligence one).
-pub fn best_backpack_gem(gs: &GameState) -> Option<Gem> {
-    let class = gs.character.class;
-    gs.character
-        .inventory
-        .backpack
-        .iter()
-        .flatten()
-        .filter_map(|i| match i.typ {
-            ItemType::Gem(g) => Some(g),
-            _ => None,
-        })
-        .max_by(|a, b| {
-            let worth = |g: &Gem| {
-                let (m, o) = gem_effect(class, *g);
-                m + o
-            };
-            worth(a).total_cmp(&worth(b))
-        })
-}
-
 /// Whether an item deserves a gem (user 2026-10-15): a weapon, or gear with main attribute, CON or LCK of its own. Gems are
 /// never taken out again, so a side-stat-only item would waste its own slot's worth for good.
 pub fn worth_a_gem(class: Class, item: &Item) -> bool {
