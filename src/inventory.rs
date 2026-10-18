@@ -194,7 +194,10 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, pote
     } else {
         0.0
     };
-    let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg) + other_hand, total);
+    // The main attribute the character would have WITH this weapon (not with the worn one): otherwise two weapons rate each other
+    // higher whichever is worn and the bot swaps them forever (Květoš 2026-10-18)
+    let total_with = (total - (now_m - rest_m) + item_main + gem_main).max(0.0);
+    let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg) + other_hand, total_with);
     // Reference: the weapon worn in this slot (bare hands without one) with the character's current main attribute
     let ref_avg = match ch.equipment.0[slot].as_ref().map(|w| &w.typ) {
         Some(&ItemType::Weapon { min_dmg, max_dmg }) => effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg),

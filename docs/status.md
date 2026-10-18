@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Weapon swap loop fixed (2026-10-18 12:02–, NOT in a release yet):** after the 11:54 release Květoš swapped two weapons (INT/LCK with a CON gem vs STR/DEX with a DEX gem) ~90 times in 20 min. Cause: `value_core` rated a candidate weapon's damage with the main attribute total of the character WITH THE WORN weapon, so each rated the other higher; now `total_with` (total minus the worn weapon's main + the candidate's main and gem). Needs a release rebuild; until then stop the bot or Květoš keeps swapping.
+
 - **Gem slot weight in item comparison (2026-10-18, user, NOT in a release yet):** Mrožik swapped epic gloves INT/CON/LCK +43 with a socketed CON gem +75 for +46-all gloves with no slot because socketed main/CON gems were ignored. Now `inventory::value_core` counts a socketed main/CON/All/Legendary gem fully (Luck/secondary stay replaceable) and `expected_gem` (what an empty slot is worth) is the loose gem with the best `gem_gain`, else a gem of the lacking kind (Constitution below 80 % of main, else main) as strong as the best worn one. Mrožik should swap back to the +43 gloves on the next inventory pass after a release.
 
 - **Release built 11:54 2026-10-18** (potion downgrade fix: smaller replaces bigger active only with < 24 h left; everything above marked 'NOT in a release yet' from today is in). The user starts the bot.
