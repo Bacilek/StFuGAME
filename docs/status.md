@@ -2,6 +2,8 @@
 
 Updated: 2026-10-16. Rewrite after every bigger change.
 - **Loose gems go first when room is needed (2026-10-18, user, NOT in a release yet):** no active selling (the max-2 idea was dropped). `gems::free_slot`: socket a gem that has a place (worn item worse), else sell the weakest; `potions::make_room` tries it BEFORE potions/epics (works with any number of free slots, `inventory::spare_gem`). The no-epics Gleeman hunt (`hunt::ensure_room`) frees room ONLY this way, never with potions; if gems do not suffice it skips the task.
+- **Release built 02:00 2026-10-18** (surplus attributes 20×; raw id 1019 known; loose gems first to go when a slot is needed; no-epics hunt frees room only with gems). The user starts the bot.
+
 
 - **Gone With the Wind poster identified (2026-10-18, NOT in a release yet):** raw id 1019 = the mission's poster (+0, doubles the completion bonus +10 → +20); added to `KNOWN_UNNAMED_IDS`, no more popup. Details in docs/expeditions.md.
 
