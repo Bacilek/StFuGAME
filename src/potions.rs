@@ -202,6 +202,14 @@ enum Pressure {
 }
 
 
+/// Days an active potion still lasts.
+fn days_left(p: &Potion) -> f64 {
+    p.expires.map_or(999.0, |e| (e - Local::now()).num_minutes() as f64 / 1440.0)
+}
+
+/// A bigger active potion with less than this many days left is replaced by a smaller one of the same kind (user 2026-10-18).
+const REPLACE_BELOW_DAYS: f64 = 1.0;
+
 /// The next thing to do with the potions in the backpack (see the module docs); `None` = nothing to do.
 fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> {
     let act = active(gs);
@@ -219,8 +227,14 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
             Some((_, a)) if p.size.effect() >= a.size.effect() => {
                 return Some((RoomStep::Drink(pos), format!("drinking {} (extends/replaces the active one)", describe(item))));
             }
-            // A smaller potion can never replace a bigger active one (the server refuses a downgrade, and removing the bigger one
-            // for a smaller one is a loss): keep it until the active one expires, sell it only when nothing else can be sold
+            // The server refuses a downgrade, so the bigger active potion is removed first, but only when it has less than a day left
+            // (user 2026-10-18); otherwise the smaller one is kept until the active one expires, sold only as the very last thing
+            Some((slot, a)) if days_left(a) < REPLACE_BELOW_DAYS => {
+                return Some((
+                    RoomStep::Swap(*slot, pos),
+                    format!("the active {:?} has {:.1} days left: removing it and drinking {}", a.typ, days_left(a), describe(item)),
+                ));
+            }
             Some(_) => match pressure {
                 Pressure::Room | Pressure::Tight => {}
                 Pressure::Desperate => {

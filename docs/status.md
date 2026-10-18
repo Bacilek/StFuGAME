@@ -1,7 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
-- **"no potion downgrade" popup fixed (2026-10-18, NOT in a release yet):** the server refuses drinking a smaller potion while a bigger one of the same kind is active; `potions::bag_action` did that (Pressure::Tight, active <= 3 days left) every pass and showed the "UsePotion failed 10 times" popup (Mimimimi11, PajaRizz, Filminy overnight). The rule is GONE (user: swapping a 2.5-day big one for a 3-day small one is a loss): a smaller potion is kept until the active one expires, sold only as the very last thing (Desperate). Needs a release rebuild.
+- **Potions: "no potion downgrade" popup fixed + new rule (2026-10-18, NOT in a release yet):** the server refuses drinking a smaller potion while a bigger one of the same kind is active (overnight popup "UsePotion failed 10 times", Mimimimi11/PajaRizz/Filminy, the old Tight rule did it every pass). Now `potions::bag_action`: a smaller potion replaces the bigger active one ONLY when that has < 24 h left (`REPLACE_BELOW_DAYS`, user) by `RemovePotion` + drink (`RoomStep::Swap`); otherwise it is kept until the active one expires, sold only as a last resort. A bigger/equal potion from the backpack is drunk at once. Needs a release rebuild.
+
 
 
 - **Loose gems go first when room is needed (2026-10-18, user, NOT in a release yet):** no active selling (the max-2 idea was dropped). `gems::free_slot`: socket a gem that has a place (worn item worse), else sell the weakest; `potions::make_room` tries it BEFORE potions/epics (works with any number of free slots, `inventory::spare_gem`). The no-epics Gleeman hunt (`hunt::ensure_room`) frees room ONLY this way, never with potions; if gems do not suffice it skips the task.
