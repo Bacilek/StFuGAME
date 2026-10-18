@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Release built 13:32 2026-10-18** (gem holding: max 2 loose gems, always collect with a free slot and sell the worthless one at once, better tier replaces the weakest when the backpack is full). The user starts the bot.
 - **Release built 13:23 2026-10-18** (shops right after midnight + repeat passes when gold arrives, fortress gold-starvation warning after 3 h; attribute prices from the server counter and the Gem Mine with one free slot were built earlier today). The user starts the bot.
 
 - **Warning: fortress build starved of gold (2026-10-18, user, NOT in a release yet):** since the shops/spinning get gold right after midnight, `fortress::run` tracks (`GOLD_SHORT_SINCE`) how long the next build has waited for GOLD alone (wood and stone ready, not busy); after 3 h `stuck::fortress_gold_short` raises a popup + `roster/alerts.txt` line (once per 12 h per character) so the priorities can be reconsidered.
