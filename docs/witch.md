@@ -34,7 +34,7 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 | Helmet | Adventurer's Archaeological Aura | +10 % XP on quests |
 | Armor | Mario's Beard | +50 % mushrooms on quests |
 | Gloves | Shadow of the Cowboy | you attack first (random if the enemy has it too) |
-| Boots | Many-Feet Boots (user wrote "36963-Feet") | quests 30 s shorter (thirst unchanged, only time) |
+| Boots | "36963-Feet boots" (user confirmed the name; sf-api: ManyFeetBoots) | quests 30 s shorter (thirst unchanged, only time) |
 | Weapon | Sword of Vengeance | +5 % crit damage of this weapon |
 | Amulet | Unholy Acquisitiveness | +10 % chance to find items on quests |
 | Belt | Thirsty Wanderer | first beer of the day free, beer cap 11 a day |
@@ -43,9 +43,9 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 - Ring example seen in the game: "+10 gold bonus on expeditions" (the user's wording of the ring enchant's action text).
 - The enchant stays on the ITEM; a swap of equipment needs a new enchant (gold; price probably grows with level).
 - Gems cannot be removed from an item. Epic items NEVER go into the cauldron.
-- Belt idea (not allowed yet, ask first): a free first beer = a beer without a mushroom; would be a new mushroom exception for CLAUDE.md.
+- Belt (Thirsty Wanderer): ONE free beer a day is ALLOWED (user 2026-10-19), but only if the belt was already worn with the enchant at the START of the day; a belt equipped during the day does not count. Needs a mushroom-exception entry in CLAUDE.md + safe.rs when implemented (only the free beer, verify via mushroom count that it costs none).
 
 ## Decisions (user 2026-10-19, also in precedents.md)
 - Enchant priority: right after better items. Everything of the day's type that is non-epic and unwanted → witch (swaps, spinning, leftovers);
   during spinning buy that type so the sale pays 2×. Never buy for mushrooms because of it.
-- Open: an item with a socketed gem is lost with the gem when dropped – conservative plan: do not drop gem items unless the user says so.
+- Gem items MAY go into the cauldron (user 2026-10-19: gems are cheap to remake; we sell gem items too). Epics still never.
