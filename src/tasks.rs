@@ -132,7 +132,7 @@ fn attribute_for_task(gs: &GameState) -> Option<AttributeType> {
     open_tasks(gs).find_map(|t| match t.typ {
         TaskType::Upgrade(a) => Some(a),
         TaskType::UpgradeAnyAttribute | TaskType::SpendGoldOnUpgrades => {
-            Some(crate::attributes::best_attribute(gs.character.class))
+            Some(crate::attributes::best_attribute(gs))
         }
         _ => None,
     })
@@ -154,6 +154,7 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         let current = gs.character.attribute_basis[attribute];
+        let level = crate::attributes::next_level(gs, attribute);
         let silver = gs.character.silver;
         send_or_return!(session, Command::UpgradeSkill { attribute, next_attribute: current + 1 });
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -162,7 +163,7 @@ pub async fn buy_attributes(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         last_price = silver.saturating_sub(gs.character.silver);
-        crate::attributes::record_purchase(attribute, last_price as u32);
+        crate::attributes::record_purchase(level, last_price as u32);
         report!("[tasks] Buying {attribute:?} {current} → {} for a task, paid {}", current + 1, crate::report::gold(last_price));
     }
     Outcome::Done
@@ -184,8 +185,9 @@ pub async fn buy_surplus_attributes(session: &mut SimpleSession) -> Outcome {
         if gs.character.silver <= floor + last_price {
             return Outcome::Done;
         }
-        let attribute = crate::attributes::best_attribute(gs.character.class);
+        let attribute = crate::attributes::best_attribute(gs);
         let current = gs.character.attribute_basis[attribute];
+        let level = crate::attributes::next_level(gs, attribute);
         let silver = gs.character.silver;
         send_or_return!(session, Command::UpgradeSkill { attribute, next_attribute: current + 1 });
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -194,7 +196,7 @@ pub async fn buy_surplus_attributes(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
         last_price = silver.saturating_sub(gs.character.silver);
-        crate::attributes::record_purchase(attribute, last_price as u32);
+        crate::attributes::record_purchase(level, last_price as u32);
         report!(
             "[tasks] Buying {attribute:?} {current} → {} from surplus gold (above {}× reserve), paid {}",
             current + 1,

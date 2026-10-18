@@ -37,9 +37,7 @@ cause, fix, status). Newest first. Kept in English like the rest of the repo.
 - Four loose Luck gems and an epic filled the backpack; the dungeon needs a free slot. Led to "always keep one slot free".
 
 ## Smaller oddities noticed (not fixed / not bugs)
-- 2026-10-18: the attribute price table drifts at high levels (Mimimimi11 Strength: expected 719 g, paid 724 g; the bot resyncs the
-  level after every purchase, harmless but noisy `[check] MISMATCH attribute ...` lines).
-- 2026-10-18: most characters sit with a finished gem in the Gem Mine ("backpack has 1 free slot(s) and no socket wants it") for
-  hours because collecting needs 2 free slots.
+- 2026-10-18: the attribute price table drifted at high levels (Mimimimi11 Strength: expected 719 g, paid 724 g) because our own purchase counter was a guess beyond the 216-level table; the server sends the real counter (`attribute_times_bought`), now used (fixed).
+- 2026-10-18: most characters sat with a finished gem in the Gem Mine for hours because collecting needed 2 free slots (fixed: 1 slot is enough, an unwanted gem is sold).
 - 2026-10-18: "not 24 hours member" guild sign-up errors on almost every character at the same time (retried every 4 h, expected).
 - 2026-10-18: Mrožik lost 11 arena fights today (the others 3–7) while winning the capped 10; reason not examined.

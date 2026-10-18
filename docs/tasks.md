@@ -47,10 +47,10 @@
   the best weight-per-gold, `attributes::best_attribute`) via `UpgradeSkill` while gold > reserve + last price.
 - **Attribute cost & choice (`src/attributes.rs`, user 2026-10-09):** the price of the next gold-bought point for
   an attribute depends only on how many times *that* attribute has ever been bought with gold (the "attribute
-  increasement level"), never on its current value or the character's level. The server does not expose this
-  lifetime counter, so the bot tracks it itself per character (`roster/<nick>/attribute_levels.json`, local only),
-  advancing it after every purchase and self-correcting (`[check] MISMATCH`, searches ±50 levels) if the price
-  actually paid does not match what we expected (e.g. a manual purchase outside the bot). Prices come from a
+  increasement level"), never on its current value or the character's level. The server DOES expose this lifetime counter
+  (`character.attribute_times_bought`, found 2026-10-18), so the next level is read from it (no own counter any more, no
+  `[check] MISMATCH` noise; `roster/<nick>/attribute_levels.json` is obsolete). Beyond the public table the real prices paid are
+  remembered per level (`roster/attribute_prices.json`, shared) and the rest estimated from them. Prices come from a
   lookup table (`COST_TABLE`, levels 1..=216, source: sf.kalais.net/english/attributes.html, 1 gold = 100 silver) –
   truncated there because the site's own table turns unreliable higher up (blank/`"?"` cells); beyond level 216
   the price is extrapolated with the table's last step, **not yet verified live** (no character has gotten an

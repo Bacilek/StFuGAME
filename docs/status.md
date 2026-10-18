@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 Updated: 2026-10-16. Rewrite after every bigger change.
+- **Release built 13:10 2026-10-18:** attribute prices read from the server counter `attribute_times_bought` (learned price per level beyond the table, no MISMATCH log, `roster/attribute_prices.json`); the Gem Mine collects a finished gem with ONE free slot (an unwanted gem is sold right after, the mine never stalls); the weapon swap loop fix and the gem slot weight are in too.
+
 - **Release built 12:29 2026-10-18** (weapon swap loop fix, gem slot weight: socketed main/CON gems count fully, empty slot valued with the gem we need now). The user starts the bot; check Květoš's inventory.log for the swapping to stop.
 
 - **Weapon swap loop (2026-10-18 03:57–, fixed in code, NOT in a release yet):** Květoš swapped two weapons (INT/LCK with a CON gem +144 vs STR/DEX with a DEX gem +142) ~2450 times (~300 an hour), stalling every Tavern round by ~5 min (expeditions took 2 h instead of 15 min from 04:08 on, the day's Thirst for Adventure was still not used up at 12:30). It started when the second weapon got its gem; it is in the OLD code (not caused by the 2026-10-18 changes). Cause: a socketed main/CON gem was IGNORED in the item's value but INCLUDED in the baseline build (`raw_totals`), so the worn weapon was always penalised by its own gem and the other looked better. Fix: socketed main/CON gems count fully (`value_core`), plus a weapon's damage uses the main total WITH that weapon (`total_with`). Needs a release; until then the loop continues.

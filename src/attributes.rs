@@ -5,14 +5,14 @@
 //!
 //! The price of the next point for a given attribute depends ONLY on how many times that attribute has ever
 //! been bought with gold (the "attribute increasement level"), never on its current value or the character's
-//! level (user 2026-10-09, confirmed against the public cost table below). We have no way to read this lifetime
-//! counter from the server, so we track it ourselves, persisted per character (`roster/<nick>/attribute_levels.json`,
-//! local only like the rest of `roster/`), and self-correct it from the price actually paid whenever it drifts
-//! (e.g. a manual purchase outside the bot, or a wrong starting guess).
+//! level (user 2026-10-09, confirmed against the public cost table below). The server DOES send that lifetime counter
+//! (`attribute_times_bought`, found 2026-10-18; the old own counter drifted and was a pure guess beyond the table), so the next
+//! level is read from it. The public table ends at level 216; beyond it the real prices paid are remembered per level and
+//! the rest estimated from them (`roster/attribute_prices.json`, shared by all characters).
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-use sf_api::{command::AttributeType, gamestate::character::Class};
+use sf_api::{command::AttributeType, gamestate::{GameState, character::Class}};
 
 /// Silver cost of the Nth gold-bought attribute point (1-indexed), levels 1..=216. Source: the public cost
 /// table at sf.kalais.net/english/attributes.html (1 gold = 100 silver), user-provided 2026-10-09. Not a smooth
@@ -41,16 +41,50 @@ const COST_TABLE: [u32; 216] = [
     8755, 8880, 9005, 9130, 9255, 9380, 9505, 9640, 9775, 9910, 10000, 10100,
 ];
 
-/// Silver cost of the Nth gold-bought point (1-indexed). Beyond the table (character far above what's tested),
-/// extrapolated with the table's last step so the bot still has an answer instead of panicking.
+/// Prices actually paid, by the server's own purchase counter (`attribute_times_bought`) + 1 (user 2026-10-18: the old own
+/// counter was a guess and drifted). The price depends only on that level, so the file is shared by all characters
+/// (`roster/attribute_prices.json`, local only). Levels beyond the public table are estimated from these.
+static LEARNED: std::sync::Mutex<Option<BTreeMap<u32, u32>>> = std::sync::Mutex::new(None);
+
+fn prices_path() -> std::path::PathBuf {
+    std::path::Path::new("roster").join("attribute_prices.json")
+}
+
+fn with_learned<R>(f: impl FnOnce(&mut BTreeMap<u32, u32>) -> R) -> R {
+    let mut guard = LEARNED.lock().unwrap_or_else(|e| e.into_inner());
+    let map = guard.get_or_insert_with(|| {
+        std::fs::read_to_string(prices_path()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+    });
+    f(map)
+}
+
+/// Growth of the price beyond the table (rough: seen exponents 2.0–2.6 between the table's end and level ~450).
+const GROWTH: f64 = 2.3;
+
+/// Silver cost of the Nth gold-bought point (1-indexed): the table, a price actually paid, or an estimate (interpolated
+/// between paid prices, else a power law from the nearest known one).
 fn price_for_level(level: u32) -> u32 {
     let idx = level.saturating_sub(1) as usize;
     if let Some(&p) = COST_TABLE.get(idx) {
         return p;
     }
-    let last = COST_TABLE[COST_TABLE.len() - 1];
-    let step = COST_TABLE[COST_TABLE.len() - 1] - COST_TABLE[COST_TABLE.len() - 2];
-    last + step * (level - COST_TABLE.len() as u32)
+    with_learned(|m| {
+        if let Some(&p) = m.get(&level) {
+            return p;
+        }
+        let lo = m.range(..level).next_back().map(|(&l, &p)| (l, p));
+        let hi = m.range(level..).next().map(|(&l, &p)| (l, p));
+        let power = |from: (u32, u32)| (f64::from(from.1) * (f64::from(level) / f64::from(from.0)).powf(GROWTH)).round() as u32;
+        match (lo, hi) {
+            (Some(a), Some(b)) => {
+                let t = f64::from(level - a.0) / f64::from(b.0 - a.0);
+                (f64::from(a.1) + t * (f64::from(b.1) - f64::from(a.1))).round() as u32
+            }
+            (Some(a), None) => power(a),
+            (None, Some(b)) => power(b),
+            (None, None) => power((COST_TABLE.len() as u32, COST_TABLE[COST_TABLE.len() - 1])),
+        }
+    })
 }
 
 const ATTRS: [AttributeType; 5] = [
@@ -61,81 +95,28 @@ const ATTRS: [AttributeType; 5] = [
     AttributeType::Luck,
 ];
 
-fn code(a: AttributeType) -> &'static str {
-    match a {
-        AttributeType::Strength => "STR",
-        AttributeType::Dexterity => "DEX",
-        AttributeType::Intelligence => "INT",
-        AttributeType::Constitution => "CON",
-        AttributeType::Luck => "LCK",
-    }
-}
-
-fn path() -> std::path::PathBuf {
-    std::path::Path::new("roster").join(crate::ctx::name()).join("attribute_levels.json")
-}
-
-fn load() -> HashMap<String, u32> {
-    std::fs::read_to_string(path()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
-}
-
-fn save(levels: &HashMap<String, u32>) {
-    if let Some(dir) = path().parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    if let Ok(json) = serde_json::to_string_pretty(levels) {
-        let _ = std::fs::write(path(), json);
-    }
-}
-
-fn level_of(levels: &HashMap<String, u32>, a: AttributeType) -> u32 {
-    levels.get(code(a)).copied().unwrap_or(0)
+/// The level (Nth gold-bought point) the NEXT purchase of this attribute is, from the server's own counter.
+pub fn next_level(gs: &GameState, a: AttributeType) -> u32 {
+    gs.character.attribute_times_bought[a] + 1
 }
 
 /// Silver cost of the next gold-bought point for this attribute.
-pub fn next_price(a: AttributeType) -> u32 {
-    price_for_level(level_of(&load(), a) + 1)
+pub fn next_price(gs: &GameState, a: AttributeType) -> u32 {
+    price_for_level(next_level(gs, a))
 }
 
-/// After actually buying a point for `paid` silver: advance our counter for `a`, re-syncing it from the paid
-/// price if it drifted from what we expected (e.g. a purchase made outside the bot) by searching nearby levels
-/// in the table for a match, logged like the other `[check]` verifications in this project.
-pub fn record_purchase(a: AttributeType, paid: u32) {
-    let mut levels = load();
-    let current = level_of(&levels, a);
-    let expected = price_for_level(current + 1);
-    let next_level = if paid == expected {
-        current + 1
-    } else {
-        let window = 50u32;
-        let lo = current.saturating_sub(window).max(1);
-        let hi = current + window;
-        match (lo..=hi).find(|&l| price_for_level(l) == paid) {
-            Some(found) => {
-                report!(
-                    "[check] MISMATCH attribute {a:?} level: expected to pay {} (level {}), actually paid {} \
-                     (resyncing to level {})",
-                    crate::report::gold(u64::from(expected)),
-                    current + 1,
-                    crate::report::gold(u64::from(paid)),
-                    found
-                );
-                found
-            }
-            None => {
-                report!(
-                    "[check] MISMATCH attribute {a:?} level: expected to pay {} (level {}), actually paid {} \
-                     (no nearby level matches, keeping our counter)",
-                    crate::report::gold(u64::from(expected)),
-                    current + 1,
-                    crate::report::gold(u64::from(paid))
-                );
-                current + 1
-            }
+/// After actually buying the point of `level` for `paid`: remember the real price (only beyond the public table, which is
+/// trusted below it). Silent: a price that differs from the estimate is normal there.
+pub fn record_purchase(level: u32, paid: u32) {
+    if level as usize <= COST_TABLE.len() || paid == 0 {
+        return;
+    }
+    with_learned(|m| {
+        m.insert(level, paid);
+        if let Ok(json) = serde_json::to_string_pretty(m) {
+            let _ = std::fs::write(prices_path(), json);
         }
-    };
-    levels.insert(code(a).to_string(), next_level);
-    save(&levels);
+    });
 }
 
 /// Luck's weight when BUYING attributes (user 2026-10-16: buying stays at 100 : 80 : 40; the Arena power and item values use
@@ -149,12 +130,13 @@ fn weight(class: Class, a: AttributeType) -> f64 {
 
 /// Which attribute gives the best weight-per-gold right now, among the main attribute, CON and LCK (user 2026-10-14: the
 /// secondary attributes are never bought, not even for their 10 %). Ties favor the main attribute, then CON, LCK.
-pub fn best_attribute(class: Class) -> AttributeType {
+pub fn best_attribute(gs: &GameState) -> AttributeType {
+    let class = gs.character.class;
     ATTRS
         .into_iter()
         .filter(|&a| a == class.main_attribute() || matches!(a, AttributeType::Constitution | AttributeType::Luck))
         .max_by(|&a, &b| {
-            let ratio = |x: AttributeType| weight(class, x) / f64::from(next_price(x));
+            let ratio = |x: AttributeType| weight(class, x) / f64::from(next_price(gs, x));
             ratio(a).partial_cmp(&ratio(b)).unwrap_or(std::cmp::Ordering::Equal)
         })
         .unwrap_or(class.main_attribute())

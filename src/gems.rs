@@ -1,12 +1,11 @@
 //! Gem Mine (user 2026-10-12, rules in `docs/fortress.md`): start a gem search whenever the mine is idle, collect the gem
 //! when there is room for it, and socket it where it helps most.
 //!
-//! Collect (`FortressGemStoneSearchFinish`, always `mushrooms: 0`) a finished gem when
-//!  * at least 2 backpack slots are free (the gem takes one, at least one stays free), or
-//!  * 1 slot is free but the gem will be socketed right away (an empty socket, or a worse gem to replace).
+//! Collect (`FortressGemStoneSearchFinish`, always `mushrooms: 0`) a finished gem when at least 1 backpack slot is free (user
+//! 2026-10-18; a gem nobody wants is sold right after, so the mine never stalls on a nearly full backpack).
 //!
 //! A search starts when the mine is idle and the gold left afterwards is at least 2x the shop reserve plus what the fortress
-//! wants for its next build (user 2026-10-14; wood/stone are ignored). Gems are held (at most 2 loose, user 2026-10-18) in the
+//! wants for its next build (user 2026-10-14; wood/stone are ignored). Gems are held in the
 //! backpack for a future item with a slot, as many as fit while one slot stays free (user 2026-10-16). Luck/secondary gems go to the item we replace soonest, Constitution/main gems to
 //! the best, hardest-to-replace one.
 //!
@@ -233,15 +232,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let finished = f.gem_search.finish.filter(|t| *t <= now && collected != Some(*t));
     if let Some(t) = finished {
         let free = gs.character.inventory.count_free_slots();
-        let class = gs.character.class;
-        let list: Vec<Socket> = sockets(gs).iter().map(|s| s.1).collect();
-        let fits_now = f.gem_search.target.is_some_and(|typ| choose_socket(&list, Gem { typ, value: 0 }, class).is_some())
-            || inventory::waiting_for_gem(gs);
-        // Any number of gems may be held for future items, as long as one slot stays free (user 2026-10-16)
-        // The "find a gem" task (daily/event) is only done once the gem is collected (Mrožik 2026-10-15: still 0/1 while the
-        // search ran), so with the task open one free slot is enough
-        let for_task = free >= 1 && crate::tasks::gem_task_wanted(gs, f.gem_search.cost.silver);
-        if fits_now && free >= 1 || free >= 2 || for_task {
+        // Collected with ONE free slot as well (user 2026-10-18): a gem nobody wants is sold right after (below), so the mine never
+        // stalls on a nearly full backpack; only a completely full one waits
+        if free >= 1 {
             report!("[gems] Collecting the mined gem ({:?}, {free} free backpack slots)", f.gem_search.target);
             if let Err(e) = safe::send(session, Command::FortressGemStoneSearchFinish { mushrooms: 0 }).await {
                 return fail(&e);
