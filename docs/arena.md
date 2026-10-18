@@ -18,7 +18,7 @@ marks standout ones via `PlayerCombatLogMark` (shows up in Quarter → Mail). No
   old formula (`git log` has it).
 - The old formula is kept as `arena::power()`/`arena::total()` for `hunt.rs`'s Hall of Fame search (there it
   would mean a full battle simulation per candidate scanned, far too many `ViewPlayer` calls): opponent strength
-  = 100 % main attribute + 80 % Constitution (CON) + 27 % Luck (LCK) + 10 % each secondary attribute.
+  = 100 % main attribute + 80 % Constitution (CON) + 27 % Luck (LCK) + 2 % each secondary attribute (was 10 % until 2026-10-19).
   E.g. Scout: 100 % DEX + 80 % CON + 27 % LCK + 10 % STR + 10 % INT.
   Attribute = base + equipment bonuses + pet bonus (`attribute_basis + attribute_additions + attribute_pet_bonus`).
 - Main attribute by class (`Class::main_attribute` in sf-api): STR Warrior, Paladin, Battle Mage, Berserker;

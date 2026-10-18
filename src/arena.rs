@@ -28,6 +28,8 @@ pub fn total(p: &OtherPlayer, a: AttributeType) -> f64 {
 /// Luck weight in the power formula. Simulated 2026-10-14 (`weaponsim.rs`, sf-api fights): one Luck point is worth 0.26-0.29
 /// main attribute points (+1 point of crit chance = +1 % damage, as the user argued); it was 0.4 before. CON measured 1.2 (formula 0.8), see `docs/inventory.md`.
 pub const LUCK_WEIGHT: f64 = 0.27;
+/// Weight of each of the two secondary attributes (user 2026-10-19: 2 %, was 10 %). Everywhere: Arena power, items, potions, gems, attribute buying.
+pub const SIDE_WEIGHT: f64 = 0.02;
 
 /// Opponent power by the user's formula.
 pub fn power(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
@@ -37,10 +39,10 @@ pub fn power(class: Class, stat: impl Fn(AttributeType) -> f64) -> f64 {
         .filter(|a| *a != main)
         .map(&stat)
         .sum();
-    stat(main) + 0.8 * stat(AttributeType::Constitution) + LUCK_WEIGHT * stat(AttributeType::Luck) + 0.1 * side
+    stat(main) + 0.8 * stat(AttributeType::Constitution) + LUCK_WEIGHT * stat(AttributeType::Luck) + SIDE_WEIGHT * side
 }
 
-/// This attribute's weight in the power formula above: main 100 %, CON 80 %, LCK 27 %, the other two side
+/// This attribute's weight in the power formula above: main 100 %, CON 80 %, LCK 27 %, the other two side (2 %, `SIDE_WEIGHT`)
 /// attributes 10 % each (used by `attributes.rs` to pick which attribute is the best value for gold).
 pub fn weight(class: Class, a: AttributeType) -> f64 {
     let main = class.main_attribute();
@@ -51,7 +53,7 @@ pub fn weight(class: Class, a: AttributeType) -> f64 {
     } else if a == AttributeType::Luck {
         LUCK_WEIGHT
     } else {
-        0.1
+        SIDE_WEIGHT
     }
 }
 
@@ -303,9 +305,9 @@ mod tests {
 
     #[test]
     fn scout_formula() {
-        // Scout: 100 % DEX + 80 % CON + LUCK_WEIGHT LCK + 10 % STR + 10 % INT
+        // Scout: 100 % DEX + 80 % CON + LUCK_WEIGHT LCK + SIDE_WEIGHT STR + SIDE_WEIGHT INT
         let s = power(Class::Scout, stats(100.0, 1000.0, 200.0, 500.0, 300.0));
-        assert!((s - (1000.0 + 400.0 + 300.0 * LUCK_WEIGHT + 10.0 + 20.0)).abs() < 1e-9);
+        assert!((s - (1000.0 + 400.0 + 300.0 * LUCK_WEIGHT + SIDE_WEIGHT * (100.0 + 200.0))).abs() < 1e-9);
     }
 
     #[test]
@@ -313,6 +315,6 @@ mod tests {
         let w = power(Class::Warrior, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
         let m = power(Class::Mage, stats(1000.0, 0.0, 0.0, 0.0, 0.0));
         assert!((w - 1000.0).abs() < 1e-9);
-        assert!((m - 100.0).abs() < 1e-9);
+        assert!((m - 1000.0 * SIDE_WEIGHT).abs() < 1e-9);
     }
 }

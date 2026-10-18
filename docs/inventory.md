@@ -2,12 +2,12 @@
 
 ## Rules (from the user)
 - Whenever an equippable item arrives, decide right away whether it is better than the equipped one.
-  Value = the same formula as Arena power: 100 % main attribute + 80 % CON + 27 % LCK + 10 % secondary (from the item's attributes).
+  Value = the same formula as Arena power: 100 % main attribute + 80 % CON + 27 % LCK + 2 % secondary (from the item's attributes).
 - Weapons (user request: ignore armor, a separate equation for weapons):
   value = average damage × (1 + M / 20), M = the character's total main attribute with this weapon.
   Derived from the sf-api fight simulation (`simulate/damage.rs`): hit = weapon × (1 + A / 10), A = max(M / 2, M − M_enemy / 2),
   against an equally strong enemy A = M / 2.
-  Plus the weapon's other stats with the same percentages as everywhere: 80 % CON + 27 % LCK + 10 % secondary
+  Plus the weapon's other stats with the same percentages as everywhere: 80 % CON + 27 % LCK + 2 % secondary
   (the weapon's main attribute is already in the damage via M and is not counted twice). User 2026-10-07: "all their stats, by percentage".
 - Better → equip. Worse (the new one or the one taken off) → sell. **Never sell epic items**, we keep them for later.
 

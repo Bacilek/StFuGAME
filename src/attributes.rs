@@ -123,13 +123,13 @@ pub fn record_purchase(level: u32, paid: u32) {
 /// `arena::LUCK_WEIGHT` = 0.27, the simulated value).
 const BUY_LUCK_WEIGHT: f64 = 0.4;
 
-/// Weight of an attribute for buying: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 10 % each.
+/// Weight of an attribute for buying: main 100 %, CON 80 %, LCK 40 %, the other two side attributes 2 % each (`arena::SIDE_WEIGHT`).
 fn weight(class: Class, a: AttributeType) -> f64 {
     if a == AttributeType::Luck { BUY_LUCK_WEIGHT } else { crate::arena::weight(class, a) }
 }
 
 /// Which attribute gives the best weight-per-gold right now, among the main attribute, CON and LCK (user 2026-10-14: the
-/// secondary attributes are never bought, not even for their 10 %). Ties favor the main attribute, then CON, LCK.
+/// secondary attributes are never bought, not even for their 2 %). Ties favor the main attribute, then CON, LCK.
 pub fn best_attribute(gs: &GameState) -> AttributeType {
     let class = gs.character.class;
     ATTRS

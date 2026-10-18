@@ -14,7 +14,7 @@ use sf_api::{
 
 use crate::session::SimpleSession;
 
-use crate::{arena::{LUCK_WEIGHT, power}, safe, tavern::Outcome};
+use crate::{arena::{LUCK_WEIGHT, SIDE_WEIGHT, power}, safe, tavern::Outcome};
 
 /// Safety limit against an endless loop in one pass.
 const MAX_ACTIONS: usize = 30;
@@ -74,11 +74,11 @@ pub fn gem_effect(class: Class, g: Gem) -> (f64, f64) {
         return (v, 0.0);
     }
     match g.typ {
-        GemType::All => (v, v * (0.8 + LUCK_WEIGHT + 0.2)),
+        GemType::All => (v, v * (0.8 + LUCK_WEIGHT + 2.0 * SIDE_WEIGHT)),
         GemType::Legendary => (v, v * 0.8),
         GemType::Constitution => (0.0, v * 0.8),
         GemType::Luck => (0.0, v * LUCK_WEIGHT),
-        _ => (0.0, v * 0.1),
+        _ => (0.0, v * SIDE_WEIGHT),
     }
 }
 
@@ -97,11 +97,11 @@ fn gem_parts(class: Class, g: Gem) -> (f64, f64, f64) {
         return (v, 0.0, 0.0);
     }
     match g.typ {
-        GemType::All => (v, v, v * (LUCK_WEIGHT + 0.2)),
+        GemType::All => (v, v, v * (LUCK_WEIGHT + 2.0 * SIDE_WEIGHT)),
         GemType::Legendary => (v, v, 0.0),
         GemType::Constitution => (0.0, v, 0.0),
         GemType::Luck => (0.0, 0.0, v * LUCK_WEIGHT),
-        _ => (0.0, 0.0, v * 0.1),
+        _ => (0.0, 0.0, v * SIDE_WEIGHT),
     }
 }
 
@@ -667,10 +667,10 @@ mod tests {
         assert_eq!(gem_effect(Class::Bard, g(GemType::Intelligence)), (100.0, 0.0));
         assert_eq!(gem_effect(Class::Bard, g(GemType::Constitution)), (0.0, 80.0));
         assert_eq!(gem_effect(Class::Bard, g(GemType::Luck)), (0.0, 100.0 * LUCK_WEIGHT));
-        assert_eq!(gem_effect(Class::Bard, g(GemType::Strength)), (0.0, 10.0));
+        assert_eq!(gem_effect(Class::Bard, g(GemType::Strength)), (0.0, 100.0 * SIDE_WEIGHT));
         let (main, other) = gem_effect(Class::Bard, g(GemType::All));
         assert_eq!(main, 100.0);
-        assert!((other - (80.0 + 100.0 * LUCK_WEIGHT + 20.0)).abs() < 1e-9);
+        assert!((other - (80.0 + 100.0 * LUCK_WEIGHT + 200.0 * SIDE_WEIGHT)).abs() < 1e-9);
     }
 
     #[test]
