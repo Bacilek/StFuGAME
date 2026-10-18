@@ -6,8 +6,9 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 1. `docs/status.md` – where we are, what is waiting for verification, open questions.
 2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
 3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
-4. Feature docs: `docs/expeditions.md`, `arena.md`, `arena-highlights.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `coupons.md`, `controls.md`, `scrapbook.md`, `trainer.md`.
-5. The bot is probably running on the user's machine right now (icon next to the clock). What it did: combined `logs/progress.log`, per-character journals `roster/<character>/logs/` (progress.log, expeditions.jsonl, arena.jsonl).
+4. `docs/bugs.md` – the bug hall of fame: ADD an entry whenever a bug, loop or silly behaviour is found or fixed (user 2026-10-18, list for the end of the challenge).
+5. Feature docs: `docs/expeditions.md`, `arena.md`, `arena-highlights.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `coupons.md`, `controls.md`, `scrapbook.md`, `trainer.md`.
+6. The bot is probably running on the user's machine right now (icon next to the clock). What it did: combined `logs/progress.log`, per-character journals `roster/<character>/logs/` (progress.log, expeditions.jsonl, arena.jsonl).
 
 ## Context
 - Friends' character challenge: everything about it lives in `roster/` (local only, gitignored – never commit it):
