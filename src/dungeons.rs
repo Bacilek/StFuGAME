@@ -79,6 +79,11 @@ const ACCEPTED_UNLOCK_IDENTS: [i64; 3] = [30, 5, 9];
 
 /// One Dungeons fight if possible right now. Otherwise does nothing.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
+    // Guild-only (user 2026-10-19): the Instructor bonus makes the Dungeons worth much more inside a guild
+    if session.game_state().is_some_and(|gs| !crate::guild::dungeons_allowed(gs)) {
+        crate::guild::report_pause("Dungeons");
+        return Outcome::Done;
+    }
     // The Dungeons timer is only refreshed by UpdateDungeons (neither Update nor a fight refreshes it)
     let gs = match safe::send(session, Command::UpdateDungeons).await {
         Ok(gs) => gs,

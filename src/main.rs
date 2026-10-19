@@ -310,7 +310,12 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let before = tavern_state(gs);
         // Tavern done = no expedition running and no Thirst for Adventure left for another one
         let mut tavern_done = before.0 != CurrentAction::Expedition && before.1 == 0;
-        if before.0 == CurrentAction::Expedition || before.1 > 0 {
+        // Guildless (user 2026-10-19): no NEW expedition before 22:00, the character waits and keeps trying to join a guild. Not "done":
+        // City Guard and the tasks that follow a finished Tavern must not start either. A running expedition is finished.
+        let tavern_paused = before.0 == CurrentAction::Idle && before.1 > 0 && !guild::expeditions_allowed(gs);
+        if tavern_paused {
+            guild::report_pause("expeditions");
+        } else if before.0 == CurrentAction::Expedition || before.1 > 0 {
             if let tavern::Outcome::SessionLost = tavern::run(session, journal).await {
                 return tavern::Outcome::SessionLost;
             }
@@ -372,6 +377,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let next = session.game_state().map(|gs| schedule::next(gs, true));
         let wait = next.map_or(30 * 60, |w| w.secs) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
+        // Guildless: look at the guild list again soon, and do not oversleep 22:00 (the Tavern override)
+        let wait = if session.game_state().is_some_and(|gs| gs.guild.is_none()) { wait.min(guild::NO_GUILD_RETRY.num_seconds() as u64) } else { wait };
         // A manual "end of day now" from the icon wakes the loop up early (or is already waiting: the wake-up may
         // have been consumed inside the Tavern wait)
         if ctx::end_of_day_waiting() {

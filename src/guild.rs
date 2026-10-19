@@ -34,7 +34,7 @@ const EVENT_CHECK_EVERY: chrono::Duration = chrono::Duration::hours(2);
 /// a slot in a better guild opens whenever a member leaves.
 const XP_EVENT_CHECK_EVERY: chrono::Duration = chrono::Duration::minutes(15);
 /// Without a guild the list is re-checked this often (see below)
-const NO_GUILD_RETRY: chrono::Duration = chrono::Duration::minutes(5);
+pub const NO_GUILD_RETRY: chrono::Duration = chrono::Duration::minutes(5);
 /// Most list pages loaded per check (the page parameter of `GroupJoinList` is unverified: we stop at the first page that
 /// brings no new guild).
 const MAX_PAGES: u32 = 5;
@@ -671,5 +671,51 @@ mod six_tests {
         use sf_api::gamestate::guild::GuildSkill;
         assert_eq!(six_key(GuildSkill::Instructor, 5), "Instructor");
         assert_eq!(six_key(GuildSkill::Treasure, 6), "Treasure7");
+    }
+}
+
+// ---- Guild-only XP activities (user 2026-10-19) ----
+// The Instructor bonus (+100 % XP at the top) makes expeditions and Dungeons worth far more inside a guild, almost a permanent XP event,
+// so a guildless character pauses both and keeps trying to join. Late in the evening the Tavern override applies: Thirst for Adventure
+// must not go to waste at midnight. Dungeons stay paused all day.
+
+/// From this hour on, expeditions run even without a guild (user: "after 10 in the evening").
+pub const NO_GUILD_TAVERN_FROM_HOUR: u32 = 22;
+
+/// Dungeons only while in a guild (no evening override).
+pub fn dungeons_allowed(gs: &sf_api::gamestate::GameState) -> bool {
+    gs.guild.is_some()
+}
+
+/// May a NEW expedition start? In a guild always; without one only from 22:00 on. A running expedition is always finished.
+pub fn expeditions_allowed(gs: &sf_api::gamestate::GameState) -> bool {
+    use chrono::Timelike;
+    gs.guild.is_some() || Local::now().hour() >= NO_GUILD_TAVERN_FROM_HOUR
+}
+
+static PAUSE_REPORTED: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
+
+/// Says (at most once an hour per character) that the guild-only activities wait for a guild.
+pub fn report_pause(what: &str) {
+    let now = Local::now();
+    let Ok(mut last) = PAUSE_REPORTED.lock() else { return };
+    if last.is_none_or(|t| now - t >= chrono::Duration::hours(1)) {
+        *last = Some(now);
+        report!("[guild] No guild: {what} paused until we join one (the guild check runs every {} min)", NO_GUILD_RETRY.num_minutes());
+    }
+}
+
+#[cfg(test)]
+mod guild_only_tests {
+    use super::*;
+    use chrono::Timelike;
+
+    #[test]
+    fn guildless_character_has_no_dungeons() {
+        let gs = sf_api::gamestate::GameState::default();
+        assert!(gs.guild.is_none());
+        assert!(!dungeons_allowed(&gs));
+        // expeditions: only the evening override can open them
+        assert_eq!(expeditions_allowed(&gs), Local::now().hour() >= NO_GUILD_TAVERN_FROM_HOUR);
     }
 }
