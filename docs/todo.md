@@ -21,6 +21,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [ ] Juice: lektvar/džus – co dělá, ceny, kdy vařit
   - Zadání (user 2026-10-19, vše v `docs/witch.md`): Witch denně vykupuje 1 typ itemu za 2× shopovou cenu → veškerý prodej toho typu (výměna vybavy, protáčení obchodů) směřovat k ní; z obětovaných itemů (nejspíš sdílené po serveru) se 24 h vaří nový enchantment; v Enchant tabu jde na každý typ itemu dát jeden pevný enchantment (nevybíráme, platíme goldy za aplikaci).
   - [x] Seznam enchantmentů od usera zapsán do `docs/witch.md`
+  - [x] Fáze 1 (čtení): `src/witch.rs`, vlastní parsování `witchshop` (2026-10-19); ověřit živě po release buildu
   - [ ] Ověřit capture a dnešní typ itemu (sf-api `witch.required_item`), viz `docs/witch.md`
   - Pravidlo: nikdy za houby (viz CLAUDE.md); každý příkaz až po ověření do `safe.rs`.
 

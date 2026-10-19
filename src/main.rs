@@ -37,6 +37,7 @@ mod tavern;
 mod tournament;
 #[cfg(test)]
 mod weaponsim;
+mod witch;
 mod tray;
 
 use std::{
@@ -281,6 +282,8 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         if let tavern::Outcome::SessionLost = potions::run(session).await {
             return tavern::Outcome::SessionLost;
         }
+        // Witch, phase 1 (user 2026-10-19): read only, reports the state when it changes
+        witch::observe(session);
         if let tavern::Outcome::SessionLost = guild::run(session).await {
             return tavern::Outcome::SessionLost;
         }
