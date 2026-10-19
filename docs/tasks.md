@@ -161,7 +161,7 @@ Mushroom budget for chests that pay NO mushrooms: at most ONE mushroom a day in 
 ## No mushrooms unless the chest pays mushrooms (2026-10-11, user — overrides the travel beer and the quest beer above)
 The travel beer and the quest beer are drunk only when the target chest pays at least one mushroom (`tasks::pays_mushrooms`); a chest with gold, XP or anything else but no mushrooms gets none (first said for gold only, then widened to XP the same day). Chests that pay mushrooms (≥ beers) also stay on the old `plan` path. Consequence 2026-10-11: Chlamydie and Pagan stay 1 point short of their gold chest 3 – accepted. Tests: `quest_beer_only_when_it_guarantees_the_last_chest` (XP and mushroom case) and the travel-beer test use mushroom chests.
 
-## Ruffian event (2026-10-12, user; 4 days, seen first on the main character)
+## Ruffian event (2026-10-12, user; 4 days, seen first on the main character). The 2026-10-19 event is the "Part-Time Nudist" event, see docs/events.md
 Four Hall of Fame fight tasks, 1 event token each: win N× against a class (20×), win N× against another class (10×), win 5× back to back, win 30× in the Hall of Fame. One token per chest (3 chests) → any 3 tasks give all chests; chest 1 materials, chest 2 gold, chest 3 gold + "you can buy another beer from the bartender today" (NOT used, see `docs/precedents.md` 2026-10-12). `hunt.rs` now hunts `WinFightsInHoF` and `WinFightsBackToBack` (`Hunt::Any`). Not verified live. Daily tasks go before event tasks on day 1 (precedent). Watch the `[hunt]` lines and the task list in the log.
 Event hunts wait for the daily Arena XP wins (see docs/precedents.md 2026-10-12).
 

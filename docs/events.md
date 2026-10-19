@@ -43,3 +43,11 @@ Correction (user 2026-10-16): the Academy fills at exactly the same speed during
 ## Server-driven, no manual switch (user 2026-10-16)
 An Events tab with manual switches and end times was built and REMOVED the same day (user: the bot reads the events from the server, no tab needed). `tasks::event_active(gs, event)` = the event is in the server list (`gs.specials.events.active`, a bitmask the sf-api parses from the `events` response key) AND the list end time (`ends`, shared by all events, normally Sunday 23:59) is in the future. NO hardcoded weekday any more: the XP beers stop the moment the server stops announcing the event or its end time passes, on whatever day that is (Monday morning included), and would start on any day the server announces it. Beers are re-checked in `safe.rs` before `BuyBeer` (`beer_justified`).
 Known limit: the list only changes when a response carries the `events` key; if a long-running session never gets a fresh one, a NEW event is noticed late, while an ended one is still caught by `ends`. Watch the first Friday after the rebuild (`[tasks] Exceptional XP event: drinking beer`) and note whether a session started on Thursday notices Friday 00:01.
+
+## Monday–Thursday task events (Goblin Gleeman event tasks, found 2026-10-12 and 2026-10-19)
+Besides the Friday–Sunday wave there is a 4-day event of Gleeman event tasks (Monday 00:00 – Thursday 00:00; the server's `event.end` shows it). They are found under the Goblin Gleeman. Seen so far:
+| Week | Name | Tasks (1 point each, 3 chests at 1/2/3 points) |
+|---|---|---|
+| 2026-10-12 | Ruffian event (name from earlier notes) | win N× against a class, against another class, 5× in a row, 30× in the Hall of Fame |
+| 2026-10-19 | **Part-Time Nudist event** (user) | 10 wins with no epics/legendaries (`WinFightsNoEpicsLegendaries`), 10 wins with no chest plate (`WinFightsNoChestplate`), 10 wins with no gear (`WinFightsNoGear`, not mapped), 10 wins bare hands (`WinFightsBareHands`) |
+Chest 3 of the Nudist event is beer ×1 (raises the daily beer cap to 11, not free) + ~1.4–2.7k gold: low priority (user 2026-10-19), NoGear/NoEpics only when they fit without effort. See `docs/tasks.md`, `docs/precedents.md`.
