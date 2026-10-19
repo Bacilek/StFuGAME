@@ -624,17 +624,26 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         };
         let selling = matches!(cmd, Command::SellShop { .. });
         let cauldron = matches!(cmd, Command::WitchDropCauldron { .. });
+        let silver_before = gs.character.silver;
         if let Err(e) = safe::send(session, cmd).await {
             return fail(&e);
         }
         if selling {
             report!("[inventory] Sold for {}", crate::report::gold(u64::from(price)));
-        } else if cauldron {
-            report!("[inventory] Dropped into the witch's cauldron (the shop would pay {}, she pays twice)", crate::report::gold(u64::from(price)));
         }
         // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {
             return fail(&e);
+        }
+        if cauldron {
+            // The gold really credited is logged (user 2026-10-20: was the double price paid?)
+            let credited = session.game_state().map_or(0, |gs| gs.character.silver.saturating_sub(silver_before));
+            report!(
+                "[inventory] Dropped into the witch's cauldron: the shop would pay {}, credited {}",
+                crate::report::gold(u64::from(price)),
+                crate::report::gold(credited)
+            );
+            journal(&format!("cauldron: shop price {price}, credited {credited} (silver before {silver_before})"));
         }
     }
     report!("[inventory] Action limit for one pass reached");

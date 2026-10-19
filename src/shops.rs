@@ -195,13 +195,23 @@ fn task_purchase(gs: &GameState) -> Option<(ShopPosition, &Item)> {
         .min_by_key(|(_, i)| i.price)
 }
 
-/// The cheapest non-epic gold item, if buying it keeps the gold at or above the reserve.
+/// The cheapest non-epic gold item, if buying it keeps the gold at or above the reserve. While the witch wants an item type today
+/// (user 2026-10-19), the cheapest item of THAT type goes first: the bought piece is sold to her for twice the shop price.
 fn spin_candidate(gs: &GameState, reserve: u32) -> Option<(ShopPosition, &Item)> {
-    spin_offers(gs)
-        .into_iter()
-        .filter(|(_, i)| !i.is_epic())
-        .min_by_key(|(_, i)| i.price)
-        .filter(|(_, i)| gs.character.silver >= u64::from(i.price) + u64::from(reserve) + crate::fortress::gold_needed(gs))
+    let affordable =
+        |i: &Item| gs.character.silver >= u64::from(i.price) + u64::from(reserve) + crate::fortress::gold_needed(gs);
+    let offers: Vec<_> = spin_offers(gs).into_iter().filter(|(_, i)| !i.is_epic()).collect();
+    let wanted = gs.witch.as_ref().and_then(|w| w.required_item).filter(|_| gs.character.level >= 66);
+    if let Some(w) = wanted
+        && let Some(best) = offers
+            .iter()
+            .filter(|(_, i)| i.typ.equipment_slot() == Some(w))
+            .min_by_key(|(_, i)| i.price)
+            .filter(|(_, i)| affordable(i))
+    {
+        return Some(*best);
+    }
+    offers.into_iter().min_by_key(|(_, i)| i.price).filter(|(_, i)| affordable(i))
 }
 
 fn fail(e: &sf_api::error::SFError) -> Outcome {
