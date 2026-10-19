@@ -468,5 +468,7 @@ mod guild_six_tests {
         assert!(is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Treasure, current: 5 }));
         // the Pet skill is never bought (not part of the "6/6" the guilds ask for)
         assert!(!is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Pet, current: 5 }));
+        // 6 -> 7 is the second priced step; the price caps are checked by `guild::six_price_ok`
+        assert!(is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Instructor, current: 6 }));
     }
 }
