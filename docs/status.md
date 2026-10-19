@@ -412,6 +412,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-19: Monday event (4 days, ends Thu 23.10 00:00; tasks NoChestplate, BareHands, NoEpics, NoGear, 4 points; found under the Goblin Gleeman, user confirmed). Chest 3 (beer + ~1.5–2.7k gold) is low priority per the user. At 15:47: opened by Květoš, Mimimimi11, Mrožik, Pjotr, Wecros (NoEpics 10/10); the other 7 stand at 2 points.
 - 2026-10-19: Witch capture with the armor enchant verified (worn BreastPlate index 2 = 31 Mario's Beard, ring 91); worn-item enchants are readable via `Item.enchantment`. docs/witch.md. Witch is still not implemented.
 - 2026-10-19: guild `SWITCH_MARGIN` 10 → 20 (user). Not in a release build yet. Proposed but not done: fresh ViewGuild member check before leaving + rejoin of the old guild on a failed join.
 - 2026-10-19: **guild-only expeditions/Dungeons implemented** (user: +100 % Instructor XP is almost a permanent XP event; guildless = pause, after 22:00 expeditions run anyway, Dungeons stay paused). `guild::dungeons_allowed`/`expeditions_allowed`, gate in `main.rs` + `dungeons::run`. Tests pass, NOT in a release build yet. Open question: the bot leaves a guild BEFORE the new join is certain (TestChar1 05:02–05:28 tried 8 times), which now costs XP time too – maybe check free places first.
