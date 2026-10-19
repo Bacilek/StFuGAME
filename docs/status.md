@@ -412,6 +412,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-19: Witch capture with the armor enchant verified (worn BreastPlate index 2 = 31 Mario's Beard, ring 91); worn-item enchants are readable via `Item.enchantment`. docs/witch.md. Witch is still not implemented.
 - 2026-10-19: guild `SWITCH_MARGIN` 10 → 20 (user). Not in a release build yet. Proposed but not done: fresh ViewGuild member check before leaving + rejoin of the old guild on a failed join.
 - 2026-10-19: **guild-only expeditions/Dungeons implemented** (user: +100 % Instructor XP is almost a permanent XP event; guildless = pause, after 22:00 expeditions run anyway, Dungeons stay paused). `guild::dungeons_allowed`/`expeditions_allowed`, gate in `main.rs` + `dungeons::run`. Tests pass, NOT in a release build yet. Open question: the bot leaves a guild BEFORE the new join is certain (TestChar1 05:02–05:28 tried 8 times), which now costs XP time too – maybe check free places first.
 - 2026-10-19: **guild 7/7 implemented** (user: one-time Instructor + Treasure 6 → 7 for 1000 g + 4 mushrooms each, all characters; `guild::STEPS`, docs/guild.md). Tests pass, NOT in a release build yet – needs bot exit + release build + restart. Verify: `[guild] Buying … 6 → 7` lines, mushrooms drop by exactly 4 per purchase, no watchdog alert, `guild_six.txt` gets `Instructor7`/`Treasure7`.

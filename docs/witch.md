@@ -56,3 +56,10 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 - sf-api 0.4.4 `Witch::update` is WRONG for this: it trusts idx 4 (= 1) as count and reads the first triple (gloves, 51 → ShadowOfTheCowboy) as unlocked.
   → Parse the raw `witchshop` ourselves (unlocked = third value ≠ 0); never use `witch.enchantments` for the decision. The `EnchantmentIdent` for `WitchEnchant` is `i + 1` of the triple position, but its constructor is crate-private → needs a check of how to send it (maybe `Command::Custom`).
 - TODO: after 14:00 capture again and check that a second triple gets a timestamp.
+
+## Capture 2026-10-19 (user, after enchanting the ARMOR): the enchant of a worn item in `ownplayersaveequipment`
+Each item is 19 numbers; the third one (index 2) is the enchantment id, which is exactly what sf-api's `Item::parse` reads (`cfpget(2)`), so `Item.enchantment` on worn items IS reliable (only the `witchshop` unlock parsing is wrong, see above). In the capture (character level ~57 average equipment, 10 slots in the order weapon, shield-slot… by item type id: 1 weapon, 2 shield, 3 breast plate, 4 boots, 5 gloves, 6 helmet, 7 belt, 8 amulet, 9 ring, 10 talisman):
+- type 3 (BreastPlate): index 2 = **31** = Mario's Beard (+50 % mushrooms on quests) ✅ armor enchant confirmed.
+- type 9 (Ring): index 2 = **91** = The Grave Robber's Prayer ✅ (the earlier ring enchant).
+- all other worn items: 0 (not enchanted).
+So: "already enchanted?" can be read from `item.enchantment == Some(slot's enchantment)` for the worn piece; a new piece comes without it (the enchant stays on the item).
