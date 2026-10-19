@@ -252,3 +252,12 @@ pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
     }
     Outcome::Done
 }
+
+/// Does the witch want this backpack item today? Level 66+, the item type is the one she wants, and the item is a plain one: never an
+/// epic or a unique (user 2026-10-19; gem items are fine). Used by `inventory::manage` instead of a shop sale.
+pub fn wants(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items::Item) -> bool {
+    gs.character.level >= 66
+        && gs.witch.as_ref().and_then(|w| w.required_item).is_some_and(|wanted| item.typ.equipment_slot() == Some(wanted))
+        && !item.is_epic()
+        && !item.is_unique()
+}

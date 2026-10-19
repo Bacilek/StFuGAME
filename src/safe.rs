@@ -58,6 +58,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9, .. } }
             | Command::FightDungeon { use_mushroom: false, .. }
             | Command::SellShop { .. }
+            // The witch's cauldron takes the place of a shop sale for the item type she wants today (checked in `send_raw`)
+            | Command::WitchDropCauldron { .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
             | Command::CollectDailyQuestReward { .. }
@@ -245,6 +247,17 @@ pub async fn send(session: &mut SimpleSession, cmd: Command) -> Result<&mut Game
 /// is read-only; `ShopCheckout`'s real safety (never checking out anything that costs real money/mushrooms) is
 /// enforced by the caller (`daily::claim_welcome_pack`), which only ever passes an identifier whose catalog price
 /// it just confirmed was exactly 0 – this whitelist only pins the shop id ("1") and the request shape.
+/// The cauldron takes only a BACKPACK item (never a worn one) of the type the witch wants today, never an epic (user 2026-10-19).
+fn witch_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
+    let Some(w) = gs.witch.as_ref() else { return false };
+    let Some(wanted) = w.required_item else { return false };
+    gs.character.level >= 66
+        && gs.character.inventory.iter().any(|(bp, item)| {
+            PlayerItemPosition::from(bp) == pos
+                && item.is_some_and(|i| !i.is_epic() && !i.is_unique() && i.typ.equipment_slot() == Some(wanted))
+        })
+}
+
 /// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
 pub const WITCH_MAX_PRICE: u64 = 1_000_000;
 
@@ -301,6 +314,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
             return Err(SFError::InvalidRequest("the free change of the fortress opponent is not available, it would cost gold"));
         }
         _ => {}
+    }
+    if let Command::WitchDropCauldron { item_pos } = &cmd
+        && !session.game_state().is_some_and(|gs| witch_drop_ok(gs, *item_pos))
+    {
+        return Err(SFError::InvalidRequest("cauldron: not a plain backpack item of the type the witch wants today"));
     }
     if let Command::BuyShop { shop_pos, item_ident, .. } = &cmd
         && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))

@@ -618,14 +618,19 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         journal(&format!("{what} | {}", detail(item)));
         let cmd = match action {
             Action::Equip { pos, slot } => Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident },
+            // The witch pays twice the shop price for the item type she wants today (user 2026-10-19; plain items only, never epics)
+            Action::Sell { pos } if crate::witch::wants(gs, item) => Command::WitchDropCauldron { item_pos: pos.into() },
             Action::Sell { pos } => Command::SellShop { item_pos: pos.into(), item_ident },
         };
         let selling = matches!(cmd, Command::SellShop { .. });
+        let cauldron = matches!(cmd, Command::WitchDropCauldron { .. });
         if let Err(e) = safe::send(session, cmd).await {
             return fail(&e);
         }
         if selling {
             report!("[inventory] Sold for {}", crate::report::gold(u64::from(price)));
+        } else if cauldron {
+            report!("[inventory] Dropped into the witch's cauldron (the shop would pay {}, she pays twice)", crate::report::gold(u64::from(price)));
         }
         // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {
