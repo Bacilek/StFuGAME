@@ -412,6 +412,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-19: **Witch phase 3 (enchanting) implemented** after shops (`witch::enchant`, `safe.rs` whitelist with price cap). Ident = position in the witchshop list (UNVERIFIED); every attempt is checked against the new equipment, halt for the day on a mismatch, details in `roster/<char>/logs/witch.log`. Tests pass, NOT in a release yet. Verify on TestChar1 (level 67): witch.log TRY/RESULT lines. Phase 2 (cauldron) and 4/5 still open.
 - 2026-10-19: Witch facts from the user (docs/witch.md "Findings"): unlocks are server-wide, only the newest unlocked enchant not yet worn is offered, one at a time (armor before ring); price 1940 g on TestChar1. Phase 3 must enchant one item, re-read, repeat.
 - 2026-10-19: **Witch phase 1 (read only) implemented** (`src/witch.rs`, docs/witch.md "Phase 1"): raw `witchshop` parsing + `roster/<char>/witch.json` + a `[witch]` log line. Tests pass, NOT in a release yet. Next: phase 2 cauldron, 3 enchanting, 4 sell routing, 5 free beer.
 - 2026-10-19: the Monday event with no-epics/no-chest-plate/no-gear/bare-hands wins is called the "Part-Time Nudist" event (user); noted in docs/events.md, docs/tasks.md.

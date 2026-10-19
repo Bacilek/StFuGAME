@@ -146,3 +146,109 @@ mod tests {
         assert!(parse(&[1, 2, 3]).is_none());
     }
 }
+
+// ---- Phase 3: enchanting the worn items (user 2026-10-19; he does not mind the risk of a wrong ident as long as the log tells) ----
+
+/// `roster/<character>/logs/witch.log`: every enchant attempt with everything needed to judge it afterwards (uncapped).
+fn journal(line: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("witch.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {line}", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
+fn halt_file() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("witch_halt.txt")
+}
+
+/// After a result that did not match the expectation the witch rests for the rest of the day (a wrong ident could cost gold each time).
+fn halted_today() -> bool {
+    std::fs::read_to_string(halt_file()).is_ok_and(|t| t.trim() == Local::now().date_naive().to_string())
+}
+
+fn halt(why: &str) {
+    report!("[witch] STOPPED for today: {why}");
+    journal(&format!("STOPPED for today: {why}"));
+    let _ = std::fs::write(halt_file(), Local::now().date_naive().to_string());
+}
+
+/// What the character wears now: `(item type id, enchantment id or 0)` of every worn piece.
+fn worn_enchants(gs: &sf_api::gamestate::GameState) -> Vec<(i64, i64)> {
+    gs.character
+        .equipment
+        .0
+        .iter()
+        .filter_map(|(slot, item)| Some((i64::from(slot.raw_id()), item.as_ref()?.enchantment.map_or(0, |e| e as i64))))
+        .collect()
+}
+
+/// Enchants worn items, one per command, newest unlock first (the game offers one at a time, user 2026-10-19): the unlocked enchantment
+/// whose item type is worn without it and whose unlock is the newest. At most 3 per call; every attempt is checked against the new
+/// equipment (the item must carry the enchantment id and the silver must have dropped), otherwise the witch stops for the day.
+pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
+    use crate::tavern::Outcome;
+    for _ in 0..3 {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        if gs.character.level < 66 || halted_today() {
+            return Outcome::Done;
+        }
+        let Some(info) = session.witch_shop().and_then(parse) else { return Outcome::Done };
+        let silver = gs.character.silver;
+        if info.price_silver == 0 || silver < info.price_silver {
+            return Outcome::Done;
+        }
+        let worn = worn_enchants(gs);
+        let now = Local::now().timestamp();
+        let pick = info
+            .enchants
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.unlocked_at != 0 && e.unlocked_at <= now)
+            .filter(|(_, e)| worn.iter().any(|(slot, have)| *slot == e.slot && *have != e.id))
+            .max_by_key(|(_, e)| e.unlocked_at);
+        let Some((pos, e)) = pick else { return Outcome::Done };
+        let ident = pos + 1;
+        let expected = e.id;
+        let name = slot_name(e.slot);
+        let before = format!("silver {silver}, worn {worn:?}, witch: {}", info.summary());
+        report!("[witch] Enchanting the {name} with {expected} (ident {ident}) for {}", crate::report::gold(info.price_silver));
+        journal(&format!("TRY ident {ident} for the {name}, expected enchant {expected}, price {} | before: {before}", info.price_silver));
+        let cmd = sf_api::command::Command::Custom {
+            cmd_name: "PlayerWitchEnchantItem".to_string(),
+            arguments: vec![ident.to_string(), "1".to_string()],
+        };
+        let raw = match crate::safe::send_raw(session, cmd).await {
+            Ok(raw) => raw,
+            Err(err) => {
+                journal(&format!("ERROR {err}"));
+                if crate::tavern::is_session_error(&err) {
+                    return Outcome::SessionLost;
+                }
+                halt(&format!("the command failed: {err}"));
+                return Outcome::Done;
+            }
+        };
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        let after_worn = worn_enchants(gs);
+        let got = after_worn.iter().find(|(slot, _)| *slot == e.slot).map_or(0, |(_, id)| *id);
+        let paid = silver.saturating_sub(gs.character.silver);
+        journal(&format!(
+            "RESULT silver {} (paid {paid}), worn {after_worn:?}, {name} enchant now {got}, response keys: {}",
+            gs.character.silver,
+            raw.split('&').filter_map(|kv| kv.split(':').next()).collect::<Vec<_>>().join(",")
+        ));
+        if got == expected && paid > 0 {
+            report!("[witch] OK: the {name} now has enchant {expected} (paid {})", crate::report::gold(paid));
+            // The shop numbers changed too: report the new state
+            observe(session);
+        } else {
+            halt(&format!("expected the {name} to carry enchant {expected} and gold to drop; got enchant {got}, paid {paid} (ident {ident} may be wrong)"));
+            return Outcome::Done;
+        }
+    }
+    Outcome::Done
+}

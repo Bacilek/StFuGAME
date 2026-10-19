@@ -245,6 +245,9 @@ pub async fn send(session: &mut SimpleSession, cmd: Command) -> Result<&mut Game
 /// is read-only; `ShopCheckout`'s real safety (never checking out anything that costs real money/mushrooms) is
 /// enforced by the caller (`daily::claim_welcome_pack`), which only ever passes an identifier whose catalog price
 /// it just confirmed was exactly 0 – this whitelist only pins the shop id ("1") and the request shape.
+/// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
+pub const WITCH_MAX_PRICE: u64 = 1_000_000;
+
 fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) -> bool {
     match (cmd_name, arguments) {
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
@@ -252,6 +255,18 @@ fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) 
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
         ("ShopCatalog", [shop, mid, page]) => shop == "1" && mid.is_empty() && page == "1",
         ("ShopCheckout", [shop, identifier, suffix]) => shop == "1" && suffix.is_empty() && !identifier.is_empty(),
+        // Witch enchanting (user 2026-10-19): the character's OWN worn item (flag "1", never a companion), the ident is the 1-based position
+        // of the enchantment in the `witchshop` list (1..=9), costs only the gold price the server announces (at most `WITCH_MAX_PRICE`)
+        ("PlayerWitchEnchantItem", [ident, own]) => {
+            own == "1"
+                && ident.parse::<u8>().is_ok_and(|i| (1..=9).contains(&i))
+                && gs.is_some_and(|gs| {
+                    gs.character.level >= 66
+                        && gs.witch.as_ref().is_some_and(|w| {
+                            w.enchantment_price > 0 && w.enchantment_price <= WITCH_MAX_PRICE && w.enchantment_price <= gs.character.silver
+                        })
+                })
+        }
         // Marks/un-marks a fight as saved (shows up in Quarter -> Mail), free UI action, both directions
         // confirmed from real captured responses (docs/arena-highlights.md: "1" = mark, "0" = un-mark). Only
         // ever an id already present in our own combat log (src/arena_highlights.rs), never an arbitrary id.
@@ -470,5 +485,35 @@ mod guild_six_tests {
         assert!(!is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Pet, current: 5 }));
         // 6 -> 7 is the second priced step; the price caps are checked by `guild::six_price_ok`
         assert!(is_allowed(&Command::GuildIncreaseSkill { skill: GuildSkill::Instructor, current: 6 }));
+    }
+}
+
+#[cfg(test)]
+mod witch_tests {
+    use super::*;
+
+    fn args(a: &str, b: &str) -> Vec<String> {
+        vec![a.to_string(), b.to_string()]
+    }
+
+    /// The enchant request passes only for the own item (flag 1), idents 1..=9, level 66+ and a price the server announced and we can pay.
+    #[test]
+    fn enchant_needs_level_price_and_the_own_flag() {
+        let mut gs = GameState::default();
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "no witch yet");
+        gs.character.level = 67;
+        gs.character.silver = 300_000;
+        gs.witch = Some(Default::default());
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "no price known");
+        gs.witch.as_mut().unwrap().enchantment_price = 194_000;
+        assert!(custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")));
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "101")), "a companion is not allowed");
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("10", "1")));
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("0", "1")));
+        gs.character.silver = 100_000;
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "not enough gold");
+        gs.character.silver = 5_000_000;
+        gs.witch.as_mut().unwrap().enchantment_price = WITCH_MAX_PRICE + 1;
+        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "price above the cap");
     }
 }

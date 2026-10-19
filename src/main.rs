@@ -340,6 +340,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
 
+        // Witch enchanting (user 2026-10-19): right after the better items (shops), above the fortress, spinning and attributes
+        if let tavern::Outcome::SessionLost = witch::enchant(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+
         // Fortress (user 2026-10-11): after the items (shops), before spinning/attributes – see src/fortress.rs
         if let tavern::Outcome::SessionLost = fortress::run(session).await {
             return tavern::Outcome::SessionLost;
