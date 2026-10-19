@@ -23,7 +23,7 @@ use sf_api::gamestate::rewards::Event;
 use crate::{safe, session::SimpleSession, tavern::Outcome};
 
 /// How much higher BOTH the Instructor and the Treasure of another guild must be before we leave ours (user 2026-10-11).
-const SWITCH_MARGIN: u32 = 10;
+const SWITCH_MARGIN: u32 = 20;
 /// How often the quick-join list is checked (a free guild with better bonuses can appear any time).
 const CHECK_EVERY: chrono::Duration = chrono::Duration::hours(6);
 /// Without a guild the list is re-checked this often (a failed join, a kick): every hour without Instructor/Treasure

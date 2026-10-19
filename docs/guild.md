@@ -49,7 +49,7 @@
 ## Implementation (src/guild.rs)
 - Once a day (first pass of the main loop that day): `GroupJoinList:0` → `parse_list` (14 fields per guild).
 - Candidates: not full (< 50 members); sorted by Instructor, then Treasure, then strength = members × average level.
-- No guild → join the best. In a guild → only if another one has Instructor ≥ ours + 10 (ours = `gs.guild.total_instructor_skill`):
+- No guild → join the best. In a guild → only if another one has Instructor ≥ ours + 20 (ours = `gs.guild.total_instructor_skill`):
   leave (`GroupRemoveMember:<own player id>`) and join. Up to 3 candidates are tried when joining fails.
   Success = `gs.guild` has the new name after `GroupJoin`.
 - Commands are `Command::Custom`; `safe.rs` (`custom_allowed`) lets through only `GroupJoinList:<number>`,
@@ -114,3 +114,6 @@ The Instructor bonus makes XP inside a guild so much bigger that it is almost a 
 - **Dungeons:** `guild::dungeons_allowed` (= in a guild), checked at the top of `dungeons::run`. No override, paused all day.
 - **Expeditions:** `guild::expeditions_allowed` (= in a guild, or the clock is 22:00 or later, `NO_GUILD_TAVERN_FROM_HOUR`), checked in `main.rs` before `tavern::run`. Only a NEW expedition is blocked: one already running is finished (stopping mid-way would waste it). While paused `tavern_done` stays false, so City Guard, the tasks that follow a finished Tavern and beers do not start either; the character just waits. After 22:00 expeditions run without a guild so Thirst for Adventure is used before the midnight reset.
 - Arena, Fortress, shops, tasks and the rest are untouched. A hourly `[guild] No guild: … paused` line explains the wait (`guild::report_pause`). Test `guild_only_tests`. ⏳ not verified live (needs release build + restart). Open: the join is retried only every 5 min, not the instant the guild is lost; a failed switch (leaving a guild, new one full) now costs XP time, see "leave before the new one is certain" in the status.
+
+## Switch margin 10 → 20 (2026-10-19, user)
+A failed switch leaves the character guildless, and since 2026-10-19 that also pauses expeditions and Dungeons, so switching must pay off clearly: `SWITCH_MARGIN` = 20, i.e. another guild needs Instructor AND Treasure at least 20 higher than ours. Not decided yet (proposed, user took only the margin): fresh `ViewGuild` check of the target's member count before leaving, and a rejoin attempt of the old guild when the join fails.

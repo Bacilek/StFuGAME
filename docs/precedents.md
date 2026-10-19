@@ -182,6 +182,7 @@ In similar situations it then follows this list. Newest at the bottom.
 - **Buying attributes uses 100 : 80 : 40 (user 2026-10-16):** Luck weighs 0.4 per gold decision when buying (`attributes::BUY_LUCK_WEIGHT`), no main/CON balance; Arena power and item/gem values keep Luck at 0.27 (`arena::LUCK_WEIGHT`) and the balance.
 
 - **Guild skills 6/6 for mushrooms, one time (user 2026-10-16):** every character buys Instructor and Treasure 5 → 6 (500 g + 2 mushrooms each), so that we are competitive and wanted in guilds that ask for 6/6. Narrow exception recorded in CLAUDE.md, enforced in `safe.rs` (`guild::six_price_ok`). Pet never.
+- **Guild switch margin 20 (user 2026-10-19, was 10):** leave a guild only for one with Instructor AND Treasure at least 20 higher. See docs/guild.md.
 - **Guild-only expeditions and Dungeons (user 2026-10-19):** a guildless character starts no new expedition before 22:00 and no Dungeon fight at all (Dungeons have no evening override); it keeps trying to join a guild. Running expeditions finish. See docs/guild.md.
 - **Guild skills 7/7 for mushrooms, one time (user 2026-10-19):** after 6/6 every character buys Instructor and Treasure 6 → 7 (1000 g + 4 mushrooms each, 8 mushrooms per character), for competitiveness on the guild market and the Instructor XP. See docs/guild.md "Guild skills 7/7".
 
