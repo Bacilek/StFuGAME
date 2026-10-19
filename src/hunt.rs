@@ -255,19 +255,16 @@ fn strip_slots(gs: Option<&GameState>, hunt: Hunt) -> Option<Vec<EquipmentSlot>>
 }
 
 /// Makes sure the items this hunt takes off fit into the backpack, freeing slots with potions when short (drink a
-/// better/stacking one or sell the least important, `potions::make_room`). `false` = does not fit, try another hunt.
+/// better/stacking one or sell an unwanted one, `potions::make_room_for_hunt`). `false` = does not fit, try another hunt.
 async fn ensure_room(session: &mut SimpleSession, hunt: Hunt) -> Result<bool, Outcome> {
     let Some(slots) = strip_slots(session.game_state(), hunt) else { return Ok(true) };
     let count = |s: &SimpleSession| s.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
     let mut free = count(session);
     // E.g. an Assassin needs 2 slots for bare hands; Sanek's fight tasks stayed blocked all day with 1 free slot
-    // NoEpics sacrifices only loose gems for room, never potions or anything else (user 2026-10-18): not worth it for a 4-point task
+    // Room comes from loose gems first, then only gentle potion steps; never a wanted potion (Eternal Life, main attribute, CON) sold,
+    // never an epic (user 2026-10-19, `potions::make_room_for_hunt`)
     while free < slots.len() {
-        let freed = if matches!(hunt, Hunt::NoEpics) {
-            crate::gems::free_slot(session).await?
-        } else {
-            crate::potions::make_room(session).await?
-        };
+        let freed = crate::potions::make_room_for_hunt(session).await?;
         if !freed {
             break;
         }

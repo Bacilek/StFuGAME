@@ -282,6 +282,21 @@ pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
     execute(session, RoomStep::Sell(p), &what).await
 }
 
+/// Room for the items a Hall of Fame hunt (bare hands, no chest plate, no epics) takes off (user 2026-10-19): a loose gem first
+/// (socketed or sold, gems are cheap and mined without end), then only the gentle potion steps (`Pressure::Tight`: sell an UNWANTED
+/// potion, drink or swap one). Never a wanted potion (Eternal Life, main attribute, Constitution) sold for the sake of a 1-point
+/// task, never a kept item swapped and never an epic sold (`make_room`'s `Desperate` step and `last_resort_epic`).
+pub async fn make_room_for_hunt(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    if crate::gems::free_slot(session).await? {
+        return Ok(true);
+    }
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    match bag_action(gs, Pressure::Tight) {
+        Some((step, what)) => execute(session, step, &what).await,
+        None => Ok(false),
+    }
+}
+
 async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Result<bool, Outcome> {
     let Some(gs) = session.game_state() else { return Ok(false) };
     let pos = match step {
