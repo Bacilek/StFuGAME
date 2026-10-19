@@ -412,6 +412,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-19: `last_resort_epic` now sells an epic ONLY when the backpack is full and every slot is an epic (user). Tests pass, not in a release yet.
 - 2026-10-19: hunts free backpack room only with loose gems and gentle potion steps; never wanted potions (Eternal/main/CON), never epics (`potions::make_room_for_hunt`, docs/tasks.md). Tests pass, NOT in a release yet. Open: NoEpics logging of free/needed slots in hunts.log not added; Květoš did NoEpics at 04:40 with 6 worn epics and now has only 3 free slots – how stays unexplained.
 - 2026-10-19: Monday event (4 days, ends Thu 23.10 00:00; tasks NoChestplate, BareHands, NoEpics, NoGear, 4 points; found under the Goblin Gleeman, user confirmed). Chest 3 (beer + ~1.5–2.7k gold) is low priority per the user. At 15:47: opened by Květoš, Mimimimi11, Mrožik, Pjotr, Wecros (NoEpics 10/10); the other 7 stand at 2 points.
 - 2026-10-19: Witch capture with the armor enchant verified (worn BreastPlate index 2 = 31 Mario's Beard, ring 91); worn-item enchants are readable via `Item.enchantment`. docs/witch.md. Witch is still not implemented.

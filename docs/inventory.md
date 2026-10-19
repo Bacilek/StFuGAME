@@ -99,3 +99,6 @@ Pagan (STR gem 147 in the weapon, CON gem 110 in the belt) was judged to KEEP bo
 
 ## Endless swap fix (2026-10-19, Pagan + Mimimimi11) – `inventory::compare`
 Rule (1) above was judged by the NEW item only: item A (empty socket) beat the worn B (socketed main/CON gem) in Bare mode, and once A was worn, B (no usable socket) beat A back in Rare mode (gem in full). Pagan swapped two talismans 30+ times in 6 minutes (value 96.3 vs 215.0), Mimimimi11 two weapons (593.8 vs 1425.0); every pass hit "Action limit for one pass reached" and Pagan's Tavern stalled with full Thirst for Adventure. Now a usable socket on EITHER item puts both in Bare mode (symmetric, so no cycle). Test `gem_item_and_empty_socket_item_do_not_swap_forever`. Needs a release build + bot restart to take effect.
+
+## Epics are sold only from a backpack full of epics (2026-10-19, user)
+`inventory::last_resort_epic` (reached via `potions::make_room`, used by `shops.rs` and `potions::trim_stock`; hunts no longer call it) used to fire for ANY completely full backpack although its comment said "full of epics". Now it returns `None` unless there is no free slot AND every slot holds an epic. Test `epic_is_sold_only_from_a_backpack_full_of_epics`. Needs a release build + restart.
