@@ -23,6 +23,8 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [x] Seznam enchantmentů od usera zapsán do `docs/witch.md`
   - [x] Fáze 1 (čtení): `src/witch.rs`, vlastní parsování `witchshop` (2026-10-19); ověřit živě po release buildu
   - [ ] Ověřit capture a dnešní typ itemu (sf-api `witch.required_item`), viz `docs/witch.md`
+  - [x] Fáze 2 kotlík (místo prodeje), fáze 3 enchantování, fáze 4 protáčení obchodů s typem čarodějnice: hotovo 2026-10-19/20, enchant + kotlík ověřeny živě (viz `docs/witch.md`)
+  - [ ] **Fáze 5: zdarma pivo z opasku (Thirsty Wanderer)** – 1 pivo denně zdarma, jen pokud byl opasek s enchantem nasazený už na začátku dne (user 2026-10-19). Čeká, až se enchant na opasek odemkne (unlocky jsou celoserverové; dnes jen prsten + brnění) a až user řekne, jak vypadá bezplatné pivo v hospodě. Potřebuje výjimku v CLAUDE.md + `safe.rs` (jen ověřeně bezplatné `BuyBeer`; houbičkový hlídač zůstává pojistkou) a nejdřív test na jedné postavě.
   - Pravidlo: nikdy za houby (viz CLAUDE.md); každý příkaz až po ověření do `safe.rs`.
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)

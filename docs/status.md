@@ -412,6 +412,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   restarted by Claude per the "user starts the bot themselves" rule.
 
 ## Where we are
+- 2026-10-20 00:30: **Release built** with everything since 10-19 evening (witch phase 4, cauldron gold logging). Phase 5 (free belt beer) put into docs/todo.md.
 - 2026-10-20: Witch verified live (enchant ident = list position, cauldron works); phase 4 (spin with the witch type) implemented, tests pass, NOT in a release yet. Phase 5 (free belt beer) waits for the belt enchant to unlock.
 - 2026-10-19: **Witch phase 2 (cauldron instead of a shop sale in `inventory::manage`)** implemented, whitelisted in `safe.rs` for plain backpack items of the wanted type only. Tests pass, NOT in a release yet. Watch `[inventory] Dropped into the witch's cauldron` and whether `required_item` stays current during the day.
 - 2026-10-19: **Witch phase 3 (enchanting) implemented** after shops (`witch::enchant`, `safe.rs` whitelist with price cap). Ident = position in the witchshop list (UNVERIFIED); every attempt is checked against the new equipment, halt for the day on a mismatch, details in `roster/<char>/logs/witch.log`. Tests pass, NOT in a release yet. Verify on TestChar1 (level 67): witch.log TRY/RESULT lines. Phase 2 (cauldron) and 4/5 still open.
