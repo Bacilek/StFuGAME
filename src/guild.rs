@@ -180,7 +180,7 @@ fn describe(o: &Offer) -> String {
 }
 
 /// Free slots a guild must keep for us to LEAVE another guild for it (see `claimed_slots`).
-const LEAVE_SPARE_SLOTS: u32 = 3;
+const LEAVE_SPARE_SLOTS: u32 = 1;
 /// How long a slot claimed by one of our characters counts against the guild's free places (the quick-join list is cached).
 const CLAIM_FOR: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 /// Guilds our characters (all in this process) just decided to join: (guild name, when).
@@ -289,20 +289,6 @@ async fn load_offers(session: &mut SimpleSession) -> Result<Vec<Offer>, sf_api::
     Ok(all)
 }
 
-/// Instructor / Treasure of our own guild, summed over the members from a fresh `ViewGuild` (same measure as the quick-join
-/// list). None when the guild cannot be looked up.
-async fn fresh_own_totals(session: &mut SimpleSession) -> Option<(u32, u32)> {
-    let name = session.game_state()?.guild.as_ref()?.name.clone();
-    let gs = safe::send(session, Command::ViewGuild { guild_ident: name.clone() }).await.ok()?;
-    let g = gs.lookup.guilds.get(&name)?;
-    if g.members.is_empty() {
-        return None;
-    }
-    let instructor = g.members.iter().map(|m| u32::from(m.instructor_lvl)).sum();
-    let treasure = g.members.iter().map(|m| u32::from(m.treasure_lvl)).sum();
-    Some((instructor, treasure))
-}
-
 /// Every `CHECK_EVERY`: join the best guild, or switch to a clearly better one.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let now = Local::now();
@@ -338,23 +324,23 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[guild] The quick-join list is empty or could not be read");
         return Outcome::Done;
     }
-    // Our own totals are read fresh (user 2026-10-17: Mimimimi11 left Smietanka shakes, which really had 652/680, because the
-    // cached totals from the save showed 500/478; the cache is as old as the login). Cannot read them -> stay.
+    // Our own totals must come from the SAME measure as the offers we compare them with. The member sum of `ViewGuild` and the
+    // login cache are NOT that measure (2026-10-20: Smietanka shakes showed 556/491 by the member sum, 500/491 cached, but
+    // 697/720 in the game and in the list, so Pagan and Sanek "upgraded" to FANCY 577/560 and ended in a worse guild or none).
+    // So the own guild's row of the quick-join list is used; a guild that is not listed (full) cannot be judged -> stay.
     let in_guild = session.game_state().is_some_and(|gs| gs.guild.is_some());
-    let fresh = if in_guild { fresh_own_totals(session).await } else { None };
-    if in_guild && fresh.is_none() {
-        report!("[guild] Could not read the totals of our own guild, staying (no switch on stale numbers)");
+    let own_name = session.game_state().and_then(|gs| gs.guild.as_ref().map(|g| g.name.clone()));
+    let listed = own_name.as_ref().and_then(|n| offers.iter().find(|o| &o.name == n)).map(|o| (o.instructor, o.treasure));
+    if in_guild && listed.is_none() {
+        report!("[guild] Our own guild is not in the quick-join list (full?), staying: its totals cannot be compared with the offers");
         return Outcome::Done;
     }
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let current = gs.guild.as_ref().map(|g| {
-        let (i, t) = fresh.unwrap_or((u32::from(g.total_instructor_skill), u32::from(g.total_treasure_skill)));
-        if (i, t) != (u32::from(g.total_instructor_skill), u32::from(g.total_treasure_skill)) {
-            report!("[guild] Own totals: cached {}/{}, fresh {i}/{t} (Instructor/Treasure) – using the fresh ones", g.total_instructor_skill, g.total_treasure_skill);
-        }
+        let (i, t) = listed.unwrap_or((u32::from(g.total_instructor_skill), u32::from(g.total_treasure_skill)));
+        report!("[guild] Own totals from the list: {i}/{t} (cached {}/{}, Instructor/Treasure)", g.total_instructor_skill, g.total_treasure_skill);
         (g.name.clone(), i, t)
-    });
-    let own = gs.guild.as_ref().map_or(Own { instructor: 0, treasure: 0 }, |g| Own {
+    });    let own = gs.guild.as_ref().map_or(Own { instructor: 0, treasure: 0 }, |g| Own {
         instructor: u32::from(g.own_instructor_skill),
         treasure: u32::from(g.own_treasure_skill),
     });
