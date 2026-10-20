@@ -289,6 +289,17 @@ async fn load_offers(session: &mut SimpleSession) -> Result<Vec<Offer>, sf_api::
     Ok(all)
 }
 
+/// (Instructor, Treasure) from the raw `GroupLookAt` page of a guild: data[6] low 16 bits = Treasure, data[7] low 16 bits =
+/// Instructor of `othergroup.groupSave`. sf-api's member columns of that page are shifted on this server (treasure at 210,
+/// instructor at 256 instead of 214/264), so its member sum (`ViewGuild`) is wrong and is not used.
+async fn lookup_totals(session: &mut SimpleSession, name: &str) -> Option<(u32, u32)> {
+    let raw = safe::send_raw(session, Command::ViewGuild { guild_ident: name.to_string() }).await.ok()?;
+    let save = raw.split("othergroup.groupSave:").nth(1)?.split('&').next()?;
+    let f: Vec<&str> = save.split('/').collect();
+    let field = |i: usize| f.get(i)?.trim().parse::<u64>().ok().map(|v| (v & 0xFFFF) as u32);
+    Some((field(7)?, field(6)?))
+}
+
 /// Every `CHECK_EVERY`: join the best guild, or switch to a clearly better one.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     let now = Local::now();
@@ -330,15 +341,28 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // So the own guild's row of the quick-join list is used; a guild that is not listed (full) cannot be judged -> stay.
     let in_guild = session.game_state().is_some_and(|gs| gs.guild.is_some());
     let own_name = session.game_state().and_then(|gs| gs.guild.as_ref().map(|g| g.name.clone()));
-    let listed = own_name.as_ref().and_then(|n| offers.iter().find(|o| &o.name == n)).map(|o| (o.instructor, o.treasure));
+    let in_list = own_name.as_ref().and_then(|n| offers.iter().find(|o| &o.name == n)).map(|o| (o.instructor, o.treasure));
+    // The totals field of the guild's own page (GroupLookAt data[6] / data[7] & 0xFFFF â€“ KGB 2026-10-20: 9/11, equal to the
+    // UI). Compared with the list row in the log; the higher of the two counts, so a low reading never makes us leave.
+    let looked = match own_name.as_deref() {
+        Some(n) if in_guild => lookup_totals(session, n).await,
+        _ => None,
+    };
+    if in_guild {
+        report!("[guild] Own guild totals (Instructor/Treasure): list {in_list:?}, lookup {looked:?}");
+    }
+    let listed = match (in_list, looked) {
+        (Some((i1, t1)), Some((i2, t2))) => Some((i1.max(i2), t1.max(t2))),
+        (a, b) => a.or(b),
+    };
     if in_guild && listed.is_none() {
-        report!("[guild] Our own guild is not in the quick-join list (full?), staying: its totals cannot be compared with the offers");
+        report!("[guild] The totals of our own guild cannot be read (not in the quick-join list, lookup failed), staying");
         return Outcome::Done;
     }
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let current = gs.guild.as_ref().map(|g| {
         let (i, t) = listed.unwrap_or((u32::from(g.total_instructor_skill), u32::from(g.total_treasure_skill)));
-        report!("[guild] Own totals from the list: {i}/{t} (cached {}/{}, Instructor/Treasure)", g.total_instructor_skill, g.total_treasure_skill);
+        report!("[guild] Own totals used: {i}/{t} (cached {}/{}, Instructor/Treasure)", g.total_instructor_skill, g.total_treasure_skill);
         (g.name.clone(), i, t)
     });    let own = gs.guild.as_ref().map_or(Own { instructor: 0, treasure: 0 }, |g| Own {
         instructor: u32::from(g.own_instructor_skill),
