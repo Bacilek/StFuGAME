@@ -27,6 +27,12 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [ ] **Fáze 5: zdarma pivo z opasku (Thirsty Wanderer)** – 1 pivo denně zdarma, jen pokud byl opasek s enchantem nasazený už na začátku dne (user 2026-10-19). Čeká, až se enchant na opasek odemkne (unlocky jsou celoserverové; dnes jen prsten + brnění) a až user řekne, jak vypadá bezplatné pivo v hospodě. Potřebuje výjimku v CLAUDE.md + `safe.rs` (jen ověřeně bezplatné `BuyBeer`; houbičkový hlídač zůstává pojistkou) a nejdřív test na jedné postavě.
   - Pravidlo: nikdy za houby (viz CLAUDE.md); každý příkaz až po ověření do `safe.rs`.
 
+- [ ] Pets (user 2026-10-20; odemyká se od lvl 75 po jedné expedici, hlavní postava po půlnoci 2026-10-21; plán a řetězce pets v `docs/pets.md`, nic neimplementováno):
+  - [ ] Fáze 1 (čtení): po odemčení zachytit `gs.pets` (habitaty, ovoce, level), ověřit otevřené otázky z `docs/pets.md`
+  - [ ] Fáze 2: odměna z expedice houby > ovoce > zlato, sbírat ovoce
+  - [ ] Fáze 3: krmení main peta podle řetězce (3×/den na peta), habitat dungeon, hledání petů; whitelist v `safe.rs` až po ověření
+  - [ ] Fáze 4: PvP 5×/den a útoky na trenéry (ovoce)
+
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
 - [ ] (2026-10-18, zatím neřešit) Spinning může přes den brát gold, který by fortress potřebovala na DALŠÍ buildy (spin šetří jen cenu jednoho následujícího buildu). Pokud přijde varování "build čeká na gold", přehodnotit priority (např. šetřit gold na víc buildů dopředu).
 - [ ] **Assassin: počítá se gem v off-hand (Shield slot) dvojnásobně jako ve zbrani?** (user 2026-10-16, neví) – zjistit: Assassinovi dát stejný gem do off-handu a porovnat `derived.damage` v `roster/<postava>/days/*.json` před/po (nebo user v klientu porovná damage). Do té doby se Shield slot v `gems::weapon_socket` NEbere jako zbraň. Pokud ano, rozšířit `Socket.weapon` na Shield u Assassina.

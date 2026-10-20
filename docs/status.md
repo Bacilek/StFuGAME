@@ -1,5 +1,6 @@
 # Project status (handover document)
 
+- **Pets briefing (2026-10-20, user):** mechanics, fruit chains and priorities in `docs/pets.md`, plan in `docs/todo.md`; nothing implemented. Unlock for the main character after midnight (lvl 75 + one expedition); then capture `gs.pets` and verify the open questions. sf-api 0.4.4 supports everything (commands not yet whitelisted in `safe.rs`).
 Updated: 2026-10-16. Rewrite after every bigger change.
 - **Release built 00:08 2026-10-19** (everything since 13:32 on 10-18: Witch TODO, bugs.md trimmed, guild.log + avoid kicked guilds, Laborers' Quarters before the Academy, worn gem vs empty socket + weapon gem x2, secondary attributes 2 %, new expedition choice). The user starts the bot. Live checks: `guild.log`, `[gems]` lines, Tavern choices.
 - **Expedition choice changed (2026-10-19, user, NOT in a release yet):** open travel task met by neither offer -> shorter; same tier -> best own success rate (journals) before length. `docs/expeditions.md`.
