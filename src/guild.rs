@@ -179,6 +179,24 @@ fn describe(o: &Offer) -> String {
     )
 }
 
+/// Free slots a guild must keep for us to LEAVE another guild for it (see `claimed_slots`).
+const LEAVE_SPARE_SLOTS: u32 = 3;
+/// How long a slot claimed by one of our characters counts against the guild's free places (the quick-join list is cached).
+const CLAIM_FOR: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+/// Guilds our characters (all in this process) just decided to join: (guild name, when).
+static CLAIMS: std::sync::Mutex<Vec<(String, std::time::Instant)>> = std::sync::Mutex::new(Vec::new());
+
+fn claim_slot(guild: &str) {
+    if let Ok(mut c) = CLAIMS.lock() {
+        c.retain(|(_, t)| t.elapsed() < CLAIM_FOR);
+        c.push((guild.to_string(), std::time::Instant::now()));
+    }
+}
+
+fn claimed_slots(guild: &str) -> u32 {
+    CLAIMS.lock().map_or(0, |c| c.iter().filter(|(g, t)| g == guild && t.elapsed() < CLAIM_FOR).count() as u32)
+}
+
 static LAST_CHECK: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
 
 /// Every join/leave/kick goes to `roster/<character>/logs/guild.log` as well: `progress.log` keeps only 100 messages, so a
@@ -371,6 +389,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         list = all;
     }
 
+    // Leaving first and joining second is risky when our own characters head for the same guild at once (2026-10-20 22:47:
+    // Pagan and Sanek left Smietanka shakes for FANCY at 49/50 members, Wecros and Pjotr took the free slots first, both
+    // ended in a worse guild or none). When leaving, only go to a guild that keeps `LEAVE_SPARE_SLOTS` free slots after the
+    // members it already has plus the slots our other characters just claimed.
+    if current.is_some() {
+        list.retain(|o| o.members + claimed_slots(&o.name) + LEAVE_SPARE_SLOTS <= MAX_MEMBERS);
+    }
     match &current {
         Some((name, instructor, treasure)) if list.is_empty() => {
             report!(
@@ -383,6 +408,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 "[guild] Leaving {name} (Instructor {instructor}, Treasure {treasure}) for a better guild: {}",
                 describe(&list[0])
             ));
+            claim_slot(&list[0].name);
             avoid(name, LEFT_AVOID);
             let _ = std::fs::remove_file(char_file("guild_last.txt"));
             if let Err(e) = safe::send(session, custom("GroupRemoveMember", &[&player_id.to_string()])).await {
@@ -404,7 +430,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 let _ = std::fs::write(char_file("guild_last.txt"), &offer.name);
                 return Outcome::Done;
             }
-            Ok(_) => report!("[guild] Joining {} did not work, trying the next one", offer.name),
+            Ok(_) => glog(format!("[guild] Joining {} did not work (full?), trying the next one", offer.name)),
             Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
             Err(e) => {
                 glog(format!("[guild] Joining {} failed: {e}", offer.name));
