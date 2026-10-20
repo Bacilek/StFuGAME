@@ -200,6 +200,8 @@ fn glog(msg: String) {
 /// `guild_last.txt`, so a kick is noticed even across a restart (user 2026-10-18: Pagan kept coming back to a guild whose
 /// members found it annoying; the bonuses had not changed, so it was not the switch margin).
 const LEFT_AVOID: chrono::Duration = chrono::Duration::hours(24);
+/// A guild that answered `group has no matching join slots` (it has join conditions we do not meet).
+const JOIN_SLOTS_AVOID: chrono::Duration = chrono::Duration::hours(12);
 const KICKED_AVOID: chrono::Duration = chrono::Duration::days(7);
 
 fn char_file(name: &str) -> std::path::PathBuf {
@@ -394,7 +396,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         None => {}
     }
 
-    for offer in list.iter().take(MAX_ATTEMPTS) {
+    for (attempt, offer) in list.iter().take(MAX_ATTEMPTS).enumerate() {
         glog(format!("[guild] Joining {}", describe(offer)));
         match safe::send(session, custom("GroupJoin", &[&offer.raw_name, "int"])).await {
             Ok(gs) if gs.guild.as_ref().is_some_and(|g| g.name == offer.name) => {
@@ -404,7 +406,20 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             }
             Ok(_) => report!("[guild] Joining {} did not work, trying the next one", offer.name),
             Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
-            Err(e) => report!("[guild] Joining {} failed: {e}", offer.name),
+            Err(e) => {
+                glog(format!("[guild] Joining {} failed: {e}", offer.name));
+                let msg = e.to_string();
+                if msg.contains("no matching join slots") {
+                    // The guild's own join conditions (higher guild upgrades, level…) are not in the list: remember it, so the next
+                    // round starts with a guild we have not been refused by (user 2026-10-20, Wecros: FF15 headed the list every 5 min)
+                    avoid(&offer.name, JOIN_SLOTS_AVOID);
+                } else if msg.contains("cannot do this right now") && attempt > 0 {
+                    // Every attempt after a refused one got this answer (Wecros 2026-10-20 while STC took him manually): the server
+                    // seems to block further joins for a while after a failed one, so do not burn the rest of the list
+                    glog("[guild] The server refuses further joins right after a failed one, the next round starts afresh".to_string());
+                    break;
+                }
+            }
         }
     }
     report!("[guild] Could not join any guild this time");
