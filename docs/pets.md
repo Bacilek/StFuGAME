@@ -54,3 +54,12 @@ first (`use_mush` is ignored by the server per the docs, still send false).
 - Do dungeon/PvP/trainer fights have a cooldown and does a free one exist (`next_free_battle`, `next_free_exploration`)?
 - Real element disadvantage numbers; how a pet is "found" (expedition location + time conditions; command or automatic?).
 - Where trainer attacks live (probably Underworld/other command) and what they give.
+
+## Answers from the user (2026-10-20, still assumptions until seen live)
+- PvP vs players: 5 a day, one per element.
+- Habitat dungeon: probably a ~1 h cooldown (unverified; sf-api has `next_free_exploration`).
+- Finding a pet: the condition (e.g. mushroom event + visiting Skull Island on an expedition) must be met, then the chance
+  depends on rarity: common (positions 1-14) = 100 %, rare (15-18) = some chance, epic (19-20) = small chance.
+  So the chain's late targets (Poisnake/Unikor/Mouthrexor/Devastator/Hydrospir, position 20; Pinklynx/Dragopyre/Knilight/
+  Watnake/Lilbeatzup 14-18) may need repeated expeditions after beating them.
+- fruit_idx meaning and trainer attacks: unknown, check after the unlock.
