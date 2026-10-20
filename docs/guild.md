@@ -127,3 +127,6 @@ Leaving first and joining second can fail when our own characters head for the s
 Own guild totals = its row in the quick-join list (same measure as the offers); the `ViewGuild` member sum and the login cache are NOT comparable (Smietanka 556/491 and 500/491 vs 697/720 in the game). Not listed -> stay. Leaving needs `members + slots claimed by our other characters (15 min) + 1 <= 50` (`LEAVE_SPARE_SLOTS`). A joined-failed attempt is logged in guild.log.
 
 Sample facts (user paste 2026-10-20, KGB `GroupLookAt`): `othergroup.groupSave:` data[3]=members, [6]&0xFFFF=Treasure, [7]&0xFFFF=Instructor (the UI "9/11/0" = Treasure/Instructor/Knights); member columns: level 64+i, last active 114+i, treasure 210+i, instructor 256+i, rank 306+i (sf-api expects 214/264/314). `GroupGetHallofFame` rows: `rank,guild,leader,members,level?,?`.
+
+## No avoid after leaving (2026-10-20, user)
+A guild we left is no longer avoided; loop guard = `MIN_SWITCH_GAP` (12 h after a landed switch) + margin 20 on the same measure. Kicked / refused guilds stay avoided.

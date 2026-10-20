@@ -213,11 +213,13 @@ fn glog(msg: String) {
     }
 }
 
-/// Guilds we do not join again for a while: ones we left ourselves (`LEFT_AVOID`) and ones that kicked us (`KICKED_AVOID`).
+/// Guilds we do not join again for a while: ones that kicked us (`KICKED_AVOID`) or refused us (`JOIN_SLOTS_AVOID`).
 /// Kept per character in `roster/<character>/guild_avoid.txt` (`name<TAB>until-rfc3339`) and the last guild we saw us in in
 /// `guild_last.txt`, so a kick is noticed even across a restart (user 2026-10-18: Pagan kept coming back to a guild whose
 /// members found it annoying; the bonuses had not changed, so it was not the switch margin).
-const LEFT_AVOID: chrono::Duration = chrono::Duration::hours(24);
+/// After a switch that really landed, no voluntary switch for this long (loop guard on top of `SWITCH_MARGIN`, user 2026-10-20: never
+/// arrive-leave-arrive-leave). A guild we left is NOT avoided any more; a failed join leaves no mark, so going back is immediate.
+const MIN_SWITCH_GAP: chrono::Duration = chrono::Duration::hours(12);
 /// A guild that answered `group has no matching join slots` (it has join conditions we do not meet).
 const JOIN_SLOTS_AVOID: chrono::Duration = chrono::Duration::hours(12);
 const KICKED_AVOID: chrono::Duration = chrono::Duration::days(7);
@@ -406,6 +408,15 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if current.is_some() {
         list.retain(|o| o.members + claimed_slots(&o.name) + LEAVE_SPARE_SLOTS <= MAX_MEMBERS);
     }
+    // Loop guard: a recent successful switch blocks the next voluntary one.
+    if current.is_some() && !list.is_empty() {
+        let last = std::fs::read_to_string(char_file("guild_switched.txt")).ok().and_then(|t| t.trim().parse::<DateTime<Local>>().ok());
+        if last.is_some_and(|t| Local::now() - t < MIN_SWITCH_GAP) {
+            report!("[guild] Switched less than {} h ago, not switching again yet", MIN_SWITCH_GAP.num_hours());
+            list.clear();
+        }
+    }
+    let left_guild = current.is_some() && !list.is_empty();
     match &current {
         Some((name, instructor, treasure)) if list.is_empty() => {
             report!(
@@ -419,7 +430,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 describe(&list[0])
             ));
             claim_slot(&list[0].name);
-            avoid(name, LEFT_AVOID);
             let _ = std::fs::remove_file(char_file("guild_last.txt"));
             if let Err(e) = safe::send(session, custom("GroupRemoveMember", &[&player_id.to_string()])).await {
                 return fail(&e);
@@ -437,6 +447,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         match safe::send(session, custom("GroupJoin", &[&offer.raw_name, "int"])).await {
             Ok(gs) if gs.guild.as_ref().is_some_and(|g| g.name == offer.name) => {
                 glog(format!("[guild] Joined {}", offer.name));
+                if left_guild {
+                    let _ = std::fs::write(char_file("guild_switched.txt"), Local::now().to_rfc3339());
+                }
                 let _ = std::fs::write(char_file("guild_last.txt"), &offer.name);
                 return Outcome::Done;
             }
