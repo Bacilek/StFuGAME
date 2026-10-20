@@ -179,13 +179,6 @@ fn describe(o: &Offer) -> String {
     )
 }
 
-/// Guilds we never leave and always return to (lower case).
-const PINNED_GUILDS: [&str; 1] = ["smietanka shakes"];
-
-fn is_pinned(name: &str) -> bool {
-    PINNED_GUILDS.iter().any(|p| name.eq_ignore_ascii_case(p))
-}
-
 /// Free slots a guild must keep for us to LEAVE another guild for it (see `claimed_slots`).
 const LEAVE_SPARE_SLOTS: u32 = 3;
 /// How long a slot claimed by one of our characters counts against the guild's free places (the quick-join list is cached).
@@ -396,16 +389,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         list = all;
     }
 
-    // Pinned guilds (user 2026-10-20: Smietanka shakes has some of the best bonuses, takes us, wants no higher levels, has free
-    // slots): never leave one, and from anywhere else go back to it when it can take us, whatever the totals or the avoid list say.
-    if current.as_ref().is_some_and(|(n, _, _)| is_pinned(n)) {
-        report!("[guild] Staying in the pinned guild {}", current.as_ref().map_or("", |(n, _, _)| n.as_str()));
-        return Outcome::Done;
-    }
-    if let Some(p) = offers.iter().find(|o| is_pinned(&o.name) && o.members < MAX_MEMBERS && !unmet_requirement(&o.description, own)) {
-        list.retain(|o| o.name != p.name);
-        list.insert(0, p.clone());
-    }
     // Leaving first and joining second is risky when our own characters head for the same guild at once (2026-10-20 22:47:
     // Pagan and Sanek left Smietanka shakes for FANCY at 49/50 members, Wecros and Pjotr took the free slots first, both
     // ended in a worse guild or none). When leaving, only go to a guild that keeps `LEAVE_SPARE_SLOTS` free slots after the

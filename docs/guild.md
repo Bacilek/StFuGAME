@@ -123,6 +123,3 @@ Wecros stayed guildless for 16+ hours (and so, with the guild-only rule, idle wi
 
 ## Switch race guard (2026-10-20)
 Leaving first and joining second can fail when our own characters head for the same nearly full guild (Pagan/Sanek -> FANCY 49/50, Wecros/Pjotr got the slots). Rule: leave only if target members + slots claimed by our other characters in the last 15 min + 3 <= 50 (`LEAVE_SPARE_SLOTS`, `claim_slot`/`claimed_slots`). Not guarded: the no-guild case (joining then costs nothing).
-
-## Pinned guild (user 2026-10-20)
-`guild::PINNED_GUILDS` = Smietanka shakes: never left, always returned to when joinable (before the quick-join ranking and the avoid list). Add names there to pin more.
