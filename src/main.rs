@@ -435,6 +435,13 @@ async fn play_attack_only(session: &mut SimpleSession) -> tavern::Outcome {
     }
 }
 
+/// Waits (minutes) between login retries after a transient login failure; then the character stops.
+const LOGIN_RETRY_WAITS_MIN: [u64; 6] = [2, 5, 10, 15, 20, 30];
+
+/// A login failure that a server hiccup can cause (as opposed to wrong credentials or an unknown character).
+fn is_transient_login_error(msg: &str) -> bool {
+    msg.contains("sessionid") || msg.contains("Could not connect") || msg.contains("empty response")
+}
 /// How many times in a row we may log in again when the session drops right away (within SESSION_OK_SEC).
 const MAX_RELOGINS: u32 = 3;
 /// A session that lasted at least this long counts as healthy (the counter resets).
@@ -548,6 +555,7 @@ pub(crate) async fn run_character(creds: Credentials) -> ExitCode {
     // Only consecutive session losses count; when a session lasts, the counter resets
     let mut attempt = 0;
     let mut first = true;
+    let mut login_retries = 0;
     while attempt <= MAX_RELOGINS {
         if attempt > 0 {
             let wait = fastrand::u64(20..60);
@@ -558,9 +566,20 @@ pub(crate) async fn run_character(creds: Credentials) -> ExitCode {
             Ok(s) => s,
             Err(msg) => {
                 report!("{msg}");
+                // A server hiccup (sessionid invalid right after logging in, no connection) must not end the character for
+                // good (2026-10-20: Sanek, TestChar1, Wecros stopped for 7 h after one 15:00-15:20 outage); wrong
+                // credentials / unknown character still stop it.
+                if is_transient_login_error(&msg) && login_retries < LOGIN_RETRY_WAITS_MIN.len() {
+                    let wait = LOGIN_RETRY_WAITS_MIN[login_retries] * 60 + fastrand::u64(0..60);
+                    login_retries += 1;
+                    report!("Login failed, trying again in {} min ({login_retries}/{})", wait / 60, LOGIN_RETRY_WAITS_MIN.len());
+                    tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+                    continue;
+                }
                 return ExitCode::FAILURE;
             }
         };
+        login_retries = 0;
         if first {
             print_status(&session);
             if let Some(date) = session.game_state().and_then(roster::write_day0) {
