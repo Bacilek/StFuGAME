@@ -18,6 +18,7 @@ mod fortress;
 mod gems;
 mod guard;
 mod guild;
+mod pets;
 mod hunt;
 mod inventory;
 mod journal;
@@ -284,6 +285,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
         // Witch, phase 1 (user 2026-10-19): read only, reports the state when it changes
         witch::observe(session);
+        pets::observe(session);
         if let tavern::Outcome::SessionLost = guild::run(session).await {
             return tavern::Outcome::SessionLost;
         }

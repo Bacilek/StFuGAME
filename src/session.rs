@@ -15,6 +15,8 @@ pub struct SimpleSession {
     /// The raw `witchshop` numbers of the latest response that carried them (sf-api misreads which enchantments are unlocked, see
     /// `witch.rs`).
     witch_shop: Option<Vec<i64>>,
+    /// The raw `ownpets.petsSave` numbers (sf-api needs a rank that is 0 on a fresh unlock and then drops all pets, see `pets.rs`).
+    pets_save: Option<Vec<i64>>,
 }
 
 /// Picks the `ownplayersavecharacter` numbers out of a raw response (`key:value&key:value…`), if it has them.
@@ -22,6 +24,13 @@ fn parse_char_save(raw: &str) -> Option<Vec<i64>> {
     let v = raw.split('&').find_map(|kv| kv.strip_prefix("ownplayersavecharacter:"))?;
     let nums: Vec<i64> = v.split('/').filter_map(|s| s.parse().ok()).collect();
     (nums.len() > 3).then_some(nums)
+}
+
+/// Picks the `ownpets.petsSave` numbers out of a raw response, if it has them.
+fn parse_pets_save(raw: &str) -> Option<Vec<i64>> {
+    let v = raw.split('&').find_map(|kv| kv.strip_prefix("ownpets.petsSave:"))?;
+    let nums: Vec<i64> = v.split('/').filter_map(|s| s.parse().ok()).collect();
+    (nums.len() > 100).then_some(nums)
 }
 
 /// Picks the `witchshop` numbers out of a raw response, if it has them.
@@ -40,7 +49,7 @@ impl SimpleSession {
             .await?
             .into_iter()
             .flatten()
-            .map(|session| Self { session, gamestate: None, char_save: None, witch_shop: None })
+            .map(|session| Self { session, gamestate: None, char_save: None, witch_shop: None, pets_save: None })
             .collect())
     }
 
@@ -63,6 +72,11 @@ impl SimpleSession {
         self.witch_shop.as_deref()
     }
 
+    /// Numbers of the latest `ownpets.petsSave` seen, see `pets.rs`.
+    pub fn pets_save(&self) -> Option<&[i64]> {
+        self.pets_save.as_deref()
+    }
+
     pub fn game_state(&self) -> Option<&GameState> {
         self.gamestate.as_ref()
     }
@@ -78,6 +92,7 @@ impl SimpleSession {
             let resp = self.session.login().await?;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
+            self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
@@ -91,6 +106,7 @@ impl SimpleSession {
         let raw = resp.raw_response().to_string();
         self.char_save = parse_char_save(&raw).or(self.char_save.take());
         self.witch_shop = parse_witch_shop(&raw).or(self.witch_shop.take());
+        self.pets_save = parse_pets_save(&raw).or(self.pets_save.take());
         if let Some(gs) = &mut self.gamestate
             && let Err(e) = gs.update(resp)
         {
@@ -109,12 +125,14 @@ impl SimpleSession {
             let resp = self.session.login().await?;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
+            self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
         let resp = self.session.send_command(cmd).await?;
         self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
+            self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
         Ok(resp.raw_response().to_string())
     }
 }

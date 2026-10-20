@@ -63,3 +63,14 @@ first (`use_mush` is ignored by the server per the docs, still send false).
   So the chain's late targets (Poisnake/Unikor/Mouthrexor/Devastator/Hydrospir, position 20; Pinklynx/Dragopyre/Knilight/
   Watnake/Lilbeatzup 14-18) may need repeated expeditions after beating them.
 - fruit_idx meaning and trainer attacks: unknown, check after the unlock.
+
+## First capture (2026-10-21 00:05, main character, right after the unlock; `ownpets.petsSave`, 0-based indexes)
+- The hatch gave 5 pets (one per habitat): Shadow #1, Light #3, Earth #2, Fire #3, Water #1, each level 1 (pet level of pet n at
+  index n+1, total collected at 103 = 5; matches sf-api). `unlockfeature:9/1`, `petsHatchIndex:81`.
+- The tail differs from sf-api: non-zero values at 242 (5743), 244 (3383), 245 (100), 246/247 (2), 248 (a timestamp 2 h in the
+  future: probably the free habitat-dungeon/PvP timer), 249..253 (1 x5), 261..265, 275. sf-api expects explored at 210+e, battled
+  223+e, opponent 231..237, next-level 238+e, attribute bonus 250+; with `rank` (233) = 0 it throws the whole pets state away
+  (`gamestate/mod.rs` "pets.rank == 0 -> pets = None"), so `gs.pets` may be None on the bot until a rank exists. Layout unresolved.
+- Phase 1 is implemented (`src/pets.rs`, `SimpleSession::pets_save`): the raw numbers are written to `roster/<char>/pets_raw.txt` and
+  `[pets] collected N: <habitat> [#pos=level …] | tail idx:value …` is logged whenever they change. Use these lines (before/after
+  feeding, a dungeon fight, a PvP fight) to decode the tail; nothing is sent to the server yet.
