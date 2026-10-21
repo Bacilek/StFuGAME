@@ -157,3 +157,4 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
 - Hopeless fight -> our worst / disadvantaged element (as before).
 - Type bonus is probably ~10 % stats or damage (user will check in game; unverified, maybe only one side gets it).
 - The user did not see a way to view the opponent's pet collection in the UI; only the pet count and level sum of the day's element are shown (`ViewPet` / `otherplayerpetbonus` were only my guesses, unverified). Honor gain/loss: not interesting, dropped from the open questions.
+- **Type advantage = +25 % damage in pet fights** (user 2026-10-21, read in the game; replaces the "~10 %" guess above; unknown whether the other side gets a penalty).
