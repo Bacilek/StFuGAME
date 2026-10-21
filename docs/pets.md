@@ -91,7 +91,10 @@ Starting pets (one per habitat, level 1): Shadow Slurp (#1), Light Tinck (#3), E
 - Shadow (user 2026-10-21): his level-1 Slurp (#1) lost a habitat dungeon fight against the level-1 Slurp of the dungeon (a coin-flip fight at equal level; he does not want to level Slurp since it is not on the Shadow chain). Plan: get through the first pets until #3 Toothey (Shadow chain target `Toothey (3) [45]`), and feed only him. Open: does a lost fight still start the 1 h cooldown and give anything (rewards, fruit)? Capture the response of a loss; the bot must treat a loss as normal (no retry loop within the hour).
 - Confirmed (user 2026-10-21): a LOST habitat fight also starts the 1 h cooldown and gives no reward, like the normal Dungeons. Each habitat has one "active" pet the user can select; the bot should always fight with the strongest pet of that habitat that it feeds (the active one). Shadow only has the weakest pet for now, so Shadow fights are coin flips until Toothey is caught.
 
-## Catch conditions per pet (sfporadnik.pl/pets.php, fetched 2026-10-21 – a summarising fetch, verify live)
+## Catch conditions per pet (sfporadnik.pl/pets.php via a summarising fetch 2026-10-21 – **UNRELIABLE, DO NOT USE**)
+The user checked in game: Tinck is in Maerwynn (table says Erogenion), Smaponyck in Maerwynn (table: Erogenion), Ocodile in Black Water Swamp
+(table: Evernight Forest), Gullps in Magmaron (table: Flooded Caldwell). Locations/times below are wrong or shifted; real ones come from the
+game (user) and must be verified, then this table fixed.
 Format: position name: expedition location, time. D = daytime (06-18), N = night (18-06). Positions 1-14 common (100 %), 15-18 rare, 19-20 epic.
 - **Shadow:** 1 Slurp Nevermoor D; 2 Digmol Maerwynn N; 3 Toothey Sprawling Jungle N; 4 Okultacle Split Canyon N; 5 Spidor Black Forest Mon N;
   6 Jackobu Black Water Swamp 00-01; 7 Shrimpfly Evernight Forest summer D; 8 Reaprim Skull Island winter D; 9 Petdacat Shadowrock Mountain Fri N;
@@ -118,13 +121,12 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
   17 Cannoturtle Skull Island (birthday event 22.06); 18 Unhere Arcane Toilet (Aura 20); 19 Tritosting after Easteros, Busted Lands; 20 Hydrospir after the last Water pet, Nevermoor.
 - The page's names differ slightly from the game client (client: Monkoragge, Pyrobhibus) – match by position, not name.
 
-## User finding (2026-10-21): the first 3 pets of a habitat can be caught WITHOUT beating them first
-Verified by the user while testing: the first 3 pets of every habitat (except the starting one) are found in expeditions at their location/time
-without fighting them in the habitat dungeon first. So fruits are NOT wasted on levelling a weak pet just to beat the pets in front of the
-chain target. Example Shadow (starter Slurp #1, chain target Toothey #3 [45]): do not level Slurp to beat Slurp/Digmol; catch Toothey directly
-in an expedition through Sprawling Jungle at night, feed only him, then fight the habitat dungeon with him.
-- Consequence for the plan: for chain targets at position <= 3 (Shadow Toothey, Light Tinck, Earth Smaponyck, Water Ocodile, Fire Gullps #2)
-  we need an expedition passing the location in the right time window, not dungeon wins. Later targets (position >= 4) probably still need
-  the dungeon wins first (unverified).
-- Tavern idea (not implemented): when choosing an expedition, prefer one passing a wanted pet's location if it is the right time of day
-  (`tavern::choose_expedition` could get a "pet location" rule next to the task-location rule). Needs the user's decision.
+## User finding (2026-10-21, corrected the same day): only the first 3 pets of a habitat are pre-unlocked
+- MANY more than 3 pets per habitat drop in expeditions, but a pet can only be found once it is unlocked. The first 3 pets of every habitat are
+  unlocked from the start (as if already beaten in the habitat dungeon); all later ones are "shadowed" until beaten in the habitat dungeon.
+  So chain targets at position <= 3 (Shadow Toothey, Light Tinck, Earth Smaponyck, Water Ocodile, Fire Gullps #2) can be caught straight from
+  expeditions: no dungeon wins, no fruits spent on weak pets. Deeper targets need the dungeon wins first.
+- Every character has its own random starter per habitat (user: Tinck is his starter, other characters may not have it).
+- Example Shadow: starter Slurp #1, target Toothey #3 -> find Toothey in an expedition (location/time from the game), feed only him.
+- Verified locations (user, in game): Tinck Maerwynn, Smaponyck Maerwynn, Ocodile Black Water Swamp, Gullps Magmaron. Times of day still unknown.
+- Tavern idea (not implemented, needs the user's decision): prefer an expedition passing a wanted pet's location at the right time.
