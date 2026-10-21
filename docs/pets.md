@@ -138,3 +138,8 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
 - Tail in this numbering (10 lower than the earlier note): 232 opponent id (10160), 233 timestamp, 234 pet rank (3376), 235 honor (253), 236/237 opponent pet count/level total (2/2), 238 timestamp, 239/240 = 6/6, 251..255 = attribute bonuses 2083/305/305/1468/313 (equal to the character save), 265 = counter (14).
 - Fruits after the feed (`resources` 12..16): Shadow 12, Light 13, Earth 14, Fire 13, Water 13 (total 65 = the start total, so wins refilled what feeding used). A capture from BEFORE the feed is needed to see which stack `PlayerPetFeed:62/<idx>` consumed; still open.
 - Confirmed (user 2026-10-21): a WIN in pet PvP (`FightPetOpponent`) also refills 1 fruit, like a habitat dungeon win. Fruit sources: expeditions, habitat dungeon wins (1 h cooldown), pet PvP wins (5 a day, one per habitat).
+
+## Egg rewards in expeditions (user 2026-10-21)
+- Going on e.g. a night Black Water Swamp expedition to find Ocodile (Water #3): the mid-expedition reward choice (3 offered, after the 5th encounter) can contain an **Egg** (the pet is found this way).
+- Reward order (precedents 2026-10-21): hard-to-get chain pet egg (only rare conditions/events) > mushroom > other pet egg > fruit > gold > rest. An easy chain pet loses to a mushroom.
+- Capture while on such an expedition: `expeditionstate:5/21/4/193/101/44/0/1/1/0/1000/0/0/25/1/1792619611/1792619986/10/-10/0/1` (not decoded; compare with sf-api `ExpeditionStage`; how to tell an Egg reward and its pet/habitat is open - needs a capture of the reward screen).
