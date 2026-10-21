@@ -90,3 +90,41 @@ Starting pets (one per habitat, level 1): Shadow Slurp (#1), Light Tinck (#3), E
 - `fruit_idx` very likely selects one of the 5 fruit types (the user's guess); still to be tested on one pet.
 - Shadow (user 2026-10-21): his level-1 Slurp (#1) lost a habitat dungeon fight against the level-1 Slurp of the dungeon (a coin-flip fight at equal level; he does not want to level Slurp since it is not on the Shadow chain). Plan: get through the first pets until #3 Toothey (Shadow chain target `Toothey (3) [45]`), and feed only him. Open: does a lost fight still start the 1 h cooldown and give anything (rewards, fruit)? Capture the response of a loss; the bot must treat a loss as normal (no retry loop within the hour).
 - Confirmed (user 2026-10-21): a LOST habitat fight also starts the 1 h cooldown and gives no reward, like the normal Dungeons. Each habitat has one "active" pet the user can select; the bot should always fight with the strongest pet of that habitat that it feeds (the active one). Shadow only has the weakest pet for now, so Shadow fights are coin flips until Toothey is caught.
+
+## Catch conditions per pet (sfporadnik.pl/pets.php, fetched 2026-10-21 – a summarising fetch, verify live)
+Format: position name: expedition location, time. D = daytime (06-18), N = night (18-06). Positions 1-14 common (100 %), 15-18 rare, 19-20 epic.
+- **Shadow:** 1 Slurp Nevermoor D; 2 Digmol Maerwynn N; 3 Toothey Sprawling Jungle N; 4 Okultacle Split Canyon N; 5 Spidor Black Forest Mon N;
+  6 Jackobu Black Water Swamp 00-01; 7 Shrimpfly Evernight Forest summer D; 8 Reaprim Skull Island winter D; 9 Petdacat Shadowrock Mountain Fri N;
+  10 Mykon Moldy Forest fall D; 11 Fishorr Flooded Caldwell Mon N; 12 Cuckooly Tusk Mountain Tue N; 13 Battlutter Erogenion Wed N; 14 Pinklynx Stumble Steppe Thu D;
+  15 Pharamumm Black Forest (Halloween event); 16 Ninstarr Gnarogrim (HoF top 1000 / 50k honor); 17 Luchtablong Busted Lands (Exceptional XP event);
+  18 Angrack Rotten Lands (Friday 13th); 19 Devilsatt (Shadow World dungeon 13 floor 10; Plains of Oz'Kurr); 20 Poisnake after the last Shadow pet, Sunburn Desert.
+- **Light:** 1 Shaggyll Stumble Steppe D; 2 Jellclops Moldy Forest N; 3 Tinck Erogenion D; 4 Cloudning Shadowrock Mountain D; 5 Nevorfull Sprawling Jungle spring N;
+  6 Plutoid Nevermoor Sat D; 7 Djinntonic Sunburn Desert summer D; 8 Blaxta Flooded Caldwell fall D; 9 Lampcess Skull Island Mon N; 10 Teslarr Busted Lands Tue D;
+  11 Sunnya Tusk Mountain Sun D; 12 Buckfoxion Northrunt Wed N; 13 Birdychirp Evernight Forest Thu D; 14 Eyeorwhat Black Water Swamp Fri D;
+  15 Mesmerit Erogenion (Guild HoF); 16 Antlar Northrunt December; 17 Liphant Split Canyon April 1st; 18 Knilight Erogenion (Epic Extravaganza event);
+  19 Heraldon after the Tower, Rotten Lands; 20 Unikor after the last Light pet, Plains of Oz'Kurr.
+- **Earth:** 1 Mamoton Stumble Steppe D; 2 Monkorrage Gnarogrim N; 3 Smaponyck Erogenion D; 4 Bittnutz Black Forest D; 5 Roarear Northrunt N; 6 Muscudon Tusk Mountain summer D;
+  7 Apstick Black Water Swamp fall D; 8 Horrnington Split Canyon winter D; 9 Boaringg Magmaron spring D; 10 Mameloth Nevermoor Sun N; 11 Rheynooh Maerwynn Mon D;
+  12 Rockastonn Busted Lands Tue N; 13 Redwoofox Evernight Forest Wed D; 14 Lilbeatzup Rotten Lands Thu D; 15 Forror Maerwynn Easter; 16 Nipprabs Sprawling Jungle Pentecost;
+  17 Armoruck Plains of Oz'Kurr (Glorious Galore event); 18 Canocle Stumble Steppe (Fortress HoF); 19 Tricerawood Gem Mine lvl 20; 20 Mouthrexor after the last Earth pet, Moldy Forest.
+- **Fire:** 1 Firimp Nevermoor D; 2 Gullps Flooded Caldwell N; 3 Pyrophibus Black Water Swamp N; 4 Flamechirr Tusk Mountain D; 5 Tectospit Busted Lands Tue N;
+  6 Pyroplant Moldy Forest fall N; 7 Kokofire Split Canyon Mon D; 8 Peppryon Sunburn Desert spring D; 9 Boomywoomy Plains of Oz'Kurr winter D; 10 Tikiricky Sprawling Jungle Wed N;
+  11 Matchlit Stumble Steppe Thu D; 12 Birblazey Black Forest summer D; 13 Infernox Magmaron Fri D; 14 Humbuzzish Evernight Forest Sat N (rare); 15 Dragopyr weapon shop;
+  16 Mantiflame Maerwynn (Tidy Toilet Time event); 17 Finnettle Flooded Caldwell Valentine's; 18 Etrock Evernight Forest New Year; 19 Blazingtongues after Demon Portal, Skull Island;
+  20 Devastator after the last Fire pet, Gnarogrim.
+- **Water:** 1 Goldy Magmaron D; 2 Orcahle Skull Island D; 3 Ocodile Evernight Forest N; 4 Penguwater Northrunt D; 5 Walrophin Rotten Lands Mon D; 6 Colsnail Tusk Mountain Tue N;
+  7 Aquaphant Split Canyon Wed D; 8 Naar Flooded Caldwell winter D; 9 Octoboss Moldy Forest Thu N; 10 Ewilgryn Skull Island Fri D; 11 Seapard Black Water Swamp Sat D;
+  12 Shellzy Erogenion fall N; 13 Mingho Sprawling Jungle summer D; 14 Angbite Shadowrock Mountain Sun N; 15 Mermoid Skull Island (Pets HoF); 16 Watnake magic shop;
+  17 Cannoturtle Skull Island (birthday event 22.06); 18 Unhere Arcane Toilet (Aura 20); 19 Tritosting after Easteros, Busted Lands; 20 Hydrospir after the last Water pet, Nevermoor.
+- The page's names differ slightly from the game client (client: Monkoragge, Pyrobhibus) – match by position, not name.
+
+## User finding (2026-10-21): the first 3 pets of a habitat can be caught WITHOUT beating them first
+Verified by the user while testing: the first 3 pets of every habitat (except the starting one) are found in expeditions at their location/time
+without fighting them in the habitat dungeon first. So fruits are NOT wasted on levelling a weak pet just to beat the pets in front of the
+chain target. Example Shadow (starter Slurp #1, chain target Toothey #3 [45]): do not level Slurp to beat Slurp/Digmol; catch Toothey directly
+in an expedition through Sprawling Jungle at night, feed only him, then fight the habitat dungeon with him.
+- Consequence for the plan: for chain targets at position <= 3 (Shadow Toothey, Light Tinck, Earth Smaponyck, Water Ocodile, Fire Gullps #2)
+  we need an expedition passing the location in the right time window, not dungeon wins. Later targets (position >= 4) probably still need
+  the dungeon wins first (unverified).
+- Tavern idea (not implemented): when choosing an expedition, prefer one passing a wanted pet's location if it is the right time of day
+  (`tavern::choose_expedition` could get a "pet location" rule next to the task-location rule). Needs the user's decision.
