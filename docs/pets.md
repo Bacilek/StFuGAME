@@ -130,3 +130,10 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
 - Example Shadow: starter Slurp #1, target Toothey #3 -> find Toothey in an expedition (location/time from the game), feed only him.
 - Verified locations (user, in game): Tinck Maerwynn, Smaponyck Maerwynn, Ocodile Black Water Swamp, Gullps Magmaron. Times of day still unknown.
 - Tavern idea (not implemented, needs the user's decision): prefer an expedition passing a wanted pet's location at the right time.
+
+## Capture 2026-10-21 after feeding Gullps (user, lvl 76; `petsSave` counted from 0 = player id 23994)
+- Levels sit at index = pet id + 1: Shadow #3 (id 3) lvl 4 (idx 4), Light Tinck (id 23) lvl 4 (idx 24), Earth #2 (id 42) lvl 1 (idx 43), **Fire Gullps (id 62) lvl 2 (idx 63)**, Fire #3 (id 63) lvl 1 (idx 64), Water #1 (id 81) lvl 1 (idx 82).
+- 103 = pets collected (7), 104..108 = per-habitat collected (Shadow 2, Light 1, Earth 1, Fire 2, Water 1).
+- **Fruits fed today** = index 109 + pet id: idx 112 = 3 (Shadow #3), 132 = 3 (Tinck), **171 = 1 (Gullps)**. So the daily 3-feed limit is per pet and is readable here.
+- Tail in this numbering (10 lower than the earlier note): 232 opponent id (10160), 233 timestamp, 234 pet rank (3376), 235 honor (253), 236/237 opponent pet count/level total (2/2), 238 timestamp, 239/240 = 6/6, 251..255 = attribute bonuses 2083/305/305/1468/313 (equal to the character save), 265 = counter (14).
+- Fruits after the feed (`resources` 12..16): Shadow 12, Light 13, Earth 14, Fire 13, Water 13 (total 65 = the start total, so wins refilled what feeding used). A capture from BEFORE the feed is needed to see which stack `PlayerPetFeed:62/<idx>` consumed; still open.
