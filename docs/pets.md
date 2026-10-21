@@ -92,6 +92,7 @@ Starting pets (one per habitat, level 1): Shadow Slurp (#1), Light Tinck (#3), E
 - Confirmed (user 2026-10-21): a LOST habitat fight also starts the 1 h cooldown and gives no reward, like the normal Dungeons. Each habitat has one "active" pet the user can select; the bot should always fight with the strongest pet of that habitat that it feeds (the active one). Shadow only has the weakest pet for now, so Shadow fights are coin flips until Toothey is caught.
 
 ## Catch conditions per pet (sfporadnik.pl/pets.php via a summarising fetch 2026-10-21 – **UNRELIABLE, DO NOT USE**)
+**Superseded by `docs/pet-conditions.md` (user-verified, filled habitat by habitat).**
 The user checked in game: Tinck is in Maerwynn (table says Erogenion), Smaponyck in Maerwynn (table: Erogenion), Ocodile in Black Water Swamp
 (table: Evernight Forest), Gullps in Magmaron (table: Flooded Caldwell). Locations/times below are wrong or shifted; real ones come from the
 game (user) and must be verified, then this table fixed.
