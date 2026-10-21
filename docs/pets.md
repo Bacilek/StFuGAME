@@ -148,5 +148,12 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
 - Up to 5 fights a day, the opponents are offered one at a time (the next is visible only after the previous win/loss). The defender's habitat is the day's element, cycling Water -> Fire -> Earth -> Light -> Shadow -> Water (2026-10-21 = Light). The opponent fights with ALL his pets of that element.
 - We choose our side: each of the 5 fights must use a DIFFERENT habitat of ours (one per habitat per day), and all our pets of that habitat fight.
 - We see the opponent's pet count and the sum of pet levels of the day's element (`petsSave` 236/237, ie. 2 pets / 2 levels). Only a rough signal: fewer, higher pets beat many low ones with the same sum (3 pets with one lvl 19 + two lvl 1 vs 3 x lvl 7 = 21 levels each; the concentrated one is stronger), and every pet scales differently.
-- Strategy idea: opponent looks beatable -> use the element with the type advantage; hopeless -> sacrifice our worst habitat (or the disadvantaged one), keep the best habitats' pets for as long as possible and avoid pointless losses elsewhere. The last fight of the day: fight even if a loss is certain (a loss lowers honor/rank, so tomorrow's opponents are weaker). Win = +1 fruit (see above).
+- Strategy idea (corrected below): hopeless -> sacrifice our worst habitat (or the disadvantaged one), keep the best habitats' pets for as long as possible and avoid pointless losses elsewhere. The last fight of the day: fight even if a loss is certain (a loss lowers honor/rank, so tomorrow's opponents are weaker). Win = +1 fruit (see above).
 - Open: exact type bonus numbers, how to estimate opponent strength better (`ViewPet` per pet? the `otherplayerpetbonus` key), whether the opponent can be rerolled, what the 5 fights cost/cooldown, honor gain/loss per fight. Needs captures of a win and a loss.
+
+### Correction (user 2026-10-21): the allocation rule
+- Type advantage is for FIGHTS WHERE IT WOULD DECIDE the result (close fights), not for easy ones.
+- Clearly winnable fight -> send our WEAKEST habitat that still has a high chance to win (sacrifice the weakest sufficient element, keep the strong ones).
+- Hopeless fight -> our worst / disadvantaged element (as before).
+- Type bonus is probably ~10 % stats or damage (user will check in game; unverified, maybe only one side gets it).
+- The user did not see a way to view the opponent's pet collection in the UI; only the pet count and level sum of the day's element are shown (`ViewPet` / `otherplayerpetbonus` were only my guesses, unverified). Honor gain/loss: not interesting, dropped from the open questions.
