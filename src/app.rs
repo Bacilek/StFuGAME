@@ -97,10 +97,21 @@ fn ensure_autostart() {
         .output();
 }
 
+/// Keeps Windows from going to (Modern) Standby while the bot runs (2026-10-21: the idle timeout put the laptop to
+/// sleep 01:43-11:56, nothing ran and the session expired). The flag lives as long as the calling thread, which is
+/// the message-loop thread of `run`.
+fn keep_awake() {
+    use windows_sys::Win32::System::Power::{SetThreadExecutionState, ES_CONTINUOUS, ES_SYSTEM_REQUIRED};
+    unsafe {
+        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
+    }
+}
+
 /// Builds the window + webview and runs the one message loop for the whole app (icon + window). Never returns.
 pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
     control::register(&accounts);
     ensure_autostart();
+    keep_awake();
 
     let _ = std::fs::create_dir_all("roster");
     let _ = std::fs::write("roster/app.html", include_str!("app.html"));
