@@ -256,8 +256,13 @@ pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
 /// Does the witch want this backpack item today? Level 66+, the item type is the one she wants, and the item is a plain one: never an
 /// epic or a unique (user 2026-10-19; gem items are fine). Used by `inventory::manage` instead of a shop sale.
 pub fn wants(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items::Item) -> bool {
+    type_matches(gs, item) && !item.is_epic()
+}
+
+/// The item is of the type the witch buys today (epics too): used by the forced free-slot epic sale, which sends an epic of her
+/// type to the cauldron for twice the price (user 2026-10-22, `inventory::last_resort_epic`).
+pub fn type_matches(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items::Item) -> bool {
     gs.character.level >= 66
         && gs.witch.as_ref().and_then(|w| w.required_item).is_some_and(|wanted| item.typ.equipment_slot() == Some(wanted))
-        && !item.is_epic()
         && !item.is_unique()
 }

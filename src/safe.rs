@@ -254,7 +254,7 @@ fn witch_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
     gs.character.level >= 66
         && gs.character.inventory.iter().any(|(bp, item)| {
             PlayerItemPosition::from(bp) == pos
-                && item.is_some_and(|i| !i.is_epic() && !i.is_unique() && i.typ.equipment_slot() == Some(wanted))
+                && item.is_some_and(|i| !i.is_unique() && i.typ.equipment_slot() == Some(wanted))
         })
 }
 

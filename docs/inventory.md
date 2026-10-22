@@ -108,5 +108,5 @@ Replaces the "epic sold only from a backpack full of epics" rule. Reason: the us
 - `inventory::last_resort_epic` now fires for ANY full backpack (no free slot), after `potions::make_room` tried a loose gem (user: always sell/socket the gem first), then potion steps (an unwanted/smaller potion is sold, a bigger bag potion is drunk instead of kept), then the kept item. Sells the most expensive epic (user: all epics are class-usable so far; count is what matters). Never unique, never a non-equipment epic.
 - `potions::run` runs every pass (frees a slot when none is free); `dungeons::run` now frees a slot (`make_room`) instead of just skipping the fight, loot from a fight is handled on the next pass.
 - Hunts still never sell an epic (`make_room_for_hunt`).
-- Witch (user): a forced epic sale picks the best payout (2x at the witch for her type of the day), rule in `docs/witch.md`; not built yet.
+- Witch (user): a forced epic sale picks the best payout (`inventory::payout`, 2x at the witch for her type of the day, `WitchDropCauldron`); see `docs/witch.md`.
 - Test `epic_is_sold_only_from_a_full_backpack`. Needs a release build + restart.

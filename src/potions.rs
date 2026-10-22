@@ -306,6 +306,7 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
         return Ok(false);
     };
     let item_ident = item.command_ident();
+    let cauldron = crate::witch::type_matches(gs, item);
     report!("[potions] {what}");
     if let RoomStep::Swap(slot, _) = step
         && let Outcome::SessionLost = remove(session, slot).await
@@ -314,6 +315,8 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
     }
     let cmd = match step {
         RoomStep::Swap(_, pos) | RoomStep::Drink(pos) => Command::UsePotion { from: pos.into(), item_ident },
+        // An epic of the witch's type goes into her cauldron for twice the price (user 2026-10-22)
+        RoomStep::Sell(pos) if cauldron => Command::WitchDropCauldron { item_pos: pos.into() },
         RoomStep::Sell(pos) => Command::SellShop { item_pos: pos.into(), item_ident },
     };
     match safe::send(session, cmd).await {

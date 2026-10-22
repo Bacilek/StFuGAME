@@ -461,6 +461,11 @@ pub fn spare_gem(gs: &GameState) -> Option<(BagPosition, String)> {
         .map(|(pos, g)| (pos, format!("selling the loose {:?} gem to make room", g.typ)))
 }
 
+/// What an epic brings when sold now: the shop price, doubled at the witch for the item type she wants today (user 2026-10-22).
+fn payout(gs: &GameState, item: &Item) -> u64 {
+    u64::from(item.price) * if crate::witch::type_matches(gs, item) { 2 } else { 1 }
+}
+
 /// The very last resort, and the ONLY situation in which an epic is ever sold: the backpack is full (user 2026-10-22: one slot always
 /// stays free for a bought potion / mined gem / loot, so epics never fill the last slot; `potions::make_room` tries gems, potions
 /// and the kept item first). Sells the most expensive one (for the future toilet only the number of epics counts, not their price).
@@ -473,8 +478,8 @@ pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
         .iter()
         .filter_map(|(pos, i)| Some((pos, i?)))
         .filter(|(_, i)| i.is_epic() && !i.is_unique() && i.typ.equipment_slot().is_some())
-        .max_by_key(|(_, i)| i.price)
-        .map(|(pos, i)| (pos, format!("backpack full, one slot must stay free: selling the most expensive epic, {} ({})", describe(i), i.price)))
+        .max_by_key(|(_, i)| payout(gs, i))
+        .map(|(pos, i)| (pos, format!("backpack full, one slot must stay free: selling the best-paid epic, {} (shop {}, payout {})", describe(i), i.price, payout(gs, i))))
 }
 
 /// Next inventory management step, or None when there is nothing to do.
@@ -810,5 +815,12 @@ mod tests {
         assert!(last_resort_epic(&gs).is_some(), "a plain item in the full backpack: an epic is still sold to keep a slot free");
         gs.character.inventory.backpack[2] = None;
         assert!(last_resort_epic(&gs).is_none(), "a free slot: no epic is sold");
+
+        // The witch buys rings today at twice the price: a ring worth 60 (120 there) beats the belt worth 104
+        gs.character.level = 100;
+        gs.character.inventory.backpack[2] = Some(Item { model_id: 60, price: 60, ..item(ItemType::Ring, &[(Str, 10)], None) });
+        gs.witch = Some(sf_api::gamestate::unlockables::Witch { required_item: Some(EquipmentSlot::Ring), ..Default::default() });
+        let (pos, _) = last_resort_epic(&gs).expect("full");
+        assert_eq!(gs.character.inventory.backpack[pos.backpack_pos()].as_ref().map(|i| i.price), Some(60), "the ring pays most at the witch");
     }
 }
