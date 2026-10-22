@@ -186,3 +186,21 @@ Verification status: exact `fruit_idx` (0- or 1-based) UNVERIFIED in the bot (se
   remaining three on the damage carried over: the HP left of the previous winner (`19035`) carries on), final result a WIN, `battlereward` +
   `battlerewarditem:16/.../3` = 3 fruits (event day), the pet honor/rank is in `petsSave` 233..234 (rank 3022, honor 505), opponent count/level
   total at 235/236 (3/9 after the fight). So ALL pets of the habitat fight in turn and a strong one can clean up after weak ones. Not implemented.
+
+## STATE OF THE PETS IMPLEMENTATION + WHAT IS NEEDED FROM THE USER (2026-10-23, work paused: the user must first list the weekly events and how they work)
+Done (phase 1+2, committed, NOT in a release yet, never seen live): raw `petsSave` logging; feeding of the chain main pet (`pets::feed`,
+self-verifying `fruit_idx`, offsets 1 then 0, learned value in `roster/<char>/pets_feed_idx.txt`); hourly habitat dungeon fight ONLY during
+the Assembly of Awesome Animals event (`pets::fights_allowed`); whitelist + cooldown guard in `safe.rs`; wake-up in `schedule.rs`.
+NOT done: (1) Tavern pet rules, (2) pet PvP, (3) catching logic (what exactly must happen after the egg), (4) habitat fights outside the event.
+User answers 2026-10-23:
+- Day/night hours are the same for all pets (day 06-18, night 18-06).
+- Tavern: an expedition that gives a NEW pet/egg (location + time of day/event/season matches a pet we do not own and can find) always beats the
+  other offer; if BOTH offers have such a pet, fall back to the existing `choose_expedition` rules. When only a Day pet is missing, wait until
+  06:00 before burning Thirst for Adventure (Night pets all caught). Fruit ranks above an egg of a non-chain pet (precedents 2026-10-21/23).
+- Pet PvP: opponent's pet count and level total are always visible; the opponent is re-rolled only by fighting (never on its own, no reroll
+  command needed); cooldown between pet PvP fights is 15 min (5 a day, one per habitat).
+Needed from the user: (a) `docs/pet-conditions.md` for Light/Earth/Fire/Water (promised "during the day"); (b) captures of an Egg reward
+screen (`expeditionstate` before/after the pick) – promised; (c) a capture of a pet PvP LOSS; (d) after the first live feeding: the
+`[pets] Fed` lines + `pets_feed_idx.txt`; (e) after the first event fight: the `[pets] Habitat dungeon fight` line; (f) check the chain target
+levels in `CHAINS` (`src/pets.rs`) against the game; (g) optional: the `PlayerPetFeed:<id>/<idx>` request line from the browser's Network tab.
+Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs (c)), then habitat fights outside the event.
