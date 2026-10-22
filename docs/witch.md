@@ -104,3 +104,6 @@ Exception to "epics never go into the cauldron", ONLY for the sale forced by the
 
 ## Breast plate first (user 2026-10-22)
 `witch::enchant` picks the breast plate (Mario's Beard, +50 % mushrooms on quests) before any other unlocked enchant; the rest by newest unlock. Any order works (Sanek: ring then plate, Novotné: plate then ring). Every worn piece without its unlocked enchant is enchanted as soon as it is worn (already the rule). NOT in a release yet.
+
+## Correction (user 2026-10-22): the order is the game's, newest unlock first
+We do not choose the enchant order; the game offers the NEWEST unlock first (logs: plate before ring everywhere, the plate is the newer unlock). The "breast plate first" tweak was reverted; `witch::enchant` keeps newest `unlocked_at` first. NOT in a release yet (the whitelist price fix is).
