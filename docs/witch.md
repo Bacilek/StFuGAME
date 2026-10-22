@@ -101,3 +101,6 @@ Exception to "epics never go into the cauldron", ONLY for the sale forced by the
 
 ## Enchant refused as "not whitelisted" (2026-10-22, Filminy 04:50, Chlamydie 05:58)
 `PlayerWitchEnchantItem` for the Breast plate (ident 6) was refused by `safe::custom_allowed` although the same call worked for Sanek 02:25 (`STOPPED for today` in `witch.log`). The check relied on sf-api's `gs.witch.enchantment_price`; the raw `witchshop` (price 1751 g) was fine. Fix (NOT in a release yet): the whitelist accepts the price of the raw `witchshop` too (`safe::raw_witch_price`), so a missing/odd sf-api witch state cannot block enchanting. Open: why sf-api's witch state was missing/zero for those two (the cauldron worked for Filminy at 07:03, so it is not permanent). The cauldron (`witch_drop_ok`, `witch::type_matches`) still reads `gs.witch.required_item`.
+
+## Breast plate first (user 2026-10-22)
+`witch::enchant` picks the breast plate (Mario's Beard, +50 % mushrooms on quests) before any other unlocked enchant; the rest by newest unlock. Any order works (Sanek: ring then plate, Novotné: plate then ring). Every worn piece without its unlocked enchant is enchanted as soon as it is worn (already the rule). NOT in a release yet.

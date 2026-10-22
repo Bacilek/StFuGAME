@@ -209,7 +209,8 @@ pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
             .enumerate()
             .filter(|(_, e)| e.unlocked_at != 0 && e.unlocked_at <= now)
             .filter(|(_, e)| worn.iter().any(|(slot, have)| *slot == e.slot && *have != e.id))
-            .max_by_key(|(_, e)| e.unlocked_at);
+            // the breast plate first (Mario's Beard: +50 % mushrooms, user 2026-10-22), then the newest unlock; any order is accepted by the game
+            .max_by_key(|(_, e)| (e.slot == 3, e.unlocked_at));
         let Some((pos, e)) = pick else { return Outcome::Done };
         let ident = pos + 1;
         let expected = e.id;
