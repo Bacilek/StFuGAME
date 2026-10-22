@@ -130,3 +130,8 @@ Sample facts (user paste 2026-10-20, KGB `GroupLookAt`): `othergroup.groupSave:`
 
 ## No avoid after leaving (2026-10-20, user)
 A guild we left is no longer avoided; loop guard = `MIN_SWITCH_GAP` (12 h after a landed switch) + margin 20 on the same measure. Kicked / refused guilds stay avoided.
+
+## Guild totals: the list vs the game (2026-10-22, user captures)
+- In-game (Treasure/Instructor/HoK): FF15 585/597/399, Korona Husarii 488/499/404, The Black World 525/531/333 (+ pasted `GroupLookAt`). The quick-join list rows seen in the logs a few hours earlier (FF15 578/589, Korona 481/492, Black World 508/514) match these within the hourly drift, so the LIST measure is right for them.
+- `GroupLookAt` fix: the real total = (data[6] & 0xFFFF) + 10 x data[8] for Treasure and (data[7] & 0xFFFF) + 10 x data[8] for Instructor (FF15 485/497 + 100, Korona 388/399 + 100, Black World 415/421 + 110; data[8] = 10/10/11, probably a guild-level thing). `lookup_totals` now adds it (NOT in a release yet). KGB (9/11, data[8] unknown) matched without it, consistent with data[8] = 0 in tiny guilds.
+- **UNSOLVED: Smietanka shakes** is 697 (139.4 %) / 720 (144 %) in the game but the bot reads Instructor 500 (pinned at exactly 500 for days) / Treasure 477-485 from the list; the lookup never raised it either (or failed). Needs the `GroupLookAt` paste of Smietanka. Until solved the bot may leave Smietanka for guilds that are really worse (it left to FF15 at 573-589 vs real 720).

@@ -292,14 +292,16 @@ async fn load_offers(session: &mut SimpleSession) -> Result<Vec<Offer>, sf_api::
 }
 
 /// (Instructor, Treasure) from the raw `GroupLookAt` page of a guild: data[6] low 16 bits = Treasure, data[7] low 16 bits =
-/// Instructor of `othergroup.groupSave`. sf-api's member columns of that page are shifted on this server (treasure at 210,
+/// Instructor of `othergroup.groupSave`, plus 10 x data[8] (verified on 3 guilds 2026-10-22). sf-api's member columns of that page are shifted on this server (treasure at 210,
 /// instructor at 256 instead of 214/264), so its member sum (`ViewGuild`) is wrong and is not used.
 async fn lookup_totals(session: &mut SimpleSession, name: &str) -> Option<(u32, u32)> {
     let raw = safe::send_raw(session, Command::ViewGuild { guild_ident: name.to_string() }).await.ok()?;
     let save = raw.split("othergroup.groupSave:").nth(1)?.split('&').next()?;
     let f: Vec<&str> = save.split('/').collect();
     let field = |i: usize| f.get(i)?.trim().parse::<u64>().ok().map(|v| (v & 0xFFFF) as u32);
-    Some((field(7)?, field(6)?))
+    // + 10 x data[8] (user captures 2026-10-22: FF15 485/497 + 100 = 585/597, Korona 388/399 + 100 = 488/499, Black World 415/421 + 110 = 525/531; data[8] = 10/10/11)
+    let extra = f.get(8)?.trim().parse::<u32>().ok()? * 10;
+    Some((field(7)? + extra, field(6)? + extra))
 }
 
 /// Every `CHECK_EVERY`: join the best guild, or switch to a clearly better one.
