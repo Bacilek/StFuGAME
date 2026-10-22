@@ -47,7 +47,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] Věž, mazlíčci, podsvětí – až budou na postavě odemčené
 - [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
 - [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expeditions.md`)
-- [ ] Týdenní server-wide eventy (sf-api: `gs.specials.events.active`, `events.ends`) – bot je nikde nečte. Shopping Spree / Good Luck nevyžadují změnu kódu; Forge Frenzy (kovárna/sockety) a Tidy Toilet (záchod/pevnost) by byly nové featury.
+- [ ] Týdenní server-wide eventy (sf-api: `gs.specials.events.active`, `events.ends`) – bot je nikde nečte. Shopping Spree / Good Luck nevyžadují změnu kódu; Forge Frenzy (Blacksmith: 2× suroviny, 15 místo 5 bodů za rozebrání, splintery z expedic) a Tidy Toilet (záchod: 2 oběti denně, 2× aura) by byly nové featury – popis v docs/events.md, čeká na captures.
 
 ## Zrušeno / nebude
 - Automatizace reklam (user 2026-10-11): `AdvertisementsCompleted` se nikdy neposílá, reklamy se koukají ručně (`docs/shops.md`).

@@ -178,7 +178,7 @@ Verification status: exact `fruit_idx` (0- or 1-based) UNVERIFIED in the bot (se
 
 ## Provisional restriction + first PvP capture (2026-10-23, user)
 - Habitat dungeon fights ONLY while the "Assembly of Awesome Animals" event is active (3x fruits from pet fights; `pets::fights_allowed`, server
-  event list via `tasks::event_active`). Feeding is not restricted. Revisit when the event is over.
+  event list via `tasks::event_active`). Feeding is not tied to the event, but the game limits it to 3 fruits per pet per day, 9 during the event (user 2026-10-23). Habitat fights are tied to the event on purpose (user: "we count on it").
 - A pet cannot be fed a fruit of another element (user), so the "FEED MISMATCH" guard should never fire; a wrong `fruit_idx` would just be refused.
   Open: the exact `fruit_idx` -> ask the user for the request line of one feed from the browser's Network tab (`PlayerPetFeed:<id>/<idx>`).
 - Pet PvP capture (`PetsPvPFight`): Ocodile lvl 16 + Goldy lvl 1 vs a lvl-80 opponent with 3 Fire pets (level total 18). The response holds
