@@ -198,9 +198,9 @@ pub fn hok_affordable(gs: &GameState) -> bool {
 }
 
 /// VERIFIED 2026-10-16: the game refuses a Hall of Knights above the Fortress level ("need higher building1", Fortress 6 / Hall 6 -> 7),
-/// so the Hall follows the Fortress, but never above `HOK_MAX_TARGET` (user 2026-10-16: no Hall of Knights beyond level 8, for now); `HOK_FAILED` still stops retries after any other refusal until a level changes.
+/// so the Hall follows the Fortress, but never above `HOK_MAX_TARGET` (user 2026-10-16: raised 8 -> 9 on 2026-10-22; no Hall of Knights beyond that, for now); `HOK_FAILED` still stops retries after any other refusal until a level changes.
 /// (Hall of Knights level, Fortress level) at which the last upgrade attempt failed.
-const HOK_MAX_TARGET: u16 = 8;
+const HOK_MAX_TARGET: u16 = 9;
 static HOK_FAILED: crate::ctx::PerChar<Option<(u16, u16)>> = crate::ctx::PerChar::new();
 
 /// Since when the next build has been waiting for gold alone (reset when it starts or something else is missing).
