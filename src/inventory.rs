@@ -147,6 +147,17 @@ pub fn gem_gain(gs: &GameState, g: Gem) -> f64 {
     crate::balance::value_of(m + gm, c + gc) - crate::balance::value_of(m, c) + gr
 }
 
+/// What `g` adds to the character in a socket that now holds `old` (None = empty), balance included; negative when it is worse
+/// than what is there. A gem in the main weapon counts double (`WEAPON_GEM_FACTOR`), the replaced gem is lost.
+pub fn socket_gain(gs: &GameState, old: Option<Gem>, weapon: bool, g: Gem) -> f64 {
+    let class = gs.character.class;
+    let (m, c) = raw_totals(gs, None);
+    let k = if weapon { WEAPON_GEM_FACTOR } else { 1.0 };
+    let (om, oc, or) = old.map_or((0.0, 0.0, 0.0), |o| gem_parts(class, o));
+    let (nm, nc, nr) = gem_parts(class, g);
+    crate::balance::value_of(m + k * (nm - om), c + k * (nc - oc)) - crate::balance::value_of(m, c) + k * (nr - or)
+}
+
 /// Which socketed gems count in an item's value.
 #[derive(Clone, Copy, PartialEq)]
 enum Gems {
@@ -799,6 +810,28 @@ mod tests {
         gs.character.equipment.0[EquipmentSlot::Talisman] = Some(b.clone());
         let (a_new, b_worn) = compare(&gs, &a, Some(&b), EquipmentSlot::Talisman);
         assert!(!(b_new > a_worn && a_new > b_worn), "endless swap: b over a {b_new:.1}>{a_worn:.1}, a over b {a_new:.1}>{b_worn:.1}");
+    }
+
+    /// 2026-10-22 (user): a mined gem replaces a worn one when the formula says so: 1 point better of the same type, or a
+    /// Constitution gem over a main gem when Constitution lags far behind; a worse or equal gem never does.
+    #[test]
+    fn socket_gain_replaces_by_the_formula() {
+        let mut gs = GameState::default();
+        gs.character.class = Class::BattleMage; // main attribute: Strength
+        gs.character.level = 100;
+        gs.character.attribute_basis[AttributeType::Strength] = 1000;
+        let g = |typ, value| Gem { typ, value };
+        let old = Some(g(GemType::Strength, 50));
+        assert!(socket_gain(&gs, old, false, g(GemType::Strength, 51)) > 0.5, "1 better of the same type");
+        assert!(socket_gain(&gs, old, false, g(GemType::Strength, 50)).abs() < 1e-6, "equal gem");
+        assert!(socket_gain(&gs, old, false, g(GemType::Strength, 49)) < 0.0, "worse gem");
+        // no Constitution at all: a Constitution gem of the same size is worth more than the main one
+        assert!(socket_gain(&gs, old, false, g(GemType::Constitution, 50)) > 0.1, "deficit in Constitution");
+        // balanced character: the main gem stays
+        gs.character.attribute_basis[AttributeType::Constitution] = 800;
+        assert!(socket_gain(&gs, old, false, g(GemType::Constitution, 50)) < 0.0, "balanced: no swap");
+        // the weapon counts double
+        assert!(socket_gain(&gs, None, true, g(GemType::Strength, 50)) > 1.9 * socket_gain(&gs, None, false, g(GemType::Strength, 50)));
     }
 
     /// 2026-10-22 (user): an epic is sold only when the backpack is full (one slot always stays free), whatever else is in it.

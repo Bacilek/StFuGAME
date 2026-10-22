@@ -150,6 +150,34 @@ fn choose_socket(sockets: &[Socket], gem: Gem, class: Class) -> Option<usize> {
     (if new <= 1 { fit.max_by(by) } else { fit.min_by(by) }).map(|(i, _)| i)
 }
 
+/// From this character level on, selling a mined gem (220 g) pays for the search (150 g) (user 2026-10-22): the mine runs all the
+/// time, each new gem replaces a worn one when it adds more (`inventory::socket_gain`, balance included) and is otherwise sold
+/// at once, so the single free backpack slot is all the mine ever needs.
+const FARM_LEVEL: u16 = 80;
+/// A swap must add at least this much (a same-type gem 1 point better does: 0.8 for Constitution, 1 for the main attribute).
+const MIN_SWAP_GAIN: f64 = 0.1;
+
+fn farming(gs: &GameState) -> bool {
+    gs.character.level >= FARM_LEVEL
+}
+
+/// Loose gems kept at most: none while farming (every gem is socketed or sold), else `MAX_LOOSE`.
+fn max_loose(gs: &GameState) -> usize {
+    if farming(gs) { 0 } else { MAX_LOOSE }
+}
+
+/// Farming: the socket where `gem` adds the most (empty, or holding a worse gem by the formula), or None = sell it.
+fn farm_socket(gs: &GameState, sockets: &[Socket], gem: Gem) -> Option<usize> {
+    sockets
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.worth)
+        .map(|(i, s)| (i, inventory::socket_gain(gs, s.content, s.weapon, gem)))
+        .filter(|(_, gain)| *gain > MIN_SWAP_GAIN)
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i)
+}
+
 /// Equipped items with a gem slot.
 fn sockets(gs: &GameState) -> Vec<(EquipmentSlot, Socket)> {
     gs.character
@@ -295,7 +323,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
     // With the "find a gem" task reaching a gold chest (`tasks::gem_task_wanted`) the 150 g are all that is needed, no reserve
     // (a search takes 50 min: from 23:00 it would no longer be collected today, so the usual reserve applies then)
-    let keep = if chrono::Timelike::hour(&Local::now()) < 23 && crate::tasks::gem_task_wanted(gs, cost.silver) {
+    let keep = if farming(gs) || chrono::Timelike::hour(&Local::now()) < 23 && crate::tasks::gem_task_wanted(gs, cost.silver) {
         0
     } else {
         SEARCH_RESERVE_MULTIPLE * crate::shops::reserve() + crate::fortress::gold_needed(gs)
@@ -315,8 +343,9 @@ async fn trim_loose(session: &mut SimpleSession) -> Option<Outcome> {
     loop {
         let gs = session.game_state()?;
         let loose = backpack_gems(gs);
-        let &(pos, gem, ident) = loose.last().filter(|_| loose.len() > MAX_LOOSE)?;
-        report!("[gems] More than {MAX_LOOSE} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
+        let limit = max_loose(gs);
+        let &(pos, gem, ident) = loose.last().filter(|_| loose.len() > limit)?;
+        report!("[gems] More than {limit} loose gems, selling the weakest: {:?} {}", gem.typ, gem.value);
         if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
             return Some(fail(&e));
         }
@@ -398,6 +427,7 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         }
         let gs = session.game_state()?;
         let class = gs.character.class;
+        let farm = farming(gs);
         let gems = backpack_gems(gs);
         let before = gems.len();
         let list = sockets(gs);
@@ -412,7 +442,7 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
         let order: Vec<_> = gems.iter().filter(|g| weapon_socket(&candidates, g.1, class).is_some()).chain(by_gain.iter()).cloned().collect();
         for (pos, gem, ident) in order {
             // The worn weapon comes first (its gem counts double, user 2026-10-16), before any stored item
-            if let Some(i) = weapon_socket(&candidates, gem, class) {
+            if !farm && let Some(i) = weapon_socket(&candidates, gem, class) {
                 let slot = list[i].0;
                 report!(
                     "[gems] Socketing {:?} {} into the weapon (now: {})",
@@ -444,7 +474,8 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
                 placed = Some((Command::PlayerItemMove { from: pos.into(), to: eq_slot.into(), item_ident: ident }, "kept item, now worn"));
                 break;
             }
-            if let Some(i) = choose_socket(&candidates, gem, class) {
+            let pick = if farm { farm_socket(gs, &candidates, gem) } else { choose_socket(&candidates, gem, class) };
+            if let Some(i) = pick {
                 let slot = list[i].0;
                 report!(
                     "[gems] Socketing {:?} {} into {slot:?} (now: {})",

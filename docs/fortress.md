@@ -183,3 +183,10 @@ After the plan, per Fortress level: Laborers' Quarters, Academy (from Fortress 6
 
 ## Hall of Knights cap 8 -> 9 (2026-10-22, user)
 `HOK_MAX_TARGET` = 9: the Hall goes up to min(Fortress level, 9). It still needs Fortress >= the target level (the server refuses above it), is instant, and runs only after the Fortress build is started/not blocking it. Not in a release yet.
+
+## Gem farming from level 80 (2026-10-22, user)
+Selling a mined gem (~220 g at level 81) pays for the search (150 g), so from character level 80 (`gems::FARM_LEVEL`) the mine runs all the time:
+- A search starts whenever the mine is idle and the gold covers its price (no shop reserve, no fortress gold; wood/stone still needed).
+- A collected gem goes where `inventory::socket_gain` (Arena formula + main/CON balance, weapon gem x2, the replaced gem is lost) is highest and above `MIN_SWAP_GAIN` 0.1, into an empty OR a filled socket (`gems::farm_socket`). So a Constitution gem replaces a main gem when CON lags, and a same-type gem 1 point better replaces the worn one. Worse/equal gems and gems nobody gains from are sold at once (`max_loose` = 0), then the next search starts. Secondary-attribute gems are still sold first.
+- Below level 80 nothing changed (`choose_socket`, `MAX_LOOSE` 2, gold reserve). The tier-based weapon rule is bypassed while farming (the formula decides).
+- Needs the one free slot (docs/inventory.md). Test `socket_gain_replaces_by_the_formula`. NOT in a release yet; verify live: `[gems] Socketing ... (now: ...)` replacing filled sockets, `Selling the loose` right after a collect, search restarts without waiting; check the replaced gem is really gone (not returned to the bag).
