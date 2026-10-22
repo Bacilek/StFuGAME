@@ -110,8 +110,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     if gs.character.inventory.count_free_slots() == 0 {
-        report!("[dungeons] Inventory full, skipping the fight");
-        return Outcome::Done;
+        // One slot always stays free (user 2026-10-22): free it now (gem, potion, finally an epic) and fight on the next pass
+        report!("[dungeons] Inventory full, freeing a slot before the fight");
+        return match crate::potions::make_room(session).await {
+            Err(o) => o,
+            Ok(_) => Outcome::Done,
+        };
     }
     let cands = candidates(gs);
     // A Gleeman/event task "defeat monsters in <dungeon>" → fight there while the task is open

@@ -461,11 +461,11 @@ pub fn spare_gem(gs: &GameState) -> Option<(BagPosition, String)> {
         .map(|(pos, g)| (pos, format!("selling the loose {:?} gem to make room", g.typ)))
 }
 
-/// The very last resort, and the ONLY situation in which an epic is ever sold (user 2026-10-19): the backpack is full and EVERY slot
-/// holds an epic. A full backpack with anything else in it (potion, gem, plain gear) never sells an epic. Sells the most expensive
-/// one (for the future toilet only the number of epics counts, not their price).
+/// The very last resort, and the ONLY situation in which an epic is ever sold: the backpack is full (user 2026-10-22: one slot always
+/// stays free for a bought potion / mined gem / loot, so epics never fill the last slot; `potions::make_room` tries gems, potions
+/// and the kept item first). Sells the most expensive one (for the future toilet only the number of epics counts, not their price).
 pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
-    if gs.character.inventory.free_slot().is_some() || !gs.character.inventory.iter().all(|(_, i)| i.is_some_and(|i| i.is_epic())) {
+    if gs.character.inventory.free_slot().is_some() {
         return None;
     }
     gs.character
@@ -474,7 +474,7 @@ pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
         .filter_map(|(pos, i)| Some((pos, i?)))
         .filter(|(_, i)| i.is_epic() && !i.is_unique() && i.typ.equipment_slot().is_some())
         .max_by_key(|(_, i)| i.price)
-        .map(|(pos, i)| (pos, format!("backpack completely full of epics: selling the most expensive one, {} ({})", describe(i), i.price)))
+        .map(|(pos, i)| (pos, format!("backpack full, one slot must stay free: selling the most expensive epic, {} ({})", describe(i), i.price)))
 }
 
 /// Next inventory management step, or None when there is nothing to do.
@@ -796,9 +796,9 @@ mod tests {
         assert!(!(b_new > a_worn && a_new > b_worn), "endless swap: b over a {b_new:.1}>{a_worn:.1}, a over b {a_new:.1}>{b_worn:.1}");
     }
 
-    /// 2026-10-19 (user): an epic is sold only when the backpack is full AND every slot holds an epic.
+    /// 2026-10-22 (user): an epic is sold only when the backpack is full (one slot always stays free), whatever else is in it.
     #[test]
-    fn epic_is_sold_only_from_a_backpack_full_of_epics() {
+    fn epic_is_sold_only_from_a_full_backpack() {
         use AttributeType::Strength as Str;
         let epic = |price| Item { model_id: 60, price, ..item(ItemType::Belt, &[(Str, 10)], None) };
         let plain = item(ItemType::Belt, &[(Str, 10)], None);
@@ -807,7 +807,7 @@ mod tests {
         let (pos, _) = last_resort_epic(&gs).expect("full of epics: sell one");
         assert_eq!(gs.character.inventory.backpack[pos.backpack_pos()].as_ref().map(|i| i.price), Some(104), "the most expensive");
         gs.character.inventory.backpack[2] = Some(plain);
-        assert!(last_resort_epic(&gs).is_none(), "a plain item in the full backpack: no epic is sold");
+        assert!(last_resort_epic(&gs).is_some(), "a plain item in the full backpack: an epic is still sold to keep a slot free");
         gs.character.inventory.backpack[2] = None;
         assert!(last_resort_epic(&gs).is_none(), "a free slot: no epic is sold");
     }
