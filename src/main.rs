@@ -286,6 +286,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // Witch, phase 1 (user 2026-10-19): read only, reports the state when it changes
         witch::observe(session);
         pets::observe(session);
+        // Pets (user 2026-10-23): feeding first so the pets are as strong as possible today, then the hourly habitat dungeon fight
+        if let tavern::Outcome::SessionLost = pets::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
         if let tavern::Outcome::SessionLost = guild::run(session).await {
             return tavern::Outcome::SessionLost;
         }

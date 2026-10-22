@@ -159,3 +159,19 @@ Format: position name: expedition location, time. D = daytime (06-18), N = night
 - Type bonus is probably ~10 % stats or damage (user will check in game; unverified, maybe only one side gets it).
 - The user did not see a way to view the opponent's pet collection in the UI; only the pet count and level sum of the day's element are shown (`ViewPet` / `otherplayerpetbonus` were only my guesses, unverified). Honor gain/loss: not interesting, dropped from the open questions.
 - **Type advantage = +25 % damage in pet fights** (user 2026-10-21, read in the game; replaces the "~10 %" guess above; unknown whether the other side gets a penalty).
+
+## Phase 2 (2026-10-23, user: "everything correctly implemented is allowed for pets") – feeding + hourly habitat fight
+User rules: feeding goes FIRST each day (strongest pets today). Feed only the main chain pet of a habitat, only up to its target level; if the
+target is reached before the day limit, the remaining fruits are kept (fruits are a commodity). Pets outside the chain get nothing. A
+habitat dungeon coin flip is fine (retry in an hour). Pet PvP vs a player: feed the main pet to the max first (unless it would exceed its level
+cap); with no fruit left, wait until all expeditions finished (a fruit may arrive) before attacking. Tavern idea (NOT implemented): fruit above a
+random non-chain egg; prefer expeditions to the right location at the right time of day for a pet we lack, and do not burn the whole Thirst
+for Adventure at night when all Night pets are caught and a Day pet is missing (wait until 06:00).
+Captures 2026-10-23 (Ocodile, Water id 83): feeding 1 plum -> lvl 7 -> 8, "feed max" (event: up to 9 a day) fed 8 at once (8 -> 16), Water
+fruits 10 -> 2, so one fruit per level and the fruit_idx addresses the habitat's own stack; fed today at idx `109 + id` = 9. The `petsSave`
+layout now matches sf-api: levels at id+1, explored 210+h (next enemy = explored + 1), opponent 231, next free pet PvP 232, rank 233, honor
+234, enemy count/level total 235/236, reroll 237, enemy level of the next dungeon enemy per habitat 238+h (Earth 6, Water 14 ...),
+attribute bonuses 250+. Habitat dungeon win with Ocodile lvl 16 vs Penguwater lvl 10 (#4): +1785.10 g, +358,411 XP and +3 Water fruits
+(event day; `battlerewarditem` type 16 = fruit). The hourly timer is `characterstatus` index 20 (`gs.pets.next_free_exploration`), dungeon timer 21.
+Code: `src/pets.rs` (`CHAINS`, `main_pet`, `feed`, `fight`), levels per chain from the user's list above. Level cap = `max(100, maxpetlevel)`.
+Verification status: exact `fruit_idx` (0- or 1-based) UNVERIFIED in the bot (self-checking on the first feed, see status.md); daily feed limit learned by a refused feed.

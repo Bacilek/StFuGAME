@@ -57,6 +57,10 @@ fn is_allowed(cmd: &Command) -> bool {
             // Other idents stay forbidden until the user says what they are.
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9, .. } }
             | Command::FightDungeon { use_mushroom: false, .. }
+            // Pets (user 2026-10-23, src/pets.rs): feeding costs only fruits (checked in `send_raw`: an owned pet), the habitat dungeon
+            // fight is free once an hour (`Cooldown::PetDungeon`), never with `use_mush`
+            | Command::PetFeed { .. }
+            | Command::FightPetDungeon { use_mush: false, .. }
             | Command::SellShop { .. }
             // The witch's cauldron takes the place of a shop sale for the item type she wants today (checked in `send_raw`)
             | Command::WitchDropCauldron { .. }
@@ -131,6 +135,8 @@ pub enum Cooldown {
     Wheel,
     /// Free change of the fortress attack opponent (once per ~5 min; otherwise it costs gold, user 2026-10-12)
     Reroll,
+    /// Habitat dungeon fight with a pet, free once an hour for all habitats together (user 2026-10-21)
+    PetDungeon,
 }
 
 /// When we last used each cooldown action (during this run of the bot).
@@ -162,6 +168,7 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
     match cmd {
         Command::Fight { .. } => Some(Cooldown::Arena),
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
+        Command::FightPetDungeon { .. } => Some(Cooldown::PetDungeon),
         // Only the free spin has a cooldown; lucky-coin spins are guarded by `tasks::lucky_spin_justified`
         Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn } => Some(Cooldown::Wheel),
         Command::FortressNewEnemy { use_mushroom: false } => Some(Cooldown::Reroll),
@@ -183,6 +190,11 @@ pub fn wheel_is_free(gs: &GameState) -> bool {
 /// Is the free change of the fortress attack opponent available (the server-given time has passed and is newer than our last change)?
 pub fn reroll_is_free(gs: &GameState) -> bool {
     gs.fortress.as_ref().is_some_and(|f| f.attack_free_reroll.is_some() && cooldown_free(Cooldown::Reroll, f.attack_free_reroll))
+}
+
+/// Is the pets' habitat dungeon free? `gs.pets.next_free_exploration` comes with every `Update` and fight response.
+pub fn pet_dungeon_is_free(gs: &GameState) -> bool {
+    gs.pets.as_ref().is_some_and(|p| p.next_free_exploration.is_some() && cooldown_free(Cooldown::PetDungeon, p.next_free_exploration))
 }
 
 /// Are the Dungeons free? Only valid for a state fresh after `UpdateDungeons`.
@@ -313,6 +325,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         Some(Cooldown::Dungeon) if !session.game_state().is_some_and(dungeon_is_free) => {
             return Err(SFError::InvalidRequest("Dungeons are on cooldown, a fight would cost a mushroom"));
         }
+        Some(Cooldown::PetDungeon) if !session.game_state().is_some_and(pet_dungeon_is_free) => {
+            return Err(SFError::InvalidRequest("the pets' habitat dungeon is on cooldown"));
+        }
         Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
             return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
         }
@@ -320,6 +335,12 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
             return Err(SFError::InvalidRequest("the free change of the fortress opponent is not available, it would cost gold"));
         }
         _ => {}
+    }
+    // Feeding: only an owned pet (level > 0 in the raw `petsSave`, index = pet id + 1) and one of the 5 fruit kinds
+    if let Command::PetFeed { pet_id, fruit_idx } = &cmd
+        && !(*fruit_idx <= 5 && session.pets_save().is_some_and(|n| (1..=100).contains(pet_id) && n.get(*pet_id as usize + 1).is_some_and(|l| *l > 0)))
+    {
+        return Err(SFError::InvalidRequest("pets: only an owned pet may be fed"));
     }
     if let Command::WitchDropCauldron { item_pos } = &cmd
         && !session.game_state().is_some_and(|gs| witch_drop_ok(gs, *item_pos))
