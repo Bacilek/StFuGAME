@@ -261,7 +261,13 @@ fn witch_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
 /// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
 pub const WITCH_MAX_PRICE: u64 = 1_000_000;
 
-fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) -> bool {
+/// Price of the next enchantment in the raw `witchshop` (sf-api's own witch state was missing for Filminy/Chlamydie on 2026-10-22 and
+/// the enchanting was refused as "not whitelisted"), so the raw number counts too.
+fn raw_witch_price(session: &SimpleSession) -> Option<u64> {
+    session.witch_shop().and_then(crate::witch::parse).map(|w| w.price_silver)
+}
+
+fn custom_allowed(gs: Option<&GameState>, raw_price: Option<u64>, cmd_name: &str, arguments: &[String]) -> bool {
     match (cmd_name, arguments) {
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
         ("GroupJoin", [_, suffix]) => suffix == "int",
@@ -275,8 +281,8 @@ fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) 
                 && ident.parse::<u8>().is_ok_and(|i| (1..=9).contains(&i))
                 && gs.is_some_and(|gs| {
                     gs.character.level >= 66
-                        && gs.witch.as_ref().is_some_and(|w| {
-                            w.enchantment_price > 0 && w.enchantment_price <= WITCH_MAX_PRICE && w.enchantment_price <= gs.character.silver
+                        && gs.witch.as_ref().map(|w| w.enchantment_price).into_iter().chain(raw_price).any(|price| {
+                            price > 0 && price <= WITCH_MAX_PRICE && price <= gs.character.silver
                         })
                 })
         }
@@ -293,7 +299,7 @@ fn custom_allowed(gs: Option<&GameState>, cmd_name: &str, arguments: &[String]) 
 /// Like `send`, but returns the raw server response (for keys sf-api ignores).
 pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<String, SFError> {
     let custom_ok = match &cmd {
-        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), cmd_name, arguments),
+        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), raw_witch_price(session), cmd_name, arguments),
         _ => false,
     };
     if !is_allowed(&cmd) && !custom_ok {
@@ -442,7 +448,7 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
 /// refreshes the game state and re-triggers that same watchdog, comparing against the state from before this call.
 pub async fn send_raw_only(session: &mut SimpleSession, cmd: Command) -> Result<String, SFError> {
     let custom_ok = match &cmd {
-        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), cmd_name, arguments),
+        Command::Custom { cmd_name, arguments } => custom_allowed(session.game_state(), raw_witch_price(session), cmd_name, arguments),
         _ => false,
     };
     if !custom_ok {
@@ -518,20 +524,20 @@ mod witch_tests {
     #[test]
     fn enchant_needs_level_price_and_the_own_flag() {
         let mut gs = GameState::default();
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "no witch yet");
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "no witch yet");
         gs.character.level = 67;
         gs.character.silver = 300_000;
         gs.witch = Some(Default::default());
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "no price known");
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "no price known");
         gs.witch.as_mut().unwrap().enchantment_price = 194_000;
-        assert!(custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")));
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "101")), "a companion is not allowed");
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("10", "1")));
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("0", "1")));
+        assert!(custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")));
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "101")), "a companion is not allowed");
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("10", "1")));
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("0", "1")));
         gs.character.silver = 100_000;
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "not enough gold");
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "not enough gold");
         gs.character.silver = 5_000_000;
         gs.witch.as_mut().unwrap().enchantment_price = WITCH_MAX_PRICE + 1;
-        assert!(!custom_allowed(Some(&gs), "PlayerWitchEnchantItem", &args("2", "1")), "price above the cap");
+        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "price above the cap");
     }
 }
