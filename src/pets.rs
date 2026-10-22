@@ -195,10 +195,15 @@ async fn feed(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
+/// Provisionally (user 2026-10-23) habitat fights only while the "Assembly of Awesome Animals" event runs (3x fruits from pet fights).
+fn fights_allowed(gs: &GameState) -> bool {
+    crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::AssemblyOfAwesomeAnimals)
+}
+
 /// One habitat dungeon fight when it is free: the habitat where our best pet has the biggest lead over the next enemy. A coin flip is
 /// fine (user 2026-10-23: another try in an hour); a loss also starts the cooldown.
 async fn fight(session: &mut SimpleSession) -> Outcome {
-    if !session.game_state().is_some_and(safe::pet_dungeon_is_free) {
+    if !session.game_state().is_some_and(|gs| fights_allowed(gs) && safe::pet_dungeon_is_free(gs)) {
         return Outcome::Done;
     }
     let Some(nums) = session.pets_save() else { return Outcome::Done };
@@ -245,6 +250,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
 /// Seconds until the pets' dungeon is free (with margin), for the wake-up schedule; None while Pets are not unlocked.
 pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
+    if !fights_allowed(gs) {
+        return None;
+    }
     let free_at = gs.pets.as_ref()?.next_free_exploration?;
     let t = free_at + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC);
     Some(u64::try_from((t - Local::now()).num_seconds()).unwrap_or(0))

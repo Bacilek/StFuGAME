@@ -175,3 +175,14 @@ attribute bonuses 250+. Habitat dungeon win with Ocodile lvl 16 vs Penguwater lv
 (event day; `battlerewarditem` type 16 = fruit). The hourly timer is `characterstatus` index 20 (`gs.pets.next_free_exploration`), dungeon timer 21.
 Code: `src/pets.rs` (`CHAINS`, `main_pet`, `feed`, `fight`), levels per chain from the user's list above. Level cap = `max(100, maxpetlevel)`.
 Verification status: exact `fruit_idx` (0- or 1-based) UNVERIFIED in the bot (self-checking on the first feed, see status.md); daily feed limit learned by a refused feed.
+
+## Provisional restriction + first PvP capture (2026-10-23, user)
+- Habitat dungeon fights ONLY while the "Assembly of Awesome Animals" event is active (3x fruits from pet fights; `pets::fights_allowed`, server
+  event list via `tasks::event_active`). Feeding is not restricted. Revisit when the event is over.
+- A pet cannot be fed a fruit of another element (user), so the "FEED MISMATCH" guard should never fire; a wrong `fruit_idx` would just be refused.
+  Open: the exact `fruit_idx` -> ask the user for the request line of one feed from the browser's Network tab (`PlayerPetFeed:<id>/<idx>`).
+- Pet PvP capture (`PetsPvPFight`): Ocodile lvl 16 + Goldy lvl 1 vs a lvl-80 opponent with 3 Fire pets (level total 18). The response holds
+  one `fightN.r` per pet duel (4 here, `winneridN.s` = winner of each; ours lost the first duel (Goldy lvl 1), the lvl-16 Ocodile then won the
+  remaining three on the damage carried over: the HP left of the previous winner (`19035`) carries on), final result a WIN, `battlereward` +
+  `battlerewarditem:16/.../3` = 3 fruits (event day), the pet honor/rank is in `petsSave` 233..234 (rank 3022, honor 505), opponent count/level
+  total at 235/236 (3/9 after the fight). So ALL pets of the habitat fight in turn and a strong one can clean up after weak ones. Not implemented.
