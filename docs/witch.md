@@ -107,3 +107,10 @@ Exception to "epics never go into the cauldron", ONLY for the sale forced by the
 
 ## Correction (user 2026-10-22): the order is the game's, newest unlock first
 We do not choose the enchant order; the game offers the NEWEST unlock first (logs: plate before ring everywhere, the plate is the newer unlock). The "breast plate first" tweak was reverted; `witch::enchant` keeps newest `unlocked_at` first. NOT in a release yet (the whitelist price fix is).
+
+## Helmet enchant seen (2026-10-23, user: "must have", +10 % XP on quests)
+Save of the main character after enchanting the hat: `ownplayersaveequipment` starts `6/23/61/...` = item type 6 (Helmet), index 2 = **61** = Adventurer's
+Archaeological Aura ✅ (breast plate `3/20/31`, ring `9/30/91` as before, everything else 0). Nothing special to code: `witch::parse` already maps
+slot 6 -> enchant 61 from the `witchshop` triples and `safe.rs` accepts any ident 1..=9 with the announced price, so `witch::enchant` enchants the
+worn helmet as soon as the triple is unlocked (server-wide, newest unlock first, order is the game's). The user rates it a must-have (XP is the only
+currency): if a helmet is swapped, the new one needs the enchant again (gold), the usual "worn piece without its unlocked enchant" rule covers it.
