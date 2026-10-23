@@ -69,9 +69,32 @@ Seasons = whole days of the season (user 2026-10-23).
 15. Forror: Easter legendary dungeon, Maerwynn
 16. Nipprabs: Pentecost/Whitsun event, Sprawling Jungle
 17. Armoruck: Glorious Gold Galore event, Plains of Oz'Korr
-18. Canocle: fortress Hall of Fame top 100 or honor 2500 (no location given)
+18. Canocle: fortress Hall of Fame top 100 or honor 2500, Gnarogrim
 19. Tricerawood: found in the Gem Mine after Gem Mine level 20 (not an expedition location)
 20. Mouthrexor: after beating all pets of the Earth habitat, Sprawling Jungle
 
-## Fire / Water
+## Fire (user 2026-10-23)
+Weekday entries below were given without day/night (to confirm).
+1. Firimp: day, Moldy Forest
+2. Gullps: night, Magmaron
+3. Pyrophibus: night, Black Water Swamp
+4. Flamechirr: day, Sunburst Desert
+5. Textospit: Tuesday, Magmaron
+6. Pyroplant: fall, Moldy Forest
+7. Kokofire: Monday, Magmaron
+8. Peppryon: spring, Sunburst Desert
+9. Boomywoomy: winter, Magmaron
+10. Tikiricky: Wednesday, Sprawling Jungle
+11. Matchlit: Thursday, Sunburst Desert
+12. Birdblazey: summer, Sunburst Desert
+13. Infernox: Friday, Magmaron
+14. Hambuzzish: Saturday, Sprawling Jungle
+15. Dragopyr: found in the Weapon Shop (not an expedition location)
+16. Mantiflame: Tidy Toilet Time event, Sunburst Desert
+17. Finnettle: 3 days before and after Valentine's Day, Magmaron
+18. Etrock: New Year's Eve and Day, Plains of Oz'Korr
+19. Blazingtongues: after clearing the Demon Portal, Magmaron
+20. Devastator: after beating all pets of the Fire habitat, Gnarogrim
+
+## Water
 TODO (user lists them next).
