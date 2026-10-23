@@ -27,5 +27,27 @@ Only pets unlocked in the habitat dungeon (first 3 from the start) can be found.
 19. Devilsatt: after clearing floor 10 of dungeon 15 in the Shadow World, Black Water Swamp
 20. Poisnake: after the last floor of the Shadow habitat, Sprawling Jungle
 
-## Light / Earth / Fire / Water
+## Light (user 2026-10-23)
+1. Shaggyl: day, Plains of Oz'Korr
+2. Jellclops: night, Busted Lands
+3. Tinck: day, Maerwynn
+4. Cloudning: day, Busted Lands
+5. Nevorfull: spring nights, Maerwynn
+6. Plutoid: Saturday day, Busted Lands
+7. Djinntonic: summer days, Sunburst Desert
+8. Blaxta: fall days, Plains of Oz'Korr
+9. Lampcess: Monday night, Sunburst Desert
+10. Teslarr: Tuesday day, Busted Lands
+11. Sunnya: Sunday day, Sunburst Desert
+12. Buckfoxion: Wednesday night, Maerwynn
+13. Birdychirp: Thursday day, Plains of Oz'Korr
+14. Eyeorwhat: Friday day, Busted Lands
+15. Mesmerit: guild Hall of Fame top 100 or honor 2500, Sunburst Desert
+16. Antlar: December, Shadowrock Mountain
+17. Liphant: 3 days before and after April Fools' Day, Busted Lands
+18. Knilight: Epic Shopping Spree Extravaganza event, Plains of Oz'Korr
+19. Heraldon: after clearing the Tower, Maerwynn
+20. Unikor: Plains of Oz'Korr (no other condition given; presumably after the last Light pet, as in the old table)
+
+## Earth / Fire / Water
 TODO (user lists them next).
