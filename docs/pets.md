@@ -245,3 +245,27 @@ Suggested next steps in order: Tavern pet preference (DONE 2026-10-23, `src/petc
   vs our 29164. Our Earth pets are level 1..25 (petsSave level fields), so the habitat matters: Earth vs Water was our bad matchup.
 - Nothing to automate yet: PvP rules are still open in "STATE OF THE PETS IMPLEMENTATION" (this section). Keep the capture for decoding
   the `fightheader` layout when PvP gets built.
+
+## Pet PvP IMPLEMENTED (2026-10-24, user; `pets::pvp`, NOT in a release yet, never seen live)
+User rules: fight as soon as the bot plays that day, AFTER the feeding, 15 min apart (a fight earlier than `petsSave` 232 would cost a
+mushroom -> `safe::pet_pvp_ok` + `Cooldown::PetPvp`), one fight per habitat and day (flag `petsSave` 223 + h), losses are fine (more wins
+= better, but it cannot be done without losses), the opponent cannot be looked at before the fight. Habitat choice: the opponent's pet
+count / level total (235/236) is all we see; the day's defender element is the same all day (learned from the first fight, see below). Small
+opponent -> our WEAKEST habitat that still has a good chance ("overshoot a bit"); too strong -> sacrifice the weakest habitat ("undershoot
+a lot"); nothing in between. The user's habit: Shadow (beats Water) against a nasty opponent, Fire when there is no chance, Earth (our
+lowest level) as a sacrifice.
+- Model (`pvp_pick`): strength of habitat h = sum of our pet levels in it, x1.25 when h beats the day's element, / 1.25 when it loses to it
+  (Water > Fire > Earth > Light > Shadow > Water); ratio = strength / opponent level total; ratio >= `PVP_WIN_RATIO` 1.2 = good chance. A
+  CRUDE model (no pet positions/classes, opponent count unused): the loss capture had equal totals (24 vs 24, ratio 1.0) and lost narrowly.
+  Calibrate from `roster/<char>/logs/pvp.log` (one line per fight with all inputs and the result).
+- Day element: decoded from the response, per character, `roster/<char>/pvp_element.txt` ("date index"); the first fight of a day is
+  blind (no type factor). `fightheader1.fighters`: per fighter `id/id/level/hp/hp/.../image`, field 10 = image id `-(800 + pet id - 1)`, so
+  habitat = (image - 800) / 20 (our Earth pets -840..-842, his Water pets -880..-882). The cycle guess "Light on 21st -> next element each
+  day" did NOT match: the 24th was Water, so no guessing from the calendar.
+- Result: the winner of the highest `winnerid<N>.s` (the duels run on with the damage carried over). `battlereward` (from the loss): idx 5 =
+  honor change (-66), idx 7/8 = pet rank before/after (2690 -> 2918; rank is a POSITION, higher = worse; `petsSave` 233 became 2918),
+  win capture: fruits in `battlerewarditem`. All logged raw until a win is compared.
+- `petsSave` after a fight: 231 = the NEXT opponent (20899 after 7755), 232 = +15 min, 237 = chosen time, 223.. flags (Shadow, Earth, Fire
+  were 1 in the capture = the fights of that day, matches the user's story), 238.. next dungeon enemy levels.
+- Not done: the earlier idea "with no fruit left wait for the expeditions (a fruit may arrive)" is dropped (user 2026-10-24: simply after the
+  feeding); habitat dungeon fights stay event-only (user: "no, we get far more fruit in the event").

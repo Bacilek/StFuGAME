@@ -298,6 +298,161 @@ async fn fight(session: &mut SimpleSession) -> Outcome {
     }
 }
 
+
+// ---- Pet PvP (user 2026-10-24) -------------------------------------------------------------------------------------------------------
+// Raw `petsSave` (sf-api layout, verified by the 2026-10-24 loss capture): 223 + h = this habitat already fought today (1), 231 = the offered
+// opponent, 232 = when the next fight is free (unix seconds, 0 = now), 233/234 = rank/honor, 235/236 = the opponent's pet count and level
+// total (of the day's element), 237 = when he was chosen. One fight per habitat and day, 15 min apart, a win refills a fruit.
+
+/// Our side must beat the opponent's level total by this factor to count as a "good chance"; below it the fight is a sacrifice (user
+/// 2026-10-24: "overshoot a bit or undershoot a lot", nothing in between).
+const PVP_WIN_RATIO: f64 = 1.2;
+
+/// Type advantage: +25 % damage (user 2026-10-21). Chain Water > Fire > Earth > Light > Shadow > Water; indexes Shadow 0 .. Water 4.
+const PVP_TYPE_BONUS: f64 = 1.25;
+
+fn beats(a: usize, b: usize) -> bool {
+    matches!((a, b), (4, 3) | (3, 2) | (2, 1) | (1, 0) | (0, 4))
+}
+
+/// When the next pet PvP fight is free (None = nothing known / free now).
+pub(crate) fn pvp_free_at(nums: &[i64]) -> Option<chrono::DateTime<Local>> {
+    use chrono::TimeZone;
+    nums.get(232).copied().filter(|t| *t > 0).and_then(|t| Local.timestamp_opt(t, 0).single())
+}
+
+/// (pets owned, sum of their levels) of our habitat `h`.
+fn side(nums: &[i64], h: usize) -> (u32, u32) {
+    (1..=20).map(|p| level(nums, h as u32 * 20 + p)).filter(|l| *l > 0).fold((0, 0), |(n, s), l| (n + 1, s + u32::from(l)))
+}
+
+/// The habitat for this fight among those that have not fought today and own a pet. `day` = the defender's element if known.
+/// Good chance (strength / opponent total >= `PVP_WIN_RATIO`) -> the WEAKEST such habitat; none -> sacrifice the weakest habitat.
+/// Returns (habitat, strength / opponent total).
+fn pvp_pick(nums: &[i64], day: Option<usize>) -> Option<(usize, f64)> {
+    let opp = f64::from(u32::try_from(nums.get(236).copied().unwrap_or(0)).unwrap_or(0).max(1));
+    let strength = |h: usize| {
+        let s = f64::from(side(nums, h).1);
+        match day {
+            Some(d) if beats(h, d) => s * PVP_TYPE_BONUS,
+            Some(d) if beats(d, h) => s / PVP_TYPE_BONUS,
+            _ => s,
+        }
+    };
+    let open: Vec<(usize, f64)> = (0..5)
+        .filter(|h| nums.get(223 + h).copied().unwrap_or(1) == 0 && side(nums, *h).0 > 0)
+        .map(|h| (h, strength(h)))
+        .collect();
+    let by = |a: &&(usize, f64), b: &&(usize, f64)| a.1.total_cmp(&b.1);
+    open.iter()
+        .filter(|(_, s)| *s / opp >= PVP_WIN_RATIO)
+        .min_by(by)
+        .or_else(|| open.iter().min_by(by))
+        .map(|(h, s)| (*h, *s / opp))
+}
+
+/// The day's defender element learned from the first fight (per character): "YYYY-MM-DD <habitat index>".
+fn day_element() -> Option<usize> {
+    let text = std::fs::read_to_string(format!("roster/{}/pvp_element.txt", crate::ctx::name())).ok()?;
+    let (date, h) = text.trim().split_once(' ')?;
+    (date == Local::now().format("%Y-%m-%d").to_string()).then(|| h.parse().ok()).flatten().filter(|h| *h < 5)
+}
+
+/// The opponent's habitat from the response: his fighter entry `<id>/<id>/<level>/<hp>/<hp>/.../<image>` (field 10), the image id is
+/// `-(800 + pet id - 1)`, so the habitat is `(image - 800) / 20` (our own Earth pets -840..-842, his Water pets -880..-882; 2026-10-24).
+fn opponent_habitat(raw: &str, opponent: i64) -> Option<usize> {
+    let header = raw.split('&').find_map(|kv| kv.strip_prefix("fightheader1.fighters:"))?;
+    let t: Vec<i64> = header.split('/').map(|s| s.parse().unwrap_or(i64::MIN)).collect();
+    let i = (0..t.len().saturating_sub(10)).find(|i| t[*i] == opponent && t[i + 1] == opponent)?;
+    let image = -t[i + 10];
+    (800..900).contains(&image).then(|| ((image - 800) / 20) as usize)
+}
+
+/// Winner of the whole fight = winner of the last duel (`winnerid<N>.s`, the duels run on with the damage carried over).
+fn last_winner(raw: &str) -> Option<i64> {
+    raw.split('&')
+        .filter_map(|kv| {
+            let (key, value) = kv.split_once(':')?;
+            let n: u32 = key.strip_prefix("winnerid")?.strip_suffix(".s")?.parse().ok()?;
+            Some((n, value.trim().parse::<i64>().ok()?))
+        })
+        .max_by_key(|(n, _)| *n)
+        .map(|(_, w)| w)
+}
+
+/// One pet PvP fight when it is free (15 min apart, after the feeding): see `pvp_pick`. Every fight is written to `pvp.log` with all the
+/// numbers the choice used, so the ratio threshold can be calibrated from real results.
+async fn pvp(session: &mut SimpleSession) -> Outcome {
+    let Some(nums) = session.pets_save().map(<[i64]>::to_vec) else { return Outcome::Done };
+    let opp = nums.get(231).copied().unwrap_or(0);
+    if nums.len() < 240 || opp <= 0 || !safe::cooldown_free(safe::Cooldown::PetPvp, pvp_free_at(&nums)) {
+        return Outcome::Done;
+    }
+    let day = day_element();
+    let Some((h, ratio)) = pvp_pick(&nums, day) else { return Outcome::Done };
+    let ours: Vec<String> = (0..5).map(|k| format!("{} {}/{}", HABITATS[k], side(&nums, k).0, side(&nums, k).1)).collect();
+    let (count, total) = (nums.get(235).copied().unwrap_or(0), nums.get(236).copied().unwrap_or(0));
+    let day_text = day.map_or("unknown".to_string(), |d| HABITATS[d].to_string());
+    report!("[pets] PvP: opponent {opp} ({count} pets, level total {total}, day element {day_text}); sending {} (strength/opponent {ratio:.2}; ours {})", HABITATS[h], ours.join(", "));
+    let Ok(opponent_id) = u32::try_from(opp) else { return Outcome::Done };
+    let before_rank = nums.get(233).copied().unwrap_or(0);
+    let raw = match safe::send_raw(session, Command::FightPetOpponent { habitat: HABITAT_TYPES[h], opponent_id }).await {
+        Ok(raw) => raw,
+        Err(e) => {
+            report!("[pets] PvP fight failed: {e}");
+            return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+        }
+    };
+    let me = session.game_state().map_or(0, |gs| i64::from(gs.character.player_id));
+    let won = last_winner(&raw) == Some(me);
+    let reward: Vec<i64> = raw
+        .split('&')
+        .find_map(|kv| kv.strip_prefix("fightresult.battlereward:"))
+        .map(|r| r.split('/').filter_map(|s| s.parse().ok()).collect())
+        .unwrap_or_default();
+    let item = raw.split('&').find_map(|kv| kv.strip_prefix("battlerewarditem:")).unwrap_or("").to_string();
+    let element = opponent_habitat(&raw, opp);
+    if let Some(e) = element {
+        let _ = std::fs::write(format!("roster/{}/pvp_element.txt", crate::ctx::name()), format!("{} {e}", Local::now().format("%Y-%m-%d")));
+    }
+    let line = format!(
+        "{} with {} ({} pets / level {}), ratio {ratio:.2}, day element {day_text}, opponent's habitat {}: reward {reward:?} item {item}; rank was {before_rank}; ours {}",
+        if won { "WON" } else { "lost" },
+        HABITATS[h],
+        side(&nums, h).0,
+        side(&nums, h).1,
+        element.map_or("?".to_string(), |e| HABITATS[e].to_string()),
+        ours.join(", ")
+    );
+    report!("[pets] PvP {line}");
+    pvp_journal(&format!("opponent {opp} ({count} pets / level {total}): {line}"));
+    // The next opponent and the new timer come with an update
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+    }
+    Outcome::Done
+}
+
+fn pvp_journal(line: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("pvp.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {line}", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
+/// Seconds until the next pet PvP fight can start (None = nothing left today or no pets).
+fn pvp_secs(nums: &[i64]) -> Option<u64> {
+    if nums.len() < 240 || nums.get(231).copied().unwrap_or(0) <= 0 || pvp_pick(nums, None).is_none() {
+        return None;
+    }
+    let t = pvp_free_at(nums).map_or(Local::now(), |t| t + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC));
+    Some(u64::try_from((t - Local::now()).num_seconds()).unwrap_or(0))
+}
+
 /// Feeding first (so the pets are as strong as possible today), then the hourly dungeon fight.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     if session.pets_save().is_none() {
@@ -312,17 +467,25 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Outcome::SessionLost = feed(session).await {
         return Outcome::SessionLost;
     }
-    fight(session).await
+    if let Outcome::SessionLost = fight(session).await {
+        return Outcome::SessionLost;
+    }
+    pvp(session).await
 }
 
-/// Seconds until the pets' dungeon is free (with margin), for the wake-up schedule; None while Pets are not unlocked.
+/// Seconds until the pets' dungeon (event only) or the next pet PvP fight is free (with margin), for the wake-up schedule; None while
+/// there is nothing to wait for.
 pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
-    if !fights_allowed(gs) {
-        return None;
-    }
-    let free_at = gs.pets.as_ref()?.next_free_exploration?;
-    let t = free_at + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC);
-    Some(u64::try_from((t - Local::now()).num_seconds()).unwrap_or(0))
+    let dungeon = fights_allowed(gs)
+        .then(|| gs.pets.as_ref()?.next_free_exploration)
+        .flatten()
+        .map(|free_at| {
+            let t = free_at + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC);
+            u64::try_from((t - Local::now()).num_seconds()).unwrap_or(0)
+        });
+    let nums = latest();
+    let fights = if nums.is_empty() { None } else { pvp_secs(&nums) };
+    [dungeon, fights].into_iter().flatten().min()
 }
 
 #[cfg(test)]
@@ -346,6 +509,58 @@ mod tests {
         assert_eq!(main_pet(&n, 1), Some((23, 82)));
         assert_eq!(main_pet(&n, 4), Some((83, 45)));
         assert_eq!(main_pet(&n, 0), None);
+    }
+
+    /// Our pets per habitat for the PvP tests: (habitat, pet position, level); `fought` = habitats that already fought today.
+    fn pvp_nums(pets: &[(usize, u32, i64)], fought: &[usize], opp_total: i64) -> Vec<i64> {
+        let mut n = vec![0; 265];
+        for (h, pos, lvl) in pets {
+            n[(*h as u32 * 20 + pos + 1) as usize] = *lvl;
+        }
+        for h in fought {
+            n[223 + h] = 1;
+        }
+        n[231] = 7755;
+        n[235] = 3;
+        n[236] = opp_total;
+        n
+    }
+
+    /// User 2026-10-24: a winnable fight gets the WEAKEST habitat that still overshoots a bit; a hopeless one the weakest habitat.
+    #[test]
+    fn pvp_sends_the_weakest_habitat_that_still_wins() {
+        // Shadow 100, Light 60, Earth 30, Fire 45, Water 20 levels; opponent total 40: Light/Shadow/Fire clear 1.2x, Earth (0.75) does not
+        let n = pvp_nums(&[(0, 1, 100), (1, 1, 60), (2, 1, 30), (3, 1, 45), (4, 1, 20)], &[], 40);
+        assert_eq!(pvp_pick(&n, None).map(|p| p.0), Some(1), "Fire 45/40 = 1.125 and Earth 0.75 are under 1.2; Light 60/40 = 1.5 is the weakest that clears it");
+    }
+
+    #[test]
+    fn pvp_hopeless_sacrifices_the_weakest() {
+        let n = pvp_nums(&[(0, 1, 100), (1, 1, 60), (2, 1, 30), (3, 1, 45), (4, 1, 20)], &[], 500);
+        assert_eq!(pvp_pick(&n, None).map(|p| p.0), Some(4), "Water 20 is the weakest");
+        // habitats that fought today are out
+        let n = pvp_nums(&[(0, 1, 100), (1, 1, 60), (2, 1, 30), (3, 1, 45), (4, 1, 20)], &[4, 2], 500);
+        assert_eq!(pvp_pick(&n, None).map(|p| p.0), Some(3));
+    }
+
+    #[test]
+    fn pvp_type_advantage_counts() {
+        // Day element Water: Shadow beats it (+25 %), Fire loses to it (-20 %): 40 * 1.25 = 50 vs 45, 45 / 1.25 = 36
+        let n = pvp_nums(&[(0, 1, 40), (3, 1, 45)], &[], 40);
+        assert_eq!(pvp_pick(&n, Some(4)).map(|p| p.0), Some(0));
+        assert!(pvp_pick(&n, Some(4)).unwrap().1 > 1.2);
+        let n = pvp_nums(&[(3, 1, 45)], &[], 40);
+        assert!(pvp_pick(&n, Some(4)).unwrap().1 < 1.0);
+    }
+
+    /// The 2026-10-24 loss capture: we (23994) lost 2:3 to 7755 (Water), the last duel decides; his image ids -880.. are Water (habitat 4).
+    #[test]
+    fn pvp_response_is_read() {
+        let raw = "fightheader1.fighters:14/0/0/0/1/23994/23994/1/230/230/23/11/11/23/17/-840/0/0/0/0/0/0/0/0/0/0/0/1/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/7755/7755/1/96/96/12/12/24/24/18/-880/0/0/0/0&winnerid1.s:7755&winnerid2.s:23994&winnerid5.s:7755&winnerid4.s:23994";
+        assert_eq!(opponent_habitat(raw, 7755), Some(4));
+        assert_eq!(opponent_habitat(raw, 23994), Some(2));
+        assert_eq!(last_winner(raw), Some(7755));
+        assert!(beats(0, 4) && beats(4, 3) && !beats(3, 4));
     }
 
     #[test]

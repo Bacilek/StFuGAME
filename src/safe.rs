@@ -64,6 +64,9 @@ fn is_allowed(cmd: &Command) -> bool {
             // fight is free once an hour (`Cooldown::PetDungeon`), never with `use_mush`
             | Command::PetFeed { .. }
             | Command::FightPetDungeon { use_mush: false, .. }
+            // Pet PvP (user 2026-10-24, `pets::pvp`): no mushroom parameter, so it is guarded by `pet_pvp_ok` (free time passed, the offered
+            // opponent, a habitat that has not fought today and owns a pet)
+            | Command::FightPetOpponent { .. }
             | Command::SellShop { .. }
             // The witch's cauldron takes the place of a shop sale for the item type she wants today (checked in `send_raw`)
             | Command::WitchDropCauldron { .. }
@@ -143,6 +146,8 @@ pub enum Cooldown {
     Reroll,
     /// Habitat dungeon fight with a pet, free once an hour for all habitats together (user 2026-10-21)
     PetDungeon,
+    /// Pet PvP fight against the offered player, free again 15 min after the last one (user 2026-10-24; `petsSave` 232)
+    PetPvp,
 }
 
 /// When we last used each cooldown action (during this run of the bot).
@@ -175,6 +180,7 @@ fn fight_kind(cmd: &Command) -> Option<Cooldown> {
         Command::Fight { .. } => Some(Cooldown::Arena),
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
         Command::FightPetDungeon { .. } => Some(Cooldown::PetDungeon),
+        Command::FightPetOpponent { .. } => Some(Cooldown::PetPvp),
         // Only the free spin has a cooldown; lucky-coin spins are guarded by `tasks::lucky_spin_justified`
         Command::SpinWheelOfFortune { payment: FortunePayment::FreeTurn } => Some(Cooldown::Wheel),
         Command::FortressNewEnemy { use_mushroom: false } => Some(Cooldown::Reroll),
@@ -201,6 +207,19 @@ pub fn reroll_is_free(gs: &GameState) -> bool {
 /// Is the pets' habitat dungeon free? `gs.pets.next_free_exploration` comes with every `Update` and fight response.
 pub fn pet_dungeon_is_free(gs: &GameState) -> bool {
     gs.pets.as_ref().is_some_and(|p| p.next_free_exploration.is_some() && cooldown_free(Cooldown::PetDungeon, p.next_free_exploration))
+}
+
+/// May this pet PvP fight start? Raw `petsSave`: the opponent offered is index 231, the next free fight 232, the habitat's "fought today"
+/// flag 223 + habitat; the habitat must own a pet (an empty one would just be a sure loss). Otherwise it would cost a mushroom.
+fn pet_pvp_ok(nums: Option<&[i64]>, habitat: sf_api::gamestate::unlockables::HabitatType, opponent: u32) -> bool {
+    let Some(n) = nums else { return false };
+    let h = habitat as usize;
+    n.len() > 240
+        && opponent > 0
+        && n[231] == i64::from(opponent)
+        && n[223 + h] == 0
+        && (h * 20 + 2..h * 20 + 22).any(|i| n[i] > 0)
+        && cooldown_free(Cooldown::PetPvp, crate::pets::pvp_free_at(n))
 }
 
 /// Are the Dungeons free? Only valid for a state fresh after `UpdateDungeons`.
@@ -342,6 +361,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         }
         Some(Cooldown::PetDungeon) if !session.game_state().is_some_and(pet_dungeon_is_free) => {
             return Err(SFError::InvalidRequest("the pets' habitat dungeon is on cooldown"));
+        }
+        Some(Cooldown::PetPvp) if !matches!(&cmd, Command::FightPetOpponent { habitat, opponent_id } if pet_pvp_ok(session.pets_save(), *habitat, *opponent_id)) => {
+            return Err(SFError::InvalidRequest("pet PvP: on cooldown, not the offered opponent, or the habitat already fought today"));
         }
         Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
             return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
