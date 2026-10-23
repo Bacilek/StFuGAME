@@ -4,6 +4,7 @@ Source of truth for where/when a pet drops in expeditions (replaces the unreliab
 Format: position name: time condition, expedition location. "day" = 06-18, "night" = 18-06 (per the earlier assumption, unverified for the exact hours).
 Positions 15-20 (and seasonal ones) are "hard" conditions: a specific season/event/date/achievement instead of a plain time of day; these are the "hard to get" pets of the egg priority in `precedents.md`.
 Only pets unlocked in the habitat dungeon (first 3 from the start) can be found. Filled habitat by habitat; not yet in code.
+The last pet (20) of every habitat has only a location condition (no time); it requires having beaten all other pets of the habitat (user 2026-10-23).
 
 ## Shadow
 1. Slurp: day, Moldy Forest
@@ -25,7 +26,7 @@ Only pets unlocked in the habitat dungeon (first 3 from the start) can be found.
 17. Luchtablong: Exceptional XP event, Shadowrock Mountain
 18. Angrack: 3 days before and after Friday the 13th, Rotten Lands
 19. Devilsatt: after clearing floor 10 of dungeon 15 in the Shadow World, Black Water Swamp
-20. Poisnake: after the last floor of the Shadow habitat, Sprawling Jungle
+20. Poisnake: after beating all pets of the Shadow habitat, Sprawling Jungle
 
 ## Light (user 2026-10-23)
 1. Shaggyl: day, Plains of Oz'Korr
@@ -47,7 +48,7 @@ Only pets unlocked in the habitat dungeon (first 3 from the start) can be found.
 17. Liphant: 3 days before and after April Fools' Day, Busted Lands
 18. Knilight: Epic Shopping Spree Extravaganza event, Plains of Oz'Korr
 19. Heraldon: after clearing the Tower, Maerwynn
-20. Unikor: Plains of Oz'Korr (no other condition given; presumably after the last Light pet, as in the old table)
+20. Unikor: after beating all pets of the Light habitat, Plains of Oz'Korr
 
 ## Earth / Fire / Water
 TODO (user lists them next).
