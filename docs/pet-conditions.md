@@ -50,5 +50,28 @@ The last pet (20) of every habitat has only a location condition (no time); it r
 19. Heraldon: after clearing the Tower, Maerwynn
 20. Unikor: after beating all pets of the Light habitat, Plains of Oz'Korr
 
-## Earth / Fire / Water
+## Earth (user 2026-10-23)
+Weekday/season entries were given without day/night; written as given (to confirm).
+1. Mamaton: day, Gnarogrim
+2. Monkoragge: night, Sprawling Jungle
+3. Smaponyck: day, Maerwynn
+4. Bittnutz: day, Plains of Oz'Korr
+5. Roarear: night, Gnarogrim
+6. Muscudon: summer, Plains of Oz'Korr
+7. Apstick: fall, Sprawling Jungle
+8. Horrnington: winter, Gnarogrim
+9. Boaringg: spring, Maerwynn
+10. Mameloth: Sunday, Sprawling Jungle
+11. Rheynooh: Monday, Maerwynn
+12. Rockastonn: Tuesday, Gnarogrim
+13. Redwoofox: Wednesday, Maerwynn
+14. Lilbeatzup: "hut" as written (probably Thursday), Plains of Oz'Korr
+15. Forror: Easter legendary dungeon, Maerwynn
+16. Nipprabs: Pentecost/Whitsun event, Sprawling Jungle
+17. Armoruck: Glorious Gold Galore event, Plains of Oz'Korr
+18. Canocle: fortress Hall of Fame top 100 or honor 2500 (no location given)
+19. Tricerawood: found in the Gem Mine after Gem Mine level 20 (not an expedition location)
+20. Mouthrexor: after beating all pets of the Earth habitat, Sprawling Jungle
+
+## Fire / Water
 TODO (user lists them next).
