@@ -223,3 +223,6 @@ Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs
   CORRECTION: `9/1` is in both captures and also in the very first pets capture, so it is NOT specific to the egg/pets unlock (the earlier
   guess above that ident 9 = the pets unlock is withdrawn; 9 stays "beginners task list"). The unlock of Pets itself is still unexplained.
   Whether `21/<id>` must be sent as `UnlockFeature` to actually get the pet is unknown (the bot does not send ident 21; not whitelisted).
+  User 2026-10-23: the new pet was unlocked as soon as he opened the habitat in the client (right after the pick, no other action). Same pattern as
+  the dungeons (`30/1` is sent by the client when the Dungeons tab opens): the client very probably sends `UnlockFeature 21/<pet id>` when the
+  habitat screen opens. So the bot would have to send pending `21/<id>` itself (not implemented, ident 21 not whitelisted in `safe.rs`; free, no mushrooms).
