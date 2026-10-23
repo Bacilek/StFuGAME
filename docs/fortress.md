@@ -190,3 +190,10 @@ Selling a mined gem (~220 g at level 81) pays for the search (150 g), so from ch
 - A collected gem goes where `inventory::socket_gain` (Arena formula + main/CON balance, weapon gem x2, the replaced gem is lost) is highest and above `MIN_SWAP_GAIN` 0.1, into an empty OR a filled socket (`gems::farm_socket`). So a Constitution gem replaces a main gem when CON lags, and a same-type gem 1 point better replaces the worn one. Worse/equal gems and gems nobody gains from are sold at once (`max_loose` = 0), then the next search starts. Secondary-attribute gems are still sold first.
 - Below level 80 nothing changed (`choose_socket`, `MAX_LOOSE` 2, gold reserve). The tier-based weapon rule is bypassed while farming (the formula decides).
 - Needs the one free slot (docs/inventory.md). Test `socket_gain_replaces_by_the_formula`. NOT in a release yet; verify live: `[gems] Socketing ... (now: ...)` replacing filled sockets, `Selling the loose` right after a collect, search restarts without waiting; check the replaced gem is really gone (not returned to the bag).
+
+## Holy Grail from the Gem Mine (user 2026-10-23, not seen yet)
+From character level 85 and 1000 scrapbook entries a Gem Mine search may yield a Holy Grail instead of a gem. It takes no backpack slot and works at
+once (passive): when the character inspects someone in the Hall of Fame, items we lack in the scrapbook are highlighted. Nothing to do for the bot
+(`scrapbook.rs` already computes the missing items itself). Expected effect on `gems::run`: after the collect no gem arrives, `socket_backpack_gem` /
+`trim_loose` / `sell_unplaced_gem` find nothing, `mark_collected` stops a second collect; only the log line "Collecting the mined gem (target)" would
+be misleading. Open: whether the "find a gem" Gleeman task still counts. Check the first time it shows up in `[gems]` logs.
