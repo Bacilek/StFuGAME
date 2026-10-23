@@ -232,3 +232,6 @@ Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs
   Fire 61-80, Water 81-100) and the same id comes back as `unlockfeature 21/<id>`. sf-api gives it for free: `Reward { typ: Egg, amount: <pet id> }`
   (our journal logs it as `Egg x84`), so the offer shows WHICH pet before the pick, no guessing from location/time needed. Consistent with the
   earlier Earth 41 and Water 82 captures (their offers were not captured). Reward typ numbers seen: 7 stone, 25 egg, 26 hourglass.
+- **Fruit basket over a non-chain egg (2026-10-23, user):** offered a Fire egg (#4, not in our chain) and a Fruit basket (5 fruits, one of each habitat);
+  the user took the basket. Matches the standing order (egg of a non-chain pet ranks BELOW fruit; only a chain/progress pet egg beats a mushroom).
+  Capture after the pick: `resources:` ... fruits at indexes 12..16 = 7/9/14/16/10 (Shadow, Light, Earth, Fire, Water). `RewardType::FruitBasket` = typ 23.
