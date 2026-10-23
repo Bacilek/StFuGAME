@@ -39,9 +39,15 @@ fn tail(nums: &[i64]) -> String {
     nums.iter().enumerate().skip(200).filter(|(_, v)| **v != 0).map(|(i, v)| format!("{i}:{v}")).collect::<Vec<_>>().join(" ")
 }
 
+static LAST: crate::ctx::PerChar<Vec<i64>> = crate::ctx::PerChar::new();
+
+/// The latest raw pets numbers of this character (for the Tavern and the scheduler, which have no session at hand); empty before Pets exist.
+pub fn latest() -> Vec<i64> {
+    LAST.lock().map(|l| l.clone()).unwrap_or_default()
+}
+
 pub fn observe(session: &SimpleSession) {
     let Some(nums) = session.pets_save() else { return };
-    static LAST: crate::ctx::PerChar<Vec<i64>> = crate::ctx::PerChar::new();
     let Ok(mut last) = LAST.lock() else { return };
     if *last == nums {
         return;
@@ -65,11 +71,11 @@ const CHAINS: [&[(u32, u16)]; 5] = [
 
 /// Raw `petsSave` indexes: the pet level of id `n` is at `n + 1`, fights won per habitat at `210 + h` (the next enemy is
 /// `explored + 1`), the level of that next enemy at `238 + h` (captured 2026-10-23).
-fn level(nums: &[i64], id: u32) -> u16 {
+pub(crate) fn level(nums: &[i64], id: u32) -> u16 {
     nums.get(id as usize + 1).map_or(0, |l| u16::try_from(*l).unwrap_or(0))
 }
 
-fn explored(nums: &[i64], h: usize) -> u32 {
+pub(crate) fn explored(nums: &[i64], h: usize) -> u32 {
     nums.get(210 + h).map_or(20, |e| u32::try_from(*e).unwrap_or(20))
 }
 
@@ -80,6 +86,61 @@ fn enemy_level(nums: &[i64], h: usize) -> u16 {
 /// Main pet of a habitat (id, level it should be fed to), or None while we own no chain pet there.
 fn main_pet(nums: &[i64], h: usize) -> Option<(u32, u16)> {
     CHAINS[h].iter().rev().map(|(pos, target)| (h as u32 * 20 + pos, *target)).find(|(id, _)| level(nums, *id) > 0)
+}
+
+/// Is pet `id` (1..=100) one of the pets of the user's chains (`CHAINS`)?
+pub(crate) fn in_chain(id: u32) -> bool {
+    let (h, pos) = ((id as usize - 1) / 20, (id - 1) % 20 + 1);
+    CHAINS.get(h).is_some_and(|c| c.iter().any(|(p, _)| *p == pos))
+}
+
+/// When the Tavern should hold back instead of spending Thirst for Adventure (user 2026-10-23): at night, while only Day pets are
+/// missing, the Thirst for Adventure is kept for the morning (`petcatch::wait_until`). None = go on as usual.
+pub fn tavern_wait(gs: &GameState) -> Option<chrono::DateTime<Local>> {
+    let nums = latest();
+    crate::petcatch::wait_until(&nums, &crate::petcatch::events(gs), Local::now(), gs.tavern.thirst_for_adventure_sec)
+}
+
+/// Says (at most once an hour) that the Thirst for Adventure is kept for the day.
+pub fn report_wait(gs: &GameState) {
+    static LAST: crate::ctx::PerChar<Option<chrono::DateTime<Local>>> = crate::ctx::PerChar::new();
+    let Some(at) = tavern_wait(gs) else { return };
+    let now = Local::now();
+    let Ok(mut last) = LAST.lock() else { return };
+    if last.is_none_or(|t| now - t >= chrono::Duration::hours(1)) {
+        *last = Some(now);
+        report!("[pets] No missing pet can be found now, only later today: keeping the Thirst for Adventure until {}", at.format("%H:%M"));
+    }
+}
+
+/// Seconds until that window opens, for the wake-up schedule.
+pub fn secs_until_window(gs: &GameState) -> Option<u64> {
+    let at = tavern_wait(gs)?;
+    Some(u64::try_from((at - Local::now()).num_seconds()).unwrap_or(0))
+}
+
+/// A new pet waits to be taken (`unlockfeature` 21/<pet id> after an egg was picked; the game client sends it when the habitat is
+/// opened, user 2026-10-23). Free, so the bot sends it itself. UNVERIFIED that this is what makes the pet ours: the result is logged.
+async fn unlock_new(session: &mut SimpleSession) -> Outcome {
+    let todo: Vec<_> = session
+        .game_state()
+        .map(|gs| gs.pending_unlocks.iter().filter(|u| u.main_ident == 21 && (1..=100).contains(&u.sub_ident)).copied().collect())
+        .unwrap_or_default();
+    for u in todo {
+        let before = session.pets_save().map_or(0, |n| n.get(103).copied().unwrap_or(0));
+        report!("[pets] Unlocking the new pet with id {}", u.sub_ident);
+        if let Err(e) = safe::send(session, Command::UnlockFeature { unlockable: u }).await {
+            report!("[pets] Unlocking the new pet failed: {e}");
+            if crate::tavern::is_session_error(&e) {
+                return Outcome::SessionLost;
+            }
+            continue;
+        }
+        let after = session.pets_save().map_or(0, |n| n.get(103).copied().unwrap_or(0));
+        let level = session.pets_save().map_or(0, |n| level(n, u32::try_from(u.sub_ident).unwrap_or(0)));
+        report!("[pets] Pets collected {before} -> {after}, level of that pet now {level}");
+    }
+    Outcome::Done
 }
 
 /// The strongest pet of a habitat for a dungeon fight: the main pet, else the highest level we own.
@@ -239,7 +300,13 @@ async fn fight(session: &mut SimpleSession) -> Outcome {
 
 /// Feeding first (so the pets are as strong as possible today), then the hourly dungeon fight.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
-    if session.pets_save().is_none() || session.game_state().is_none_or(|gs| gs.pets.is_none()) {
+    if session.pets_save().is_none() {
+        return Outcome::Done;
+    }
+    if let Outcome::SessionLost = unlock_new(session).await {
+        return Outcome::SessionLost;
+    }
+    if session.game_state().is_none_or(|gs| gs.pets.is_none()) {
         return Outcome::Done;
     }
     if let Outcome::SessionLost = feed(session).await {

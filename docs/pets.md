@@ -203,7 +203,7 @@ Needed from the user: (a) `docs/pet-conditions.md` for Light/Earth/Fire/Water (p
 screen (`expeditionstate` before/after the pick) – promised; (c) a capture of a pet PvP LOSS; (d) after the first live feeding: the
 `[pets] Fed` lines + `pets_feed_idx.txt`; (e) after the first event fight: the `[pets] Habitat dungeon fight` line; (f) check the chain target
 levels in `CHAINS` (`src/pets.rs`) against the game; (g) optional: the `PlayerPetFeed:<id>/<idx>` request line from the browser's Network tab.
-Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs (c)), then habitat fights outside the event.
+Suggested next steps in order: Tavern pet preference (DONE 2026-10-23, `src/petcatch.rs`, see status.md), PvP (needs (c)), then habitat fights outside the event.
 
 ## Egg pick capture (2026-10-23, user; need (b) of the list above)
 `ExpeditionProceed` after picking the Earth egg as the mid-expedition reward:

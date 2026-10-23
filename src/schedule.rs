@@ -37,6 +37,7 @@ pub fn next(gs: &GameState, expedition: bool) -> Wake {
     // Dungeons "free" but no fight happened (full inventory etc.): the next attempt only after RETRY_SEC
     put(Some(dungeons::secs_until_ready(gs)).map(|s| if s == 0 { dungeons::RETRY_SEC } else { s }), "Dungeons");
     put(crate::pets::secs_until_ready(gs).map(|s| if s == 0 { dungeons::RETRY_SEC } else { s }), "Pets");
+    put(crate::pets::secs_until_window(gs).map(|s| s.max(60)), "pet window");
     put(guard::secs_until_done(gs.tavern.current_action), "City Guard");
     put(Some(guard::secs_until_midnight(now)), "midnight");
     put(daily::secs_until_ready(gs), "daily reward");

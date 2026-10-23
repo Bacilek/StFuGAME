@@ -57,7 +57,9 @@ fn should_skip_wait_with_glass(busy_until: DateTime<Local>, now: DateTime<Local>
 /// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
-/// Picks an expedition, in this order (user 2026-10-19):
+/// Picks an expedition, in this order (user 2026-10-19, pets first since 2026-10-23):
+/// 0. one that can bring a pet we still lack (`petcatch::score`: passes the pet's location while its time/season/event condition holds; an
+///    expedition the game flags with an egg beats one without); when both offers can, the rules below decide;
 /// 1. a Gleeman/event task "travel to <location>": an expedition through a wanted location wins even when longer (2026-10-07);
 /// 2. when such a task is still open but NEITHER expedition on offer passes its location: the shorter one (cheaper in Thirst for
 ///    Adventure = more expeditions today = the best chance to meet the location);
@@ -66,8 +68,8 @@ const MAX_STEPS: u32 = 300;
 /// 4. within a tier the better OUR success rate of reaching 40 heroism (`success_rates`, from every character's journal, smoothed);
 ///    an unknown mission (or one with an unverified bonus) beats everything here so we can map it;
 /// 5. then the shorter one, and finally the one where 40 heroism is easiest on paper (`Mission::ease`).
-fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
-    choose_expedition_with(list, thirst, wanted, &success_rates())
+fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location], pet: &dyn Fn(&AvailableExpedition) -> u8) -> Option<usize> {
+    choose_expedition_with(list, thirst, wanted, &success_rates(), pet)
 }
 
 fn choose_expedition_with(
@@ -75,6 +77,7 @@ fn choose_expedition_with(
     thirst: u32,
     wanted: &[Location],
     rates: &std::collections::HashMap<String, (u32, u32)>,
+    pet: &dyn Fn(&AvailableExpedition) -> u8,
 ) -> Option<usize> {
     let visits = |e: &AvailableExpedition| wanted.contains(&e.location_1) || wanted.contains(&e.location_2);
     let tier = |e: &AvailableExpedition| missions::for_target(e.target).map_or(1, |m| m.tier());
@@ -96,8 +99,9 @@ fn choose_expedition_with(
     use std::cmp::Ordering::Equal;
     // Greater = `a` is the better choice
     let cmp = |a: &AvailableExpedition, b: &AvailableExpedition| {
-        visits(a)
-            .cmp(&visits(b))
+        pet(a)
+            .cmp(&pet(b))
+            .then_with(|| visits(a).cmp(&visits(b)))
             .then_with(|| if shorter_for_quest { b.thirst_for_adventure_sec.cmp(&a.thirst_for_adventure_sec) } else { Equal })
             .then_with(|| tier(b).cmp(&tier(a)))
             .then_with(|| rate(a).total_cmp(&rate(b)))
@@ -453,20 +457,29 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     best
 }
 
-/// Picks a reward: mushrooms > gold > hourglasses > anything else >>> Fortress wood/stone (user 2026-10-14: raids give
-/// far more resources than expeditions; also for a leftover expedition with the rest of the Thirst for Adventure).
-fn choose_reward(rewards: &[Reward]) -> usize {
-    let rank = |t: &RewardType| match t {
-        RewardType::Mushrooms => 0,
-        RewardType::Silver => 1,
-        RewardType::QuicksandGlass => 2,
-        RewardType::Wood | RewardType::Stone => 4,
-        _ => 3,
+/// Picks a reward (user 2026-10-14/21/23): the egg of a hard-to-get pet of our chains > mushrooms > the egg of an easy chain pet > fruit > the egg
+/// of another new pet > gold > hourglasses > anything else (also an egg of a pet we own) >>> Fortress wood/stone (raids give far more
+/// resources than expeditions; also for a leftover expedition). The egg's amount is the pet id (`unlockfeature 21/<id>`, docs/pets.md).
+fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
+    use crate::petcatch::{EggKind, egg_kind};
+    let rank = |r: &Reward| match r.typ {
+        RewardType::Egg => match egg_kind(pets_nums, r.amount) {
+            EggKind::HardChain => 0,
+            EggKind::Chain => 2,
+            EggKind::Other => 4,
+            EggKind::Useless => 7,
+        },
+        RewardType::Mushrooms => 1,
+        RewardType::Fruit(_) | RewardType::FruitBasket => 3,
+        RewardType::Silver => 5,
+        RewardType::QuicksandGlass => 6,
+        RewardType::Wood | RewardType::Stone => 8,
+        _ => 7,
     };
     rewards
         .iter()
         .enumerate()
-        .min_by_key(|(i, r)| (rank(&r.typ), *i))
+        .min_by_key(|(i, r)| (rank(r), *i))
         .map_or(0, |(i, _)| i)
 }
 
@@ -702,7 +715,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                 }
                 ExpeditionStage::Rewards(rewards) if !rewards.is_empty() => {
                     unknown_in_row = 0;
-                    let pos = choose_reward(&rewards);
+                    let pets_nums = session.pets_save().unwrap_or(&[]);
+                    for r in rewards.iter().filter(|r| r.typ == RewardType::Egg) {
+                        crate::petcatch::note_egg(pets_nums, r.amount);
+                    }
+                    let pos = choose_reward(&rewards, pets_nums);
                     let reward_text = |r: &Reward| crate::report::reward(&format!("{:?}", r.typ), i64::try_from(r.amount).unwrap_or(i64::MAX));
                     let opts: Vec<String> = rewards.iter().map(reward_text).collect();
                     report!("[tavern] Rewards: {} → taking {:?}", opts.join(", "), rewards[pos].typ);
@@ -812,7 +829,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     if rewards.is_empty() {
                         Command::ExpeditionContinue
                     } else {
-                        Command::ExpeditionPickReward { pos: choose_reward(&rewards) }
+                        Command::ExpeditionPickReward { pos: choose_reward(&rewards, session.pets_save().unwrap_or(&[])) }
                     }
                 }
                 CurrentAction::Idle if played => return Outcome::Done,
@@ -833,7 +850,11 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                                     .collect()
                             })
                             .unwrap_or_default();
-                        let Some(pos) = choose_expedition(list, thirst, &wanted) else {
+                        let nums = crate::pets::latest();
+                        let events = session.game_state().map(crate::petcatch::events).unwrap_or_default();
+                        let now = Local::now();
+                        let pet_score = |e: &AvailableExpedition| crate::petcatch::score(&nums, &events, e, now);
+                        let Some(pos) = choose_expedition(list, thirst, &wanted, &pet_score) else {
                             report!(
                                 "[tavern] No expedition affordable with the Thirst for Adventure ({} min), done",
                                 thirst / 60
@@ -852,6 +873,12 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                         if !wanted.is_empty() {
                             report!("[tavern] Task wants locations {wanted:?}");
                         }
+                        let hunted = crate::petcatch::hits(&nums, &events, e, now);
+                        if !hunted.is_empty() {
+                            let names: Vec<String> = hunted.iter().map(|t| format!("{} (id {})", t.name, t.id)).collect();
+                            report!("[pets] Hunting: {} (egg flag {})", names.join(", "), e.special == Some(sf_api::gamestate::tavern::ExpeditionSpecial::Egg));
+                        }
+                        crate::petcatch::note_start(e, now, hunted);
                         unknown_in_row = 0;
                         played = true;
                         Command::ExpeditionStart { pos }
@@ -1035,7 +1062,7 @@ mod tests {
 
     /// The tests run without journal statistics (every mission has the same smoothed rate) unless they pass their own.
     fn choose_expedition(list: &[AvailableExpedition], thirst: u32, wanted: &[Location]) -> Option<usize> {
-        choose_expedition_with(list, thirst, wanted, &Default::default())
+        choose_expedition_with(list, thirst, wanted, &Default::default(), &|_| 0)
     }
 
     /// 2026-10-19 (user): same tier -> the better success rate of reaching 40 heroism wins, even over a shorter one.
@@ -1048,12 +1075,12 @@ mod tests {
         ]
         .into();
         let list = [avail(Dragon, 25), avail(WinnersPodium, 13)];
-        assert_eq!(choose_expedition_with(&list, 6000, &[], &rates), Some(0));
+        assert_eq!(choose_expedition_with(&list, 6000, &[], &rates, &|_| 0), Some(0));
         // a better tier still beats the rate
         let s_vs_b = [avail(BurntCampfire, 13), avail(Dragon, 25)];
         let low_s: std::collections::HashMap<String, (u32, u32)> =
             [(missions::for_target(Dragon).unwrap().name.to_string(), (20, 10))].into();
-        assert_eq!(choose_expedition_with(&s_vs_b, 6000, &[], &low_s), Some(1));
+        assert_eq!(choose_expedition_with(&s_vs_b, 6000, &[], &low_s, &|_| 0), Some(1));
     }
 
     /// 2026-10-19 (user): an open travel task that neither expedition satisfies -> the shorter one, before the tier.
@@ -1172,12 +1199,49 @@ mod tests {
     #[test]
     fn reward_order() {
         let r = |typ| Reward { typ, amount: 1 };
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)]), 2);
-        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)]), 1);
-        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], &[]), 2);
+        assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], &[]), 1);
         // Fortress resources (user 2026-10-14) rank below everything, hourglasses included
-        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::Silver)]), 1);
-        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::QuicksandGlass)]), 1);
-        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::XP)]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::Silver)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::QuicksandGlass)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::XP)], &[]), 1);
+    }
+
+    /// A fresh account: the first three pets of every habitat can be found, nothing owned (`petcatch` tests use the same shape).
+    fn fresh_pets() -> Vec<i64> {
+        let mut n = vec![0; 265];
+        for h in 0..5 {
+            n[210 + h] = 2;
+        }
+        n
+    }
+
+    #[test]
+    fn egg_rewards_follow_the_pet_rules() {
+        let n = fresh_pets();
+        let egg = |id| Reward { typ: RewardType::Egg, amount: id };
+        let r = |typ| Reward { typ, amount: 1 };
+        // an easy chain pet (Toothey 3) loses to a mushroom but beats gold and fruit
+        assert_eq!(choose_reward(&[r(RewardType::Mushrooms), egg(3)], &n), 0);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), egg(3)], &n), 1);
+        assert_eq!(choose_reward(&[r(RewardType::FruitBasket), egg(3)], &n), 1);
+        // a hard chain pet (Unikor 40) beats the mushroom
+        assert_eq!(choose_reward(&[r(RewardType::Mushrooms), egg(40)], &n), 1);
+        // a pet outside the chains (Slurp 1) loses to fruit but beats gold
+        assert_eq!(choose_reward(&[egg(1), r(RewardType::FruitBasket)], &n), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), egg(1)], &n), 1);
+        // an egg of a pet we own is worth nothing
+        let mut owned = fresh_pets();
+        owned[4] = 3;
+        assert_eq!(choose_reward(&[egg(3), r(RewardType::Silver)], &owned), 1);
+    }
+
+    #[test]
+    fn pet_hunting_expedition_comes_first() {
+        let list = [avail(BurntCampfire, 13), avail(Dragon, 25)];
+        let pet = |e: &AvailableExpedition| u8::from(e.target == BurntCampfire);
+        assert_eq!(choose_expedition_with(&list, 6000, &[], &Default::default(), &pet), Some(0));
+        assert_eq!(choose_expedition_with(&list, 6000, &[], &Default::default(), &|_| 0), Some(1));
     }
 }

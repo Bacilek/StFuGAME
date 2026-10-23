@@ -31,7 +31,8 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [x] Fáze 1 (čtení): `src/pets.rs` loguje surová data (2026-10-21); zbývá dekódovat konec bloku (časovače, protivník, ovoce), viz `docs/pets.md`
   - [ ] Fáze 2: odměna z expedice houby > ovoce > zlato, sbírat ovoce
   - [x] Fáze 2 (2026-10-23): krmení main peta podle řetězce + hodinový habitat dungeon (`pets::run`, whitelist v `safe.rs`), čeká na ověření v běhu
-  - [ ] Fáze 3 (viz `docs/pets.md` "STATE OF THE PETS", čeká na podmínky petů a capture vejce od uživatele): Tavern (ovoce nad vejcem mimo řetězec, lokace+denní doba pro chybějícího peta, nespálit ALU v noci), pet PvP (5×/den, alokace habitatů), chytání petů
+  - [x] Fáze 3a (2026-10-23, čeká na ověření v běhu): Tavern loví chybějící pety podle `docs/pet-conditions.md` (`src/petcatch.rs`: výběr expedice, výběr odměny vejce/ovoce, noční ALU se šetří na ráno, `UnlockFeature 21/<id>`)
+  - [ ] Fáze 3b: pet PvP (5×/den, alokace habitatů), habitat fights mimo event, ověřit předpoklady petcatch (noc od 18:00?, roční období, "Monday night")
   - [ ] Fáze 4: PvP 5×/den a útoky na trenéry (ovoce)
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)

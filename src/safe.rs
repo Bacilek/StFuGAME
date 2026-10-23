@@ -56,6 +56,9 @@ fn is_allowed(cmd: &Command) -> bool {
             // Ident 5 = Scrapbook, 9 = beginners task list (user 2026-10-09, wanted on every character).
             // Other idents stay forbidden until the user says what they are.
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9, .. } }
+            // Ident 21 = a new pet after an egg was picked (sub ident = pet id 1..=100, user 2026-10-23: the game client sends it when
+            // the habitat is opened; free), see pets::unlock_new
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 21, sub_ident: 1..=100 } }
             | Command::FightDungeon { use_mushroom: false, .. }
             // Pets (user 2026-10-23, src/pets.rs): feeding costs only fruits (checked in `send_raw`: an owned pet), the habitat dungeon
             // fight is free once an hour (`Cooldown::PetDungeon`), never with `use_mush`

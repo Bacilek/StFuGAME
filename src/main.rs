@@ -19,6 +19,7 @@ mod gems;
 mod guard;
 mod guild;
 mod pets;
+mod petcatch;
 mod hunt;
 mod inventory;
 mod journal;
@@ -321,9 +322,13 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         let mut tavern_done = before.0 != CurrentAction::Expedition && before.1 == 0;
         // Guildless (user 2026-10-19): no NEW expedition before 22:00, the character waits and keeps trying to join a guild. Not "done":
         // City Guard and the tasks that follow a finished Tavern must not start either. A running expedition is finished.
-        let tavern_paused = before.0 == CurrentAction::Idle && before.1 > 0 && !guild::expeditions_allowed(gs);
+        let tavern_paused = before.0 == CurrentAction::Idle && before.1 > 0 && (!guild::expeditions_allowed(gs) || pets::tavern_wait(gs).is_some());
         if tavern_paused {
-            guild::report_pause("expeditions");
+            if guild::expeditions_allowed(gs) {
+                pets::report_wait(gs);
+            } else {
+                guild::report_pause("expeditions");
+            }
         } else if before.0 == CurrentAction::Expedition || before.1 > 0 {
             if let tavern::Outcome::SessionLost = tavern::run(session, journal).await {
                 return tavern::Outcome::SessionLost;
