@@ -1,7 +1,7 @@
 # Pet catch conditions (user, read in the game, 2026-10-21)
 
 Source of truth for where/when a pet drops in expeditions (replaces the unreliable sfporadnik table in `docs/pets.md`).
-Format: position name: time condition, expedition location. "day" = 06:00-16:00 (user 2026-10-23, was assumed 06-18), "night" = presumably the rest (18-06 assumed, unverified). Season entries (spring/summer/fall/winter) mean whole days of that season, not a time of day.
+Format: position name: time condition, expedition location. "day" = 06:00-16:00 (user 2026-10-23, was assumed 06-18), "night" = presumably the rest (18-06 assumed, unverified). Season entries combine with a time of day like weekdays do (e.g. "fall night"); a season given without it means day (user 2026-10-23, reversing the earlier "whole days" reading; fully certain only for the explicit ones).
 Positions 15-20 (and seasonal ones) are "hard" conditions: a specific season/event/date/achievement instead of a plain time of day; these are the "hard to get" pets of the egg priority in `precedents.md`.
 Only pets unlocked in the habitat dungeon (first 3 from the start) can be found. Filled habitat by habitat; not yet in code.
 The last pet (20) of every habitat has only a location condition (no time); it requires having beaten all other pets of the habitat (user 2026-10-23).
@@ -51,16 +51,16 @@ The last pet (20) of every habitat has only a location condition (no time); it r
 20. Unikor: after beating all pets of the Light habitat, Plains of Oz'Korr
 
 ## Earth (user 2026-10-23)
-Seasons = whole days of the season (user 2026-10-23).
+Season entries without a time of day = season day (see format note).
 1. Mamoton: day, Gnarogrim
 2. Monkorrage: night, Sprawling Jungle
 3. Smaponyck: day, Maerwynn
 4. Bittnutz: day, Plains of Oz'Korr
 5. Roarear: night, Gnarogrim
-6. Muscudon: summer, Plains of Oz'Korr
-7. Apstick: fall, Sprawling Jungle
-8. Horrnington: winter, Gnarogrim
-9. Boaringg: spring, Maerwynn
+6. Muscudon: summer day, Plains of Oz'Korr
+7. Apstick: fall day, Sprawling Jungle
+8. Horrnington: winter day, Gnarogrim
+9. Boaringg: spring day, Maerwynn
 10. Mameloth: Sunday night, Sprawling Jungle
 11. Rheynooh: Monday day, Maerwynn
 12. Rockastonn: Tuesday night, Gnarogrim
@@ -79,13 +79,13 @@ Seasons = whole days of the season (user 2026-10-23).
 3. Pyrophibus: night, Black Water Swamp
 4. Flamechirr: day, Sunburst Desert
 5. Tectospit: Tuesday night, Magmaron
-6. Pyroplant: fall, Moldy Forest
+6. Pyroplant: fall day, Moldy Forest
 7. Kokofire: Monday day, Magmaron
-8. Peppryon: spring, Sunburst Desert
-9. Boomywoomy: winter, Magmaron
+8. Peppryon: spring day, Sunburst Desert
+9. Boomywoomy: winter day, Magmaron
 10. Tikiricky: Wednesday night, Sprawling Jungle
 11. Matchlit: Thursday day, Sunburst Desert
-12. Birdblazey: summer, Sunburst Desert
+12. Birdblazey: summer day, Sunburst Desert
 13. Infernox: Friday day, Magmaron
 14. Hambuzzish: Saturday night, Sprawling Jungle
 15. Dragopyr: found in the Weapon Shop (not an expedition location)
@@ -103,14 +103,14 @@ Seasons = whole days of the season (user 2026-10-23).
 5. Walrophin: Monday day, Shadowrock Mountain
 6. Colsnail: Tuesday night, Moldy Forest
 7. Aquaphant: Wednesday day, Moldy Forest
-8. Naar: winter, Shadowrock Mountain
+8. Naar: winter day, Shadowrock Mountain
 9. Octoboss: Thursday night, Moldy Forest
 10. Ewigryn: Friday day, Skull Island
 11. Seapard: Saturday day, Skull Island
 12. Shellzy: fall nights, Skull Island
-13. Mingho: summer, Black Water Swamp
+13. Mingho: summer day, Black Water Swamp
 14. Angbite: Sunday night, Shadowrock Mountain
-15. Mermoid: pet Hall of Fame top 100 or 4000 pet honor (no location given)
+15. Mermoid: pet Hall of Fame top 100 or 4000 pet honor, Skull Island
 16. Watsnake: found in the Magic Shop (not an expedition location)
 17. Cannoturtle: summer legendary dungeon during the S&F anniversary event, Skull Island
 18. Ungere: found in the Arcane Toilet, toilet level 50+ (not an expedition location)
