@@ -157,5 +157,8 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 ## Ads
 - No ad automation (user 2026-10-11): never send `AdvertisementsCompleted` or imitate the ad network's view verification; ads are watched by hand. See `docs/shops.md`.
 
+## Blacksmith
+- Description and verification status: `docs/blacksmith.md`, code `src/smith.rs`. From level 90: a plain item that would be sold goes to the witch (her type), else is dismantled when that pays Arcane Splinters (`Item::dismantle_reward`), else sold; the forced free-slot epic sale dismantles the backpack epic with the most splinters instead (user 2026-10-24). Server `dismantle_left` decides (5/day, 15 in Forge Frenzy). Only `BlacksmithAction::Dismantle` is whitelisted; Metal/Splinters are only collected (no upgrades yet).
+
 ## Weekly events
 - Every Friday 00:01 – Sunday 23:59 a set of events runs; the user lists them and the rules live in `docs/events.md`. New mushroom exception (user 2026-10-16): while "Exceptional XP" (2× XP) is active, up to 10 beers a day in the Tavern. A gold-only event never justifies beers.

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Local};
 use sf_api::{
-    command::{Command, FortunePayment, TimeSkip},
+    command::{BlacksmithAction, Command, FortunePayment, TimeSkip},
     error::SFError,
     gamestate::{
         GameState, ShopPosition,
@@ -67,6 +67,9 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::SellShop { .. }
             // The witch's cauldron takes the place of a shop sale for the item type she wants today (checked in `send_raw`)
             | Command::WitchDropCauldron { .. }
+            // The Blacksmith takes a backpack item apart instead of a shop sale (user 2026-10-24, src/smith.rs); free. Socket upgrades,
+            // gem extraction and item upgrades (and every `...WithMushrooms` variant) stay forbidden; checked in `send_raw` (`dismantle_ok`)
+            | Command::Blacksmith { action: BlacksmithAction::Dismantle, .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
             | Command::CollectDailyQuestReward { .. }
@@ -273,6 +276,15 @@ fn witch_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
         })
 }
 
+/// The Blacksmith dismantles only a BACKPACK equipment item (never a worn one, never a unique), from character level 90 (user 2026-10-24).
+fn dismantle_ok(gs: &GameState, pos: PlayerItemPosition, ident: ItemCommandIdent) -> bool {
+    gs.character.level >= crate::smith::MIN_LEVEL
+        && gs.character.inventory.iter().any(|(bp, item)| {
+            PlayerItemPosition::from(bp) == pos
+                && item.is_some_and(|i| i.command_ident() == ident && !i.is_unique() && i.typ.equipment_slot().is_some())
+        })
+}
+
 /// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
 pub const WITCH_MAX_PRICE: u64 = 1_000_000;
 
@@ -349,6 +361,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| witch_drop_ok(gs, *item_pos))
     {
         return Err(SFError::InvalidRequest("cauldron: not a plain backpack item of the type the witch wants today"));
+    }
+    if let Command::Blacksmith { item_pos, item_ident, .. } = &cmd
+        && !session.game_state().is_some_and(|gs| dismantle_ok(gs, *item_pos, *item_ident))
+    {
+        return Err(SFError::InvalidRequest("blacksmith: only a backpack equipment item may be dismantled, from level 90"));
     }
     if let Command::BuyShop { shop_pos, item_ident, .. } = &cmd
         && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))
@@ -518,6 +535,28 @@ mod fortress_tests {
         // gems: start and collect (only without mushrooms)
         assert!(is_allowed(&Command::FortressGemStoneSearch));
         assert!(is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 0 }));
+    }
+}
+
+#[cfg(test)]
+mod blacksmith_tests {
+    use super::*;
+
+    /// Only dismantling is whitelisted: no gem socket upgrades, extraction, item upgrades or anything paid with mushrooms.
+    #[test]
+    fn only_dismantling_passes() {
+        let pos = PlayerItemPosition { place: PlayerItemPlace::MainInventory, position: 0 };
+        let ident = crate::smith::test_item(sf_api::gamestate::items::ItemType::Belt, 1).command_ident();
+        for (action, ok) in [
+            (BlacksmithAction::Dismantle, true),
+            (BlacksmithAction::SocketUpgrade, false),
+            (BlacksmithAction::SocketUpgradeWithMushrooms, false),
+            (BlacksmithAction::GemExtract, false),
+            (BlacksmithAction::GemExtractWithMushrooms, false),
+            (BlacksmithAction::Upgrade, false),
+        ] {
+            assert_eq!(is_allowed(&Command::Blacksmith { item_pos: pos, action, item_ident: ident }), ok, "{action:?}");
+        }
     }
 }
 

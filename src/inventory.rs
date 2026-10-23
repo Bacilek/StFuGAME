@@ -14,7 +14,7 @@ use sf_api::{
 
 use crate::session::SimpleSession;
 
-use crate::{arena::{LUCK_WEIGHT, SIDE_WEIGHT, power}, safe, tavern::Outcome};
+use crate::{arena::{LUCK_WEIGHT, SIDE_WEIGHT, power}, safe, smith::Disposal, tavern::Outcome};
 
 /// Safety limit against an endless loop in one pass.
 const MAX_ACTIONS: usize = 30;
@@ -484,11 +484,20 @@ pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
     if gs.character.inventory.free_slot().is_some() {
         return None;
     }
-    gs.character
+    let epics = gs
+        .character
         .inventory
         .iter()
         .filter_map(|(pos, i)| Some((pos, i?)))
-        .filter(|(_, i)| i.is_epic() && !i.is_unique() && i.typ.equipment_slot().is_some())
+        .filter(|(_, i)| i.is_epic() && !i.is_unique() && i.typ.equipment_slot().is_some());
+    // From level 90 the Blacksmith takes the place of the shop (user 2026-10-24): the epic with the MOST Arcane Splinters goes (the
+    // strongest/newest one in the backpack, never a worn one); the payout only breaks ties
+    if crate::smith::available(gs) {
+        return epics
+            .max_by_key(|(_, i)| (crate::smith::splinters(i), payout(gs, i)))
+            .map(|(pos, i)| (pos, format!("backpack full, one slot must stay free: dismantling the epic with the most splinters, {} (about {} Arcane Splinters)", describe(i), crate::smith::splinters(i))));
+    }
+    epics
         .max_by_key(|(_, i)| payout(gs, i))
         .map(|(pos, i)| (pos, format!("backpack full, one slot must stay free: selling the best-paid epic, {} (shop {}, payout {})", describe(i), i.price, payout(gs, i))))
 }
@@ -632,16 +641,28 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
 
         report!("[inventory] {what}");
         journal(&format!("{what} | {}", detail(item)));
+        let mut dismantle = None;
         let cmd = match action {
             Action::Equip { pos, slot } => Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident },
-            // The witch pays twice the shop price for the item type she wants today (user 2026-10-19; plain items only, never epics)
-            Action::Sell { pos } if crate::witch::wants(gs, item) => Command::WitchDropCauldron { item_pos: pos.into() },
-            Action::Sell { pos } => Command::SellShop { item_pos: pos.into(), item_ident },
+            Action::Sell { pos } => match crate::smith::disposal(gs, item) {
+                // The witch pays twice the shop price for the item type she wants today (user 2026-10-19; plain items only, never epics)
+                Disposal::Cauldron => Command::WitchDropCauldron { item_pos: pos.into() },
+                // A plain item that pays Arcane Splinters when taken apart goes to the Blacksmith instead of the shop (user 2026-10-24)
+                Disposal::Dismantle => {
+                    let (cmd, before) = crate::smith::command(gs, pos, item, &describe(item));
+                    dismantle = Some(before);
+                    cmd
+                }
+                Disposal::Shop => Command::SellShop { item_pos: pos.into(), item_ident },
+            },
         };
         let selling = matches!(cmd, Command::SellShop { .. });
         let cauldron = matches!(cmd, Command::WitchDropCauldron { .. });
         let silver_before = gs.character.silver;
         if let Err(e) = safe::send(session, cmd).await {
+            if dismantle.is_some() && !crate::smith::refused(&e) {
+                continue; // no more dismantling today: the next round sells the item
+            }
             return fail(&e);
         }
         if selling {
@@ -650,6 +671,9 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {
             return fail(&e);
+        }
+        if let (Some(before), Some(gs)) = (&dismantle, session.game_state()) {
+            crate::smith::log_result(gs, before);
         }
         if cauldron {
             // The gold really credited is logged (user 2026-10-20: was the double price paid?)
@@ -851,6 +875,12 @@ mod tests {
 
         // The witch buys rings today at twice the price: a ring worth 60 (120 there) beats the belt worth 104
         gs.character.level = 100;
+        // From level 90 the Blacksmith takes over (user 2026-10-24): the epic paying the most Arcane Splinters, not the dearest
+        gs.character.inventory.backpack[2] = Some(Item { model_id: 60, price: 1, ..item(ItemType::Ring, &[(Str, 90), (AttributeType::Constitution, 90), (AttributeType::Luck, 90)], None) });
+        let (pos, what) = last_resort_epic(&gs).expect("full");
+        assert_eq!(pos.backpack_pos(), 2, "most splinters: {what}");
+        // no dismantles left today: back to the shop payout
+        gs.blacksmith = Some(sf_api::gamestate::unlockables::Blacksmith { dismantle_left: 0, last_dismantled: Some(chrono::Local::now()), ..Default::default() });
         gs.character.inventory.backpack[2] = Some(Item { model_id: 60, price: 60, ..item(ItemType::Ring, &[(Str, 10)], None) });
         gs.witch = Some(sf_api::gamestate::unlockables::Witch { required_item: Some(EquipmentSlot::Ring), ..Default::default() });
         let (pos, _) = last_resort_epic(&gs).expect("full");

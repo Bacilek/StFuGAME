@@ -48,6 +48,8 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] Věž, mazlíčci, podsvětí – až budou na postavě odemčené
 - [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
 - [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expeditions.md`)
+- [x] Blacksmith fáze 1 (user 2026-10-24): od levelu 90 rozebírat místo prodeje itemy, které dají Arcane Splinters (po witch), epik s nejvíc splintery místo nuceného prodeje epiku; viz docs/blacksmith.md. Čeká na ověření v běhu (`[smith]` řádky).
+- [ ] Blacksmith fáze 2: utrácet Metal/Splintery (upgrade nošených itemů, +3 % za upgrade, max 20×; socket upgrade, gem extract) – potřeba captures a pravidla od uživatele.
 - [ ] Týdenní server-wide eventy (sf-api: `gs.specials.events.active`, `events.ends`) – bot je nikde nečte. Shopping Spree / Good Luck nevyžadují změnu kódu; Forge Frenzy (Blacksmith: 2× suroviny, 15 místo 5 bodů za rozebrání, splintery z expedic) a Tidy Toilet (záchod: 2 oběti denně, 2× aura) by byly nové featury – popis v docs/events.md, čeká na captures.
 
 ## Zrušeno / nebude

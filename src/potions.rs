@@ -306,8 +306,21 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
         return Ok(false);
     };
     let item_ident = item.command_ident();
-    let cauldron = crate::witch::type_matches(gs, item);
+    // An epic (only the forced free-slot sale gets here) is dismantled from level 90 when the Blacksmith can (user 2026-10-24)
+    let mut cauldron = crate::witch::type_matches(gs, item);
+    let dismantle = matches!(step, RoomStep::Sell(_)) && item.is_epic() && crate::smith::epic_disposal(gs, item) == crate::smith::Disposal::Dismantle;
     report!("[potions] {what}");
+    if dismantle {
+        let RoomStep::Sell(pos) = step else { return Ok(false) };
+        match crate::smith::dismantle(session, pos, what).await {
+            Ok(true) => return Ok(true),
+            Ok(false) => {
+                // refused: sell it (the witch gets her type at twice the price) as before
+                cauldron = session.game_state().and_then(|gs| gs.character.inventory.backpack.get(pos.backpack_pos())?.as_ref().map(|i| crate::witch::type_matches(gs, i))).unwrap_or(false);
+            }
+            Err(e) => return Err(fail(&e)),
+        }
+    }
     if let RoomStep::Swap(slot, _) = step
         && let Outcome::SessionLost = remove(session, slot).await
     {

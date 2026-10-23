@@ -33,6 +33,7 @@ mod scrapbook;
 mod session;
 mod stuck;
 mod shops;
+mod smith;
 mod stable;
 mod tasks;
 mod tavern;
