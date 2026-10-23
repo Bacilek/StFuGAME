@@ -215,3 +215,11 @@ Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs
   the normal `ExpeditionPickReward { pos }`. Which reward slot holds an egg is still open.
 - Hypothesis for "no `[pets]` on TestChar1/Novotne": the pets unlock was never sent (guildless pause or `dungeons::run` not reached). The login probe
   (`[pets] login response has ...`, 2026-10-23) shows what the server sends; check it after the next start.
+- **Second egg capture (2026-10-23, user; blue = Water egg, picked as the FIRST of 3 rewards):**
+  `&unlockfeature:21/82/9/1/&expeditionstate:5/2/4/153/112/161/0/1/1/1000/0/0/0/27/1/1792763478/1792763620/5/-5/0/1`
+  Together with the Earth capture (`21/41`): `unlockfeature` ident **21 = a new pet, sub = the pet id (1..=100)**. Earth 41 = Earth #1 and
+  Water 82 = Water #2, both pets the account did not own yet (it started with Earth #2 Monkoragge and Water #1 Goldy), so the match is
+  consistent (2 of 2, not yet more). The element of the egg is therefore readable AFTER the pick from the response, not from the offer.
+  CORRECTION: `9/1` is in both captures and also in the very first pets capture, so it is NOT specific to the egg/pets unlock (the earlier
+  guess above that ident 9 = the pets unlock is withdrawn; 9 stays "beginners task list"). The unlock of Pets itself is still unexplained.
+  Whether `21/<id>` must be sent as `UnlockFeature` to actually get the pet is unknown (the bot does not send ident 21; not whitelisted).
