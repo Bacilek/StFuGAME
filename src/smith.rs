@@ -42,6 +42,11 @@ pub fn available(gs: &GameState) -> bool {
     })
 }
 
+/// Blacksmith unlocked but out of dismantles for today: epics are not sold, they wait for midnight (user 2026-10-24).
+pub fn waiting(gs: &GameState) -> bool {
+    gs.character.level >= MIN_LEVEL && !available(gs)
+}
+
 /// Arcane Splinters a dismantle should pay (the sf-api port of the community smith simulator; verified against the game in the log).
 pub fn splinters(item: &Item) -> u64 {
     item.dismantle_reward().arcane

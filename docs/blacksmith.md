@@ -42,3 +42,16 @@ task list (the `BlacksmithDismantle` task, type 9, counts 5 points per dismantle
   upgrade capture and the user's rules (which items first, reserve for the next dismantle-payback, ...).
 - Socket upgrade / gem extraction (`SocketUpgrade`, `GemExtract`): needs captures.
 - Forge Frenzy Festival: dismantle every day up to the 15 (task points), splinters from expeditions (reward order unknown).
+
+## Waiting for midnight instead of selling an epic (user 2026-10-24, implemented, NOT in a release yet)
+Level 90+, backpack full, only epics left and NO dismantle left today (`smith::waiting` = unlocked but not `available`, includes "refused
+today"): `inventory::last_resort_epic` returns nothing, so no epic is sold. The full backpack stops the Dungeons (`[dungeons] Backpack
+full of epics and no dismantles left today: waiting for midnight, no fights`) because nothing new could be picked up anyway; at the new
+day the stale counter counts as "try" and the epic with the most splinters is dismantled. Below level 90 the old sale rule stays.
+
+## Capture: upgrading a worn item (user 2026-10-24, armour level 1 -> 2; NOT automated, syntax only)
+Command `Command::Blacksmith { item_pos, action: Upgrade (204), item_ident }` = `PlayerItemMove:<pos>/204/-1/<ident>` (same shape as
+the dismantle `201`). The response carries `ownplayersavecharacter`, `resources` (Metal idx 9, Arcane Splinters idx 10: 20078 / 8354
+after, the previous capture said 21787 / 8035, so other things happened in between and the exact price is not isolated),
+`ownplayersavepotions`, `ownplayersaveequipment` (the upgraded worn item), `ownequipmentaveragelevel`, `itemlevelshop`, `deeds`. Price
+per upgrade: `Item::upgrade_costs()` (sf-api); the item's `upgrade_count` goes up by one. Still forbidden in `safe.rs`.

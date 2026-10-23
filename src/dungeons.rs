@@ -114,7 +114,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         report!("[dungeons] Inventory full, freeing a slot before the fight");
         return match crate::potions::make_room(session).await {
             Err(o) => o,
-            Ok(_) => Outcome::Done,
+            Ok(freed) => {
+                if !freed && session.game_state().is_some_and(crate::smith::waiting) {
+                    report!("[dungeons] Backpack full of epics and no dismantles left today: waiting for midnight, no fights");
+                }
+                Outcome::Done
+            }
         };
     }
     let cands = candidates(gs);
