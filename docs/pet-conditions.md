@@ -79,7 +79,7 @@ Season entries without a time of day = season day (see format note).
 3. Pyrophibus: night, Black Water Swamp
 4. Flamechirr: day, Sunburst Desert
 5. Tectospit: Tuesday night, Magmaron
-6. Pyroplant: fall day, Moldy Forest
+6. Pyroplant: fall night, Moldy Forest
 7. Kokofire: Monday day, Magmaron
 8. Peppryon: spring day, Sunburst Desert
 9. Boomywoomy: winter day, Magmaron
