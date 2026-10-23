@@ -1,7 +1,7 @@
 # Pet catch conditions (user, read in the game, 2026-10-21)
 
 Source of truth for where/when a pet drops in expeditions (replaces the unreliable sfporadnik table in `docs/pets.md`).
-Format: position name: time condition, expedition location. "day" = 06-18, "night" = 18-06 (per the earlier assumption, unverified for the exact hours).
+Format: position name: time condition, expedition location. "day" = 06:00-16:00 (user 2026-10-23, was assumed 06-18), "night" = presumably the rest (18-06 assumed, unverified). Season entries (spring/summer/fall/winter) mean whole days of that season, not a time of day.
 Positions 15-20 (and seasonal ones) are "hard" conditions: a specific season/event/date/achievement instead of a plain time of day; these are the "hard to get" pets of the egg priority in `precedents.md`.
 Only pets unlocked in the habitat dungeon (first 3 from the start) can be found. Filled habitat by habitat; not yet in code.
 The last pet (20) of every habitat has only a location condition (no time); it requires having beaten all other pets of the habitat (user 2026-10-23).
@@ -51,9 +51,9 @@ The last pet (20) of every habitat has only a location condition (no time); it r
 20. Unikor: after beating all pets of the Light habitat, Plains of Oz'Korr
 
 ## Earth (user 2026-10-23)
-Weekday/season entries were given without day/night; written as given (to confirm).
-1. Mamaton: day, Gnarogrim
-2. Monkoragge: night, Sprawling Jungle
+Seasons = whole days of the season (user 2026-10-23).
+1. Mamoton: day, Gnarogrim
+2. Monkorrage: night, Sprawling Jungle
 3. Smaponyck: day, Maerwynn
 4. Bittnutz: day, Plains of Oz'Korr
 5. Roarear: night, Gnarogrim
@@ -61,11 +61,11 @@ Weekday/season entries were given without day/night; written as given (to confir
 7. Apstick: fall, Sprawling Jungle
 8. Horrnington: winter, Gnarogrim
 9. Boaringg: spring, Maerwynn
-10. Mameloth: Sunday, Sprawling Jungle
-11. Rheynooh: Monday, Maerwynn
-12. Rockastonn: Tuesday, Gnarogrim
-13. Redwoofox: Wednesday, Maerwynn
-14. Lilbeatzup: "hut" as written (probably Thursday), Plains of Oz'Korr
+10. Mameloth: Sunday night, Sprawling Jungle
+11. Rheynooh: Monday day, Maerwynn
+12. Rockastonn: Tuesday night, Gnarogrim
+13. Redwoofox: Wednesday day, Maerwynn
+14. Lilbeatzup: Thursday day, Plains of Oz'Korr
 15. Forror: Easter legendary dungeon, Maerwynn
 16. Nipprabs: Pentecost/Whitsun event, Sprawling Jungle
 17. Armoruck: Glorious Gold Galore event, Plains of Oz'Korr
