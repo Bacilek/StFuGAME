@@ -204,3 +204,14 @@ screen (`expeditionstate` before/after the pick) – promised; (c) a capture of 
 `[pets] Fed` lines + `pets_feed_idx.txt`; (e) after the first event fight: the `[pets] Habitat dungeon fight` line; (f) check the chain target
 levels in `CHAINS` (`src/pets.rs`) against the game; (g) optional: the `PlayerPetFeed:<id>/<idx>` request line from the browser's Network tab.
 Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs (c)), then habitat fights outside the event.
+
+## Egg pick capture (2026-10-23, user; need (b) of the list above)
+`ExpeditionProceed` after picking the Earth egg as the mid-expedition reward:
+`&unlockfeature:21/41/9/1/&expeditionstate:5/16/4/153/191/91/0/0/1/1000/192/152/0/12/0/1792762890/1792763032/5/-5/0/14`
+- `unlockfeature` = pairs `main/sub`: `21/41` (unknown, not accepted by the bot) and `9/1` (pending right after the egg pick -> ident 9 is
+  PROBABLY the Pets unlock, not only the "beginners task list" guessed on 2026-10-09; `dungeons::ACCEPTED_UNLOCK_IDENTS` already contains 9 and
+  `safe.rs` allows it, so `dungeons::run` sends it, but only when it runs - not while the guild-only rule pauses Dungeons).
+- The egg itself is not visible in `expeditionstate` (compare the 2026-10-21 capture above: same 21-number shape); the egg reward is picked via
+  the normal `ExpeditionPickReward { pos }`. Which reward slot holds an egg is still open.
+- Hypothesis for "no `[pets]` on TestChar1/Novotne": the pets unlock was never sent (guildless pause or `dungeons::run` not reached). The login probe
+  (`[pets] login response has ...`, 2026-10-23) shows what the server sends; check it after the next start.
