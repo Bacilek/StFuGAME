@@ -1,7 +1,7 @@
 # Pets (briefing 2026-10-20, user; NOTHING implemented yet)
 
 Source: the user's memory of a 2023 tutorial video (never played Pets himself, everything below is an assumption until verified)
-+ https://en.sfporadnik.pl/pets.php. Unlock: level 75 + one finished Tavern expedition (Egg Basket reward). Main character
++ https://en.sfporadnik.pl/pets.php. Unlock: level 75, then the first finished Tavern expedition unlocks Pets (user 2026-10-23: no Egg Basket needed; my earlier "Egg Basket" note was wrong). Main character
 reaches it after midnight 2026-10-21.
 
 ## Mechanics

@@ -33,6 +33,16 @@ fn parse_pets_save(raw: &str) -> Option<Vec<i64>> {
     (nums.len() > 100).then_some(nums)
 }
 
+/// Diagnostic (2026-10-23): does the login response carry the pets save at all? Pets unlock at level 75 + the first finished expedition,
+/// yet no character logged a `[pets]` line; this tells "server sends nothing" from "parsed away".
+fn pets_login_probe(raw: &str) {
+    let v = raw.split('&').find_map(|kv| kv.strip_prefix("ownpets.petsSave:"));
+    match v {
+        Some(v) => report!("[pets] login response has ownpets.petsSave with {} numbers", v.split('/').count()),
+        None => report!("[pets] login response has no ownpets.petsSave (ownpets key present: {})", raw.contains("ownpets")),
+    }
+}
+
 /// Picks the `witchshop` numbers out of a raw response, if it has them.
 fn parse_witch_shop(raw: &str) -> Option<Vec<i64>> {
     let v = raw.split('&').find_map(|kv| kv.strip_prefix("witchshop:"))?;
@@ -93,6 +103,7 @@ impl SimpleSession {
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
             self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
+            pets_login_probe(resp.raw_response());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
@@ -126,6 +137,7 @@ impl SimpleSession {
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
             self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
+            pets_login_probe(resp.raw_response());
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
