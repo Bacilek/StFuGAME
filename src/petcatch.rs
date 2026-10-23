@@ -3,7 +3,7 @@
 //! holds, to take the egg of a new pet, and to keep the Thirst for Adventure for the day when only Day pets are missing (`docs/pets.md`).
 //!
 //! Assumptions that the first live runs must confirm (the `[pets] Egg offered` line prints everything needed to compare):
-//! day = 06:00-16:00 (user), night = 18:00-06:00 (16-18 is neither, nothing is planned there), seasons are the meteorological ones,
+//! day = 06:00-16:00 and night = 18:00-06:00 (user-confirmed; 16-18 is neither, nothing is planned there), seasons are the meteorological ones,
 //! a weekday means the calendar day (Monday 03:00 is "Monday night"), and a condition counts when it holds at the start AND half an
 //! expedition later (the egg comes mid-way).
 

@@ -1,7 +1,7 @@
 # Pet catch conditions (user, read in the game, 2026-10-21)
 
 Source of truth for where/when a pet drops in expeditions (replaces the unreliable sfporadnik table in `docs/pets.md`).
-Format: position name: time condition, expedition location. "day" = 06:00-16:00 (user 2026-10-23, was assumed 06-18); "night" = 18:00-06:00 in the code (assumption, 16-18 is treated as neither). Season entries combine with a time of day like weekdays do (e.g. "fall night"); a season given without it means day (user-verified 2026-10-23). In the code (`src/petcatch.rs`, 2026-10-23) Hall of Fame / shop / Gem Mine / dungeon / legendary-dungeon / Pentecost pets are `Manual`: never planned for, only their egg is taken when it shows up.
+Format: position name: time condition, expedition location. "day" = 06:00-16:00 (user 2026-10-23, was assumed 06-18); "night" = 18:00-06:00 (user-confirmed 2026-10-23; 16-18 is neither). Season entries combine with a time of day like weekdays do (e.g. "fall night"); a season given without it means day (user-verified 2026-10-23). In the code (`src/petcatch.rs`, 2026-10-23) Hall of Fame / shop / Gem Mine / dungeon / legendary-dungeon / Pentecost pets are `Manual`: never planned for, only their egg is taken when it shows up.
 Positions 15-20 (and seasonal ones) are "hard" conditions: a specific season/event/date/achievement instead of a plain time of day; these are the "hard to get" pets of the egg priority in `precedents.md`.
 Only pets unlocked in the habitat dungeon (first 3 from the start) can be found. Filled habitat by habitat; not yet in code.
 The last pet (20) of every habitat has only a location condition (no time); it requires having beaten all other pets of the habitat (user 2026-10-23).
