@@ -226,3 +226,9 @@ Suggested next steps in order: Tavern pet preference (needs (a)+(b)), PvP (needs
   User 2026-10-23: the new pet was unlocked as soon as he opened the habitat in the client (right after the pick, no other action). Same pattern as
   the dungeons (`30/1` is sent by the client when the Dungeons tab opens): the client very probably sends `UnlockFeature 21/<pet id>` when the
   habitat screen opens. So the bot would have to send pending `21/<id>` itself (not implemented, ident 21 not whitelisted in `safe.rs`; free, no mushrooms).
+- **Third egg capture WITH the offer (2026-10-23, user; boss fight response, Water egg picked as the first of 3):** the offer is
+  `expeditionhalftime:-13/25/84/26/1/7/900` = boss id 13, then pairs `typ/amount`: `25/84` = Egg x84, `26/1` = QuicksandGlass x1, `7/900` = Stone x900.
+  After the pick: `unlockfeature:21/84/9/1/`. So **the Egg's `amount` IS THE PET ID** (84 = Water #4; ids Shadow 1-20, Light 21-40, Earth 41-60,
+  Fire 61-80, Water 81-100) and the same id comes back as `unlockfeature 21/<id>`. sf-api gives it for free: `Reward { typ: Egg, amount: <pet id> }`
+  (our journal logs it as `Egg x84`), so the offer shows WHICH pet before the pick, no guessing from location/time needed. Consistent with the
+  earlier Earth 41 and Water 82 captures (their offers were not captured). Reward typ numbers seen: 7 stone, 25 egg, 26 hourglass.
