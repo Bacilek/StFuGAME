@@ -34,7 +34,7 @@ task list (the `BlacksmithDismantle` task, type 9, counts 5 points per dismantle
 | Dismantle command (`201`) accepted by the server | user captured it by hand, the bot has NOT sent it yet |
 | `dismantle_reward` (sf-api port of the community simulator) matches the game | UNVERIFIED - every dismantle logs `[smith] Dismantled ...: Metal +a (predicted b), Arcane Splinters +c (predicted d) - as predicted / MISMATCH` (progress.log + `inventory.log`); fix the formula on a MISMATCH |
 | `smith:` counter is part of every `Update`, not only of the dismantle answer | UNVERIFIED (the code tolerates both) |
-| Daily limit really 5 (15 in the event); does `dismantle_left` count down from the cap or up | UNVERIFIED (capture shows `5` after one dismantle during the event) |
+| Daily limit 5 (15 in the event); `dismantle_left` counts DOWN from the cap | VERIFIED 2026-10-24 (user captures during the event: `smith:5` with the task at 10/15, `smith:1` with 14/15 = 15 a day; every dismantle is +1 task point, the daily task target was 15) |
 | A socketed gem is lost with the item (dismantle or shop alike) | assumed, UNVERIFIED |
 
 ## Ideas for later phases (nothing agreed)
@@ -55,3 +55,9 @@ the dismantle `201`). The response carries `ownplayersavecharacter`, `resources`
 after, the previous capture said 21787 / 8035, so other things happened in between and the exact price is not isolated),
 `ownplayersavepotions`, `ownplayersaveequipment` (the upgraded worn item), `ownequipmentaveragelevel`, `itemlevelshop`, `deeds`. Price
 per upgrade: `Item::upgrade_costs()` (sf-api); the item's `upgrade_count` goes up by one. Still forbidden in `safe.rs`.
+
+## Capture: dismantling common armour (user 2026-10-24, task 13/15 -> 14/15)
+Response `timestamp&resources&smith:1/<t>&characterstatus&backpack&dailytasklist`: `smith:1` = one dismantle left (15 a day in the Forge
+Frenzy Festival), the backpack lost the item, the task list ends `14/15/4` (type 9 `BlacksmithDismantle`, +1 per dismantle). Resources after:
+Metal idx 9 = 18308, Arcane idx 10 = 8713; metal fell since the previous capture because upgrades were bought in between, so the single
+payout is not isolated. The bot's own `[smith] Dismantled ...` lines will give the first clean prediction-vs-reality numbers.

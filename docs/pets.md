@@ -235,3 +235,13 @@ Suggested next steps in order: Tavern pet preference (DONE 2026-10-23, `src/petc
 - **Fruit basket over a non-chain egg (2026-10-23, user):** offered a Fire egg (#4, not in our chain) and a Fruit basket (5 fruits, one of each habitat);
   the user took the basket. Matches the standing order (egg of a non-chain pet ranks BELOW fruit; only a chain/progress pet egg beats a mushroom).
   Capture after the pick: `resources:` ... fruits at indexes 12..16 = 7/9/14/16/10 (Shadow, Light, Earth, Fire, Water). `RewardType::FruitBasket` = typ 23.
+
+## Capture: lost pet PvP fight, our Earth pets vs Water pets (user 2026-10-24, NOT decoded further, nothing implemented)
+- Response keys: `fightresult.battlereward` (idx 5 = -66 = honor lost, idx 7/8 = 2690/2918, probably XP/rank-like numbers), `battlerewarditem`,
+  `ownpets.petsSave` (tail now: opponent id at 242 = 20899?, check against the previous captures before trusting), `fightheader1..5`,
+  `fight1..5.r`, `winnerid1..5`, `fightgroups.r:<our id>,<opponent id>,<our name>,<opponent name>`.
+- It is a best-of-5 of single pet fights: rounds 2 and 4 were won by us (`winnerid2/4` = our id 23994), 1, 3, 5 by the opponent (7755) =
+  lost 2:3, honor -66. Round 4 is a high-level pair (fighters with ~29164 HP, level 22), round 5 the opponent's lvl 22 pet with 38065 HP
+  vs our 29164. Our Earth pets are level 1..25 (petsSave level fields), so the habitat matters: Earth vs Water was our bad matchup.
+- Nothing to automate yet: PvP rules are still open in "STATE OF THE PETS IMPLEMENTATION" (this section). Keep the capture for decoding
+  the `fightheader` layout when PvP gets built.
