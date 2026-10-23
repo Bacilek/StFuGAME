@@ -74,21 +74,20 @@ Seasons = whole days of the season (user 2026-10-23).
 20. Mouthrexor: after beating all pets of the Earth habitat, Sprawling Jungle
 
 ## Fire (user 2026-10-23)
-Weekday entries below were given without day/night (to confirm).
 1. Firimp: day, Moldy Forest
 2. Gullps: night, Magmaron
 3. Pyrophibus: night, Black Water Swamp
 4. Flamechirr: day, Sunburst Desert
-5. Textospit: Tuesday, Magmaron
+5. Tectospit: Tuesday night, Magmaron
 6. Pyroplant: fall, Moldy Forest
-7. Kokofire: Monday, Magmaron
+7. Kokofire: Monday day, Magmaron
 8. Peppryon: spring, Sunburst Desert
 9. Boomywoomy: winter, Magmaron
-10. Tikiricky: Wednesday, Sprawling Jungle
-11. Matchlit: Thursday, Sunburst Desert
+10. Tikiricky: Wednesday night, Sprawling Jungle
+11. Matchlit: Thursday day, Sunburst Desert
 12. Birdblazey: summer, Sunburst Desert
-13. Infernox: Friday, Magmaron
-14. Hambuzzish: Saturday, Sprawling Jungle
+13. Infernox: Friday day, Magmaron
+14. Hambuzzish: Saturday night, Sprawling Jungle
 15. Dragopyr: found in the Weapon Shop (not an expedition location)
 16. Mantiflame: Tidy Toilet Time event, Sunburst Desert
 17. Finnettle: 3 days before and after Valentine's Day, Magmaron
@@ -96,5 +95,24 @@ Weekday entries below were given without day/night (to confirm).
 19. Blazingtongues: after clearing the Demon Portal, Magmaron
 20. Devastator: after beating all pets of the Fire habitat, Gnarogrim
 
-## Water
-TODO (user lists them next).
+## Water (user 2026-10-23)
+1. Goldy: day, Skull Island
+2. Orcahle: day, Skull Island
+3. Ocodile: night, Black Water Swamp
+4. Penguwater: day, Shadowrock Mountain
+5. Walrophin: Monday day, Shadowrock Mountain
+6. Colsnail: Tuesday night, Moldy Forest
+7. Aquaphant: Wednesday day, Moldy Forest
+8. Naar: winter, Shadowrock Mountain
+9. Octoboss: Thursday night, Moldy Forest
+10. Ewigryn: Friday day, Skull Island
+11. Seapard: Saturday day, Skull Island
+12. Shellzy: fall nights, Skull Island
+13. Mingho: summer, Black Water Swamp
+14. Angbite: Sunday night, Shadowrock Mountain
+15. Mermoid: pet Hall of Fame top 100 or 4000 pet honor (no location given)
+16. Watsnake: found in the Magic Shop (not an expedition location)
+17. Cannoturtle: summer legendary dungeon during the S&F anniversary event, Skull Island
+18. Ungere: found in the Arcane Toilet, toilet level 50+ (not an expedition location)
+19. Tritosting: after clearing the 22nd Light dungeon, Moldy Forest
+20. Hydrospir: after beating all pets of the Water habitat, Black Water Swamp
