@@ -303,3 +303,11 @@ lowest level) as a sacrifice.
   free `UnlockFeature 20/1`; whitelisted in `safe.rs` (exactly main 20, sub 1). Look for `[pets] Unlocking Pets` and `Pets unlock sent, petsSave now present: true`.
 - Candidates: TestChar1 may already be unlocked by the user's client (captured), Novotne too (second capture); Mimimimi11/Sanek (75) as soon as the
   unlock is pending (after the first expedition at 75+).
+
+## First live results (2026-10-24 18:03, release 946378f)
+- TestChar1: login sees `ownpets.petsSave` (266 numbers), feeding works: Shadow #3 level 1 -> 10 in 9 feeds, the 10th fails with the server error
+  "pet is not hungry" (daily limit per pet, ~9 feeds; the bot just logs it). PvP WON with Shadow level 10 vs a 2-pet / level-2 opponent (ratio 5.0):
+  reward idx5 = +102 honor, idx7/8 = rank 4016 -> 3903 (better), `battlerewarditem:16/0/0/35/0/0/0/0/0/0/3/...` (type 16 = fruit; compare with a
+  fruit count next time to decode which fruit). First PvP win capture.
+- Mimimimi11: `Unlocking Pets (20/1)` -> petsSave present (the unlock works), PvP lost at ratio 0.25 (honor -9).
+- Sanek: still no petsSave (no pending unlock 20/1 yet). Novotne: bot had only just started.
