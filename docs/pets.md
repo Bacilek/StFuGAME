@@ -281,3 +281,12 @@ lowest level) as a sacrifice.
   = 40/25. So one pet's power ~ level^3 and a single high-level pet dominates; a sum of levels underrates a concentrated team. When
   `pvp.log` shows losses at ratios above 1.2, switch the model to HP-pool x damage (level^2 / level terms) instead of the level sum.
 - `fightheader.fighters` per fighter: idx 7 = level, idx 8/9 = max/current HP, idx 10.. damage and attributes, idx 15 = image id.
+
+## Capture: the Pets unlock message (user 2026-10-24, a level 78 character = TestChar1, player id 26448)
+`&unlockfeature:&petsHatchIndex:81&ownpets.petsSave:26448/0/0/0/1/...&ownplayersavecharacter:...&newachievement:37/&achievement(284):...&ownplayersavepotions:...&itemlevelshop:81&deeds:...`
+- The first response that carries `ownpets.petsSave` for the character: 5 pets of level 1 (one per habitat, total collected at idx 103 = 5), pet rank 0
+  (idx 233..), `petsHatchIndex:81`, plus `newachievement:37` (the pets achievement). `unlockfeature:` itself is EMPTY.
+- Not known which action produced it (the user opened the Pets tab in the client). Before that the bot's login/Update responses of this character had
+  no `ownpets` key at all (Sanek/Novotne probe: "ownpets key present: false"), so the pets state seems to appear only after the client unlocks it.
+  Unproven: whether the bot would ever get it without that client step, and which command triggers it (candidates: an `UnlockFeature` ident, a
+  pets request). Next: after this the bot's own responses should carry `ownpets` -> look for `[pets]` / `pets_raw.txt` of TestChar1.
