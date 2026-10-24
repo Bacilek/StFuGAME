@@ -304,8 +304,77 @@ async fn lookup_totals(session: &mut SimpleSession, name: &str) -> Option<(u32, 
     Some((field(7)? + extra, field(6)? + extra))
 }
 
+/// A guild the user wants this character in NOW (user 2026-10-24: the three lowest-level characters join Smietanka shakes): the name
+/// in `roster/<character>/guild_pin.txt`. Ignores the switch margin, the loop guard and the spare slot; the file is removed once we are in.
+fn pinned() -> Option<String> {
+    std::fs::read_to_string(char_file("guild_pin.txt")).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+static PIN_CHECK: crate::ctx::PerChar<Option<DateTime<Local>>> = crate::ctx::PerChar::new();
+
+async fn join_pinned(session: &mut SimpleSession, pin: &str) -> Outcome {
+    let (in_guild, player_id) = {
+        let Some(gs) = session.game_state() else { return Outcome::Done };
+        if gs.guild.as_ref().is_some_and(|g| g.name == pin) {
+            glog(format!("[guild] Already in the pinned guild {pin}"));
+            let _ = std::fs::remove_file(char_file("guild_pin.txt"));
+            return Outcome::Done;
+        }
+        if gs.guild.is_some() && guild_fight_task_open(gs) {
+            return Outcome::Done;
+        }
+        (gs.guild.is_some(), gs.character.player_id)
+    };
+    {
+        let Ok(mut last) = PIN_CHECK.lock() else { return Outcome::Done };
+        if last.is_some_and(|t| Local::now() - t < NO_GUILD_RETRY) {
+            return Outcome::Done;
+        }
+        *last = Some(Local::now());
+    }
+    let offers = match load_offers(session).await {
+        Ok(o) => o,
+        Err(e) => return fail(&e),
+    };
+    let Some(offer) = offers.iter().find(|o| o.name == pin).cloned() else {
+        report!("[guild] Pinned guild {pin} is not in the quick-join list (full?), trying again later");
+        return Outcome::Done;
+    };
+    if offer.members + claimed_slots(pin) >= MAX_MEMBERS {
+        report!("[guild] Pinned guild {pin} has no free slot ({} members), trying again later", offer.members);
+        return Outcome::Done;
+    }
+    claim_slot(pin);
+    if in_guild {
+        glog(format!("[guild] Leaving for the pinned guild {pin} ({} members)", offer.members));
+        let _ = std::fs::remove_file(char_file("guild_last.txt"));
+        if let Err(e) = safe::send(session, custom("GroupRemoveMember", &[&player_id.to_string()])).await {
+            return fail(&e);
+        }
+    }
+    glog(format!("[guild] Joining {}", describe(&offer)));
+    match safe::send(session, custom("GroupJoin", &[&offer.raw_name, "int"])).await {
+        Ok(gs) if gs.guild.as_ref().is_some_and(|g| g.name == pin) => {
+            glog(format!("[guild] Joined {pin}"));
+            let _ = std::fs::write(char_file("guild_last.txt"), pin);
+            let _ = std::fs::write(char_file("guild_switched.txt"), Local::now().to_rfc3339());
+            let _ = std::fs::remove_file(char_file("guild_pin.txt"));
+        }
+        Ok(_) => glog(format!("[guild] Joining {pin} did not work (full?), the next round tries again")),
+        Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
+        Err(e) => {
+            glog(format!("[guild] Joining {pin} failed: {e}; pin dropped, the normal rules take over"));
+            let _ = std::fs::remove_file(char_file("guild_pin.txt"));
+        }
+    }
+    Outcome::Done
+}
+
 /// Every `CHECK_EVERY`: join the best guild, or switch to a clearly better one.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
+    if let Some(pin) = pinned() {
+        return join_pinned(session, &pin).await;
+    }
     let now = Local::now();
     {
         let Some(gs) = session.game_state() else { return Outcome::Done };

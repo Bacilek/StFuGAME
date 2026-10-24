@@ -252,6 +252,16 @@ async fn feed(session: &mut SimpleSession) -> Outcome {
     if std::path::Path::new(&feeding_off_path()).exists() {
         return Outcome::Done;
     }
+    // Right after the Pets unlock the fruit stacks (`resources` 12..16) may not be in the state yet: refresh once, and say what we see.
+    if session.game_state().is_none_or(|gs| (0..5).all(|h| fruits(gs, h) == 0)) {
+        if let Err(e) = safe::send(session, Command::Update).await {
+            if crate::tavern::is_session_error(&e) {
+                return Outcome::SessionLost;
+            }
+        }
+        let stacks: Vec<u16> = (0..5).map(|h| session.game_state().map_or(0, |gs| fruits(gs, h))).collect();
+        report!("[pets] Fruit stacks (Shadow, Light, Earth, Fire, Water): {stacks:?}");
+    }
     for h in 0..5 {
         loop {
             let Some(nums) = session.pets_save() else { return Outcome::Done };
