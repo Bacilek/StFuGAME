@@ -204,6 +204,9 @@ fn remember_refused(id: u32) {
     }
 }
 
+/// Chain pets we already said "not feeding" about today (one line per pet and day).
+static SKIP_SAID: crate::ctx::PerChar<(Option<NaiveDate>, Vec<u32>)> = crate::ctx::PerChar::new();
+
 enum Fed {
     Ok,
     Refused,
@@ -268,6 +271,25 @@ async fn feed(session: &mut SimpleSession) -> Outcome {
             let Some((id, target)) = main_pet(nums, h) else { break };
             let cap = session.game_state().and_then(|gs| gs.pets.as_ref()).map_or(0, |p| p.max_pet_level).max(100);
             let lvl = level(nums, id);
+            if lvl < target.min(cap) {
+                let stack = session.game_state().map_or(0, |gs| fruits(gs, h));
+                let today = Local::now().date_naive();
+                let said = SKIP_SAID.lock().is_ok_and(|s| s.0 == Some(today) && s.1.contains(&id));
+                if (stack == 0 || refused_today(id)) && !said {
+                    report!(
+                        "[pets] Not feeding {} pet #{} (id {id}, level {lvl}/{target}): {stack} fruits in stock, refused today: {}",
+                        HABITATS[h],
+                        id as usize - h * 20,
+                        refused_today(id)
+                    );
+                    if let Ok(mut s) = SKIP_SAID.lock() {
+                        if s.0 != Some(today) {
+                            *s = (Some(today), Vec::new());
+                        }
+                        s.1.push(id);
+                    }
+                }
+            }
             if lvl >= target.min(cap) || refused_today(id) || session.game_state().is_none_or(|gs| fruits(gs, h) == 0) {
                 break;
             }
