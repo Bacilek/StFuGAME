@@ -290,3 +290,7 @@ lowest level) as a sacrifice.
   no `ownpets` key at all (Sanek/Novotne probe: "ownpets key present: false"), so the pets state seems to appear only after the client unlocks it.
   Unproven: whether the bot would ever get it without that client step, and which command triggers it (candidates: an `UnlockFeature` ident, a
   pets request). Next: after this the bot's own responses should carry `ownpets` -> look for `[pets]` / `pets_raw.txt` of TestChar1.
+- User 2026-10-24: the unlock message arrived as a "news" popup right after LOGGING IN with the client (no Pets tab opened). So the server most
+  likely unlocks Pets on a login once the conditions hold (level 75 + a finished expedition) and the bot's long-lived sessions simply have not
+  logged in again since. Check: after the next bot restart/relogin the login probe `[pets] login response has ownpets.petsSave` should appear for
+  TestChar1 (level 78), Novotne (76), later Mimimimi11/Sanek (75, once an expedition finished). Nothing to implement unless that fails.
