@@ -294,3 +294,12 @@ lowest level) as a sacrifice.
   likely unlocks Pets on a login once the conditions hold (level 75 + a finished expedition) and the bot's long-lived sessions simply have not
   logged in again since. Check: after the next bot restart/relogin the login probe `[pets] login response has ownpets.petsSave` should appear for
   TestChar1 (level 78), Novotne (76), later Mimimimi11/Sanek (75, once an expedition finished). Nothing to implement unless that fails.
+
+## Pets unlock decoded (user 2026-10-24, Novotne + TestChar1) - IMPLEMENTED, NOT in a release yet
+- Novotne's client login (`SFAccountCharLogin`) carries `&unlockfeature:20/1/` and NO `ownpets`. The client then sends `UnlockFeature 20/1` (the
+  "news" popup) and the answer is `&unlockfeature:&petsHatchIndex:81&ownpets.petsSave:27902/...` with 5 level-1 pets + `newachievement:37`.
+  So **pending unlock ident 20 / sub 1 = Pets**. The login order of the client: PlayerHelpshiftAuthToken, PlayerPollScrapbook, PlayerGetHallOfFame, Poll.
+- The bot ignored ident 20 (only 30/5/9 were accepted), so no character ever got pets. Fix: `pets::unlock_pets` (first thing in `pets::run`) sends the
+  free `UnlockFeature 20/1`; whitelisted in `safe.rs` (exactly main 20, sub 1). Look for `[pets] Unlocking Pets` and `Pets unlock sent, petsSave now present: true`.
+- Candidates: TestChar1 may already be unlocked by the user's client (captured), Novotne too (second capture); Mimimimi11/Sanek (75) as soon as the
+  unlock is pending (after the first expedition at 75+).

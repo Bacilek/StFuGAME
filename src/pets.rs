@@ -119,6 +119,28 @@ pub fn secs_until_window(gs: &GameState) -> Option<u64> {
     Some(u64::try_from((at - Local::now()).num_seconds()).unwrap_or(0))
 }
 
+/// Pets themselves wait as a pending unlock `20/1` (user capture 2026-10-24: Novotne's login carries `unlockfeature:20/1/`, the game client
+/// answers the "news" popup with `UnlockFeature`, then `ownpets.petsSave` arrives). Free, so the bot sends it itself.
+async fn unlock_pets(session: &mut SimpleSession) -> Outcome {
+    let todo: Vec<_> = session
+        .game_state()
+        .map(|gs| gs.pending_unlocks.iter().filter(|u| u.main_ident == 20 && u.sub_ident == 1).copied().collect())
+        .unwrap_or_default();
+    for u in todo {
+        report!("[pets] Unlocking Pets (pending unlock 20/1)");
+        match safe::send(session, Command::UnlockFeature { unlockable: u }).await {
+            Ok(_) => report!("[pets] Pets unlock sent, petsSave now present: {}", session.pets_save().is_some()),
+            Err(e) => {
+                report!("[pets] Pets unlock failed: {e}");
+                if crate::tavern::is_session_error(&e) {
+                    return Outcome::SessionLost;
+                }
+            }
+        }
+    }
+    Outcome::Done
+}
+
 /// A new pet waits to be taken (`unlockfeature` 21/<pet id> after an egg was picked; the game client sends it when the habitat is
 /// opened, user 2026-10-23). Free, so the bot sends it itself. UNVERIFIED that this is what makes the pet ours: the result is logged.
 async fn unlock_new(session: &mut SimpleSession) -> Outcome {
@@ -455,6 +477,9 @@ fn pvp_secs(nums: &[i64]) -> Option<u64> {
 
 /// Feeding first (so the pets are as strong as possible today), then the hourly dungeon fight.
 pub async fn run(session: &mut SimpleSession) -> Outcome {
+    if let Outcome::SessionLost = unlock_pets(session).await {
+        return Outcome::SessionLost;
+    }
     if session.pets_save().is_none() {
         return Outcome::Done;
     }
