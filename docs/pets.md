@@ -269,3 +269,15 @@ lowest level) as a sacrifice.
   were 1 in the capture = the fights of that day, matches the user's story), 238.. next dungeon enemy levels.
 - Not done: the earlier idea "with no fruit left wait for the expeditions (a fruit may arrive)" is dropped (user 2026-10-24: simply after the
   feeding); habitat dungeon fights stay event-only (user: "no, we get far more fruit in the event").
+
+## Capture: PvP loss, Water vs Water (user 2026-10-24, second loss capture)
+- Both sides Water (image ids -880..-883 on both sides), so no type bonus; rank 2579 -> 2826 (worse), honor -70. Result 2:4.
+- The fight is a sequence of 1-vs-1 duels, pet by pet in position order; the survivor keeps its remaining HP into the next duel
+  (opponent pet 1 with 270 HP beat our first two and was then beaten by our third, and so on).
+- The opponent had 3 pets (levels 1, 1, 40: HP 100 / 270 / 126075, damage 615 for the level 40), we had 4 (1, 1, 25, 1: HP 96 / 260 / 48620 / 310,
+  damage 374 for the level 25). Level sums were 28 vs 42 (ratio 0.67), so the current rule (sum of levels) would have sacrificed
+  this habitat anyway.
+- IMPORTANT for calibration: pet strength is far from linear in the level: HP 126075 / 48620 = 2.59 = (40/25)^2, damage 615 / 374 = 1.64
+  = 40/25. So one pet's power ~ level^3 and a single high-level pet dominates; a sum of levels underrates a concentrated team. When
+  `pvp.log` shows losses at ratios above 1.2, switch the model to HP-pool x damage (level^2 / level terms) instead of the level sum.
+- `fightheader.fighters` per fighter: idx 7 = level, idx 8/9 = max/current HP, idx 10.. damage and attributes, idx 15 = image id.
