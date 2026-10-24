@@ -216,7 +216,8 @@ enum Fed {
 
 /// One fruit to one pet, verified: the level goes up by 1 and exactly the habitat's own fruit stack goes down by 1.
 async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
-    let offsets: Vec<u32> = confirmed_offset().map_or_else(|| vec![1, 0], |o| vec![o]);
+    // Verified on TestChar1 (2026-10-24): fruit_idx = habitat index (offset 0), so that is tried first; offset 1 stays as the fallback.
+    let offsets: Vec<u32> = confirmed_offset().map_or_else(|| vec![0, 1], |o| vec![o]);
     for off in offsets {
         let before_level = session.pets_save().map_or(0, |n| level(n, id));
         let before: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
@@ -237,6 +238,11 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
         }
         if after_level == before_level && used.is_empty() {
             // nothing happened: the daily limit, or this offset is not the game's – the next offset gets the same chance
+            report!(
+                "[pets] Feed of pet {id} with idx {} changed nothing (level {before_level}, fruit stacks {before:?}, fed today {})",
+                h as u32 + off,
+                session.pets_save().map_or(0, |n| n.get(id as usize + 109).copied().unwrap_or(0))
+            );
             continue;
         }
         report!(

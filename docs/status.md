@@ -1,5 +1,6 @@
 # Project status (handover document)
 
+**2026-10-25 (feeding):** `feed_one` tries `fruit_idx` = habitat index (offset 0, verified on TestChar1) first, offset 1 only as fallback, and logs `[pets] Feed of pet ... changed nothing (...)` instead of failing silently. Novotné (Light #3, Fire #2) had NO `Fed` line and no `pets_feed_idx.txt` yet: check after the next release. Sanek got Pets unlocked by hand (user).
 **2026-10-25:** pets: `[pets] Not feeding <habitat> pet ...` logs (once per pet and day) why a chain pet below target is not fed (0 fruits / refused today); the pinned guild was not in the quick-join list for Mrožik/Pagan/Chlamydie (full or unlisted, still retrying).
 **2026-10-24 late:** guild pin (Mrožik, Pagan, Chlamydie -> Smietanka shakes, `docs/guild.md`); `pets::feed` refreshes the state and logs the fruit stacks when all are 0 (Novotné had chain pets Light #3 / Fire #2 but no `Fed` line: verify in the next pass). NOT in a release yet.
 - **Pets unlock found (2026-10-24, user captures, NOT in a release yet):** the pets wait as pending unlock `20/1` at login (`unlockfeature:20/1/`); the bot never sent it (only 30/5/9 were accepted). `pets::unlock_pets` + `safe.rs` whitelist `UnlockFeature 20/1`. After the next release restart watch `[pets] Unlocking Pets` / `Pets unlock sent`. Details `docs/pets.md` "Pets unlock decoded".
