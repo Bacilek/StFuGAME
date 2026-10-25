@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 **Release built 23:38 2026-10-25 (Pets tab, Charts Pets, chain egg first, guard while waiting for a pet window; the user starts the bot).** **2026-10-26:** app "Pets" tab (chain per habitat per character, `docs/controls.md`), NOT in a release yet, never seen live. Mimi FeedPets quest open: probable cause 0 fruits for her chain habitat (Light #3); user decided 2026-10-26: NEVER feed pets outside the chain, the quest stays open.
+**2026-10-26:** pets audit: dungeon fighter = strongest owned pet (not the main pet), see `docs/pets.md` "Audit"; NOT in a release yet.
 **2026-10-25 late:** fixed pets feeding bug (a refused feed dropped the game state, later habitats read 0 fruits; `docs/pets.md`), NOT in a release yet (the running bot still has it).
 **2026-10-26 (user):** chain egg first in rewards, City Guard shift while waiting for a pet window, Charts tab "Pets" (PvP wins). Details `docs/pets.md` "Changes 2026-10-26". NOT in a release yet.
 **2026-10-25 (Arena Manager unlocked, lvl 105):** the idle game ("dollars", 10 buildings, prestige = runes) is unlocked, no unlock message seen. User captured Seat 1 -> 2 (6 dollars); decoded in `docs/idle.md`. NOT implemented, waiting for the user's strategy (what to buy, when to sacrifice, mushroom check of the merchant). CORRECTION: the merchant purchase was a Seat-only 2x upgrade, not a global boost; the 25-mushroom exception is revoked, nothing is bought at the idle merchant.

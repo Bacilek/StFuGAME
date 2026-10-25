@@ -184,11 +184,10 @@ async fn unlock_new(session: &mut SimpleSession) -> Outcome {
     Outcome::Done
 }
 
-/// The strongest pet of a habitat for a dungeon fight: the main pet, else the highest level we own.
+/// The strongest pet of a habitat for a dungeon fight: the highest level we own. NOT the main pet: a freshly caught chain pet becomes
+/// the main pet (gets the fruits) at level 1 while the previous one may stand at 45 (user 2026-10-26).
 fn fighter(nums: &[i64], h: usize) -> Option<(u32, u16)> {
-    main_pet(nums, h).map(|(id, _)| (id, level(nums, id))).or_else(|| {
-        (1..=20).map(|p| h as u32 * 20 + p).map(|id| (id, level(nums, id))).filter(|(_, l)| *l > 0).max_by_key(|(id, l)| (*l, *id))
-    })
+    (1..=20).map(|p| h as u32 * 20 + p).map(|id| (id, level(nums, id))).filter(|(_, l)| *l > 0).max_by_key(|(id, l)| (*l, *id))
 }
 
 fn fruits(gs: &GameState, h: usize) -> u16 {
@@ -656,5 +655,11 @@ mod tests {
         assert_eq!(explored(&n, 4) + 1, 5);
         assert_eq!(enemy_level(&n, 1), 10);
         assert_eq!(fighter(&n, 4), Some((83, 16)));
+        // a new chain pet (Petdacat, id 9) at level 1 is the main pet, but the level-45 Toothey (id 3) still fights
+        let mut m = vec![0; 265];
+        m[4] = 45;
+        m[10] = 1;
+        assert_eq!(main_pet(&m, 0), Some((9, 70)));
+        assert_eq!(fighter(&m, 0), Some((3, 45)));
     }
 }

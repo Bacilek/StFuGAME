@@ -317,3 +317,8 @@ Egg rank: any chain pet egg = 0 (before mushrooms). Pet-window wait now starts a
 
 ## Bug 2026-10-25: a refused feed made the later habitats read "0 fruits" (TestChar1)
 `SimpleSession::send_raw` drops the whole game state on ANY server error. TestChar1's Toothey (Shadow, first in the loop) hit the daily limit (`pet is not hungry`), so `game_state()` was None for the rest of that `feed()` pass: Tinck, Smaponyck and Gullps were logged as "0 fruits in stock" and skipped although the user saw 20/20/23/26 fruits. Fix (NOT in a release yet): `feed_one` reloads the state with `Command::Update` after a refused feed. The "Not feeding" line is only printed once per pet and day, so a wrong skip stays silent afterwards; the same pass fed them on the next loop only after the relogin. Other callers of `safe::send` that continue after an `Err` have the same trap (state is None until the next command).
+
+## Audit 2026-10-26 (user: "make sure the pets run without manual work")
+- Fixed: dungeon fights used the MAIN pet (highest owned chain pet), so a freshly caught Petdacat (lvl 1, becomes main) fought instead of the lvl-45 Toothey. `pets::fighter` is now the highest-level owned pet of the habitat (test added). Feeding still goes to the main pet only.
+- Habitat choice for the (event-only) dungeon fights is still "best own level / next enemy level ratio among unfinished habitats"; it ignores which habitat unlocks the next chain pet (`explored >= pos - 1`). Open question to the user whether progress (unlock the next chain pet) should outrank win chance.
+- Pet PvP habitat choice unchanged (weakest habitat that still overshoots 1.2x, else sacrifice the weakest).
