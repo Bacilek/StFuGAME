@@ -235,3 +235,7 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - 2026-10-25 (toilet details, user): outside the event 1 sacrifice a day (preferably a gem), during Tidy Toilet Time 2 a day (preferably epics); a full backpack = throw an epic that day or the next; flush whenever mana >= the flush cost (it varies with the cap); items from flushes are sold / dismantled (when splinters) or best given to the witch if she takes that type today. Wash has no price and no limit (not worth using now).
 - 2026-10-25 (guild pin): only the two weakest characters (Mrožik 65, Pagan 67) are pinned to Smietanka shakes (2 free slots); PajaRizz is already in.
+
+## Arena Manager / idle game (user 2026-10-25)
+- Mushroom exception: exactly one merchant "speed boost" (25 mushrooms, permanent 2x speed). Never time skips or other merchant goods. Details `docs/idle.md`.
+- Buy the best dollars-per-cost building upgrade; sacrifice timing comes from the user (online optimum).

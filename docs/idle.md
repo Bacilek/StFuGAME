@@ -41,3 +41,19 @@ Cost of the first upgrade was 6.
   progress)? What do runes buy? What does the merchant (new goods at index 63) sell, and does anything cost mushrooms?
 - Does collecting the dollars need a command, or are they credited by time only (idx 72 grows by itself)?
 - Which commands cost mushrooms (merchant? speed-ups?) - none may be whitelisted until verified.
+
+## User decisions 2026-10-25
+
+- Buy the best dollars-per-cost upgrade (confirmed). Prestige timing: the user looks up the optimum online and tells us (NOT decided).
+- Dollars are collected by time, automatically (no collect command).
+- Merchant sells everything for MUSHROOMS; buyable once a day, then it closes. **Mushroom exception (one time):** exactly ONE
+  "speed boost" (25 mushrooms, 2x speed forever on all buildings, survives sacrifice). NEVER time skips or anything else.
+- Runes: higher count should improve gear somehow (user does not know yet).
+
+## Capture: merchant purchase (command text `IdleMercantbuy:...`, arguments NOT given)
+
+After it, `idle.idlesave` showed Seat level 3 (earning 3, cost of next 8, money 10) and golden flag idx 53 = 1 (Seat only, the
+other buildings are level 0), cycle still 72 s (1792952342 - 1792952270, may be the pre-purchase cycle). `resources` was
+`23994/54/20796799/...` (idx 1 = 54; probably mushrooms after paying 25, unverified). So the boost may be a per-building
+"golden" flag, not a global one: unclear. sf-api 0.4.4 has no merchant command, so it needs `Command::Custom` and a
+`safe.rs` whitelist entry that allows exactly this one purchase with the price 25 (not done).
