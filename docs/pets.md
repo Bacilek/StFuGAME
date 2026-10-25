@@ -322,3 +322,7 @@ Egg rank: any chain pet egg = 0 (before mushrooms). Pet-window wait now starts a
 - Fixed: dungeon fights used the MAIN pet (highest owned chain pet), so a freshly caught Petdacat (lvl 1, becomes main) fought instead of the lvl-45 Toothey. `pets::fighter` is now the highest-level owned pet of the habitat (test added). Feeding still goes to the main pet only.
 - Habitat choice for the (event-only) dungeon fights is still "best own level / next enemy level ratio among unfinished habitats"; it ignores which habitat unlocks the next chain pet (`explored >= pos - 1`). Open question to the user whether progress (unlock the next chain pet) should outrank win chance.
 - Pet PvP habitat choice unchanged (weakest habitat that still overshoots 1.2x, else sacrifice the weakest).
+
+## Changes 2026-10-26 (later, user)
+- Habitat dungeon pick: the own-level / next-enemy-level ratio stays the criterion (no priority for unlocking chain pets), but all habitats within 75 % of the best ratio are candidates and the one fought longest ago goes next (`pets::dungeon_pick`, `LAST_DUNGEON`, in memory per run), so the bot never sticks to one fight.
+- Charts "Pets": a character's line starts on the day of its first pet PvP fight (first line of `logs/pvp.log`), earlier days are empty.

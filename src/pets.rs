@@ -344,6 +344,27 @@ fn fights_allowed(gs: &GameState) -> bool {
     crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::AssemblyOfAwesomeAnimals)
 }
 
+/// When each habitat last had a dungeon fight (this run), so the fights rotate between the habitats worth fighting.
+static LAST_DUNGEON: crate::ctx::PerChar<[Option<chrono::DateTime<Local>>; 5]> = crate::ctx::PerChar::new();
+
+/// Habitats whose own-level / next-enemy-level ratio is within this share of the best one are "candidates"; the one fought longest ago wins
+/// (user 2026-10-26: the ratio decides, but never get stuck on one fight - rotate between several candidates).
+const DUNGEON_CANDIDATE_SHARE: f64 = 0.75;
+
+/// (habitat, pet id, pet level, next enemy level, ratio) for the next habitat dungeon fight.
+fn dungeon_pick(nums: &[i64], last: &[Option<chrono::DateTime<Local>>; 5]) -> Option<(usize, u32, u16, u16, f64)> {
+    let all: Vec<_> = (0..5)
+        .filter(|h| explored(nums, *h) < 20)
+        .filter_map(|h| {
+            let (id, lvl) = fighter(nums, h)?;
+            let enemy = enemy_level(nums, h).max(1);
+            Some((h, id, lvl, enemy, f64::from(lvl) / f64::from(enemy)))
+        })
+        .collect();
+    let best = all.iter().map(|c| c.4).max_by(f64::total_cmp)?;
+    all.into_iter().filter(|c| c.4 >= best * DUNGEON_CANDIDATE_SHARE).min_by(|a, b| last[a.0].cmp(&last[b.0]).then(b.4.total_cmp(&a.4)))
+}
+
 /// One habitat dungeon fight when it is free: the habitat where our best pet has the biggest lead over the next enemy. A coin flip is
 /// fine (user 2026-10-23: another try in an hour); a loss also starts the cooldown.
 async fn fight(session: &mut SimpleSession) -> Outcome {
@@ -351,15 +372,11 @@ async fn fight(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let Some(nums) = session.pets_save() else { return Outcome::Done };
-    let best = (0..5)
-        .filter(|h| explored(nums, *h) < 20)
-        .filter_map(|h| {
-            let (id, lvl) = fighter(nums, h)?;
-            let enemy = enemy_level(nums, h).max(1);
-            Some((h, id, lvl, enemy, f64::from(lvl) / f64::from(enemy)))
-        })
-        .max_by(|a, b| a.4.total_cmp(&b.4));
-    let Some((h, id, lvl, enemy, _)) = best else { return Outcome::Done };
+    let last = LAST_DUNGEON.lock().map(|l| *l).unwrap_or_default();
+    let Some((h, id, lvl, enemy, _)) = dungeon_pick(nums, &last) else { return Outcome::Done };
+    if let Ok(mut l) = LAST_DUNGEON.lock() {
+        l[h] = Some(Local::now());
+    }
     let pos = explored(nums, h) + 1;
     report!("[pets] Habitat dungeon: {} #{pos} (lvl {enemy}) with pet id {id} (lvl {lvl})", HABITATS[h]);
     let cmd = Command::FightPetDungeon { use_mush: false, habitat: HABITAT_TYPES[h], enemy_pos: pos, player_pet_id: id };
@@ -661,5 +678,25 @@ mod tests {
         m[10] = 1;
         assert_eq!(main_pet(&m, 0), Some((9, 70)));
         assert_eq!(fighter(&m, 0), Some((3, 45)));
+    }
+
+    #[test]
+    fn dungeon_fights_rotate_between_candidates() {
+        // Shadow (id 3, lvl 20 vs enemy 20 = 1.0), Light (id 23, lvl 18 vs 20 = 0.9), Water (id 83, lvl 5 vs 20 = 0.25: not a candidate)
+        let mut n = vec![0; 265];
+        n[4] = 20;
+        n[24] = 18;
+        n[84] = 5;
+        for h in 0..5 {
+            n[238 + h] = 20;
+        }
+        let now = Local::now();
+        let mut last = [None; 5];
+        assert_eq!(dungeon_pick(&n, &last).map(|c| c.0), Some(0)); // nothing fought yet: the best ratio
+        last[0] = Some(now);
+        assert_eq!(dungeon_pick(&n, &last).map(|c| c.0), Some(1)); // Shadow just fought: Light is next
+        last[1] = Some(now + chrono::Duration::hours(1));
+        assert_eq!(dungeon_pick(&n, &last).map(|c| c.0), Some(0)); // back to the one fought longest ago
+        assert_eq!(dungeon_pick(&n, &[Some(now); 5]).map(|c| c.0), Some(0)); // all equal: the best ratio
     }
 }
