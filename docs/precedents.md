@@ -237,5 +237,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-25 (guild pin): only the two weakest characters (Mrožik 65, Pagan 67) are pinned to Smietanka shakes (2 free slots); PajaRizz is already in.
 
 ## Arena Manager / idle game (user 2026-10-25)
-- Mushroom exception: exactly one merchant "speed boost" (25 mushrooms, permanent 2x speed). Never time skips or other merchant goods. Details `docs/idle.md`.
+- REVOKED 2026-10-25: the merchant "speed boost" turned out to be a Seat-only golden upgrade; buy NOTHING at the idle merchant until the user says so. Details `docs/idle.md`.
 - Buy the best dollars-per-cost building upgrade; sacrifice timing comes from the user (online optimum).

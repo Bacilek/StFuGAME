@@ -57,3 +57,9 @@ other buildings are level 0), cycle still 72 s (1792952342 - 1792952270, may be 
 `23994/54/20796799/...` (idx 1 = 54; probably mushrooms after paying 25, unverified). So the boost may be a per-building
 "golden" flag, not a global one: unclear. sf-api 0.4.4 has no merchant command, so it needs `Command::Custom` and a
 `safe.rs` whitelist entry that allows exactly this one purchase with the price 25 (not done).
+
+## CORRECTION 2026-10-25 (user): the merchant purchase was a 2x speed upgrade for the Seat ONLY
+
+The captured `IdleMercantbuy` bought a per-building "golden" upgrade (flag idx 53 = Seat), NOT a global boost. **Do NOT buy it
+(or any merchant good) until the user says so again.** The one-time 25-mushroom exception below is REVOKED; the user spent
+the mushrooms by hand. A global speed boost may exist under another offer: ask before ever whitelisting anything.
