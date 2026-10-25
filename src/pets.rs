@@ -88,6 +88,25 @@ fn main_pet(nums: &[i64], h: usize) -> Option<(u32, u16)> {
     CHAINS[h].iter().rev().map(|(pos, target)| (h as u32 * 20 + pos, *target)).find(|(id, _)| level(nums, *id) > 0)
 }
 
+/// The app's Pets tab: per habitat the chain (`CHAINS`) with our current level of each pet (0 = not owned) and the main pet's target.
+pub fn overview(nums: &[i64]) -> serde_json::Value {
+    let main = |h: usize| main_pet(nums, h).map(|(id, _)| id);
+    serde_json::Value::Array(
+        (0..5)
+            .map(|h| {
+                let chain: Vec<serde_json::Value> = CHAINS[h]
+                    .iter()
+                    .map(|(pos, target)| {
+                        let id = h as u32 * 20 + pos;
+                        serde_json::json!({ "name": crate::petcatch::name(id), "pos": pos, "level": level(nums, id), "target": target, "main": main(h) == Some(id) })
+                    })
+                    .collect();
+                serde_json::json!({ "habitat": HABITATS[h], "chain": chain })
+            })
+            .collect(),
+    )
+}
+
 /// Is pet `id` (1..=100) one of the pets of the user's chains (`CHAINS`)?
 pub(crate) fn in_chain(id: u32) -> bool {
     let (h, pos) = ((id as usize - 1) / 20, (id - 1) % 20 + 1);

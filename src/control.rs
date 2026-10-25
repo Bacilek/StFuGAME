@@ -172,11 +172,16 @@ pub fn status_json() -> serde_json::Value {
                     .ok()
                     .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
                     .unwrap_or(serde_json::Value::Null);
+                let pets = std::fs::read_to_string(format!("roster/{name}/pets_raw.txt"))
+                    .ok()
+                    .map(|t| t.trim().split('/').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>())
+                    .filter(|n| n.len() > 250)
+                    .map_or(serde_json::Value::Null, |n| crate::pets::overview(&n));
                 let quests = std::fs::read_to_string(format!("roster/{name}/quests.json"))
                     .ok()
                     .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
                     .unwrap_or(serde_json::Value::Null);
-                serde_json::json!({ "name": name, "state": state.as_str(), "now": now, "quests": quests, "fortress": fortress })
+                serde_json::json!({ "name": name, "state": state.as_str(), "now": now, "quests": quests, "fortress": fortress, "pets": pets })
             })
             .collect(),
     )

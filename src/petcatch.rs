@@ -256,6 +256,11 @@ pub struct Target {
     pub loc: Location,
 }
 
+/// Name of pet `id` (1..=100).
+pub fn name(id: u32) -> &'static str {
+    PETS[id as usize - 1].name
+}
+
 fn describe(id: u32) -> String {
     let e = &PETS[id as usize - 1];
     format!("{} (#{} {}, id {id})", e.name, (id - 1) % 20 + 1, HABITATS[(id as usize - 1) / 20])

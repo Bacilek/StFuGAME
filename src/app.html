@@ -80,6 +80,17 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
 .trbot{margin:6px 0;padding:8px 10px;border-radius:8px;font-size:13px;border:1px solid var(--line)} .trbot:empty{display:none}
 .trbot.same{border-color:var(--good)} .trbot.diff{border-color:var(--bad)} .trbot.same b{color:var(--good)} .trbot.diff b{color:var(--bad)}
 #fort{display:none}
+#pets{display:none}
+.ptile{cursor:default}
+.ptile summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ptile summary::-webkit-details-marker{display:none}
+.ptile summary b{font-size:15px}
+.ptile summary span{color:var(--muted);font-size:11px}
+.ptile .phab{margin-top:8px;font-size:13px;color:var(--ink2)}
+.ptile .phab b{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.ptile .pm{color:var(--ink);font-weight:700}
+.ptile .p0{color:var(--muted)}
+.ptile small{color:var(--muted)}
 .ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .ftile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px 18px;overflow:hidden}
 .ftile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
@@ -173,6 +184,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
     <button id="tabCharts" aria-pressed="false">Charts</button>
     <button id="tabQuests" aria-pressed="false">Quests</button>
     <button id="tabFort" aria-pressed="false">Fortress</button>
+    <button id="tabPets" aria-pressed="false">Pets</button>
     <button id="tabTrainer" aria-pressed="false">Inventory trainer</button>
   </div>
   <div class="spacer"></div>
@@ -189,6 +201,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
   <div id="fort"><div id="ftiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
+  <div id="pets"><div id="ptiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
   <div id="trainer"></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
@@ -218,6 +231,7 @@ $("tabChars").addEventListener("click", () => setTab("chars"));
 $("tabCharts").addEventListener("click", () => setTab("charts"));
 $("tabQuests").addEventListener("click", () => setTab("quests"));
 $("tabFort").addEventListener("click", () => setTab("fort"));
+$("tabPets").addEventListener("click", () => setTab("pets"));
 $("tabTrainer").addEventListener("click", () => setTab("trainer"));
 let currentTab = "chars";
 function setTab(tab){
@@ -226,14 +240,17 @@ function setTab(tab){
   $("tabCharts").setAttribute("aria-pressed", tab === "charts");
   $("tabQuests").setAttribute("aria-pressed", tab === "quests");
   $("tabFort").setAttribute("aria-pressed", tab === "fort");
+  $("tabPets").setAttribute("aria-pressed", tab === "pets");
   $("tabTrainer").setAttribute("aria-pressed", tab === "trainer");
   $("tiles").style.display = tab === "chars" ? "grid" : "none";
   $("charts").style.display = tab === "charts" ? "block" : "none";
   $("quests").style.display = tab === "quests" ? "block" : "none";
   $("fort").style.display = tab === "fort" ? "block" : "none";
+  $("pets").style.display = tab === "pets" ? "block" : "none";
   $("trainer").style.display = tab === "trainer" ? "block" : "none";
   if (tab === "trainer") TR.open();
   if (tab === "fort") renderFort();
+  if (tab === "pets") renderPets();
   if (tab === "quests") renderQuests();
 }
 function setAll(on){
@@ -912,7 +929,29 @@ function renderFort(){
   if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has fortress data yet (needs level 25 and a running bot)."; box.appendChild(p); return; }
   shown.forEach(c => box.appendChild(fortTile(c)));
 }
-window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
+// ---- Pets tab (user 2026-10-26): one collapsible card per character, per habitat the chain of main pets with their current levels.
+const petsOpen = new Set();
+function petTile(c){
+  const t = document.createElement("details"); t.className = "ftile ptile"; t.open = petsOpen.has(c.name);
+  t.style.setProperty("--c", classColor(c.now && c.now.class));
+  t.addEventListener("toggle", () => { if (t.open) petsOpen.add(c.name); else petsOpen.delete(c.name); });
+  const esc = s => String(s).replace(/[&<>]/g, x => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[x]));
+  const owned = c.pets.reduce((n, h) => n + h.chain.filter(p => p.level > 0).length, 0);
+  let h = `<summary><b>${esc(c.name)}</b><span>${owned} chain pets</span></summary>`;
+  c.pets.forEach(hab => {
+    h += `<div class="phab"><b>${hab.habitat}</b>` + hab.chain.map(p => p.level > 0
+      ? `<span class="${p.main ? "pm" : ""}">${esc(p.name)} (${p.level})</span>${p.main ? ` <small>→ ${p.target}</small>` : ""}`
+      : `<span class="p0">${esc(p.name)} (-)</span>`).join(" -&gt; ") + `</div>`;
+  });
+  t.innerHTML = h; return t;
+}
+function renderPets(){
+  const box = $("ptiles"); box.replaceChildren();
+  const shown = STATUS.filter(c => c.pets);
+  if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has pets data yet (needs Pets unlocked and a running bot)."; box.appendChild(p); return; }
+  shown.forEach(c => box.appendChild(petTile(c)));
+}
+window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
 </script>
 </body>
