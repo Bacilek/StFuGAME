@@ -1,36 +1,36 @@
 # Toilet of the Arcane Gods (captures 2026-10-25, NOT implemented)
 
-Source: user captures on a level 105 character (the toilet opens at level 105 after one expedition; `docs/todo.md` and
-`inventory.md` assumed level 100 - re-check). Nothing in the bot touches it yet; sf-api 0.4.4 has everything:
-`Command::ToiletOpen` (`PlayerToilettOpenWithKey:`), `ToiletDrop { item_pos }` (`PlayerToilettLoad:<item_pos>`),
-`ToiletFlush` (`PlayerToilettFlush:`), state in `gs.tavern.toilet` (`aura`, `mana_currently`, `mana_total`, `sacrifices_left`).
-None of the three is whitelisted in `safe.rs` yet (they cost no mushrooms, verified only for these two captures).
+Source: user captures on a level 105 character during the Tidy Toilet Time event (the toilet opens at level 105 after one
+expedition; older docs said 100 - re-check). Nothing in the bot touches it yet; sf-api 0.4.4 has the commands:
+`ToiletOpen` (`PlayerToilettOpenWithKey:`), `ToiletDrop { item_pos }` (`PlayerToilettLoad:<pos>`), `ToiletFlush`
+(`PlayerToilettFlush:`); the wash (`PlayerToilettWash:`) is NOT in sf-api (would be `Command::Custom`). State: `gs.tavern.toilet`
+(`aura`, `mana_currently`, `mana_total`, `sacrifices_left`). None is whitelisted in `safe.rs` (none costs mushrooms in the captures).
 
-## Captured flow
-1. **Throw** an epic talisman: `PlayerToilettLoad:<pos>` ->
-   `toiletstate:100/0/1` and `arcanetoilet:1/100/1792947693/60`.
-   - `arcanetoilet` = aura level / mana now / timestamp (of the throw, 55 s before the flush) / mana needed to flush.
-     Before the throw it was mana 0 of 60, after it 100 (one epic = 100 mana, more than the 60 needed).
-   - `toiletstate` index 2 = `sacrifices_left` (sf-api): **1 after the first throw**, so it started at 2 per day
-     (matches the Tidy Toilet Time event text "2 items per day"; so 2 throws/day may be the NORMAL limit - check the value
-     on a day without the event). Indexes 0/1 (100, 0) unknown.
-2. **Flush**: `PlayerToilettFlush:` -> `arcanetoilet:2/40/1792947693/60`, `toilettSpawnSlot:2`, a new item in the backpack,
-   `timestamp:1792947748`. Aura 1 -> 2, mana 100 -> 40 (a flush costs the 60). The reward was an epic-looking warrior heavy
-   armor (`3/0/0/8/0/1500/...`, item level ~100, shop level `itemlevelshop:109`) in backpack slot `toilettSpawnSlot`
-   (1-based = the second slot, it filled one of two empty slots; 0-based reading not excluded).
+## Rules (user 2026-10-25)
+- **Throwing:** mana per item: epic 50, gem 30, plain item 25, potion 10 (x2 during Tidy Toilet Time: epic 100). NEVER throw potions or
+  plain items; only epics (especially during the event) or gems (practically an unlimited free supply, see `docs/fortress.md`).
+- **Daily limit:** `toiletstate` index 2 = `sacrifices_left`. During the event it is 2 a day (1 after the first throw, 0 after the
+  second); outside the event probably 1 (UNVERIFIED, the user expects it). So keep >= 2 epics per event day (6 for Fri-Sun).
+- **Flushing:** costs 60 mana (`arcanetoilet` field 3), not limited by the daily counter, only by mana; each flush = +1 aura (max 400)
+  and a random item (the better the higher the aura, to be seen). Spawn slot `toilettSpawnSlot` is 1-based in the backpack.
+- **Purpose:** this is why the epics were kept. It becomes THE way to get rid of epics when the backpack is full: no longer the
+  Blacksmith, selling or the witch for epics (these remain for plain items; `docs/blacksmith.md`, `docs/inventory.md`).
+- **Wash** (`PlayerToilettWash:`): turns an item of our class into another class (useful from level 125 for the Tower). Capture: the
+  item's class field 3 -> 2 and its last field 0 -> 1, `toiletstate:0/1/0` (index 1 = washed flag / washes used). Costs/limits unknown.
 
-## Conclusions / open questions
-- Aura goes up per flush; the reward class/quality probably depends on the aura (`docs/pet-conditions.md`: the pet Ungere is found
-  in the toilet from aura 20, "Arcane Toilet (Aura 20)" in `docs/pets.md`).
-- The mana left over stays (40 now; a second throw adds 100, so the second flush is possible right after the second throw).
-  Whether mana decays / regenerates with time (the timestamp field) is unknown.
-- Only the number of epics counts for feeding it (`docs/inventory.md`: epics are kept for the toilet). Does a non-epic give less
-  mana? Does an equipped item work (`PlayerItemPosition` also takes equipment slots)? Unknown.
-- The throw capture does not show which backpack slot was thrown; log `item_pos` format when implementing.
-- Tidy Toilet Time event (`docs/events.md`): 2x aura per sacrifice - still to be seen live.
+## Captures (all 2026-10-25)
+| step | response |
+|---|---|
+| throw epic talisman | `toiletstate:100/0/1`, `arcanetoilet:1/100/<t>/60` (aura 1, mana 100) |
+| flush 1 | `arcanetoilet:2/40/<t>/60`, `toilettSpawnSlot:2`, new epic-looking armor |
+| throw epic axe (backpack slot 0) | `toiletstate:0/0/0`, `arcanetoilet:2/140/1792948560/60` (+100) |
+| flush 2 | `arcanetoilet:3/80/...`, `toilettSpawnSlot:1`, item level shop 110 |
+| flush 3 | `arcanetoilet:4/20/...`, `toilettSpawnSlot:1`, item level shop 111 |
+| wash | `toiletstate:0/1/0`, one item's class changed |
+`arcanetoilet` = aura / mana / time of the last throw (unchanged by flushes) / mana per flush. `itemlevelshop` rises 1 per flush (109 -> 111).
 
 ## Next (when the user gives the go-ahead)
-Whitelist the three commands (`ToiletDrop` only for an epic we would otherwise sell/dismantle, never a worn or better item),
-`ToiletOpen` needs a `ToiletKey` item (`ItemType::ToiletKey`), then a `toilet::run` step: throw while `sacrifices_left > 0`
-and an epic is spare, flush when `mana_currently >= mana_total`, log `[toilet] aura a -> b, got <item>` and keep the received
-item through the normal inventory comparison.
+Whitelist throw/flush (`ToiletDrop` only for a spare epic or gem, never a worn or better item, never a potion/plain item), a
+`toilet::run` step: throw while `sacrifices_left > 0` and a spare epic/gem exists, flush while `mana >= 60`, log `[toilet] aura a -> b,
+got <item>`, let the new item go through the normal inventory comparison; epics without backpack room go to the toilet instead of
+`last_resort_epic`'s sale/dismantle. `ToiletOpen` needs a `ToiletKey` item (`ItemType::ToiletKey`). Pet Ungere appears at aura 20.
