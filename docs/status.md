@@ -1,5 +1,6 @@
 # Project status (handover document)
 
+**2026-10-25 (toilet):** user captured throwing an epic talisman into the Toilet of the Arcane Gods and a flush (level 105): 100 mana per epic, flush costs 60, aura 1 -> 2, reward = an armor; `sacrifices_left` 2/day. Decoded in `docs/toilet.md`, NOT implemented (waiting for the user's go-ahead).
 **2026-10-25:** expedition reward order: Arcane Splinters now above gold, Metal unchanged (`tavern::choose_reward`). NOT in a release yet.
 **2026-10-25 (feeding):** `feed_one` tries `fruit_idx` = habitat index (offset 0, verified on TestChar1) first, offset 1 only as fallback, and logs `[pets] Feed of pet ... changed nothing (...)` instead of failing silently. Novotné (Light #3, Fire #2) had NO `Fed` line and no `pets_feed_idx.txt` yet: check after the next release. Sanek got Pets unlocked by hand (user).
 **2026-10-25:** pets: `[pets] Not feeding <habitat> pet ...` logs (once per pet and day) why a chain pet below target is not fed (0 fruits / refused today); the pinned guild was not in the quick-join list for Mrožik/Pagan/Chlamydie (full or unlisted, still retrying).
