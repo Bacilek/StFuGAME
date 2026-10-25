@@ -314,3 +314,6 @@ lowest level) as a sacrifice.
 
 ## Changes 2026-10-26 (user)
 Egg rank: any chain pet egg = 0 (before mushrooms). Pet-window wait now starts a City Guard shift ending by the window (`guard.rs`, `main.rs` `pet_wait`), log `[guard] Waiting for a pet window at HH:MM`. Charts tab "Pets" = cumulative PvP wins from `pvp.log` (counts "WON with" lines, so only fights logged since pvp logging began). NOT in a release yet, never seen live.
+
+## Bug 2026-10-25: a refused feed made the later habitats read "0 fruits" (TestChar1)
+`SimpleSession::send_raw` drops the whole game state on ANY server error. TestChar1's Toothey (Shadow, first in the loop) hit the daily limit (`pet is not hungry`), so `game_state()` was None for the rest of that `feed()` pass: Tinck, Smaponyck and Gullps were logged as "0 fruits in stock" and skipped although the user saw 20/20/23/26 fruits. Fix (NOT in a release yet): `feed_one` reloads the state with `Command::Update` after a refused feed. The "Not feeding" line is only printed once per pet and day, so a wrong skip stays silent afterwards; the same pass fed them on the next loop only after the relogin. Other callers of `safe::send` that continue after an `Err` have the same trap (state is None until the next command).

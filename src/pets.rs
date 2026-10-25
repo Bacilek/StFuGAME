@@ -246,6 +246,11 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
             if crate::tavern::is_session_error(&e) {
                 return Fed::Lost;
             }
+            // a refused feed ("pet is not hungry" = the daily limit) makes `SimpleSession` drop the game state: reload it, or the fruit
+            // stacks of the habitats after this one read 0 and their pets are skipped (bug 2026-10-25, TestChar1)
+            if safe::send(session, Command::Update).await.is_err() && session.game_state().is_none() {
+                return Fed::Lost;
+            }
             continue;
         }
         let after_level = session.pets_save().map_or(0, |n| level(n, id));
