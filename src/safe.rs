@@ -75,6 +75,10 @@ fn is_allowed(cmd: &Command) -> bool {
             // The Blacksmith takes a backpack item apart instead of a shop sale (user 2026-10-24, src/smith.rs); free. Socket upgrades,
             // gem extraction and item upgrades (and every `...WithMushrooms` variant) stay forbidden; checked in `send_raw` (`dismantle_ok`)
             | Command::Blacksmith { action: BlacksmithAction::Dismantle, .. }
+            // Toilet of the Arcane Gods (user 2026-10-25, src/toilet.rs): costs no mushrooms in the captures; the sacrifice only for a
+            // backpack epic / gem (`toilet_drop_ok`), the flush only with enough mana and a free slot (`toilet_flush_ok`)
+            | Command::ToiletDrop { .. }
+            | Command::ToiletFlush
             | Command::BuyShop { .. }
             | Command::Equip { .. }
             | Command::CollectDailyQuestReward { .. }
@@ -306,6 +310,18 @@ fn dismantle_ok(gs: &GameState, pos: PlayerItemPosition, ident: ItemCommandIdent
         })
 }
 
+/// The toilet takes only a BACKPACK epic equipment piece or gem (never a potion or a plain item), see `toilet::throwable`.
+fn toilet_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
+    gs.tavern.toilet.is_some()
+        && gs.character.inventory.iter().any(|(bp, item)| PlayerItemPosition::from(bp) == pos && item.is_some_and(crate::toilet::throwable))
+}
+
+/// A flush only when the toilet has the mana for it and the new item has a backpack slot.
+fn toilet_flush_ok(gs: &GameState) -> bool {
+    gs.tavern.toilet.as_ref().is_some_and(|t| t.mana_total > 0 && t.mana_currently >= t.mana_total)
+        && gs.character.inventory.free_slot().is_some()
+}
+
 /// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
 pub const WITCH_MAX_PRICE: u64 = 1_000_000;
 
@@ -385,6 +401,14 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| witch_drop_ok(gs, *item_pos))
     {
         return Err(SFError::InvalidRequest("cauldron: not a plain backpack item of the type the witch wants today"));
+    }
+    if let Command::ToiletDrop { item_pos } = &cmd
+        && !session.game_state().is_some_and(|gs| toilet_drop_ok(gs, *item_pos))
+    {
+        return Err(SFError::InvalidRequest("toilet: only a backpack epic or gem may be sacrificed"));
+    }
+    if matches!(cmd, Command::ToiletFlush) && !session.game_state().is_some_and(toilet_flush_ok) {
+        return Err(SFError::InvalidRequest("toilet: not enough mana or no free backpack slot"));
     }
     if let Command::Blacksmith { item_pos, item_ident, .. } = &cmd
         && !session.game_state().is_some_and(|gs| dismantle_ok(gs, *item_pos, *item_ident))

@@ -34,3 +34,12 @@ Whitelist throw/flush (`ToiletDrop` only for a spare epic or gem, never a worn o
 `toilet::run` step: throw while `sacrifices_left > 0` and a spare epic/gem exists, flush while `mana >= 60`, log `[toilet] aura a -> b,
 got <item>`, let the new item go through the normal inventory comparison; epics without backpack room go to the toilet instead of
 `last_resort_epic`'s sale/dismantle. `ToiletOpen` needs a `ToiletKey` item (`ItemType::ToiletKey`). Pet Ungere appears at aura 20.
+
+## IMPLEMENTED 2026-10-25 (user, NOT in a release yet, never seen live): `src/toilet.rs`
+- Runs in the main loop right after `inventory::manage` (before potions). Needs `gs.tavern.toilet` (`arcanetoilet` level > 0); the Open-with-key step is not automated.
+- **Sacrifices (user):** outside the event 1 a day, preferably a gem (an epic only with a full backpack); during Tidy Toilet Time 2 a day, preferably epics (gem as fallback). `toilet::candidate`; epic = cheapest backpack epic equipment (not unique, not legendary), gem = `inventory::spare_gem`. Potions and plain items are never thrown (`toilet::throwable`, also enforced in `safe.rs::toilet_drop_ok`).
+- **Counting:** the server's `sacrifices_left` is only refreshed by responses that carry `toiletstate`, so the day's own count lives in `roster/<char>/toilet_day.txt` (`date n`, 99 = refused); a day with no throw yet is always tried once. After the throw the item must be gone from its slot, else "refused for today".
+- **Flush** whenever `mana_currently >= mana_total` (the cap/cost can change) and a backpack slot is free (`safe.rs::toilet_flush_ok`); max 20 per pass. The received item goes through the normal inventory pass: equip if better, else witch (her type of the day) / Blacksmith (pays Arcane Splinters) / shop; a received epic stays for the next sacrifice.
+- **Epics wait for the toilet:** with the toilet unlocked `inventory::last_resort_epic` returns nothing (no sale / dismantle / enchant for a slot); a full backpack with the day's sacrifice used simply waits until the next day (Dungeons pause like with the Blacksmith).
+- Logs: `[toilet] Threw a ... in: <state> -> <state>`, `[toilet] Flushed: ... got ...` (also in `inventory.log`). Live checks: that `sacrifices_left` / mana show up in the state at login, the day file, that `last_resort_epic` no longer sells epics.
+- Wash: not implemented (no use, user).

@@ -481,7 +481,9 @@ fn payout(gs: &GameState, item: &Item) -> u64 {
 /// stays free for a bought potion / mined gem / loot, so epics never fill the last slot; `potions::make_room` tries gems, potions
 /// and the kept item first). Sells the most expensive one (for the future toilet only the number of epics counts, not their price).
 pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
-    if gs.character.inventory.free_slot().is_some() {
+    // With the toilet unlocked it takes the epics (user 2026-10-25, `toilet::run`): never sold, dismantled or enchanted for a slot,
+    // they wait for the next sacrifice
+    if gs.character.inventory.free_slot().is_some() || crate::toilet::owns_epics(gs) {
         return None;
     }
     let epics = gs

@@ -162,3 +162,6 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 
 ## Weekly events
 - Every Friday 00:01 – Sunday 23:59 a set of events runs; the user lists them and the rules live in `docs/events.md`. New mushroom exception (user 2026-10-16): while "Exceptional XP" (2× XP) is active, up to 10 beers a day in the Tavern. A gold-only event never justifies beers.
+
+## Toilet of the Arcane Gods
+- Description and rules: `docs/toilet.md`, code `src/toilet.rs`. Only epics (kept for it, ≥2 a day during Tidy Toilet Time) and gems are thrown, NEVER potions or plain items; 1 sacrifice a day (gem) outside the event, 2 during it (epics); flush whenever mana ≥ the cost. With the toilet unlocked epics are no longer sold, dismantled or enchanted for a free slot (user 2026-10-25).

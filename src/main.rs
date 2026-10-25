@@ -37,6 +37,7 @@ mod smith;
 mod stable;
 mod tasks;
 mod tavern;
+mod toilet;
 mod tournament;
 #[cfg(test)]
 mod weaponsim;
@@ -280,6 +281,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Toilet of the Arcane Gods (user 2026-10-25): sacrifice a spare epic/gem, flush while there is mana
+        if let tavern::Outcome::SessionLost = toilet::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = potions::run(session).await {

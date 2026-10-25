@@ -44,7 +44,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - Eventy na XP / houby: zvážit utrácení hub za piva (chest "extra pivo" dává 11. pivo denně za houbu) – user 2026-10-12, zatím neřešit.
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
 - [ ] `WinFightsNoGear` – zatím nemapováno v `src/hunt.rs` (úkol se přeskočí); sundat celou výbavu naráží na plný batoh (viz výše).
-- [ ] Záchod (sf-api: `tavern.toilet`) – házení předmětů do záchodu místo prodeje? Captures + pravidla 2026-10-25 v `docs/toilet.md` (epiky + gemy se hází, splachování za 60 many, epiky půjdou do záchodu místo blacksmith/prodeje/witch); implementace čeká na pokyn.
+- [x] Záchod: implementováno 2026-10-25 (`src/toilet.rs`, `docs/toilet.md`), čeká na release a ověření v provozu
 - [ ] Věž, mazlíčci, podsvětí – až budou na postavě odemčené
 - [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
 - [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expeditions.md`)

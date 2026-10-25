@@ -232,3 +232,6 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-25 (expedition rewards, from level 90 Metal / Arcane Splinters are offered): current order = hard chain egg > mushrooms > easy chain egg > fruit > other new egg > **Arcane Splinters** > gold > hourglasses > anything else (Metal stays here) >>> Fortress wood/stone. An egg of a pet we own cannot drop again (user). `tavern::choose_reward`.
 
 - 2026-10-25 (Toilet of the Arcane Gods, user): epics are kept for the toilet (>= 2 per day, 6 for the Tidy Toilet Time weekend); when the backpack has no room the toilet replaces the Blacksmith / sale / witch for epics. Throw only epics or gems, never potions or plain items. Flush whenever mana >= 60. Details `docs/toilet.md`; not implemented yet.
+
+- 2026-10-25 (toilet details, user): outside the event 1 sacrifice a day (preferably a gem), during Tidy Toilet Time 2 a day (preferably epics); a full backpack = throw an epic that day or the next; flush whenever mana >= the flush cost (it varies with the cap); items from flushes are sold / dismantled (when splinters) or best given to the witch if she takes that type today. Wash has no price and no limit (not worth using now).
+- 2026-10-25 (guild pin): only the two weakest characters (Mrožik 65, Pagan 67) are pinned to Smietanka shakes (2 free slots); PajaRizz is already in.
