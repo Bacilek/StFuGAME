@@ -239,3 +239,6 @@ In similar situations it then follows this list. Newest at the bottom.
 ## Arena Manager / idle game (user 2026-10-25)
 - REVOKED 2026-10-25: the merchant "speed boost" turned out to be a Seat-only golden upgrade; buy NOTHING at the idle merchant until the user says so. Details `docs/idle.md`.
 - Buy the best dollars-per-cost building upgrade; sacrifice timing comes from the user (online optimum).
+
+## Pet feeding (user 2026-10-26)
+- NEVER feed a pet outside the chain (`pets::CHAINS`), not even to finish a `FeedPets` quest. A character without fruit for its chain simply leaves that quest open.
