@@ -1,6 +1,7 @@
 # Project status (handover document)
 
 **Release built 00:02 2026-10-26 (pets feeding fix, strongest pet fights, dungeon rotation, Pets chart start; the user starts the bot).** **Release built 23:38 2026-10-25 (Pets tab, Charts Pets, chain egg first, guard while waiting for a pet window; the user starts the bot).** **2026-10-26:** app "Pets" tab (chain per habitat per character, `docs/controls.md`), NOT in a release yet, never seen live. Mimi FeedPets quest open: probable cause 0 fruits for her chain habitat (Light #3); user decided 2026-10-26: NEVER feed pets outside the chain, the quest stays open.
+**2026-10-26:** shared PvP data set `roster/pets_pvp.jsonl` (all characters, one JSON line per pet PvP fight) for expected-vs-actual analysis; NOT in a release yet.
 **2026-10-26:** dungeon fights rotate between near-best habitats, Pets chart lines start at the first PvP fight. NOT in a release yet.
 **2026-10-26:** pets audit: dungeon fighter = strongest owned pet (not the main pet), see `docs/pets.md` "Audit"; NOT in a release yet.
 **2026-10-25 late:** fixed pets feeding bug (a refused feed dropped the game state, later habitats read 0 fruits; `docs/pets.md`), NOT in a release yet (the running bot still has it).

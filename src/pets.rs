@@ -527,10 +527,53 @@ async fn pvp(session: &mut SimpleSession) -> Outcome {
     report!("[pets] PvP {line}");
     pvp_journal(&format!("opponent {opp} ({count} pets / level {total}): {line}"));
     // The next opponent and the new timer come with an update
-    if let Err(e) = safe::send(session, Command::Update).await {
+    let updated = safe::send(session, Command::Update).await.map(|_| ());
+    let after = session.pets_save().map(<[i64]>::to_vec).unwrap_or_default();
+    let edge = match element {
+        Some(e) if beats(h, e) => "advantage",
+        Some(e) if beats(e, h) => "disadvantage",
+        Some(_) => "neutral",
+        None => "unknown",
+    };
+    let levels: Vec<Vec<u16>> = (0..5).map(|k| (1..=20).map(|p| level(&nums, k as u32 * 20 + p)).filter(|l| *l > 0).collect()).collect();
+    pvp_shared(&serde_json::json!({
+        "time": Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        "character": crate::ctx::name(),
+        "won": won,
+        "expected_win": ratio >= PVP_WIN_RATIO,
+        "ratio": (ratio * 100.0).round() / 100.0,
+        "our_habitat": HABITATS[h],
+        "opponent_habitat": element.map(|e| HABITATS[e]),
+        "day_element_known_before": day.map(|d| HABITATS[d]),
+        "type_edge": edge,
+        "our_pets": side(&nums, h).0,
+        "our_level_total": side(&nums, h).1,
+        "our_habitat_levels": levels,
+        "opponent_id": opp,
+        "opponent_pets": count,
+        "opponent_level_total": total,
+        "rank_before": before_rank,
+        "rank_after": after.get(233),
+        "honor_before": nums.get(234),
+        "honor_after": after.get(234),
+        "reward": reward,
+        "item": item,
+    }));
+    if let Err(e) = updated {
         return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
     }
     Outcome::Done
+}
+
+/// One JSON line per pet PvP fight of ALL characters in `roster/pets_pvp.jsonl` (user 2026-10-26), for bulk analyses: why a predicted win
+/// was lost and the other way round. A single `write_all` of one line to an append-mode file keeps lines of parallel characters whole.
+fn pvp_shared(record: &serde_json::Value) {
+    use std::io::Write;
+    let mut line = record.to_string();
+    line.push('\n');
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("roster/pets_pvp.jsonl") {
+        let _ = f.write_all(line.as_bytes());
+    }
 }
 
 fn pvp_journal(line: &str) {

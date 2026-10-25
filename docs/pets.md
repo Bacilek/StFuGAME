@@ -326,3 +326,6 @@ Egg rank: any chain pet egg = 0 (before mushrooms). Pet-window wait now starts a
 ## Changes 2026-10-26 (later, user)
 - Habitat dungeon pick: the own-level / next-enemy-level ratio stays the criterion (no priority for unlocking chain pets), but all habitats within 75 % of the best ratio are candidates and the one fought longest ago goes next (`pets::dungeon_pick`, `LAST_DUNGEON`, in memory per run), so the bot never sticks to one fight.
 - Charts "Pets": a character's line starts on the day of its first pet PvP fight (first line of `logs/pvp.log`), earlier days are empty.
+
+## Shared PvP data set (user 2026-10-26)
+Every pet PvP fight of every character appends one JSON line to `roster/pets_pvp.jsonl` (local only, `pets::pvp_shared`): time, character, won, `expected_win` (ratio >= `PVP_WIN_RATIO`), ratio (strength incl. the type bonus we assumed / opponent level total), our/opponent habitat, `type_edge` (advantage/disadvantage/neutral/unknown from the opponent's real habitat), our pet count + level total of the sent habitat, all our habitat levels, opponent id / pet count / level total, rank and honor before and after, reward, item. Purpose: bulk analysis of why a predicted win was lost and the other way round (calibrate `PVP_WIN_RATIO`, `PVP_TYPE_BONUS`). Older fights exist only as text in each `logs/pvp.log` (not backfilled). NOT in a release yet.
