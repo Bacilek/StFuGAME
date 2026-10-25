@@ -311,3 +311,6 @@ lowest level) as a sacrifice.
   fruit count next time to decode which fruit). First PvP win capture.
 - Mimimimi11: `Unlocking Pets (20/1)` -> petsSave present (the unlock works), PvP lost at ratio 0.25 (honor -9).
 - Sanek: still no petsSave (no pending unlock 20/1 yet). Novotne: bot had only just started.
+
+## Changes 2026-10-26 (user)
+Egg rank: any chain pet egg = 0 (before mushrooms). Pet-window wait now starts a City Guard shift ending by the window (`guard.rs`, `main.rs` `pet_wait`), log `[guard] Waiting for a pet window at HH:MM`. Charts tab "Pets" = cumulative PvP wins from `pvp.log` (counts "WON with" lines, so only fights logged since pvp logging began). NOT in a release yet, never seen live.

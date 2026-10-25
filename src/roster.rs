@@ -1025,6 +1025,12 @@ fn read_history(path: &Path) -> Vec<BTreeMap<String, String>> {
         .collect()
 }
 
+/// Dates (YYYY-MM-DD) of every pet PvP win in `logs/pvp.log`; None while the character never fought (no log), for the "Pets" chart.
+fn pet_win_dates(dir: &Path) -> Option<Vec<String>> {
+    let text = fs::read_to_string(dir.join("logs").join("pvp.log")).ok()?;
+    Some(text.lines().filter(|l| l.contains(": WON with ")).filter_map(|l| l.get(..10)).map(str::to_string).collect())
+}
+
 /// `roster/dashboard.html`: all characters in one chart, metric tabs, day stepper (src/dashboard.html + data).
 fn write_dashboard(demo: bool) {
     let Ok(entries) = fs::read_dir(ROOT) else { return };
@@ -1052,6 +1058,7 @@ fn write_dashboard(demo: bool) {
         let mut class = String::new();
         let nick = e.file_name().to_string_lossy().trim_start_matches("_demo_").to_string();
         let days = read_days(&e.path());
+        let pet_wins = pet_win_dates(&e.path());
         let changes = daily_changes(&days, rows.last().and_then(|r| r.get("class")).map_or("", String::as_str));
         let snap_by_date: BTreeMap<&str, &serde_json::Value> = days.iter().map(|(date, snap)| (date.as_str(), snap)).collect();
         for r in &rows {
@@ -1070,6 +1077,7 @@ fn write_dashboard(demo: bool) {
                 date.clone(),
                 serde_json::json!({
                     "gold": gold, "xp": xp, "mushrooms": mush, "arena_wins_total": arena_wins,
+                    "pet_wins_total": pet_wins.as_ref().map(|w| w.iter().filter(|d| d.as_str() <= date.as_str()).count()),
                     "dungeons": num(r, "dungeons"), "rank": num(r, "rank"), "power": num(r, "power"),
                     "winrate": win_rates.get(date).and_then(|d| d.get(&nick)).map(|w| w * 100.0),
                     "changes": changes.get(date).cloned().unwrap_or_default(),

@@ -457,15 +457,14 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
     best
 }
 
-/// Picks a reward (user 2026-10-14/21/23): the egg of a hard-to-get pet of our chains > mushrooms > the egg of an easy chain pet > fruit > the egg
+/// Picks a reward (user 2026-10-14/21/23): the egg of a pet of our chains (any, user 2026-10-26) > mushrooms > fruit > the egg
 /// of another new pet > Arcane Splinters (user 2026-10-25) > gold > hourglasses > anything else (Metal included) >>> Fortress wood/stone (raids give far more
 /// resources than expeditions; also for a leftover expedition). The egg's amount is the pet id (`unlockfeature 21/<id>`, docs/pets.md).
 fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
     use crate::petcatch::{EggKind, egg_kind};
     let rank = |r: &Reward| match r.typ {
         RewardType::Egg => match egg_kind(pets_nums, r.amount) {
-            EggKind::HardChain => 0,
-            EggKind::Chain => 2,
+            EggKind::HardChain | EggKind::Chain => 0,
             EggKind::Other => 4,
             EggKind::Useless => 8,
         },
@@ -1226,11 +1225,11 @@ mod tests {
         let n = fresh_pets();
         let egg = |id| Reward { typ: RewardType::Egg, amount: id };
         let r = |typ| Reward { typ, amount: 1 };
-        // an easy chain pet (Toothey 3) loses to a mushroom but beats gold and fruit
-        assert_eq!(choose_reward(&[r(RewardType::Mushrooms), egg(3)], &n), 0);
+        // any chain pet (Toothey 3) beats the mushroom, gold and fruit (user 2026-10-26)
+        assert_eq!(choose_reward(&[r(RewardType::Mushrooms), egg(3)], &n), 1);
         assert_eq!(choose_reward(&[r(RewardType::Silver), egg(3)], &n), 1);
         assert_eq!(choose_reward(&[r(RewardType::FruitBasket), egg(3)], &n), 1);
-        // a hard chain pet (Unikor 40) beats the mushroom
+        // a hard chain pet (Unikor 40) too
         assert_eq!(choose_reward(&[r(RewardType::Mushrooms), egg(40)], &n), 1);
         // a pet outside the chains (Slurp 1) loses to fruit but beats gold
         assert_eq!(choose_reward(&[egg(1), r(RewardType::FruitBasket)], &n), 1);

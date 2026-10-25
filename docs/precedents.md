@@ -242,3 +242,9 @@ In similar situations it then follows this list. Newest at the bottom.
 
 ## Pet feeding (user 2026-10-26)
 - NEVER feed a pet outside the chain (`pets::CHAINS`), not even to finish a `FeedPets` quest. A character without fruit for its chain simply leaves that quest open.
+
+## Pets: eggs, waiting, charts (user 2026-10-26)
+- Reward order: the egg of ANY pet of our chains first (no more "hard" vs "easy"), then mushrooms > fruit > other new eggs > Arcane Splinters > gold ... (`tavern::choose_reward`).
+- Only UNLOCKED pets (habitat dungeon beaten far enough: `explored >= position - 1`) are ever hunted, day and night alike (`petcatch::candidates`).
+- While the Tavern waits for a pet window (`pets::tavern_wait`), the character takes a City Guard shift that ends by the window (floor of the hours, none under 1 h; `guard::run` `pet_wait`). The Thirst for Adventure is kept.
+- Charts tab "Pets": cumulative pet PvP wins per character (`WON` lines of `logs/pvp.log`, metric `pet_wins_total` in `roster.rs`).

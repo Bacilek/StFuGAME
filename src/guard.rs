@@ -67,7 +67,7 @@ fn fail(e: &sf_api::error::SFError) -> Outcome {
 
 /// Collects the pay for a finished shift; when the Tavern is done and the character is idle, starts a new shift.
 /// `tavern_done`: no Thirst for Adventure left for another expedition (decided by the main loop).
-pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
+pub async fn run(session: &mut SimpleSession, tavern_done: bool, pet_wait: Option<DateTime<Local>>) -> Outcome {
     let Some(gs) = session.game_state() else { return Outcome::Done };
 
     if let CurrentAction::CityGuard { busy_until, hours } = gs.tavern.current_action {
@@ -96,6 +96,18 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
     // bonus ALU), `tavern_done` is stale and would otherwise let a new shift start right on top
     // of it (found 2026-10-08). A fresh zero here means the Tavern genuinely has nothing left to
     // do; non-zero means the next pass's Tavern section should get first crack at it instead.
+    // Waiting for a pet window (user 2026-10-26): the Thirst for Adventure is kept on purpose, so a shift that ends by the window fills the wait.
+    if let Some(window) = pet_wait {
+        if gs.tavern.current_action != CurrentAction::Idle {
+            return Outcome::Done;
+        }
+        let hours = u8::try_from(((window - Local::now()).num_seconds() / 3600).clamp(0, i64::from(MAX_HOURS))).unwrap_or(0);
+        if hours == 0 {
+            return Outcome::Done;
+        }
+        report!("[guard] Waiting for a pet window at {}, starting a {hours} h City Guard shift", window.format("%H:%M"));
+        return start_shift(session, hours).await;
+    }
     if !tavern_done
         || gs.tavern.current_action != CurrentAction::Idle
         || gs.tavern.thirst_for_adventure_sec > 0
@@ -107,6 +119,10 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool) -> Outcome {
         "[guard] Tavern done, starting a {hours} h City Guard shift (wage {} s/h)",
         gs.tavern.guard_wage
     );
+    start_shift(session, hours).await
+}
+
+async fn start_shift(session: &mut SimpleSession, hours: u8) -> Outcome {
     match safe::send(session, Command::StartWork { hours }).await {
         Ok(gs) => {
             if let CurrentAction::CityGuard { busy_until, .. } = gs.tavern.current_action {
