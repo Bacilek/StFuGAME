@@ -240,20 +240,33 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
         let before_level = session.pets_save().map_or(0, |n| level(n, id));
         let before: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
         let cmd = Command::PetFeed { pet_id: id, fruit_idx: h as u32 + off };
-        if let Err(e) = safe::send(session, cmd).await {
-            report!("[pets] Feeding pet {id} failed: {e}");
-            if crate::tavern::is_session_error(&e) {
-                return Fed::Lost;
+        let raw = match safe::send_raw(session, cmd).await {
+            Ok(raw) => raw,
+            Err(e) => {
+                report!("[pets] Feeding pet {id} failed: {e}");
+                if crate::tavern::is_session_error(&e) {
+                    return Fed::Lost;
+                }
+                // a refused feed ("pet is not hungry" = the daily limit) makes `SimpleSession` drop the game state: reload it, or the fruit
+                // stacks of the habitats after this one read 0 and their pets are skipped (bug 2026-10-25, TestChar1)
+                if safe::send(session, Command::Update).await.is_err() && session.game_state().is_none() {
+                    return Fed::Lost;
+                }
+                continue;
             }
-            // a refused feed ("pet is not hungry" = the daily limit) makes `SimpleSession` drop the game state: reload it, or the fruit
-            // stacks of the habitats after this one read 0 and their pets are skipped (bug 2026-10-25, TestChar1)
-            if safe::send(session, Command::Update).await.is_err() && session.game_state().is_none() {
-                return Fed::Lost;
+        };
+        let mut after_level = session.pets_save().map_or(0, |n| level(n, id));
+        let mut after: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
+        if after_level == before_level && after == before {
+            // The feed's own response may not carry the new levels / fruit stacks: reload before judging (2026-10-26, Novotné)
+            if let Err(e) = safe::send(session, Command::Update).await {
+                if crate::tavern::is_session_error(&e) {
+                    return Fed::Lost;
+                }
             }
-            continue;
+            after_level = session.pets_save().map_or(0, |n| level(n, id));
+            after = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
         }
-        let after_level = session.pets_save().map_or(0, |n| level(n, id));
-        let after: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
         let used: Vec<usize> = (0..5).filter(|k| after[*k] < before[*k]).collect();
         if after_level > before_level && used == [h] {
             let _ = std::fs::write(format!("roster/{}/pets_feed_idx.txt", crate::ctx::name()), off.to_string());
@@ -262,9 +275,10 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
         if after_level == before_level && used.is_empty() {
             // nothing happened: the daily limit, or this offset is not the game's – the next offset gets the same chance
             report!(
-                "[pets] Feed of pet {id} with idx {} changed nothing (level {before_level}, fruit stacks {before:?}, fed today {})",
+                "[pets] Feed of pet {id} with idx {} changed nothing even after a reload (level {before_level}, fruit stacks {before:?}, fed today {}), response: {}",
                 h as u32 + off,
-                session.pets_save().map_or(0, |n| n.get(id as usize + 109).copied().unwrap_or(0))
+                session.pets_save().map_or(0, |n| n.get(id as usize + 109).copied().unwrap_or(0)),
+                raw.chars().take(300).collect::<String>()
             );
             continue;
         }
