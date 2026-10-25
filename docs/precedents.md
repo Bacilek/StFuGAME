@@ -228,3 +228,5 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - 2026-10-24 (guild): Smietanka shakes had 47 members; the 3 lowest-level characters (not yet in it) join it at once via `guild_pin.txt` (`docs/guild.md`).
 - 2026-10-24 (pets): the user wants feeding FIRST, before any pet PvP / habitat fight: feed the current main pet as far as possible without exceeding its target level (already the order in `pets::run`). Mimi has no chain pets (Shadow #2, Light #1, Earth #1, Fire #1, Water #2), so he is never fed; Novotné (Light #3, Fire #2) was not fed either: cause being investigated (fruit stacks possibly missing from the state after the unlock; `feed` now refreshes once and logs `[pets] Fruit stacks ...`).
+
+- 2026-10-25 (expedition rewards, from level 90 Metal / Arcane Splinters are offered): current order = hard chain egg > mushrooms > easy chain egg > fruit > other new egg > **Arcane Splinters** > gold > hourglasses > anything else (Metal stays here) >>> Fortress wood/stone. An egg of a pet we own cannot drop again (user). `tavern::choose_reward`.

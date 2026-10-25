@@ -100,6 +100,7 @@ For an unmapped mission it treats items from the same tens range as the target a
 ## Rewards after a boss
 - Normally: mushrooms > gold > hourglasses.
 - Leftover expedition (≤ 3 min of Thirst for Adventure): since 2026-10-14 no special case, same order as always (mushrooms > gold > hourglasses >>> Fortress wood/stone).
+- Since 2026-10-25: Arcane Splinters rank above gold (Metal stays in "anything else"); full order in `docs/precedents.md`.
   It gives little gold (2026-10-07: 9 silver) but the same hourglasses. After a bot restart mid-expedition it is treated as a full one.
 - Hourglasses are never used.
 

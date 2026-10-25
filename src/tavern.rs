@@ -458,7 +458,7 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
 }
 
 /// Picks a reward (user 2026-10-14/21/23): the egg of a hard-to-get pet of our chains > mushrooms > the egg of an easy chain pet > fruit > the egg
-/// of another new pet > gold > hourglasses > anything else (also an egg of a pet we own) >>> Fortress wood/stone (raids give far more
+/// of another new pet > Arcane Splinters (user 2026-10-25) > gold > hourglasses > anything else (Metal included) >>> Fortress wood/stone (raids give far more
 /// resources than expeditions; also for a leftover expedition). The egg's amount is the pet id (`unlockfeature 21/<id>`, docs/pets.md).
 fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
     use crate::petcatch::{EggKind, egg_kind};
@@ -467,14 +467,15 @@ fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
             EggKind::HardChain => 0,
             EggKind::Chain => 2,
             EggKind::Other => 4,
-            EggKind::Useless => 7,
+            EggKind::Useless => 8,
         },
         RewardType::Mushrooms => 1,
         RewardType::Fruit(_) | RewardType::FruitBasket => 3,
-        RewardType::Silver => 5,
-        RewardType::QuicksandGlass => 6,
-        RewardType::Wood | RewardType::Stone => 8,
-        _ => 7,
+        RewardType::Arcane => 5,
+        RewardType::Silver => 6,
+        RewardType::QuicksandGlass => 7,
+        RewardType::Wood | RewardType::Stone => 9,
+        _ => 8,
     };
     rewards
         .iter()
@@ -1204,6 +1205,9 @@ mod tests {
         assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], &[]), 1);
         // Fortress resources (user 2026-10-14) rank below everything, hourglasses included
         assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::Silver)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::Arcane), r(RewardType::Metal)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Metal), r(RewardType::QuicksandGlass)], &[]), 1);
+        assert_eq!(choose_reward(&[r(RewardType::Metal), r(RewardType::Wood)], &[]), 0);
         assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::QuicksandGlass)], &[]), 1);
         assert_eq!(choose_reward(&[r(RewardType::Wood), r(RewardType::XP)], &[]), 1);
     }
