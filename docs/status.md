@@ -13,6 +13,8 @@
 **2026-10-25:** expedition reward order: Arcane Splinters now above gold, Metal unchanged (`tavern::choose_reward`). NOT in a release yet.
 **2026-10-25 (feeding):** `feed_one` tries `fruit_idx` = habitat index (offset 0, verified on TestChar1) first, offset 1 only as fallback, and logs `[pets] Feed of pet ... changed nothing (...)` instead of failing silently. Novotné (Light #3, Fire #2) had NO `Fed` line and no `pets_feed_idx.txt` yet: check after the next release. Sanek got Pets unlocked by hand (user).
 **2026-10-25:** pets: `[pets] Not feeding <habitat> pet ...` logs (once per pet and day) why a chain pet below target is not fed (0 fruits / refused today); the pinned guild was not in the quick-join list for Mrožik/Pagan/Chlamydie (full or unlisted, still retrying).
+**Release built 2026-10-26 20:09** (bell + Smietanka slot button, both still to verify live).
+
 **2026-10-26 (bell):** notifications in the app (`src/alerts.rs`, `docs/alerts.md`): 🔔 + counter, Czech texts, note box per alert (`roster/notifications.json` – READ the notes when the user says "let's go through the alerts"). Replaces the stuck popups. NOT in a release yet, never seen live. Open: more sources (uncertain expedition choice, unplannable Gleeman tasks).
 
 **2026-10-26:** app button "Smietanka slot free" (`control::pin_lowest_level`, `docs/controls.md`): pins the lowest-level running character outside the guild and wakes the loops. NOT in a release yet, never seen live.
