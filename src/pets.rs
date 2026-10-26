@@ -229,9 +229,10 @@ fn fruit_idx_candidates(h: usize) -> Vec<u32> {
 }
 
 
-/// A feed that went wrong (the wrong fruit left): feeding is off for this character until the file is removed.
+/// A feed that went wrong (the wrong fruit left): feeding is off for ALL characters until the file is removed.
 fn feeding_off_path() -> String {
-    format!("roster/{}/pets_feed_off.txt", crate::ctx::name())
+    // shared by all characters (2026-10-26): a wrong fruit_idx is the game's, not one character's, so one mismatch stops everybody
+    "roster/pets_feed_off.txt".to_string()
 }
 
 /// Pets that refused a feed today (the daily limit, 3 or 9 in an event): no more tries until the next day.
