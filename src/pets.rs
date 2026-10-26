@@ -194,10 +194,40 @@ fn fruits(gs: &GameState, h: usize) -> u16 {
     gs.pets.as_ref().map_or(0, |p| p.habitats[HABITAT_TYPES[h]].fruits)
 }
 
-/// Which `fruit_idx` offset the game wants (habitat index + offset): unknown until the first feed was verified (`pets_feed_idx.txt`).
-fn confirmed_offset() -> Option<u32> {
-    std::fs::read_to_string(format!("roster/{}/pets_feed_idx.txt", crate::ctx::name())).ok()?.trim().parse().ok()
+/// The `fruit_idx` learned for each habitat, shared by all characters (the game defines it): `roster/pets_fruit_idx.txt`, lines "<habitat> <idx>".
+const FRUIT_IDX_FILE: &str = "roster/pets_fruit_idx.txt";
+
+fn known_fruit_idx(h: usize) -> Option<u32> {
+    std::fs::read_to_string(FRUIT_IDX_FILE).ok()?.lines().find_map(|l| {
+        let (a, b) = l.split_once(' ')?;
+        (a.parse::<usize>().ok()? == h).then(|| b.trim().parse().ok()).flatten()
+    })
 }
+
+fn remember_fruit_idx(h: usize, idx: u32) {
+    if known_fruit_idx(h) == Some(idx) {
+        return;
+    }
+    let mut lines: Vec<String> = std::fs::read_to_string(FRUIT_IDX_FILE)
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| l.split_once(' ').is_none_or(|(a, _)| a.parse::<usize>().ok() != Some(h)))
+        .map(str::to_string)
+        .collect();
+    lines.push(format!("{h} {idx}"));
+    let _ = std::fs::write(FRUIT_IDX_FILE, lines.join("\n") + "\n");
+    report!("[pets] Learned: {} fruit = fruit_idx {idx}", HABITATS[h]);
+}
+
+/// `fruit_idx` values to try for habitat `h`: the learned one, else the habitat index, the next one, then the rest (safe.rs allows 0..=5).
+fn fruit_idx_candidates(h: usize) -> Vec<u32> {
+    if let Some(k) = known_fruit_idx(h) {
+        return vec![k];
+    }
+    let first = [h as u32, h as u32 + 1];
+    first.into_iter().chain((0..=5).filter(|k| *k != h as u32 && *k != h as u32 + 1)).collect()
+}
+
 
 /// A feed that went wrong (the wrong fruit left): feeding is off for this character until the file is removed.
 fn feeding_off_path() -> String {
@@ -232,14 +262,15 @@ enum Fed {
     Lost,
 }
 
-/// One fruit to one pet, verified: the level goes up by 1 and exactly the habitat's own fruit stack goes down by 1.
+/// One fruit to one pet, verified: the level goes up by 1 and exactly the habitat's own fruit stack goes down by 1. The `fruit_idx` of a
+/// habitat is learned by trying (2026-10-26: only Shadow = 0 was proven, the others "changed nothing"); the server ignores a wrong fruit
+/// (user: a pet cannot eat another element's fruit), and the verification stops everything if a foreign stack is ever used.
 async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
-    // Verified on TestChar1 (2026-10-24): fruit_idx = habitat index (offset 0), so that is tried first; offset 1 stays as the fallback.
-    let offsets: Vec<u32> = confirmed_offset().map_or_else(|| vec![0, 1], |o| vec![o]);
-    for off in offsets {
+    let candidates = fruit_idx_candidates(h);
+    for idx in candidates {
         let before_level = session.pets_save().map_or(0, |n| level(n, id));
         let before: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
-        let cmd = Command::PetFeed { pet_id: id, fruit_idx: h as u32 + off };
+        let cmd = Command::PetFeed { pet_id: id, fruit_idx: idx };
         let raw = match safe::send_raw(session, cmd).await {
             Ok(raw) => raw,
             Err(e) => {
@@ -252,13 +283,13 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
                 if safe::send(session, Command::Update).await.is_err() && session.game_state().is_none() {
                     return Fed::Lost;
                 }
-                continue;
+                return Fed::Refused;
             }
         };
         let mut after_level = session.pets_save().map_or(0, |n| level(n, id));
         let mut after: Vec<u16> = (0..5).map(|k| session.game_state().map_or(0, |gs| fruits(gs, k))).collect();
         if after_level == before_level && after == before {
-            // The feed's own response may not carry the new levels / fruit stacks: reload before judging (2026-10-26, Novotné)
+            // The feed's own response may not carry the new levels / fruit stacks: reload before judging
             if let Err(e) = safe::send(session, Command::Update).await {
                 if crate::tavern::is_session_error(&e) {
                     return Fed::Lost;
@@ -269,24 +300,19 @@ async fn feed_one(session: &mut SimpleSession, id: u32, h: usize) -> Fed {
         }
         let used: Vec<usize> = (0..5).filter(|k| after[*k] < before[*k]).collect();
         if after_level > before_level && used == [h] {
-            let _ = std::fs::write(format!("roster/{}/pets_feed_idx.txt", crate::ctx::name()), off.to_string());
+            remember_fruit_idx(h, idx);
             return Fed::Ok;
         }
         if after_level == before_level && used.is_empty() {
-            // nothing happened: the daily limit, or this offset is not the game's – the next offset gets the same chance
             report!(
-                "[pets] Feed of pet {id} with idx {} changed nothing even after a reload (level {before_level}, fruit stacks {before:?}, fed today {}), response: {}",
-                h as u32 + off,
+                "[pets] Feed of pet {id} with idx {idx} changed nothing (level {before_level}, fruit stacks {before:?}, fed today {}), response: {}",
                 session.pets_save().map_or(0, |n| n.get(id as usize + 109).copied().unwrap_or(0)),
-                raw.chars().take(300).collect::<String>()
+                raw.chars().take(120).collect::<String>()
             );
             continue;
         }
-        report!(
-            "[pets] FEED MISMATCH pet {id} idx {} lvl {before_level}->{after_level} fruit stacks used {used:?} (expected [{h}]); feeding switched off",
-            h as u32 + off
-        );
-        let _ = std::fs::write(feeding_off_path(), format!("pet {id} idx {} used {used:?}", h as u32 + off));
+        report!("[pets] FEED MISMATCH pet {id} idx {idx} lvl {before_level}->{after_level} fruit stacks used {used:?} (expected [{h}]); feeding switched off");
+        let _ = std::fs::write(feeding_off_path(), format!("pet {id} idx {idx} used {used:?}"));
         return Fed::Wrong;
     }
     Fed::Refused
