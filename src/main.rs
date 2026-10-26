@@ -3,6 +3,7 @@
 
 #[macro_use]
 mod report;
+mod alerts;
 mod app;
 mod attack_me;
 mod arena;

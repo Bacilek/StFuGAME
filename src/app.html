@@ -47,6 +47,15 @@ main{flex:1;min-height:0;overflow:auto;padding:16px}
 .empty{color:var(--muted);padding:40px;text-align:center}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);padding:18px;max-width:640px;width:calc(100% - 32px)}
 dialog::backdrop{background:#0008}
+#bell.has{border-color:var(--bad);color:var(--bad);font-weight:600}
+#alertsDlg{max-width:760px;max-height:85vh;overflow:auto}
+#alertsDlg h2{margin:0 0 8px;font-size:20px}
+.al{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--page)}
+.al.done{opacity:.65}
+.al .meta{font-size:12px;color:var(--ink2);display:flex;gap:8px;flex-wrap:wrap}
+.al .ttl{margin:4px 0;font-weight:600}
+.al details{font-size:12px;color:var(--ink2);margin:4px 0;word-break:break-word}
+.al textarea{width:100%;min-height:54px;margin:6px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;box-sizing:border-box;resize:vertical}
 .close{position:absolute;top:10px;right:10px}
 .ch{display:flex;align-items:center;gap:10px;margin-bottom:12px;position:relative}
 .ch .bar{width:6px;height:40px;border-radius:3px;background:var(--c)}
@@ -193,7 +202,8 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
     <button id="stopAll">Stop all</button>
     <button id="eod">Run end of day now</button>
     <button id="attackMe" aria-pressed="false" title="While on, every bot character looks up Bacilek31 in the Hall of Fame and attacks him (his honor and rank sink)">Attack me: off</button>
-    <button id="guildSlot" title="Smietanka shakes has a free slot: the running character with the lowest level that is not in it leaves its guild and joins right away">Smietanka slot free</button>
+    <button id="bell" title="Notifikace: co si bot nebyl jistý, kde se zasekl nebo co selhalo">🔔 <span id="bellN">0</span></button>
+    <button id="guildSlot"title="Smietanka shakes has a free slot: the running character with the lowest level that is not in it leaves its guild and joins right away">Smietanka slot free</button>
     <span id="eodStatus"style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
     <button id="browser">Open in browser</button>
   </div>
@@ -206,6 +216,16 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
   <div id="trainer"></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
 </main>
+<dialog id="alertsDlg">
+  <h2>🔔 Notifikace</h2>
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <button id="alNew" aria-pressed="true">Nové</button>
+    <button id="alDone" aria-pressed="false">Vyřešené</button>
+    <span style="flex:1"></span>
+    <button id="alClose">Zavřít</button>
+  </div>
+  <div id="alList"></div>
+</dialog>
 <dialog id="card"><div id="cardbody"></div><form method="dialog"><button class="close" aria-label="Close">✕</button></form></dialog>
 <script>
 const $ = id => document.getElementById(id);
@@ -289,6 +309,53 @@ function renderEodStatus(pending){
     else st.style.display = "none";
   }
 }
+// Notifications (bell): the list comes with every status tick; a note is saved when the box loses focus (user 2026-10-26)
+let ALERTS = [], alertsSig = "", alertsShowDone = false;
+const KIND_CS = {stuck:"zaseknutí", error:"chyba", unknown:"neznámá situace", uncertain:"nejistá akce", safety:"pojistka", crash:"pád", inventory:"batoh"};
+function renderBell(){
+  const n = ALERTS.filter(a => a.status !== "resolved").length;
+  $("bellN").textContent = n;
+  $("bell").classList.toggle("has", n > 0);
+}
+function renderAlerts(force){
+  const dlg = $("alertsDlg");
+  if (!dlg.open) return;
+  const sig = JSON.stringify(ALERTS) + alertsShowDone;
+  if (!force && (sig === alertsSig || dlg.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA")) return;
+  alertsSig = sig;
+  $("alNew").setAttribute("aria-pressed", !alertsShowDone);
+  $("alDone").setAttribute("aria-pressed", alertsShowDone);
+  const list = $("alList"); list.textContent = "";
+  const shown = ALERTS.filter(a => (a.status === "resolved") === alertsShowDone);
+  if (!shown.length){
+    const p = document.createElement("p"); p.className = "empty";
+    p.textContent = alertsShowDone ? "Žádné vyřešené notifikace." : "Žádné nové notifikace.";
+    list.appendChild(p); return;
+  }
+  for (const a of shown){
+    const d = document.createElement("div"); d.className = "al" + (a.status === "resolved" ? " done" : "");
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.textContent = `${a.character || "bot"} · ${KIND_CS[a.kind] || a.kind} · ${a.last}` + (a.count > 1 ? ` · ${a.count}×` : "");
+    const t = document.createElement("div"); t.className = "ttl"; t.textContent = a.title;
+    const det = document.createElement("details"); const sm = document.createElement("summary"); sm.textContent = "Technický detail";
+    const dd = document.createElement("div"); dd.textContent = a.detail; det.append(sm, dd);
+    const ta = document.createElement("textarea"); ta.placeholder = "Jak se to mělo v ideálním případě stát?"; ta.value = a.note || "";
+    ta.addEventListener("change", () => { a.note = ta.value; post({cmd:"alert_note", id:a.id, note:ta.value}); });
+    const b = document.createElement("button");
+    b.textContent = a.status === "resolved" ? "Znovu otevřít" : "Vyřešeno";
+    b.addEventListener("click", () => {
+      if (ta.value !== (a.note || "")){ a.note = ta.value; post({cmd:"alert_note", id:a.id, note:ta.value}); }
+      a.status = a.status === "resolved" ? "new" : "resolved";
+      post({cmd:"alert_status", id:a.id, status:a.status});
+      renderBell(); renderAlerts(true);
+    });
+    d.append(meta, t, det, ta, b); list.appendChild(d);
+  }
+}
+$("bell").addEventListener("click", () => { $("alertsDlg").showModal(); renderAlerts(true); });
+$("alClose").addEventListener("click", () => $("alertsDlg").close());
+$("alNew").addEventListener("click", () => { alertsShowDone = false; renderAlerts(true); });
+$("alDone").addEventListener("click", () => { alertsShowDone = true; renderAlerts(true); });
 $("guildSlot").addEventListener("click", () => {
   post({cmd:"guild_slot"});
   const b = $("guildSlot"); b.disabled = true; setTimeout(() => { b.disabled = false; }, 5000);
@@ -956,7 +1023,7 @@ function renderPets(){
   if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has pets data yet (needs Pets unlocked and a running bot)."; box.appendChild(p); return; }
   shown.forEach(c => box.appendChild(petTile(c)));
 }
-window.onStatus = (status, eodPending, attackMe) => { STATUS = status; renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
+window.onStatus = (status, eodPending, attackMe, alerts) => { STATUS = status; if (alerts){ ALERTS = alerts; renderBell(); renderAlerts(false); } renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
 </script>
 </body>

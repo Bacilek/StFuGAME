@@ -367,6 +367,14 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         _ => false,
     };
     if !is_allowed(&cmd) && !custom_ok {
+        let (name, _) = crate::stuck::describe(&cmd);
+        crate::alerts::raise_limited(
+            "safety",
+            &format!("whitelist {name}"),
+            &format!("Bot se pokusil poslat serveru příkaz „{name}“, který pojistka na mushrooms nepustila. Nic se neodeslo, ale bot chtěl udělat něco, co nemá povolené."),
+            &format!("{cmd:?}"),
+            60,
+        );
         return Err(SFError::InvalidRequest("command is not whitelisted (mushroom protection)"));
     }
     let kind = fight_kind(&cmd);
@@ -521,6 +529,13 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && after + allowed_spend < before
     {
         report!("!!! MUSHROOMS DECREASED ({before} → {after}, allowed {allowed_spend}). Bot stops immediately, investigate!");
+        crate::alerts::raise(
+            "safety",
+            "mushrooms-decreased",
+            &format!("Postavě klesly mushrooms ({before} → {after}). Bot se z bezpečnostních důvodů zastavil."),
+            &format!("allowed spend {allowed_spend}, last command {desc:?}"),
+        );
+        // Fatal: the whole app exits right after, so the bell could not be seen – this one popup stays
         crate::tray::message_box(&format!("MUSHROOMS DECREASED ({before} → {after}). The bot stopped, details in the log."));
         std::process::exit(2);
     }

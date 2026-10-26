@@ -396,6 +396,13 @@ fn check(entry: &mut crate::journal::Entry, ok: bool, what: &str) {
         entry.checks.push(format!("OK {what}"));
     } else {
         report!("[check] MISMATCH: {what}");
+        crate::alerts::raise_limited(
+            "uncertain",
+            "mission-mismatch",
+            "Data o expedici v botovi se liší od toho, co ukazuje server. Bot se řídí serverem, ale tabulka misí je nejspíš špatně.",
+            what,
+            720,
+        );
         entry.checks.push(format!("MISMATCH {what}"));
     }
 }

@@ -508,6 +508,13 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
         None if list.is_empty() => {
             report!("[guild] No guild in the list can be joined ({} offers, all full or with requirements)", offers.len());
+            crate::alerts::raise_limited(
+                "uncertain",
+                "no-guild",
+                "Postava nemá cech a žádný z nabízených se nedá vzít (všechny jsou plné nebo mají požadavky, které postava nesplňuje).",
+                &format!("{} offers in the quick-join list", offers.len()),
+                360,
+            );
             return Outcome::Done;
         }
         None => {}

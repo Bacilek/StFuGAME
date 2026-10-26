@@ -108,6 +108,12 @@ pub fn start(rt: &Handle, name: &str, delay_secs: u64) {
             tokio::time::sleep(Duration::from_secs(delay_secs)).await;
         }
         crate::run_character(creds).await;
+        crate::alerts::raise(
+            "crash",
+            "character-ended",
+            "Postava se sama vypnula (přihlášení selhalo nebo se příliš často ztrácela relace). Bot ji nespustí znovu, dokud ji ručně nezapnete.",
+            "run_character returned",
+        );
         // Ended on its own (too many relogins, bad credentials, …): free the slot so Start can retry
         set_state(&n, CharState::Error);
         if let Some(e) = lock().iter_mut().find(|e| e.name == n) {

@@ -1,6 +1,6 @@
-//! Popups only when something is wrong (user 2026-10-16: the popup for every epic drop was annoying). Three situations of a
-//! character that does not know what to do, each raised at most once per `REPEAT` per kind (log line `[STUCK]`,
-//! `roster/alerts.txt`, one popup):
+//! Notifications only when something is wrong (user 2026-10-16: the popup for every epic drop was annoying; since 2026-10-26 no
+//! popups at all, everything goes to the bell in the app, `alerts.rs`). Three situations of a
+//! character that does not know what to do, each raised at most once per `REPEAT` per kind:
 //!  1. nothing but read-only requests for `IDLE_HOURS` (the character does nothing useful any more),
 //!  2. the same command fails with the same error `SAME_ERROR_LIMIT` times in a row (no success of that command in between),
 //!  3. an expedition encounter the bot does not know (`unknown`, called from `tavern.rs`; the bot carries on, the user fills in
@@ -45,8 +45,9 @@ fn read_only(cmd: &Command) -> bool {
     )
 }
 
-/// Raises one alert of `kind` (rate-limited): log line + `roster/alerts.txt` + a popup.
-fn raise(kind: &str, text: &str, repeat: Duration) {
+/// Raises one notification (bell in the app, `alerts.rs`; no popup since 2026-10-26), rate-limited per `kind` and character:
+/// `title` is plain Czech for the user, `detail` the technical background.
+fn raise(kind: &str, title: &str, detail: &str, repeat: Duration) {
     let now = Local::now();
     let fresh = STATE.lock().is_ok_and(|mut s| {
         if s.raised.iter().any(|(k, t)| k == kind && now - *t < repeat) {
@@ -56,19 +57,21 @@ fn raise(kind: &str, text: &str, repeat: Duration) {
         s.raised.push((kind.to_string(), now));
         true
     });
-    if !fresh {
-        return;
+    if fresh {
+        let category = if kind.starts_with("error") { "error" } else if kind == "idle" { "stuck" } else { "uncertain" };
+        crate::alerts::raise(category, kind, title, detail);
     }
-    let text = format!("{}: {text}", crate::ctx::name());
-    report!("[STUCK] {text}");
-    crate::shops::note(&text);
-    std::thread::spawn(move || crate::tray::message_box(&text));
 }
 
 /// The fortress build has been waiting for GOLD alone for hours (the shops and spinning get the gold first, user 2026-10-18):
 /// a warning so the user can reconsider the priorities. Once per 12 h per character.
 pub fn fortress_gold_short(text: &str) {
-    raise("fortress-gold", text, Duration::hours(12));
+    raise(
+        "fortress-gold",
+        "Stavba v pevnosti už hodiny čeká jen na zlato, protože ho dřív spotřebují obchody a točení; dřevo a kámen jsou připravené.",
+        text,
+        Duration::hours(12),
+    );
 }
 
 /// What `after` needs to know about a request (taken before it is sent, the command is moved by then): (variant name, read-only).
@@ -81,6 +84,7 @@ pub fn after(desc: &(String, bool), result_ok: bool, error: Option<&str>) {
     let now = Local::now();
     let (name, read_only) = (desc.0.clone(), desc.1);
     let mut stuck_error = None;
+    let mut stuck_n = None;
     if let Ok(mut s) = STATE.lock() {
         if s.last_call.is_none_or(|t| now - t > Duration::hours(1)) {
             s.last_action = Some(now);
@@ -100,21 +104,38 @@ pub fn after(desc: &(String, bool), result_ok: bool, error: Option<&str>) {
             };
             if n >= SAME_ERROR_LIMIT {
                 stuck_error = Some(format!("{name} failed {n} times in a row with: {e}"));
+                stuck_n = Some(n);
             }
         }
     }
     if let Some(t) = stuck_error {
-        raise(&format!("error {name}"), &t, REPEAT);
+        raise(
+            &format!("error {name}"),
+            &format!("Akce „{name}“ opakovaně selhává ({} × po sobě se stejnou chybou serveru), bot to nedokáže obejít.", stuck_n.unwrap_or(0)),
+            &t,
+            REPEAT,
+        );
     }
     let idle = STATE.lock().ok().and_then(|s| s.last_action).is_some_and(|t| now - t >= Duration::hours(IDLE_HOURS));
     if idle {
-        raise("idle", &format!("no real action for {IDLE_HOURS} hours, the character seems to be stuck"), REPEAT);
+        raise(
+            "idle",
+            &format!("Postava už {IDLE_HOURS} hodin neudělala nic užitečného (jen čte data ze serveru), asi se zasekla a neví, co dál."),
+            "only read-only requests for the idle limit",
+            REPEAT,
+        );
     }
 }
 
-/// An encounter/situation the bot does not know (one popup per day for all of them: an expedition shows several at once, 2026-10-17). The bot carries on.
+/// An encounter/situation the bot does not know (one notification per day for all of them: an expedition shows several at once,
+/// 2026-10-17). The bot carries on.
 pub fn unknown(what: &str) {
-    raise("unknown encounter", &format!("unknown situation: {what} – the bot carries on, please map it (docs/expeditions.md)"), Duration::hours(24));
+    raise(
+        "unknown encounter",
+        "V expedici se objevila situace, kterou bot nezná. Pokračuje a vybírá podle odhadu, ale nemusí to být nejlepší volba.",
+        what,
+        Duration::hours(24),
+    );
 }
 
 #[cfg(test)]

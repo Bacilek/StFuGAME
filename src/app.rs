@@ -175,7 +175,8 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
                 let running = control::running_names();
                 let eod_pending = serde_json::json!(crate::ctx::eod_pending().into_iter().filter(|n| running.contains(n)).collect::<Vec<_>>());
                 let attack_me = crate::attack_me::active();
-                let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending}, {attack_me})"));
+                let alerts = crate::alerts::json();
+                let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending}, {attack_me}, {alerts})"));
                 tray.set_state(control::overall());
             }
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
@@ -234,6 +235,8 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
             Some((n, l)) => report!("[control] Smietanka shakes has a free slot: {n} (level {l}) is pinned to it"),
             None => report!("[control] Smietanka shakes has a free slot, but no running character outside it can be pinned"),
         },
+        "alert_note" => crate::alerts::set_note(v["id"].as_u64().unwrap_or(0), v["note"].as_str().unwrap_or_default()),
+        "alert_status" => crate::alerts::set_status(v["id"].as_u64().unwrap_or(0), v["status"].as_str().unwrap_or_default()),
         "open_browser" => open_dashboard(),
         "trainer" => save_trainer_answer(&v["data"]),
         other => report!("[control] Unknown command from the app window: {other:?}"),

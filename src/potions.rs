@@ -278,7 +278,18 @@ pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
         return Ok(true);
     }
     let Some(gs) = session.game_state() else { return Ok(false) };
-    let Some((p, what)) = crate::inventory::last_resort_epic(gs) else { return Ok(false) };
+    let Some((p, what)) = crate::inventory::last_resort_epic(gs) else {
+        if gs.character.inventory.free_slot().is_none() {
+            crate::alerts::raise_limited(
+                "inventory",
+                "backpack-full",
+                "Batoh je plný a bot nemá co bezpečně prodat ani rozebrat (zbývají jen epiky, které se neprodávají). Nové věci se nemají kam vejít a Dungeons stojí, dokud se místo neuvolní.",
+                "make_room: no step and no last-resort epic (toilet owns epics or the Blacksmith is out of dismantles)",
+                180,
+            );
+        }
+        return Ok(false);
+    };
     execute(session, RoomStep::Sell(p), &what).await
 }
 
