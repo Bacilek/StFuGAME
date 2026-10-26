@@ -193,7 +193,8 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
     <button id="stopAll">Stop all</button>
     <button id="eod">Run end of day now</button>
     <button id="attackMe" aria-pressed="false" title="While on, every bot character looks up Bacilek31 in the Hall of Fame and attacks him (his honor and rank sink)">Attack me: off</button>
-    <span id="eodStatus" style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
+    <button id="guildSlot" title="Smietanka shakes has a free slot: the running character with the lowest level that is not in it leaves its guild and joins right away">Smietanka slot free</button>
+    <span id="eodStatus"style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
     <button id="browser">Open in browser</button>
   </div>
 </header>
@@ -288,6 +289,10 @@ function renderEodStatus(pending){
     else st.style.display = "none";
   }
 }
+$("guildSlot").addEventListener("click", () => {
+  post({cmd:"guild_slot"});
+  const b = $("guildSlot"); b.disabled = true; setTimeout(() => { b.disabled = false; }, 5000);
+});
 let attackMeOn = false;
 $("attackMe").addEventListener("click", () => post({cmd:"attack_me", on: !attackMeOn}));
 function renderAttackMe(on){

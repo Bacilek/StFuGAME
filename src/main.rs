@@ -414,6 +414,7 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         tokio::select! {
             () = tokio::time::sleep(std::time::Duration::from_secs(wait)) => {}
             () = ctx::EOD_WAKE.notified() => {}
+            () = ctx::WAKE.notified() => {}
         }
     }
 }

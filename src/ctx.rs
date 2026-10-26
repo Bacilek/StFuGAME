@@ -28,6 +28,8 @@ pub fn log_path(file: &str) -> String {
 /// "Run end of day now" from the icon menu: a request counter + a wake-up for the sleeping main loops.
 pub static EOD_REQUESTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static EOD_WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
+/// Wakes every sleeping main loop without a manual end of day (e.g. a guild pin from the app window).
+pub static WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
 /// Names of the running characters that still have to finish the latest manual request (their preview report is
 /// really written) – lets the app window show "Updating… waiting for X" instead of leaving the user guessing
 /// (user 2026-10-08; names instead of a count and "done" only after the report: 2026-10-12).

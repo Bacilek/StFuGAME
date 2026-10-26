@@ -230,6 +230,10 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
         "stop_all" => control::stop_all(),
         "eod" => crate::ctx::request_end_of_day(control::running_names()),
         "attack_me" => crate::attack_me::set(v["on"].as_bool().unwrap_or(false)),
+        "guild_slot" => match control::pin_lowest_level("Smietanka shakes") {
+            Some((n, l)) => report!("[control] Smietanka shakes has a free slot: {n} (level {l}) is pinned to it"),
+            None => report!("[control] Smietanka shakes has a free slot, but no running character outside it can be pinned"),
+        },
         "open_browser" => open_dashboard(),
         "trainer" => save_trainer_answer(&v["data"]),
         other => report!("[control] Unknown command from the app window: {other:?}"),

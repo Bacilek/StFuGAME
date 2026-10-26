@@ -157,6 +157,26 @@ pub fn overall() -> crate::tray::State {
     }
 }
 
+/// "A slot is free in <guild>" button (user 2026-10-26): pins the running character with the lowest level that is not in that
+/// guild (and not already pinned) to it via `roster/<name>/guild_pin.txt` and wakes the main loops, so `guild::run` joins at once.
+/// Returns the chosen character (name, level).
+pub fn pin_lowest_level(guild: &str) -> Option<(String, u64)> {
+    let (name, level) = running_names()
+        .into_iter()
+        .filter(|n| !std::path::Path::new(&format!("roster/{n}/guild_pin.txt")).exists())
+        .filter_map(|n| {
+            let now = std::fs::read_to_string(format!("roster/{n}/now.json")).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())?;
+            if now["guild"].as_str() == Some(guild) {
+                return None;
+            }
+            Some((n, now["level"].as_u64()?))
+        })
+        .min_by_key(|(_, l)| *l)?;
+    std::fs::write(format!("roster/{name}/guild_pin.txt"), guild).ok()?;
+    crate::ctx::WAKE.notify_waiters();
+    Some((name, level))
+}
+
 /// Status of every registered character + its latest snapshot (`roster/<name>/now.json`), for the app window.
 pub fn status_json() -> serde_json::Value {
     let entries: Vec<(String, CharState)> = lock().iter().map(|e| (e.name.clone(), e.state)).collect();
