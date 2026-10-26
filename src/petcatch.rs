@@ -272,14 +272,19 @@ pub fn events(gs: &GameState) -> Vec<Event> {
     if ev.ends.is_some_and(|e| e > Local::now()) { ev.active.iter().copied().collect() } else { Vec::new() }
 }
 
-/// Pets we do not own, whose habitat dungeon is far enough (the sf-api rule `explored >= position - 1`), with a condition we can check.
+/// The first three pets of every habitat can be found from the start whatever the dungeon counter says (user finding 2026-10-21; verified in the
+/// raw data 2026-10-26: Pjotr owns Ocodile, position 3, with the Water counter at 0). Before, the sf-api rule `explored >= position - 1` hid all
+/// of them (real counters are 0 or 1), so nobody hunted Ocodile, Smaponyck, Toothey, Tinck or Gullps in the Tavern.
+const FREE_POSITIONS: u32 = 3;
+
+/// Pets we do not own, whose habitat dungeon is far enough (the sf-api rule `explored >= position - 1`, except the first three), with a condition we can check.
 fn candidates(nums: &[i64]) -> impl Iterator<Item = (u32, &'static Entry)> + '_ {
     let ready = nums.len() > 250;
     (1..=100u32).filter_map(move |id| {
         let e = &PETS[id as usize - 1];
         let h = (id as usize - 1) / 20;
         let pos0 = (id - 1) % 20;
-        (ready && pets::level(nums, id) == 0 && pets::explored(nums, h) >= pos0 && !matches!(e.rule, Rule::Manual) && e.loc.is_some())
+        (ready && pets::level(nums, id) == 0 && (pos0 < FREE_POSITIONS || pets::explored(nums, h) >= pos0) && !matches!(e.rule, Rule::Manual) && e.loc.is_some())
             .then_some((id, e))
     })
 }
@@ -394,11 +399,11 @@ mod tests {
         Local.with_ymd_and_hms(y, mo, d, h, 0, 0).unwrap()
     }
 
-    /// A fresh account: the first three pets of every habitat can be found (explored = 2), nothing owned.
+    /// A fresh account: the dungeon counters are 0 and the first three pets of every habitat can still be found, nothing owned.
     fn fresh() -> Vec<i64> {
         let mut n = vec![0; 265];
         for h in 0..5 {
-            n[210 + h] = 2;
+            n[210 + h] = 0;
         }
         n
     }

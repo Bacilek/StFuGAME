@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-10-26 (pets, NOT in a release):** `petcatch` hunts the first three pets of each habitat (Ocodile etc.) – they were filtered out by the dungeon counter, `docs/pets.md`.
+
 **Release built 01:24 2026-10-26 (fruit_idx learning, shared feeding-off; the user starts the bot).** **Release built 00:24 2026-10-26 (feeding reload + response log; the user starts the bot).** **Release built 00:11 2026-10-26 (shared pet PvP data set roster/pets_pvp.jsonl; the user starts the bot).** **Release built 00:02 2026-10-26 (pets feeding fix, strongest pet fights, dungeon rotation, Pets chart start; the user starts the bot).** **Release built 23:38 2026-10-25 (Pets tab, Charts Pets, chain egg first, guard while waiting for a pet window; the user starts the bot).** **2026-10-26:** app "Pets" tab (chain per habitat per character, `docs/controls.md`), NOT in a release yet, never seen live. Mimi FeedPets quest open: probable cause 0 fruits for her chain habitat (Light #3); user decided 2026-10-26: NEVER feed pets outside the chain, the quest stays open.
 **2026-10-26 01:05:** feeding works only for Shadow (idx 0); other habitats need the right fruit_idx -> learning by trying 0..=5 (`roster/pets_fruit_idx.txt`), NOT in a release yet, see `docs/pets.md`.
 **2026-10-26 00:20:** feeding "changed nothing" on Novotné (pets 23, 62, idx 1-4); fix attempt: reload after a feed + log the response, NOT in a release yet, see `docs/pets.md`.
