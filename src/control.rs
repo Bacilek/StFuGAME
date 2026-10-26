@@ -212,3 +212,16 @@ pub fn status_json() -> serde_json::Value {
             .collect(),
     )
 }
+
+/// A short message for the app window's toast (a button click needs visible feedback, user 2026-10-26): numbered, so the page shows each once.
+static NOTICE: Mutex<(u64, String)> = Mutex::new((0, String::new()));
+
+pub fn notice(msg: &str) {
+    let mut n = NOTICE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *n = (n.0 + 1, msg.to_string());
+}
+
+pub fn notice_json() -> serde_json::Value {
+    let n = NOTICE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    serde_json::json!({ "seq": n.0, "msg": n.1 })
+}

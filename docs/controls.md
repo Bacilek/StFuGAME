@@ -116,3 +116,7 @@ Header button in the app window. Click -> `app.rs` cmd `guild_slot` -> `control:
 
 ## Bell / notifications (2026-10-26)
 🔔 button with a counter in the header, dialog with alerts and a note box per alert. Details: `docs/alerts.md`. Needs a release build + restart; not seen live (the page script passes a syntax check, the Rust side compiles and tests pass).
+
+## Toast + button feedback (2026-10-26)
+`control::notice(msg)` -> 5th argument of `window.onStatus` (`{seq,msg}`), shown once as a toast bottom right for 9 s. The "Smietanka slot free" button turns into "⏳ Hledám postavu…" on click and back when the answer arrives (or after 6 s); messages: who was pinned, nobody to pin, the join succeeded (`guild::join_pinned`), the guild has no free slot.
+Note on the bell: an alert for a condition that persists (e.g. a full backpack) opens again right after "Vyřešeno" – it is a recurrence, not a bug; fix the cause (see the toilet bug above).

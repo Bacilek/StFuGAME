@@ -358,8 +358,27 @@ $("alNew").addEventListener("click", () => { alertsShowDone = false; renderAlert
 $("alDone").addEventListener("click", () => { alertsShowDone = true; renderAlerts(true); });
 $("guildSlot").addEventListener("click", () => {
   post({cmd:"guild_slot"});
-  const b = $("guildSlot"); b.disabled = true; setTimeout(() => { b.disabled = false; }, 5000);
+  const b = $("guildSlot"); b.disabled = true; b.textContent = "⏳ Hledám postavu…";
+  setTimeout(() => { b.disabled = false; b.textContent = "Smietanka slot free"; }, 6000);
 });
+// Toast for messages from the bot (button feedback); each numbered message is shown once
+let lastNotice = -1, toastTimer = null;
+function showToast(msg){
+  let t = $("toast");
+  if (!t){ t = document.createElement("div"); t.id = "toast";
+    t.style.cssText = "position:fixed;right:16px;bottom:16px;max-width:380px;padding:10px 14px;border-radius:10px;background:var(--ink);color:var(--page);font-size:13px;box-shadow:0 4px 16px #0006;z-index:50";
+    document.body.appendChild(t); }
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = "none"; }, 9000);
+}
+function onNotice(n){
+  if (!n) return;
+  if (lastNotice < 0){ lastNotice = n.seq; return; }  // what happened before the window opened is not news
+  if (n.seq !== lastNotice){
+    lastNotice = n.seq; showToast(n.msg);
+    const b = $("guildSlot"); b.disabled = false; b.textContent = "Smietanka slot free";
+  }
+}
 let attackMeOn = false;
 $("attackMe").addEventListener("click", () => post({cmd:"attack_me", on: !attackMeOn}));
 function renderAttackMe(on){
@@ -1023,7 +1042,7 @@ function renderPets(){
   if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has pets data yet (needs Pets unlocked and a running bot)."; box.appendChild(p); return; }
   shown.forEach(c => box.appendChild(petTile(c)));
 }
-window.onStatus = (status, eodPending, attackMe, alerts) => { STATUS = status; if (alerts){ ALERTS = alerts; renderBell(); renderAlerts(false); } renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
+window.onStatus = (status, eodPending, attackMe, alerts, notice) => { STATUS = status; onNotice(notice); if (alerts){ ALERTS = alerts; renderBell(); renderAlerts(false); } renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");
 </script>
 </body>

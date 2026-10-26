@@ -342,6 +342,7 @@ async fn join_pinned(session: &mut SimpleSession, pin: &str) -> Outcome {
     };
     if offer.members + claimed_slots(pin) >= MAX_MEMBERS {
         report!("[guild] Pinned guild {pin} has no free slot ({} members), trying again later", offer.members);
+        crate::control::notice(&format!("{pin} nemá volné místo ({} členů), zkusím to znovu za pár minut", offer.members));
         return Outcome::Done;
     }
     claim_slot(pin);
@@ -356,6 +357,7 @@ async fn join_pinned(session: &mut SimpleSession, pin: &str) -> Outcome {
     match safe::send(session, custom("GroupJoin", &[&offer.raw_name, "int"])).await {
         Ok(gs) if gs.guild.as_ref().is_some_and(|g| g.name == pin) => {
             glog(format!("[guild] Joined {pin}"));
+            crate::control::notice(&format!("{} je v cechu {pin}", crate::ctx::name()));
             let _ = std::fs::write(char_file("guild_last.txt"), pin);
             let _ = std::fs::write(char_file("guild_switched.txt"), Local::now().to_rfc3339());
             let _ = std::fs::remove_file(char_file("guild_pin.txt"));

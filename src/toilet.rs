@@ -71,7 +71,7 @@ fn spare_epic(gs: &GameState) -> Option<(BagPosition, String)> {
 /// two during Tidy Toilet Time (epics first). The server's `sacrifices_left` decides too, except that a day with no throw yet is tried once
 /// (the counter is only refreshed by responses that carry it).
 pub fn candidate(gs: &GameState, thrown: u32) -> Option<(BagPosition, String)> {
-    let toilet = gs.tavern.toilet.as_ref()?;
+    let toilet = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs))?;
     let event = event(gs);
     if thrown >= if event { 2 } else { 1 } || (thrown > 0 && toilet.sacrifices_left == 0) {
         return None;
@@ -85,10 +85,17 @@ pub fn candidate(gs: &GameState, thrown: u32) -> Option<(BagPosition, String)> {
     }
 }
 
+/// Is the toilet really unlocked? sf-api creates `gs.tavern.toilet` already from `toiletstate`, which the server sends to locked
+/// characters too (TestChar1, level 81, 2026-10-26: 14 epics rotted in a full backpack because "the toilet owns them"); only
+/// `arcanetoilet` with a level > 0 fills `mana_total`, so that is the test.
+pub fn unlocked(gs: &GameState) -> bool {
+    gs.tavern.toilet.as_ref().is_some_and(|t| t.mana_total > 0)
+}
+
 /// Is the toilet in charge of getting rid of epics (unlocked)? Then no epic is sold or dismantled for a free slot, it waits for the next
 /// sacrifice (`inventory::last_resort_epic`).
 pub fn owns_epics(gs: &GameState) -> bool {
-    gs.tavern.toilet.is_some()
+    unlocked(gs)
 }
 
 fn state(gs: &GameState) -> String {
@@ -107,7 +114,7 @@ fn fail(e: &SFError) -> Outcome {
 
 /// One sacrifice if there is something to throw, then flushes while the mana allows (and a backpack slot is free for the new item).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
-    if session.game_state().is_none_or(|gs| gs.tavern.toilet.is_none()) {
+    if session.game_state().is_none_or(|gs| !unlocked(gs)) {
         return Outcome::Done;
     }
     let thrown = thrown_today();

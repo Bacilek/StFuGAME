@@ -43,3 +43,6 @@ got <item>`, let the new item go through the normal inventory comparison; epics 
 - **Epics wait for the toilet:** with the toilet unlocked `inventory::last_resort_epic` returns nothing (no sale / dismantle / enchant for a slot); a full backpack with the day's sacrifice used simply waits until the next day (Dungeons pause like with the Blacksmith).
 - Logs: `[toilet] Threw a ... in: <state> -> <state>`, `[toilet] Flushed: ... got ...` (also in `inventory.log`). Live checks: that `sacrifices_left` / mana show up in the state at login, the day file, that `last_resort_epic` no longer sells epics.
 - Wash: not implemented (no use, user).
+
+## BUG fixed 2026-10-26: a locked toilet counted as unlocked
+sf-api creates `gs.tavern.toilet` from `toiletstate` (sent to locked characters too); only `arcanetoilet` with a level > 0 fills `mana_total`. `toilet::owns_epics`/`candidate`/`run` and `safe::toilet_drop_ok` used `toilet.is_some()`, so TestChar1 (level 81) kept 14 epics in a full backpack ("the toilet owns them", nothing sold, Dungeons stopped; found via the bell's first alert). Now `toilet::unlocked(gs)` = `mana_total > 0`. The user's rule stands: below level 90 (no Blacksmith) and without a toilet the most expensive epic is sold when the backpack is full.

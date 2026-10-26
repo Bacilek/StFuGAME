@@ -176,7 +176,8 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
                 let eod_pending = serde_json::json!(crate::ctx::eod_pending().into_iter().filter(|n| running.contains(n)).collect::<Vec<_>>());
                 let attack_me = crate::attack_me::active();
                 let alerts = crate::alerts::json();
-                let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending}, {attack_me}, {alerts})"));
+                let notice = control::notice_json();
+                let _ = webview.evaluate_script(&format!("window.onStatus && window.onStatus({status}, {eod_pending}, {attack_me}, {alerts}, {notice})"));
                 tray.set_state(control::overall());
             }
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
@@ -232,8 +233,14 @@ fn handle_ipc(rt: &tokio::runtime::Handle, body: &str) {
         "eod" => crate::ctx::request_end_of_day(control::running_names()),
         "attack_me" => crate::attack_me::set(v["on"].as_bool().unwrap_or(false)),
         "guild_slot" => match control::pin_lowest_level("Smietanka shakes") {
-            Some((n, l)) => report!("[control] Smietanka shakes has a free slot: {n} (level {l}) is pinned to it"),
-            None => report!("[control] Smietanka shakes has a free slot, but no running character outside it can be pinned"),
+            Some((n, l)) => {
+                report!("[control] Smietanka shakes has a free slot: {n} (level {l}) is pinned to it");
+                control::notice(&format!("{n} (level {l}) jde do Smietanka shakes, přihlášení do cechu proběhne za pár vteřin"));
+            }
+            None => {
+                report!("[control] Smietanka shakes has a free slot, but no running character outside it can be pinned");
+                control::notice("Nikdo se nedá poslat: žádná běžící postava mimo Smietanku (nebo už mají pin)");
+            }
         },
         "alert_note" => crate::alerts::set_note(v["id"].as_u64().unwrap_or(0), v["note"].as_str().unwrap_or_default()),
         "alert_status" => crate::alerts::set_status(v["id"].as_u64().unwrap_or(0), v["status"].as_str().unwrap_or_default()),
