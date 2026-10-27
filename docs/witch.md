@@ -28,18 +28,20 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
   → VERIFY which enchantments the game shows as unlocked and what the flag/timestamp means.
 
 
-## Enchantments (user 2026-10-19; "quests" also means expeditions)
+## Enchantments (user 2026-10-19, corrected 2026-10-27; "quests" always also means expeditions)
 | Item | Enchantment | Effect |
 |---|---|---|
-| Helmet | Adventurer's Archaeological Aura | +10 % XP on quests |
-| Armor | Mario's Beard | +50 % mushrooms on quests |
-| Gloves | Shadow of the Cowboy | you attack first (random if the enemy has it too) |
-| Boots | "36963-Feet boots" (user confirmed the name; sf-api: ManyFeetBoots) | quests 30 s shorter (thirst unchanged, only time) |
-| Weapon | Sword of Vengeance | +5 % crit damage of this weapon |
-| Amulet | Unholy Acquisitiveness | +10 % chance to find items on quests |
-| Belt | Thirsty Wanderer | first beer of the day free, beer cap 11 a day |
-| Ring | The Grave Robber's Prayer | +10 % gold from quests |
-| Talisman | Robber Baron Ritual | +20 gold from the Arena |
+| Helmet | Adventurer's Archaeological Aura | +10 % XP from quests/expeditions |
+| Armor | Mario's Beard | +50 % mushrooms from quests/expeditions |
+| Gloves | Shadow of the Cowboy | you attack first (random if the enemy has it too); also works on companions |
+| Boots | Metal Detector Boots (corrected 2026-10-27; NOT the "36963-Feet boots" / sf-api ManyFeetBoots we had) | +10 % more metal from quests/expeditions |
+| Weapon | Sword of Vengeance | +5 % crit damage of this weapon; also works on companions |
+| Amulet | Unholy Acquisitiveness | +10 % chance to find items on quests/expeditions |
+| Belt | Thirsty Wanderer | first beer of the day free (must be the 1st beer of that day), beer cap 11 a day |
+| Ring | The Grave Robber's Prayer | +10 % gold from quests/expeditions |
+| Talisman | Arcane Magnet (corrected 2026-10-27; NOT "Robber Baron Ritual" / +20 arena gold) | +10 % more arcane splinters from quests/expeditions and the game of dice |
+- Companions (user 2026-10-27): once the Tower unlocks companions we will put equipment on them; the weapon and gloves enchants work on them too.
+- The slots/ids in the code (`witch.rs`) are positional from the raw `witchshop`, so the corrected names change no logic; the sf-api names listed above are sf-api's and partly wrong.
 - Ring example seen in the game: "+10 gold bonus on expeditions" (the user's wording of the ring enchant's action text).
 - The enchant stays on the ITEM; a swap of equipment needs a new enchant (gold; price probably grows with level).
 - Gems cannot be removed from an item. Epic items never go into the cauldron, except the forced free-slot sale (see the end of this file).
@@ -59,7 +61,7 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 
 ## Capture 2026-10-19 (user, after enchanting the ARMOR): the enchant of a worn item in `ownplayersaveequipment`
 Each item is 19 numbers; the third one (index 2) is the enchantment id, which is exactly what sf-api's `Item::parse` reads (`cfpget(2)`), so `Item.enchantment` on worn items IS reliable (only the `witchshop` unlock parsing is wrong, see above). In the capture (character level ~57 average equipment, 10 slots in the order weapon, shield-slot… by item type id: 1 weapon, 2 shield, 3 breast plate, 4 boots, 5 gloves, 6 helmet, 7 belt, 8 amulet, 9 ring, 10 talisman):
-- type 3 (BreastPlate): index 2 = **31** = Mario's Beard (+50 % mushrooms on quests) ✅ armor enchant confirmed.
+- type 3 (BreastPlate): index 2 = **31** = Mario's Beard (+50 % mushrooms from quests/expeditions) ✅ armor enchant confirmed.
 - type 9 (Ring): index 2 = **91** = The Grave Robber's Prayer ✅ (the earlier ring enchant).
 - all other worn items: 0 (not enchanted).
 So: "already enchanted?" can be read from `item.enchantment == Some(slot's enchantment)` for the worn piece; a new piece comes without it (the enchant stays on the item).
@@ -103,12 +105,12 @@ Exception to "epics never go into the cauldron", ONLY for the sale forced by the
 `PlayerWitchEnchantItem` for the Breast plate (ident 6) was refused by `safe::custom_allowed` although the same call worked for Sanek 02:25 (`STOPPED for today` in `witch.log`). The check relied on sf-api's `gs.witch.enchantment_price`; the raw `witchshop` (price 1751 g) was fine. Fix (NOT in a release yet): the whitelist accepts the price of the raw `witchshop` too (`safe::raw_witch_price`), so a missing/odd sf-api witch state cannot block enchanting. Open: why sf-api's witch state was missing/zero for those two (the cauldron worked for Filminy at 07:03, so it is not permanent). The cauldron (`witch_drop_ok`, `witch::type_matches`) still reads `gs.witch.required_item`.
 
 ## Breast plate first (user 2026-10-22)
-`witch::enchant` picks the breast plate (Mario's Beard, +50 % mushrooms on quests) before any other unlocked enchant; the rest by newest unlock. Any order works (Sanek: ring then plate, Novotné: plate then ring). Every worn piece without its unlocked enchant is enchanted as soon as it is worn (already the rule). NOT in a release yet.
+`witch::enchant` picks the breast plate (Mario's Beard, +50 % mushrooms from quests/expeditions) before any other unlocked enchant; the rest by newest unlock. Any order works (Sanek: ring then plate, Novotné: plate then ring). Every worn piece without its unlocked enchant is enchanted as soon as it is worn (already the rule). NOT in a release yet.
 
 ## Correction (user 2026-10-22): the order is the game's, newest unlock first
 We do not choose the enchant order; the game offers the NEWEST unlock first (logs: plate before ring everywhere, the plate is the newer unlock). The "breast plate first" tweak was reverted; `witch::enchant` keeps newest `unlocked_at` first. NOT in a release yet (the whitelist price fix is).
 
-## Helmet enchant seen (2026-10-23, user: "must have", +10 % XP on quests)
+## Helmet enchant seen (2026-10-23, user: "must have", +10 % XP from quests/expeditions)
 Save of the main character after enchanting the hat: `ownplayersaveequipment` starts `6/23/61/...` = item type 6 (Helmet), index 2 = **61** = Adventurer's
 Archaeological Aura ✅ (breast plate `3/20/31`, ring `9/30/91` as before, everything else 0). Nothing special to code: `witch::parse` already maps
 slot 6 -> enchant 61 from the `witchshop` triples and `safe.rs` accepts any ident 1..=9 with the announced price, so `witch::enchant` enchants the
