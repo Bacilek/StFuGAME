@@ -48,7 +48,7 @@ Verified from runs:
 | Toxic Fountain Cure | 1×, permanent end | fairy fountain (8) → polluted fairy fountain (−4) | `Prince` → `RoyalFrog` | +8 / piece (polluted fountain keeps appearing to the end, net +4 each), failure 0 (user 2026-10-10, not yet verified) |
 | Plenty of Men in the Sea | 1× | fishing rod (0) → fishing bait/worms (3) → merman (9) (user 2026-10-12; NOT the dragon's `Bait`, which is the princess −2) | `FishingRod` → `FishingBait` → `Merman` | +5, failure −5 (user, not yet verified) |
 | Beak to Tail | 1× | chicken (0) → tiger (9) → riding Stan (3) (user 2026-10-12) | `Chicken` → `Tiger` → `RidingStan` | +5, failure −5 (not yet verified) |
-| Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | +5, failure −5 (user 2026-10-12, not yet verified) |
+| Build A Friend | 1× | hand (−5) → feet (−5) → body (−5) → Klaus (35) | `Hand` → `Feet` → `Body` → `Klaus` | +10 (verified 2026-10-27, 3 of 3 runs: Klaus lifts heroism by 45), failure −5 (not yet verified) |
 
 Sanitary: the FAQ says "at the end +5 if you have 3 toilet papers, otherwise −5". The user is sure about +20 / −5; their version applies (not yet verified in a run).
 
@@ -88,6 +88,7 @@ Measured frequencies, chain follow-up probabilities and the strategy review: `do
 
 ## Unmapped
 - Gone With the Wind (user 2026-10-10: +10 on completion, −10 on failure; leaf blower +4 → leaf swirl +2 → Leafbold +6): sf-api has no ids for it, so it is not in `missions.rs`. **Verified from the journals 2026-10-16** (72 runs, shown as `Unknown`): the three steps arrive as `Unknown(+4)`, `Unknown(+2)`, `Unknown(+6)` and completing the chain gives +10 on top (55 journal mismatches of exactly +10, 15 of +20 with a poster). The ids stay unknown; to map it we would need to tell the steps apart by their points (see `docs/todo.md`).
+  **Completion bonus modelled (2026-10-27):** Leafbold (193, shown as `Unknown(+6)`) brings +10 on completion when the unmapped mission is the main one (PajaRizz, Pjotr, TestChar1: server +16 vs expected +6; as a foreign cycle in Toxic Fountain Cure it brings none). `tavern::expected_now` adds it; the three MISMATCH alerts disappear.
   **Raw ids (2026-10-18, 12 runs of 8 characters):** 191 = leaf blower +4, 192 = leaf swirl +2, 193 = Leafbold +6, **1019 = the poster of this mission (+0 heroism)**. Evidence: every run that ended with a +20 completion mismatch had picked 1019 earlier, runs without it ended with +10; picking it itself is always +0 (checks OK). All four ids are in `missions::KNOWN_UNNAMED_IDS` (no "stuck" popup). The bot already takes 1019 (assumed future +5), which matches the +10 extra it brings; the completion bonus is still not modelled for unmapped missions.
 - Missions from sf-api the FAQ does not know: (merman is mapped since 2026-10-12, see the table),
   lovebirds (`Cupid` → `LovestruckShakes` → `LoveBirds`).

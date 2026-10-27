@@ -359,6 +359,11 @@ fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     {
         g += b;
     }
+    // Gone With the Wind (unmapped, raw ids 191/192/193): the last step, Leafbold (+6), brings +10 on completion (server, 2026-10-27:
+    // +16 instead of +6 in 3 of 3 runs where it was the main mission; as a foreign cycle it brings no bonus)
+    if exp.target_thing == ExpeditionThing::Unknown && enc.typ == ExpeditionThing::Unknown && enc.heroism == 6 {
+        g += 10;
+    }
     g
 }
 
@@ -1107,8 +1112,8 @@ mod tests {
         assert_eq!(choose_expedition(&[avail(Cake, 13), avail(WinnersPodium, 25)], 6000, &[]), Some(1));
         // same tier: shorter wins (dragon and podium are both S)
         assert_eq!(choose_expedition(&[avail(Dragon, 25), avail(WinnersPodium, 13)], 6000, &[]), Some(1));
-        // same tier, same length: the easier one (pig 8/round beats Klaus 7.5/round; both A)
-        assert_eq!(choose_expedition(&[avail(Klaus, 20), avail(Cake, 20)], 6000, &[]), Some(1));
+        // same tier, same length: the easier one (Klaus with the verified +10 completion bonus beats the pig; both A)
+        assert_eq!(choose_expedition(&[avail(Klaus, 20), avail(Cake, 20)], 6000, &[]), Some(0));
         // same tier, same length: an unmapped mission (tier A) wins the tie (Cupid stands in)
         assert_eq!(choose_expedition(&[avail(Cake, 20), avail(Cupid, 20)], 6000, &[]), Some(1));
         // not enough Thirst for Adventure for the longer one
