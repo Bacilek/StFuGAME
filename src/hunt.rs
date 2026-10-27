@@ -21,7 +21,7 @@ const BOTTOM_PAGES: u32 = 6;
 /// How many of the lowest-honor players of one page to inspect (each one is a `ViewPlayer`).
 const INSPECT: usize = 3;
 /// The scrapbook hunt looks further: more pages and more players per page (each one is a `ViewPlayer`).
-const SCRAPBOOK_PAGES: u32 = 10;
+const SCRAPBOOK_PAGES: u32 = 20;
 const SCRAPBOOK_INSPECT: usize = 6;
 /// Task hunts that ride along with the scrapbook: players inspected per page and pages scanned for a missing item.
 const COMBINED_INSPECT: usize = 5;
