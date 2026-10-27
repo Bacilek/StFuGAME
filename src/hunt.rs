@@ -81,7 +81,7 @@ impl Hunt {
             Hunt::Without(_) | Hunt::NoEpics => 0.5,
             Hunt::Any { streak: true } => 0.3,
             Hunt::Any { streak: false } => 0.6,
-            Hunt::Scrapbook => 0.6,
+            Hunt::Scrapbook => 0.8,
             Hunt::AttackMe => 1.0,
         }
     }
@@ -172,7 +172,7 @@ async fn find_opponent(session: &mut SimpleSession, hunt: Hunt) -> Result<Option
             .players
             .iter()
             .filter(|p| {
-                p.level <= our_level
+                (hunt == Hunt::Scrapbook || p.level <= our_level)
                     && match hunt {
                         Hunt::Class(c) => p.class == c,
                         Hunt::Without(_) | Hunt::NoEpics | Hunt::Any { .. } | Hunt::Scrapbook | Hunt::AttackMe => true,
