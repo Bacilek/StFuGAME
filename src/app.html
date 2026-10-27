@@ -90,6 +90,23 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
 .trbot.same{border-color:var(--good)} .trbot.diff{border-color:var(--bad)} .trbot.same b{color:var(--good)} .trbot.diff b{color:var(--bad)}
 #fort{display:none}
 #pets{display:none}
+#weapons{display:none}
+.wlist{display:flex;flex-direction:column;gap:10px}
+.wtile summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.wtile summary::-webkit-details-marker{display:none}
+.wtile summary b{font-size:15px} .wtile summary span{color:var(--muted);font-size:11px}
+.wrow{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.wwhen{width:78px;font-size:11px;color:var(--muted)}
+.wi{position:relative;width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;flex:none}
+.wi.empty{opacity:.45} .wi img:not(.gemmark){width:42px;height:42px;object-fit:contain}
+.wi.epic{border-color:#9b6be0;box-shadow:0 0 0 1px #9b6be0 inset} .wi.legendary{border-color:#e08a1a;box-shadow:0 0 0 1px #e08a1a inset}
+.wi img.gemmark{position:absolute;right:2px;bottom:2px;width:16px;height:16px;object-fit:contain;pointer-events:none}
+.wi .gemmark.gemempty{position:absolute;right:2px;bottom:2px;width:12px;height:12px;box-sizing:border-box;border:1.5px solid var(--ink2);border-radius:50%}
+.wi .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:0;background:var(--ink);color:var(--page);border-radius:6px;padding:5px 8px;font-size:11px;line-height:1.3;white-space:nowrap;z-index:5;text-align:left}
+.wi .tip b{display:block;font-size:12px} .wi:hover .tip{display:block}
+.warrow{color:var(--muted);font-size:18px}
+.winfo{font-size:12px;margin-left:6px} .wdmg{font-weight:700;font-size:14px}
+.wstats{margin-top:2px;color:var(--ink2)} .up{color:var(--good)} .down{color:var(--bad)}
 .ptile{cursor:default}
 .ptile summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .ptile summary::-webkit-details-marker{display:none}
@@ -194,6 +211,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
     <button id="tabQuests" aria-pressed="false">Quests</button>
     <button id="tabFort" aria-pressed="false">Fortress</button>
     <button id="tabPets" aria-pressed="false">Pets</button>
+    <button id="tabWeapons" aria-pressed="false">Weapons</button>
     <button id="tabTrainer" aria-pressed="false">Inventory trainer</button>
   </div>
   <div class="spacer"></div>
@@ -212,6 +230,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
   <div id="tiles" class="tiles"><p class="empty">Waiting for status…</p></div>
   <div id="charts"><iframe src="dashboard.html" title="Charts"></iframe></div>
   <div id="fort"><div id="ftiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
+  <div id="weapons"><div id="wlist" class="wlist"><p class="empty">Loading...</p></div></div>
   <div id="pets"><div id="ptiles" class="ftiles"><p class="empty">Waiting for status...</p></div></div>
   <div id="trainer"></div>
   <div id="quests"><div id="qtiles" class="qtiles"><p class="empty">Waiting for statusâ¦</p></div><div id="qdetail"></div></div>
@@ -253,6 +272,7 @@ $("tabCharts").addEventListener("click", () => setTab("charts"));
 $("tabQuests").addEventListener("click", () => setTab("quests"));
 $("tabFort").addEventListener("click", () => setTab("fort"));
 $("tabPets").addEventListener("click", () => setTab("pets"));
+$("tabWeapons").addEventListener("click", () => setTab("weapons"));
 $("tabTrainer").addEventListener("click", () => setTab("trainer"));
 let currentTab = "chars";
 function setTab(tab){
@@ -262,16 +282,19 @@ function setTab(tab){
   $("tabQuests").setAttribute("aria-pressed", tab === "quests");
   $("tabFort").setAttribute("aria-pressed", tab === "fort");
   $("tabPets").setAttribute("aria-pressed", tab === "pets");
+  $("tabWeapons").setAttribute("aria-pressed", tab === "weapons");
   $("tabTrainer").setAttribute("aria-pressed", tab === "trainer");
   $("tiles").style.display = tab === "chars" ? "grid" : "none";
   $("charts").style.display = tab === "charts" ? "block" : "none";
   $("quests").style.display = tab === "quests" ? "block" : "none";
   $("fort").style.display = tab === "fort" ? "block" : "none";
   $("pets").style.display = tab === "pets" ? "block" : "none";
+  $("weapons").style.display = tab === "weapons" ? "block" : "none";
   $("trainer").style.display = tab === "trainer" ? "block" : "none";
   if (tab === "trainer") TR.open();
   if (tab === "fort") renderFort();
   if (tab === "pets") renderPets();
+  if (tab === "weapons") loadWeapons();
   if (tab === "quests") renderQuests();
 }
 function setAll(on){
@@ -1041,6 +1064,58 @@ function renderPets(){
   const shown = STATUS.filter(c => c.pets);
   if (!shown.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No character has pets data yet (needs Pets unlocked and a running bot)."; box.appendChild(p); return; }
   shown.forEach(c => box.appendChild(petTile(c)));
+}
+// ---- Weapons tab (user 2026-10-27): one row per character with logged weapon swaps (`roster/weapons.jsonl`, written by
+// `weapons.rs`); a click shows each swap: old and new weapon (hover = damage/stats + gem) and how damage and stats changed.
+const weaponsOpen = new Set();
+let WEAPONS = [];
+function weaponIcon(w, label){
+  const s = document.createElement("div"); s.className = "wi" + (w ? (w.legendary ? " legendary" : w.epic ? " epic" : "") : " empty");
+  if (w && w.icon){ const im = document.createElement("img"); im.src = w.icon; im.onerror = () => { im.style.visibility = "hidden"; }; s.appendChild(im); }
+  const tip = document.createElement("div"); tip.className = "tip";
+  const b = document.createElement("b"); b.textContent = label; tip.appendChild(b);
+  const d = document.createElement("div"); d.textContent = w ? (w.d || "–") : "nothing (bare hands)"; tip.appendChild(d);
+  if (w) gemMark(s, tip, w.gem);
+  s.appendChild(tip); return s;
+}
+function weaponRow(e){
+  const row = document.createElement("div"); row.className = "wrow";
+  const when = document.createElement("div"); when.className = "wwhen"; when.textContent = e.time.slice(5, 16); row.appendChild(when);
+  row.appendChild(weaponIcon(e.old, "Old weapon")); const ar = document.createElement("span"); ar.className = "warrow"; ar.textContent = "→"; row.appendChild(ar);
+  row.appendChild(weaponIcon(e.new, "New weapon"));
+  const b = e.before || {}, a = e.after || {}, fmt = n => n == null ? "–" : Math.round(n).toLocaleString();
+  const info = document.createElement("div"); info.className = "winfo"; row.appendChild(info);
+  const pct = b.damage ? (a.damage - b.damage) * 100 / b.damage : null;
+  const dm = document.createElement("div"); dm.className = "wdmg " + (pct == null ? "" : pct >= 0 ? "up" : "down");
+  dm.textContent = `Damage ${fmt(b.damage)} → ${fmt(a.damage)}` + (pct == null ? "" : ` (${pct >= 0 ? "+" : ""}${pct.toFixed(1)} %)`); info.appendChild(dm);
+  const st = document.createElement("div"); st.className = "wstats";
+  const parts = ["STR","DEX","INT","CON","LCK"].filter(k => b.attrs && a.attrs && b.attrs[k] !== a.attrs[k]).map(k => {
+    const d = a.attrs[k] - b.attrs[k]; return `<span class="${d > 0 ? "up" : "down"}">${k} ${b.attrs[k]} → ${a.attrs[k]} (${d > 0 ? "+" : ""}${d})</span>`; });
+  if (a.hp !== b.hp && b.hp != null) parts.push(`<span class="${a.hp > b.hp ? "up" : "down"}">HP ${fmt(b.hp)} → ${fmt(a.hp)}</span>`);
+  st.innerHTML = parts.length ? parts.join(" · ") : "stats unchanged"; info.appendChild(st);
+  return row;
+}
+function renderWeapons(){
+  const box = $("wlist"); box.replaceChildren();
+  const by = {}; WEAPONS.forEach(e => (by[e.character] = by[e.character] || []).push(e));
+  const names = Object.keys(by).sort((x, y) => by[y][by[y].length - 1].time.localeCompare(by[x][by[x].length - 1].time));
+  if (!names.length){ const p = document.createElement("p"); p.className = "empty"; p.textContent = "No weapon swap logged yet."; box.appendChild(p); return; }
+  names.forEach(n => {
+    const list = by[n], last = list[list.length - 1], c = STATUS.find(s => s.name === n);
+    const t = document.createElement("details"); t.className = "ftile wtile"; t.open = weaponsOpen.has(n);
+    t.style.setProperty("--c", classColor(c && c.now && c.now.class));
+    t.addEventListener("toggle", () => { if (t.open) weaponsOpen.add(n); else weaponsOpen.delete(n); });
+    const sum = document.createElement("summary"); const b = document.createElement("b"); b.textContent = n; sum.appendChild(b);
+    const sp = document.createElement("span"); sp.textContent = `${list.length} swap${list.length === 1 ? "" : "s"} · last ${last.time.slice(5, 16)}`; sum.appendChild(sp);
+    t.appendChild(sum); list.slice().reverse().forEach(e => t.appendChild(weaponRow(e))); box.appendChild(t);
+  });
+}
+async function loadWeapons(){
+  try {
+    const r = await fetch("weapons.jsonl?" + Date.now()); const txt = await r.text();
+    WEAPONS = txt.split("\n").filter(l => l.trim()).map(l => { try { return JSON.parse(l); } catch (_) { return null; } }).filter(x => x);
+  } catch (_) { WEAPONS = []; }
+  renderWeapons();
 }
 window.onStatus = (status, eodPending, attackMe, alerts, notice) => { STATUS = status; onNotice(notice); if (alerts){ ALERTS = alerts; renderBell(); renderAlerts(false); } renderTiles(); if (currentTab === "quests") renderQuests(); if (currentTab === "fort") renderFort(); if (currentTab === "pets") renderPets(); renderEodStatus(eodPending || []); renderAttackMe(attackMe); };
 setTab("chars");

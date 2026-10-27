@@ -42,6 +42,7 @@ mod toilet;
 mod tournament;
 #[cfg(test)]
 mod weaponsim;
+mod weapons;
 mod witch;
 mod tray;
 

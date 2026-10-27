@@ -115,6 +115,10 @@ pub fn run(rt: Runtime, accounts: Vec<crate::Credentials>) -> ! {
 
     let _ = std::fs::create_dir_all("roster");
     let _ = std::fs::write("roster/app.html", include_str!("app.html"));
+    // The Weapons tab fetches it; an empty file instead of a 404 line in the log (weapons.rs appends to it)
+    if !Path::new("roster/weapons.jsonl").exists() {
+        let _ = std::fs::write("roster/weapons.jsonl", "");
+    }
 
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();

@@ -421,11 +421,15 @@ pub async fn swap_kept_item(session: &mut SimpleSession) -> Result<bool, Outcome
     let what = format!("backpack completely full: putting on {} (kept for a gem) and selling the worn {slot:?}", describe(item));
     report!("[inventory] {what}");
     journal(&format!("{what} | {}", detail(item)));
+    let swap = crate::weapons::prepare(gs, item, slot, &what);
     if let Err(e) = safe::send(session, Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident: ident }).await {
         return err_of(&e);
     }
     if let Err(e) = safe::send(session, Command::Update).await {
         return err_of(&e);
+    }
+    if let (Some(swap), Some(gs)) = (swap, session.game_state()) {
+        swap.finish(gs);
     }
     // The worn item took the place of the one we put on; sell it right away (else the pass would put it back)
     let Some(gs) = session.game_state() else { return Ok(true) };
@@ -648,6 +652,10 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
 
         report!("[inventory] {what}");
         journal(&format!("{what} | {}", detail(item)));
+        let swap = match &action {
+            Action::Equip { slot, .. } => crate::weapons::prepare(gs, item, *slot, &what),
+            Action::Sell { .. } => None,
+        };
         let mut dismantle = None;
         let cmd = match action {
             Action::Equip { pos, slot } => Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident },
@@ -678,6 +686,9 @@ pub async fn manage(session: &mut SimpleSession) -> Outcome {
         // Always decide on a fresh state
         if let Err(e) = safe::send(session, Command::Update).await {
             return fail(&e);
+        }
+        if let (Some(swap), Some(gs)) = (swap, session.game_state()) {
+            swap.finish(gs);
         }
         if let (Some(before), Some(gs)) = (&dismantle, session.game_state()) {
             crate::smith::log_result(gs, before);

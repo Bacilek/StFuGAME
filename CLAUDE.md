@@ -7,7 +7,7 @@ A Shakes & Fidget bot that automates daily tasks (Tavern, shopping, Arena, Dunge
 2. `docs/architecture.md` – modules, sf-api/server pitfalls, workflow (build, restarting the bot, push).
 3. `docs/precedents.md` – the user's decisions (follow them), `docs/todo.md` – the plan (kept in Czech on purpose).
 4. `docs/bugs.md` – the bug hall of fame: ADD an entry ONLY for a funny, character-specific bug that hit 1–3 named characters (short, with the consequence in numbers; no generic bugs; user 2026-10-18).
-5. Feature docs: `docs/expeditions.md`, `arena.md`, `arena-highlights.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `coupons.md`, `controls.md`, `scrapbook.md`, `trainer.md`, `idle.md` (Arena Manager), `alerts.md` (the bell: notifications + the user's answers in `roster/notifications.json`).
+5. Feature docs: `docs/expeditions.md`, `arena.md`, `arena-highlights.md`, `dungeons.md`, `inventory.md`, `shops.md`, `potions.md`, `guild.md`, `tasks.md`, `city-guard.md`, `daily-rewards.md`, `stable.md`, `coupons.md`, `controls.md`, `scrapbook.md`, `trainer.md`, `weapons.md` (Weapons tab), `idle.md` (Arena Manager), `alerts.md` (the bell: notifications + the user's answers in `roster/notifications.json`).
 6. The bot is probably running on the user's machine right now (icon next to the clock). What it did: combined `logs/progress.log`, per-character journals `roster/<character>/logs/` (progress.log, expeditions.jsonl, arena.jsonl).
 
 ## Context

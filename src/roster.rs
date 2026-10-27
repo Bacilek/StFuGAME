@@ -487,7 +487,7 @@ fn potion_json(p: &sf_api::gamestate::items::Potion) -> serde_json::Value {
 /// of our own level, like the game's tooltip. Damage is the average weapon hit × the main attribute bonus (the
 /// game's "~" figure, before the enemy's armor) × the game's per-class factor (see below).
 /// Armor cap and crit cap: armor reduction is capped per class (`max_armor_reduction`, Paladin 45 %), crit at 50 %.
-fn derived(gs: &GameState) -> serde_json::Value {
+pub(crate) fn derived(gs: &GameState) -> serde_json::Value {
     use sf_api::simulate::{Fighter, PlayerFighterSquad};
     let f = PlayerFighterSquad::new(gs).character;
     let attrs = f.attributes();
@@ -1282,3 +1282,25 @@ mod tests {
     }
 }
 
+
+/// One item for the Weapons tab (user 2026-10-27): the same fields the equipment slots of the character card use.
+pub(crate) fn item_card(i: &Item) -> serde_json::Value {
+    serde_json::json!({
+        "d": item_desc(i),
+        "epic": i.is_epic(),
+        "legendary": i.is_legendary(),
+        "icon": item_icon(i),
+        "gem": gem_json(i),
+        "price": i.price,
+    })
+}
+
+/// Attribute totals (base + equipment/potions) plus the derived damage/HP/crit, for the Weapons tab's before/after.
+pub(crate) fn stat_line(gs: &GameState) -> serde_json::Value {
+    let c = &gs.character;
+    let attrs: serde_json::Map<String, serde_json::Value> =
+        ATTRS.iter().map(|(a, n)| ((*n).to_string(), (c.attribute_basis[*a] + c.attribute_additions[*a]).into())).collect();
+    let mut v = derived(gs);
+    v["attrs"] = attrs.into();
+    v
+}
