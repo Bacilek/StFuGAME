@@ -129,5 +129,8 @@ Tuning constants: `OPPORTUNITY_COST` and `feasibility()` in `src/tavern.rs`.
 
 Expedition price cap (user 2026-10-16): with at least 20 min of Thirst for Adventure a 25-min expedition can still be started (`tavern::choose_expedition` and `tasks::beer_justified` use `min(cost, BEER_ALU_SEC)`). Unverified live.
 
+## Reward needs 2 free backpack slots (2026-10-28, user)
+The server refuses an expedition reward with fewer than 2 free backpack slots ("backpack full, free up at least 2 backpack slots to continue"). `tavern::run` frees slots at the Rewards stage via `potions::make_room_with(session, true)` (gem, potion, kept item, Blacksmith socket swap, last-resort epic; see `docs/blacksmith.md`); if nothing can be freed: bell alert `expedition-backpack`, the expedition waits. Level 100: expeditions cost 25/50 ALU instead of 12.5/25; whether drop chances rise is unknown (no data).
+
 ## Expedition choice order (2026-10-19, user) – `tavern::choose_expedition`
 1. an expedition through a location wanted by an open Gleeman/event travel task; 2. when such a task is open but neither offer passes the location: the SHORTER one (more expeditions today = more chances); 3. better tier (S > A > B); 4. within a tier the better success rate of reaching 40 heroism over all characters' `expeditions.jsonl` (`success_rates`, smoothed `(ok+1)/(runs+2)`, re-read hourly; a failure is `verdict == "failure: below 40"`); an unmapped or bonus-unverified mission still wins here so it gets mapped; 5. shorter, then `Mission::ease`. Tests: `same_tier_better_success_rate_wins`, `open_location_task_that_neither_offer_meets_takes_the_shorter`.

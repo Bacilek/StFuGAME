@@ -74,7 +74,7 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::WitchDropCauldron { .. }
             // The Blacksmith takes a backpack item apart instead of a shop sale (user 2026-10-24, src/smith.rs); free. Socket upgrades,
             // gem extraction and item upgrades (and every `...WithMushrooms` variant) stay forbidden; checked in `send_raw` (`dismantle_ok`)
-            | Command::Blacksmith { action: BlacksmithAction::Dismantle, .. }
+            | Command::Blacksmith { action: BlacksmithAction::Dismantle | BlacksmithAction::SocketUpgrade, .. }
             // Toilet of the Arcane Gods (user 2026-10-25, src/toilet.rs): costs no mushrooms in the captures; the sacrifice only for a
             // backpack epic / gem (`toilet_drop_ok`), the flush only with enough mana and a free slot (`toilet_flush_ok`)
             | Command::ToiletDrop { .. }
@@ -423,6 +423,17 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("blacksmith: only a backpack equipment item may be dismantled, from level 90"));
     }
+    // A gem slot only for a backpack epic that has none (user 2026-10-28, `inventory::socket_swap`)
+    if let Command::Blacksmith { item_pos, item_ident, action: BlacksmithAction::SocketUpgrade } = &cmd
+        && !session.game_state().is_some_and(|gs| {
+            gs.character.inventory.iter().any(|(bp, item)| {
+                PlayerItemPosition::from(bp) == *item_pos
+                    && item.is_some_and(|i| i.command_ident() == *item_ident && i.is_epic() && i.gem_slot.is_none())
+            })
+        })
+    {
+        return Err(SFError::InvalidRequest("blacksmith: a socket is only added to a backpack epic without one"));
+    }
     if let Command::BuyShop { shop_pos, item_ident, .. } = &cmd
         && !session.game_state().is_some_and(|gs| shop_buy_ok(gs, *shop_pos, *item_ident))
     {
@@ -605,14 +616,14 @@ mod fortress_tests {
 mod blacksmith_tests {
     use super::*;
 
-    /// Only dismantling is whitelisted: no gem socket upgrades, extraction, item upgrades or anything paid with mushrooms.
+    /// Only dismantling and the plain socket upgrade are whitelisted: no extraction, item upgrades or anything paid with mushrooms.
     #[test]
     fn only_dismantling_passes() {
         let pos = PlayerItemPosition { place: PlayerItemPlace::MainInventory, position: 0 };
         let ident = crate::smith::test_item(sf_api::gamestate::items::ItemType::Belt, 1).command_ident();
         for (action, ok) in [
             (BlacksmithAction::Dismantle, true),
-            (BlacksmithAction::SocketUpgrade, false),
+            (BlacksmithAction::SocketUpgrade, true),
             (BlacksmithAction::SocketUpgradeWithMushrooms, false),
             (BlacksmithAction::GemExtract, false),
             (BlacksmithAction::GemExtractWithMushrooms, false),

@@ -4,6 +4,7 @@ Co ještě máme v plánu pošéfit. Hotové věci se mažou (popsané jsou v p�
 Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole.
 
 ## Rozděláno / čeká na ověření
+- [ ] 2026-10-28: ověřit po releasu (a) odměna expedice se 2 volnými sloty (`make_room_with`, alert `expedition-backpack`), (b) `[smith] Socket upgrade ...` – skutečná cena (user platil ručně 2k železa + 4k splinters), jestli item zůstane na stejné pozici v batohu a že příkaz 202 nestojí houby; (c) štít u čarodějky, když chce zbraň. Statistika dropů od lvl 100 až bude postava na 100.
 - [ ] Týdenní eventy pátek–neděle (`docs/events.md`): pivo při XP eventu hotové (čeká na release + ověření); Gleeman piva zrušena; čekáme na seznam dalších eventů.
 - [ ] Pevnost (`docs/fortress.md`): základ i plán běží, pravidla od uživatele jsou v CLAUDE.md. Zbývá: ověřit po restartu, že se Fortress odemkla u TestChar1 (hledat `[fortress] State:` / `No fortress data`), a živě ověřit Academy rush, sacrifice vojáka, Barracks-aware trénink, `SF_ATTACK_ONLY` (user musí přidat účet hlavní postavy do `SF_ACCOUNTS`).
 - [ ] Scrapbook hunts v Hall of Fame: vyhodnotit úspěšnost z `roster/<postava>/logs/hunts.log` po pár dnech běhu (kolikrát nikdo nenalezen, výhry, přírůstek itemů na výhru) – `docs/scrapbook.md`.

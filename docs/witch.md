@@ -11,6 +11,7 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 - "Juice" fruits into potions: later, once we have fruits (not interesting now).
 
 ## sf-api
+- **A shield counts as a weapon (user 2026-10-28):** when she wants weapons, shields go to the cauldron too (`witch::slot_wanted`, used by `wants`/`type_matches`). Not the other way round.
 - `witch.required_item: Option<EquipmentSlot>` = the type the witch wants today (`None` + `cauldron_bubbling = true` when the cauldron is full/brewing).
   So we CAN read today's type.
 - `witch.progress` 0–100 (collection progress), `witch.enchantment_price` (silver), `witch.enchantments: EnumMap<Enchantment, Option<EnchantmentIdent>>`

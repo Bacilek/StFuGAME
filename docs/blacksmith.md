@@ -40,7 +40,15 @@ task list (the `BlacksmithDismantle` task, type 9, counts 5 points per dismantle
 ## Ideas for later phases (nothing agreed)
 - Spend Metal/Splinters: `Item::upgrade_costs` (+3 % of the highest attribute per upgrade, max 20 upgrades) on WORN items; needs an
   upgrade capture and the user's rules (which items first, reserve for the next dismantle-payback, ...).
-- Socket upgrade / gem extraction (`SocketUpgrade`, `GemExtract`): needs captures.
+- Gem extraction (`GemExtract`): needs captures (the user got a gem out of an old item for 1200 Metal + 25 splinters, 2026-10-28).
+
+## Socket upgrade to make room (user 2026-10-28, implemented, NOT in a release yet, UNVERIFIED live)
+The expedition reward needs 2 free backpack slots. After loose gems, potions and the kept item, `potions::make_room_with(session, true)` tries
+`inventory::socket_swap`: a backpack epic with NO gem slot that would beat the worn NON-epic item once it has one (value with the expected
+gem, `socket_candidate`) gets `BlacksmithAction::SocketUpgrade` (202, free of mushrooms; 212 stays forbidden), is put on, and the plain item
+sold - one slot freed. The user paid 2k Metal + 4k Arcane Splinters by hand for this (dear), hence only when a slot is really needed and
+before the last-resort epic dismantle. Floor: 2000 Metal / 4000 splinters; a refusal ends it for the day (`smith::socket_refused`).
+`safe.rs`: only for a backpack epic without a gem slot. Check the log line `[smith] Socket upgrade ...` for the real price.
 - Forge Frenzy Festival: dismantle every day up to the 15 (task points), splinters from expeditions (reward order unknown).
 
 ## Waiting for midnight instead of selling an epic (user 2026-10-24, implemented, NOT in a release yet)

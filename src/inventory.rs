@@ -417,11 +417,18 @@ pub async fn swap_kept_item(session: &mut SimpleSession) -> Result<bool, Outcome
     }
     let Some((pos, slot)) = keep_candidate(gs) else { return Ok(false) };
     let Some(Some(item)) = gs.character.inventory.backpack.get(pos.backpack_pos()) else { return Ok(false) };
-    let ident = item.command_ident();
     let what = format!("backpack completely full: putting on {} (kept for a gem) and selling the worn {slot:?}", describe(item));
+    equip_and_sell_worn(session, pos, slot, &what).await
+}
+
+/// Puts the backpack item at `pos` on and sells the worn item that lands in its place right away (else the pass would put it back).
+async fn equip_and_sell_worn(session: &mut SimpleSession, pos: BagPosition, slot: EquipmentSlot, what: &str) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    let Some(Some(item)) = gs.character.inventory.backpack.get(pos.backpack_pos()) else { return Ok(false) };
+    let ident = item.command_ident();
     report!("[inventory] {what}");
     journal(&format!("{what} | {}", detail(item)));
-    let swap = crate::weapons::prepare(gs, item, slot, &what);
+    let swap = crate::weapons::prepare(gs, item, slot, what);
     if let Err(e) = safe::send(session, Command::Equip { from_pos: pos.into(), to_slot: slot, item_ident: ident }).await {
         return err_of(&e);
     }
@@ -447,6 +454,80 @@ pub async fn swap_kept_item(session: &mut SimpleSession) -> Result<bool, Outcome
         return err_of(&e);
     }
     Ok(true)
+}
+
+/// Arcane Splinters and Metal a socket upgrade cost the user by hand (2026-10-28, level 100): the floor below which it is not tried.
+const SOCKET_MIN_METAL: u64 = 2_000;
+const SOCKET_MIN_ARCANE: u64 = 4_000;
+
+/// A backpack epic WITHOUT a gem slot that would beat the worn plain (non-epic) item once the Blacksmith gave it one and the expected
+/// gem sits in it (user 2026-10-28). Wearing it and selling the plain item frees a backpack slot. Returns (position, slot, gain).
+fn socket_candidate(gs: &GameState) -> Option<(BagPosition, EquipmentSlot, f64)> {
+    let class = gs.character.class;
+    let gem = expected_gem(gs)?;
+    gs.character
+        .inventory
+        .iter()
+        .filter_map(|(pos, item)| {
+            let item = item?;
+            let base = item.typ.equipment_slot()?;
+            if !item.is_epic() || item.is_unique() || item.gem_slot.is_some() || !item.can_be_equipped_by(class) || !worth_a_gem(class, item) {
+                return None;
+            }
+            let slot = target_slot(gs, base);
+            let worn = gs.character.equipment.0[slot].as_ref()?;
+            if worn.is_epic() || worn.is_unique() {
+                return None;
+            }
+            let mut with_slot = item.clone();
+            with_slot.gem_slot = Some(GemSlot::Empty);
+            let gain = value_with_gem(gs, &with_slot, slot, gem) - value_in(gs, worn, slot);
+            (gain > 0.0).then_some((pos, slot, gain))
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+}
+
+/// Frees a backpack slot the expensive way (user 2026-10-28, expedition rewards need 2 free slots): the Blacksmith adds a gem slot to a
+/// backpack epic that would then beat the worn plain item, the epic is put on and the plain item sold. Needs level 90 and the Metal /
+/// Arcane Splinters stock; a refusal stops it for the day. Returns true when a slot was freed.
+pub async fn socket_swap(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    if gs.character.level < crate::smith::MIN_LEVEL {
+        return Ok(false);
+    }
+    let (metal, arcane) = gs.blacksmith.as_ref().map_or((0, 0), |b| (b.metal, b.arcane));
+    if metal < SOCKET_MIN_METAL || arcane < SOCKET_MIN_ARCANE || crate::smith::socket_refused_today() {
+        return Ok(false);
+    }
+    let Some((pos, slot, gain)) = socket_candidate(gs) else { return Ok(false) };
+    let Some(Some(item)) = gs.character.inventory.backpack.get(pos.backpack_pos()) else { return Ok(false) };
+    let desc = describe(item);
+    let what = format!("making room: a gem slot for {desc} (+{gain:.0} over the worn {slot:?}), then wearing it and selling the plain one");
+    report!("[inventory] {what}");
+    journal(&format!("{what} | {} | stock {metal} Metal / {arcane} splinters", detail(item)));
+    let cmd = Command::Blacksmith { item_pos: pos.into(), action: sf_api::command::BlacksmithAction::SocketUpgrade, item_ident: item.command_ident() };
+    if let Err(e) = safe::send(session, cmd).await {
+        crate::smith::socket_refused(&e);
+        return err_of(&e);
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return err_of(&e);
+    }
+    let Some(gs) = session.game_state() else { return Ok(false) };
+    let (metal_now, arcane_now) = gs.blacksmith.as_ref().map_or((0, 0), |b| (b.metal, b.arcane));
+    let socketed = matches!(gs.character.inventory.backpack.get(pos.backpack_pos()), Some(Some(i)) if i.is_epic() && i.gem_slot == Some(GemSlot::Empty));
+    let line = format!(
+        "[smith] Socket upgrade {desc}: paid {} Metal / {} Arcane Splinters, the item {} a gem slot now",
+        metal.saturating_sub(metal_now),
+        arcane.saturating_sub(arcane_now),
+        if socketed { "has" } else { "does NOT have" }
+    );
+    report!("{line}");
+    journal(&line);
+    if !socketed {
+        return Ok(false);
+    }
+    equip_and_sell_worn(session, pos, slot, "wearing the epic with its new gem slot and selling the plain item").await
 }
 
 /// Last resort for a COMPLETELY full backpack (0 free slots; user 2026-10-16) when no potion can make room: sell a loose

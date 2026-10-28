@@ -57,6 +57,9 @@ fn should_skip_wait_with_glass(busy_until: DateTime<Local>, now: DateTime<Local>
 /// Safety limit against an endless loop.
 const MAX_STEPS: u32 = 300;
 
+/// Free backpack slots the server demands before an expedition reward can be taken.
+const REWARD_FREE_SLOTS: usize = 2;
+
 /// Picks an expedition, in this order (user 2026-10-19, pets first since 2026-10-23):
 /// 0. one that can bring a pet we still lack (`petcatch::score`: passes the pet's location while its time/season/event condition holds; an
 ///    expedition the game flags with an egg beats one without); when both offers can, the rules below decide;
@@ -561,6 +564,31 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             if gs_now.character.inventory.count_free_slots() != before {
                 refresh_pending = true;
                 continue;
+            }
+        }
+        let Some(gs) = session.game_state() else { continue };
+        // The server wants 2 free backpack slots before a reward is taken (user 2026-10-28: "free up at least 2 backpack slots")
+        let reward_needs_room = !refresh_pending
+            && gs.character.inventory.count_free_slots() < REWARD_FREE_SLOTS
+            && gs.tavern.expeditions.active().is_some_and(|e| matches!(e.current_stage(), ExpeditionStage::Rewards(r) if !r.is_empty()));
+        if reward_needs_room {
+            match crate::potions::make_room_with(session, true).await {
+                Err(o) => return o,
+                Ok(true) => {
+                    refresh_pending = true;
+                    continue;
+                }
+                Ok(false) => {
+                    report!("[tavern] The reward needs {REWARD_FREE_SLOTS} free backpack slots and none can be freed, waiting");
+                    crate::alerts::raise_limited(
+                        "inventory",
+                        "expedition-backpack",
+                        "Expedice čeká na odměnu: potřebuje 2 volné sloty v batohu a bot žádný bezpečně neuvolní (potion/gem/item k prodeji nejsou, epiky se neprodávají).",
+                        "tavern: free slots < 2 at the reward stage, make_room_with(socket) found nothing",
+                        180,
+                    );
+                    return Outcome::Done;
+                }
             }
         }
         let Some(gs) = session.game_state() else { continue };

@@ -23,6 +23,24 @@ pub const MIN_LEVEL: u16 = 90;
 /// The day on which the server refused a dismantle (no more left today); per character.
 static REFUSED_ON: crate::ctx::PerChar<Option<NaiveDate>> = crate::ctx::PerChar::new();
 
+/// The day on which the server refused a socket upgrade (not enough Metal / Arcane Splinters, ...); per character.
+static SOCKET_REFUSED_ON: crate::ctx::PerChar<Option<NaiveDate>> = crate::ctx::PerChar::new();
+
+pub fn socket_refused_today() -> bool {
+    SOCKET_REFUSED_ON.lock().is_ok_and(|r| *r == Some(Local::now().date_naive()))
+}
+
+/// A failed socket upgrade stops further tries for today (a lost session is the caller's business).
+pub fn socket_refused(e: &SFError) {
+    if crate::tavern::is_session_error(e) {
+        return;
+    }
+    if let Ok(mut r) = SOCKET_REFUSED_ON.lock() {
+        *r = Some(Local::now().date_naive());
+    }
+    report!("[smith] The Blacksmith refused the socket upgrade ({e}), not trying again today");
+}
+
 /// What happens to a backpack item that is to be got rid of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposal {

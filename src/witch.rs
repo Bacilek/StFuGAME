@@ -126,6 +126,17 @@ pub fn observe(session: &SimpleSession) {
 mod tests {
     use super::*;
 
+    /// A shield counts when the witch wants weapons (user 2026-10-28), but not the other way round.
+    #[test]
+    fn shield_counts_as_weapon() {
+        use sf_api::gamestate::items::EquipmentSlot::{Belt, Shield, Weapon};
+        assert!(slot_wanted(Weapon, Some(Weapon)));
+        assert!(slot_wanted(Weapon, Some(Shield)));
+        assert!(!slot_wanted(Shield, Some(Weapon)));
+        assert!(!slot_wanted(Weapon, Some(Belt)));
+        assert!(!slot_wanted(Weapon, None));
+    }
+
     /// The capture of 2026-10-19 (docs/witch.md): only the ring enchantment is unlocked, the cauldron is bubbling, price 2041 gold.
     const CAPTURE: &str = "1792368000/1792421040/1250000/157821/1/5/51/0/9/91/1792068112/6/61/0/8/81/0/10/101/0/3/31/0/4/41/0/7/71/0/1/11/0/1/1/9/204100";
 
@@ -253,6 +264,13 @@ pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
     Outcome::Done
 }
 
+/// An item of slot `got` satisfies the witch's wish `wanted`: the same slot, and a shield also counts when she wants weapons
+/// (user 2026-10-28).
+fn slot_wanted(wanted: sf_api::gamestate::items::EquipmentSlot, got: Option<sf_api::gamestate::items::EquipmentSlot>) -> bool {
+    use sf_api::gamestate::items::EquipmentSlot::{Shield, Weapon};
+    got == Some(wanted) || (wanted == Weapon && got == Some(Shield))
+}
+
 /// Does the witch want this backpack item today? Level 66+, the item type is the one she wants, and the item is a plain one: never an
 /// epic or a unique (user 2026-10-19; gem items are fine). Used by `inventory::manage` instead of a shop sale.
 pub fn wants(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items::Item) -> bool {
@@ -263,6 +281,6 @@ pub fn wants(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items:
 /// type to the cauldron for twice the price (user 2026-10-22, `inventory::last_resort_epic`).
 pub fn type_matches(gs: &sf_api::gamestate::GameState, item: &sf_api::gamestate::items::Item) -> bool {
     gs.character.level >= 66
-        && gs.witch.as_ref().and_then(|w| w.required_item).is_some_and(|wanted| item.typ.equipment_slot() == Some(wanted))
+        && gs.witch.as_ref().and_then(|w| w.required_item).is_some_and(|wanted| slot_wanted(wanted, item.typ.equipment_slot()))
         && !item.is_unique()
 }
