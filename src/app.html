@@ -240,6 +240,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
   <div style="display:flex;gap:8px;margin-bottom:6px">
     <button id="alNew" aria-pressed="true">Nové</button>
     <button id="alDone" aria-pressed="false">Vyřešené</button>
+    <button id="alClear">Vyřešit vše</button>
     <span style="flex:1"></span>
     <button id="alClose">Zavřít</button>
   </div>
@@ -366,12 +367,14 @@ function renderAlerts(force){
     ta.addEventListener("change", () => { a.note = ta.value; post({cmd:"alert_note", id:a.id, note:ta.value}); });
     const b = document.createElement("button");
     b.textContent = a.status === "resolved" ? "Znovu otevřít" : "Vyřešeno";
-    b.addEventListener("click", () => {
+    const submit = () => {
       if (ta.value !== (a.note || "")){ a.note = ta.value; post({cmd:"alert_note", id:a.id, note:ta.value}); }
       a.status = a.status === "resolved" ? "new" : "resolved";
       post({cmd:"alert_status", id:a.id, status:a.status});
       renderBell(); renderAlerts(true);
-    });
+    };
+    ta.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); submit(); } });
+    b.addEventListener("click", submit);
     d.append(meta, t, det, ta, b); list.appendChild(d);
   }
 }
@@ -379,6 +382,10 @@ $("bell").addEventListener("click", () => { $("alertsDlg").showModal(); renderAl
 $("alClose").addEventListener("click", () => $("alertsDlg").close());
 $("alNew").addEventListener("click", () => { alertsShowDone = false; renderAlerts(true); });
 $("alDone").addEventListener("click", () => { alertsShowDone = true; renderAlerts(true); });
+$("alClear").addEventListener("click", () => {
+  for (const a of ALERTS) if (a.status !== "resolved"){ a.status = "resolved"; post({cmd:"alert_status", id:a.id, status:"resolved"}); }
+  renderBell(); renderAlerts(true);
+});
 $("guildSlot").addEventListener("click", () => {
   post({cmd:"guild_slot"});
   const b = $("guildSlot"); b.disabled = true; b.textContent = "⏳ Hledám postavu…";

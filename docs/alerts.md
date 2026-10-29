@@ -24,3 +24,6 @@ App: `app.rs` sends the list with every status tick (4th argument of `window.onS
 - `potions.rs::make_room`: backpack full and nothing may be sold/dismantled (inventory).
 - `guild.rs`: no joinable guild for a guildless character (uncertain).
 To add a source: call `alerts::raise*` with a stable `key` and a Czech title. Ideas not done yet: uncertain expedition choice (unmapped mission), Gleeman task the bot could not plan, shop/potion decisions without a rule.
+
+## App dialog (2026-10-29)
+"Vyřešit vše" (`#alClear`) resolves every open alert in one click (notes already saved stay); Enter in an alert's textarea = the "Vyřešeno" button (saves the note and resolves/reopens), Shift+Enter = newline.
