@@ -88,6 +88,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::GambleSilver { .. }
             // Beer only during the Exceptional XP event (user 2026-10-16), see tasks::beer_justified
             | Command::BuyBeer
+            // Arena Manager upgrades (user 2026-10-25/31, src/idle.rs): dollars only; `IdleSacrifice` and the merchant stay forbidden
+            | Command::IdleUpgrade { amount: sf_api::command::IdleUpgradeAmount::One | sf_api::command::IdleUpgradeAmount::Ten | sf_api::command::IdleUpgradeAmount::TwentyFive | sf_api::command::IdleUpgradeAmount::Hundred, .. }
             // Once-a-day battles (user 2026-10-31, src/battles.rs): no mushroom parameter except the pet battle, which is never sent with one
             | Command::FightPortal
             | Command::GuildPortalBattle
@@ -488,6 +490,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| crate::potions::removal_ok(gs, *pos))
     {
         return Err(SFError::InvalidRequest("this active potion may not be removed"));
+    }
+    if let Command::IdleUpgrade { typ, amount } = &cmd
+        && !session.game_state().is_some_and(|gs| crate::idle::upgrade_ok(gs, *typ, *amount))
+    {
+        return Err(SFError::InvalidRequest("the Arena Manager upgrade is not affordable"));
     }
     if matches!(cmd, Command::FightPortal) && !session.game_state().is_some_and(crate::battles::personal_portal_ok) {
         return Err(SFError::InvalidRequest("the Demon Portal was already fought today"));

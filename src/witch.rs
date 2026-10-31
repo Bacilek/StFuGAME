@@ -197,6 +197,9 @@ fn worn_enchants(gs: &sf_api::gamestate::GameState) -> Vec<(i64, i64)> {
         .collect()
 }
 
+/// Enchantments we never buy (user 2026-10-31): 41 = Many Feet Boots (travel time -10 % is worth nothing, iron scraps do not interest us).
+const SKIPPED_ENCHANTS: [i64; 1] = [41];
+
 /// Enchants worn items, one per command, newest unlock first (the game offers one at a time, user 2026-10-19): the unlocked enchantment
 /// whose item type is worn without it and whose unlock is the newest. At most 3 per call; every attempt is checked against the new
 /// equipment (the item must carry the enchantment id and the silver must have dropped), otherwise the witch stops for the day.
@@ -218,7 +221,7 @@ pub async fn enchant(session: &mut SimpleSession) -> crate::tavern::Outcome {
             .enchants
             .iter()
             .enumerate()
-            .filter(|(_, e)| e.unlocked_at != 0 && e.unlocked_at <= now)
+            .filter(|(_, e)| e.unlocked_at != 0 && e.unlocked_at <= now && !SKIPPED_ENCHANTS.contains(&e.id))
             .filter(|(_, e)| worn.iter().any(|(slot, have)| *slot == e.slot && *have != e.id))
             .max_by_key(|(_, e)| e.unlocked_at);
         let Some((pos, e)) = pick else { return Outcome::Done };

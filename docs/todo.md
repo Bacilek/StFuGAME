@@ -37,7 +37,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [ ] Fáze 4: PvP 5×/den a útoky na trenéry (ovoce)
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
-- [ ] **Arena Manager (idle hra, lvl 105)** – odemčeno 2026-10-25, zatím jen zdokumentováno (`docs/idle.md`). Čeká na strategii od uživatele: co kupovat, kdy dělat `IdleSacrifice`, co prodává merchant a jestli něco stojí houby.
+- [ ] **Arena Manager (idle hra, lvl 105)** (nákup upgradů hotový 2026-10-31, zbývá prestige/runy) – odemčeno 2026-10-25, zatím jen zdokumentováno (`docs/idle.md`). Čeká na strategii od uživatele: co kupovat, kdy dělat `IdleSacrifice`, co prodává merchant a jestli něco stojí houby.
 - [ ] (2026-10-18, zatím neřešit) Spinning může přes den brát gold, který by fortress potřebovala na DALŠÍ buildy (spin šetří jen cenu jednoho následujícího buildu). Pokud přijde varování "build čeká na gold", přehodnotit priority (např. šetřit gold na víc buildů dopředu).
 - [ ] **Assassin: počítá se gem v off-hand (Shield slot) dvojnásobně jako ve zbrani?** (user 2026-10-16, neví) – zjistit: Assassinovi dát stejný gem do off-handu a porovnat `derived.damage` v `roster/<postava>/days/*.json` před/po (nebo user v klientu porovná damage). Do té doby se Shield slot v `gems::weapon_socket` NEbere jako zbraň. Pokud ano, rozšířit `Socket.weapon` na Shield u Assassina.
 - [ ] Smithy (vylepšuje vojáky): jen pokud soupeři mají tak silnou obranu, že nájezdy přestanou vynášet suroviny (user 2026-10-15). Vyžaduje Wall, Mages Tower a Archery Guild (levné, jednotky nikdy nevylepšujeme, chceme být napadáni) – koliduje s pravidlem „nikdy Wall“, před stavbou se zeptat.

@@ -63,3 +63,10 @@ other buildings are level 0), cycle still 72 s (1792952342 - 1792952270, may be 
 The captured `IdleMercantbuy` bought a per-building "golden" upgrade (flag idx 53 = Seat), NOT a global boost. **Do NOT buy it
 (or any merchant good) until the user says so again.** The one-time 25-mushroom exception below is REVOKED; the user spent
 the mushrooms by hand. A global speed boost may exist under another offer: ask before ever whitelisting anything.
+
+## Implemented 2026-10-31 (user: "TestChar1 is level 109 and still has not used it, the dollars just pile up")
+Until now NOTHING was implemented (only documented), that is why the dollars piled up. `src/idle.rs`, called in the main loop after the free beer:
+from level 105, if the server sent an idle game (`gs.idle_game`; if not, one `[idle] ... no idle game (unlock pending?)` line per run), every 20 min up to 15
+`IdleUpgrade` commands: the building with the cheapest next level, in the biggest affordable batch (100/25/10/1). Simple because the earning per cycle of
+unbuilt buildings is unknown (no ratio possible yet). `safe.rs` allows only affordable `IdleUpgrade` batches (`idle::upgrade_ok`); `IdleSacrifice` (prestige),
+`IdleUpgradeAmount::Max` and the merchant stay forbidden. NOT seen live: check `[idle]` lines; open: prestige timing (user looks up the optimum), runes.
