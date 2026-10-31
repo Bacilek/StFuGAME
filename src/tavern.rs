@@ -364,8 +364,14 @@ fn expected_now(exp: &Expedition, enc: &ExpeditionEncounter) -> i32 {
     }
     // Gone With the Wind (unmapped, raw ids 191/192/193): the last step, Leafbold (+6), brings +10 on completion (server, 2026-10-27:
     // +16 instead of +6 in 3 of 3 runs where it was the main mission; as a foreign cycle it brings no bonus)
+    // With the mission's poster (raw id 1019, +0, also an `Unknown`) picked earlier it brings +20 instead (server 2026-10-29..31: Novotné,
+    // Květoš, Wecros all expected +10 too little). The poster cannot be told apart from the chain pieces, but without it we hold at most
+    // 2 unnamed items (191, 192) when Leafbold arrives, with it 3.
     if exp.target_thing == ExpeditionThing::Unknown && enc.typ == ExpeditionThing::Unknown && enc.heroism == 6 {
         g += 10;
+        if exp.items.iter().flatten().filter(|i| **i == ExpeditionThing::Unknown).count() >= 3 {
+            g += BOUNTY_BONUS;
+        }
     }
     g
 }
