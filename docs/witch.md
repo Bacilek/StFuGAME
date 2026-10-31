@@ -46,7 +46,7 @@ Source: the user's explanation 2026-10-19 + sf-api 0.4.4 (`gs.witch: Option<Witc
 - Ring example seen in the game: "+10 gold bonus on expeditions" (the user's wording of the ring enchant's action text).
 - The enchant stays on the ITEM; a swap of equipment needs a new enchant (gold; price probably grows with level).
 - Gems cannot be removed from an item. Epic items never go into the cauldron, except the forced free-slot sale (see the end of this file).
-- Belt (Thirsty Wanderer): ONE free beer a day is ALLOWED (user 2026-10-19), but only if the belt was already worn with the enchant at the START of the day; a belt equipped during the day does not count. Needs a mushroom-exception entry in CLAUDE.md + safe.rs when implemented (only the free beer, verify via mushroom count that it costs none).
+- Belt (Thirsty Wanderer): ONE free beer a day, IMPLEMENTED 2026-10-31 (also when the belt is enchanted during the day, see `docs/battles.md`).
 
 ## Decisions (user 2026-10-19, also in precedents.md)
 - Enchant priority: right after better items. Everything of the day's type that is non-epic and unwanted → witch (swaps, spinning, leftovers);

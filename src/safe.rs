@@ -88,6 +88,10 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::GambleSilver { .. }
             // Beer only during the Exceptional XP event (user 2026-10-16), see tasks::beer_justified
             | Command::BuyBeer
+            // Once-a-day battles (user 2026-10-31, src/battles.rs): no mushroom parameter except the pet battle, which is never sent with one
+            | Command::FightPortal
+            | Command::GuildPortalBattle
+            | Command::GuildPetBattle { use_mushroom: false }
             | Command::HallOfFamePage { .. }
             // Read-only refresh of the scrapbook (user 2026-10-12, scrapbook hunt)
             | Command::ViewScrapbook
@@ -485,8 +489,17 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("this active potion may not be removed"));
     }
-    if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(crate::tasks::beer_justified) {
-        return Err(SFError::InvalidRequest("beer costs a mushroom and is only allowed during the Exceptional XP event"));
+    if matches!(cmd, Command::FightPortal) && !session.game_state().is_some_and(crate::battles::personal_portal_ok) {
+        return Err(SFError::InvalidRequest("the Demon Portal was already fought today"));
+    }
+    if matches!(cmd, Command::GuildPortalBattle) && !session.game_state().is_some_and(crate::battles::guild_portal_ok) {
+        return Err(SFError::InvalidRequest("the guild Portal was already fought today or there is no guild"));
+    }
+    if matches!(cmd, Command::GuildPetBattle { .. }) && !session.game_state().is_some_and(crate::battles::pet_battle_ok) {
+        return Err(SFError::InvalidRequest("the guild pet already fought the hydra today or there is no guild"));
+    }
+    if matches!(cmd, Command::BuyBeer) && !session.game_state().is_some_and(|gs| crate::tasks::beer_justified(gs) || crate::tasks::free_beer_ok(gs)) {
+        return Err(SFError::InvalidRequest("beer costs a mushroom and is only allowed during the Exceptional XP event, or free with the belt enchant"));
     }
     if let Command::GambleSilver { amount } = &cmd
         && !session.game_state().is_some_and(|gs| gamble_ok(gs, *amount))
@@ -499,6 +512,7 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     // How many mushrooms this command may spend (only renting a mount, exactly its price)
     let allowed_spend = match &cmd {
         Command::BuyMount { mount } => u32::from(mount.cost().mushrooms),
+        Command::BuyBeer if session.game_state().is_some_and(crate::tasks::free_beer_ok) => 0,
         Command::BuyBeer => crate::tasks::BEER_MUSHROOMS,
         Command::GuildIncreaseSkill { skill, current } => session
             .game_state()

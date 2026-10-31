@@ -1028,3 +1028,41 @@ mod tests {
         assert!(!gem_task_reaches_gold_chest(std::slice::from_ref(&gem), &[gold(9, 90000)], 1500));
     }
 }
+
+/// The first beer of the day is FREE while the worn Belt carries the Thirsty Wanderer enchant (user 2026-10-31, verified live: it also
+/// works when the belt was enchanted during the day). Nothing else is free, so `safe.rs` lets the watchdog allow NO mushroom loss for it.
+pub fn free_beer_ok(gs: &GameState) -> bool {
+    use sf_api::gamestate::items::{Enchantment, EquipmentSlot};
+    gs.tavern.beer_drunk == 0
+        && gs
+            .character
+            .equipment
+            .0
+            .iter()
+            .any(|(slot, item)| slot == EquipmentSlot::Belt && item.as_ref().is_some_and(|i| i.enchantment == Some(Enchantment::ThirstyWanderer)))
+}
+
+/// Drinks the free beer when its 20 min of Thirst for Adventure fit under the cap, or in the evening when anything still fits.
+pub async fn free_beer(session: &mut SimpleSession) -> Outcome {
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    if !free_beer_ok(gs) {
+        return Outcome::Done;
+    }
+    let room = crate::roster::MAX_THIRST_SEC.saturating_sub(gs.tavern.thirst_for_adventure_sec);
+    if room < BEER_ALU_SEC && !(room > 0 && chrono::Timelike::hour(&chrono::Local::now()) >= 21) {
+        return Outcome::Done;
+    }
+    let mushrooms = gs.character.mushrooms;
+    report!("[tasks] Belt enchant: drinking the free beer of the day (thirst {} s)", gs.tavern.thirst_for_adventure_sec);
+    if let Err(e) = safe::send(session, Command::BuyBeer).await {
+        report!("[tasks] Free beer failed: {e}");
+        return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return if crate::tavern::is_session_error(&e) { Outcome::SessionLost } else { Outcome::Done };
+    }
+    if let Some(gs) = session.game_state() {
+        report!("[tasks] Free beer drunk, mushrooms {mushrooms} -> {}, thirst {} s", gs.character.mushrooms, gs.tavern.thirst_for_adventure_sec);
+    }
+    Outcome::Done
+}

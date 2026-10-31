@@ -10,6 +10,7 @@ mod arena;
 mod arena_highlights;
 mod attributes;
 mod balance;
+mod battles;
 mod control;
 mod coupons;
 mod ctx;
@@ -303,6 +304,13 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = guild::battles(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        if let tavern::Outcome::SessionLost = battles::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Free beer of the Thirsty Wanderer belt enchant (user 2026-10-31)
+        if let tavern::Outcome::SessionLost = tasks::free_beer(session).await {
             return tavern::Outcome::SessionLost;
         }
         // Gleeman fight tasks (class, bare hands, no chest plate, no epics) via the Hall of Fame go BEFORE the Arena XP fights
