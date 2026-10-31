@@ -322,9 +322,6 @@ fn toilet_flush_ok(gs: &GameState) -> bool {
         && gs.character.inventory.free_slot().is_some()
 }
 
-/// Highest enchantment price the witch may charge (silver = copper units, 10 000 gold).
-pub const WITCH_MAX_PRICE: u64 = 1_000_000;
-
 /// Price of the next enchantment in the raw `witchshop` (sf-api's own witch state was missing for Filminy/Chlamydie on 2026-10-22 and
 /// the enchanting was refused as "not whitelisted"), so the raw number counts too.
 fn raw_witch_price(session: &SimpleSession) -> Option<u64> {
@@ -339,14 +336,14 @@ fn custom_allowed(gs: Option<&GameState>, raw_price: Option<u64>, cmd_name: &str
         ("ShopCatalog", [shop, mid, page]) => shop == "1" && mid.is_empty() && page == "1",
         ("ShopCheckout", [shop, identifier, suffix]) => shop == "1" && suffix.is_empty() && !identifier.is_empty(),
         // Witch enchanting (user 2026-10-19): the character's OWN worn item (flag "1", never a companion), the ident is the 1-based position
-        // of the enchantment in the `witchshop` list (1..=9), costs only the gold price the server announces (at most `WITCH_MAX_PRICE`)
+        // of the enchantment in the `witchshop` list (1..=9), costs only the gold price the server announces (no gold cap, user 2026-10-31; it just has to be affordable)
         ("PlayerWitchEnchantItem", [ident, own]) => {
             own == "1"
                 && ident.parse::<u8>().is_ok_and(|i| (1..=9).contains(&i))
                 && gs.is_some_and(|gs| {
                     gs.character.level >= 66
                         && gs.witch.as_ref().map(|w| w.enchantment_price).into_iter().chain(raw_price).any(|price| {
-                            price > 0 && price <= WITCH_MAX_PRICE && price <= gs.character.silver
+                            price > 0 && price <= gs.character.silver
                         })
                 })
         }
@@ -674,7 +671,5 @@ mod witch_tests {
         gs.character.silver = 100_000;
         assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "not enough gold");
         gs.character.silver = 5_000_000;
-        gs.witch.as_mut().unwrap().enchantment_price = WITCH_MAX_PRICE + 1;
-        assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "price above the cap");
     }
 }
