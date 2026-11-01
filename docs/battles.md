@@ -10,7 +10,7 @@ Code: `src/battles.rs` (called from the main loop right after `guild::battles`),
 
 One attempt per kind and day (`roster/<character>/battles_day.txt`), a failure is only logged (`[battles] ... refused or failed`). Level 99 is assumed from sf-api
 for the portals, the pet battle has no known requirement. Captures from the user: `docs/` has none saved; the responses carry `fightresult.battlereward`.
-Verification: NOT seen live yet; check `[battles]` lines and whether the guild Portal/pet battle worked in guilds without a pet.
+Verification (2026-11-01 18:39, first live pass): Demon Portal and guild Portal fight fine ("done"); guild pet is refused in guilds without a pet ("group need a pet") or after a fight ("come back tomorrow") – expected.
 
 ## Free beer (Thirsty Wanderer, Belt enchant 71)
 The first beer of the day (`gs.tavern.beer_drunk == 0`) is free while the worn Belt carries enchant 71 (user verified 2026-10-31, also when the
