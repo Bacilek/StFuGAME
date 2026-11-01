@@ -265,12 +265,12 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
 /// Frees one backpack slot: a loose gem goes first (socketed or sold, `gems::free_slot`), then a potion, then the item kept for a gem (swapped
 /// for the worn one), then an epic. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
-    make_room_with(session, false).await
+    make_room_with(session).await
 }
 
 /// `make_room`; with `socket` the Blacksmith may also add a gem slot to a backpack epic before the last-resort epic sale
 /// (`inventory::socket_swap`, user 2026-10-28; costs Metal and Arcane Splinters, so only where a slot is really needed).
-pub async fn make_room_with(session: &mut SimpleSession, socket: bool) -> Result<bool, Outcome> {
+pub async fn make_room_with(session: &mut SimpleSession) -> Result<bool, Outcome> {
     if crate::gems::free_slot(session).await? {
         return Ok(true);
     }
@@ -283,7 +283,8 @@ pub async fn make_room_with(session: &mut SimpleSession, socket: bool) -> Result
     if crate::inventory::swap_kept_item(session).await? {
         return Ok(true);
     }
-    if socket && crate::inventory::socket_swap(session).await? {
+    // A gem socket for a backpack epic comes before any epic is given up, whoever asks (user 2026-11-01)
+    if crate::inventory::socket_swap(session).await? {
         return Ok(true);
     }
     let Some(gs) = session.game_state() else { return Ok(false) };
@@ -330,6 +331,9 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
     let mut cauldron = crate::witch::type_matches(gs, item);
     let dismantle = matches!(step, RoomStep::Sell(_)) && item.is_epic() && crate::smith::epic_disposal(gs, item) == crate::smith::Disposal::Dismantle;
     report!("[potions] {what}");
+    if matches!(step, RoomStep::Sell(_)) && item.is_epic() {
+        crate::inventory::note_forced_epic();
+    }
     if dismantle {
         let RoomStep::Sell(pos) = step else { return Ok(false) };
         match crate::smith::dismantle(session, pos, what).await {

@@ -110,3 +110,6 @@ Replaces the "epic sold only from a backpack full of epics" rule. Reason: the us
 - Hunts still never sell an epic (`make_room_for_hunt`).
 - Witch (user): a forced epic sale picks the best payout (`inventory::payout`, 2x at the witch for her type of the day, `WitchDropCauldron`); see `docs/witch.md`.
 - Test `epic_is_sold_only_from_a_full_backpack`. Needs a release build + restart.
+
+## Forced epics and starvation (2026-11-01)
+Pagan (lvl 95, toilet locked) lost 13 epics 00:14-01:20: an endless weapon swap (fixed in `compare`, mean damage as reference) ate every `manage` pass (30 actions, first-in-backpack-order), plain junk was never sold, the backpack stayed full and `last_resort_epic` dismantled an epic every 5 min. Fixes: one equip per slot per pass (`next_action(gs, equipped)`), socket swap before any epic (`make_room_with`), and at level 90-99 one forced epic per full-backpack episode (`FORCED_EPIC`, cleared in `manage` when >= `FORCED_EPIC_RESET_FREE` slots are free).

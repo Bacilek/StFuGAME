@@ -573,6 +573,18 @@ fn payout(gs: &GameState, item: &Item) -> u64 {
     u64::from(item.price) * if crate::witch::type_matches(gs, item) { 2 } else { 1 }
 }
 
+/// An epic was already given up for a free slot in the current full-backpack episode (per character, level 90-99 only).
+static FORCED_EPIC: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
+/// Free slots needed to call the full-backpack episode over.
+const FORCED_EPIC_RESET_FREE: usize = 3;
+
+/// Remembers that an epic was given up for a slot (`potions::execute`).
+pub fn note_forced_epic() {
+    if let Ok(mut done) = FORCED_EPIC.lock() {
+        *done = true;
+    }
+}
+
 /// The very last resort, and the ONLY situation in which an epic is ever sold: the backpack is full (user 2026-10-22: one slot always
 /// stays free for a bought potion / mined gem / loot, so epics never fill the last slot; `potions::make_room` tries gems, potions
 /// and the kept item first). Sells the most expensive one (for the future toilet only the number of epics counts, not their price).
@@ -580,6 +592,11 @@ pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
     // With the toilet unlocked it takes the epics (user 2026-10-25, `toilet::run`): never sold, dismantled or enchanted for a slot,
     // they wait for the next sacrifice
     if gs.character.inventory.free_slot().is_some() || crate::toilet::owns_epics(gs) {
+        return None;
+    }
+    // Level 90-99, toilet still locked (user 2026-11-01, Pagan lost 13 epics in an hour): at most ONE epic per full backpack, and the
+    // next one only after the backpack had room again (`manage`)
+    if (90..100).contains(&gs.character.level) && FORCED_EPIC.lock().is_ok_and(|done| *done) {
         return None;
     }
     let epics = gs
@@ -606,7 +623,7 @@ pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
 }
 
 /// Next inventory management step, or None when there is nothing to do.
-fn next_action(gs: &GameState) -> Option<(Action, String)> {
+fn next_action(gs: &GameState, equipped: &[EquipmentSlot]) -> Option<(Action, String)> {
     let class = gs.character.class;
     let keep = keep_candidate(gs).map(|k| k.0);
     for (pos, item) in gs.character.inventory.iter() {
@@ -630,6 +647,10 @@ fn next_action(gs: &GameState) -> Option<(Action, String)> {
         // that too (user 2026-10-17, trainer #2); an item with its own usable socket is only equipped once better as it is
         let new_bonus = slot_bonus(gs, item, slot);
         let cur_bonus = current.map_or(0.0, |c| slot_bonus(gs, c, slot));
+        // one equip per slot and pass: an unjudgeable pair must not eat the 30 actions and starve the sales behind it (Pagan 2026-11-01)
+        if new > cur && new + new_bonus > cur + cur_bonus && equipped.contains(&slot) {
+            continue; // already equipped into this slot in this pass: leave it for the next pass, never sell the better item
+        }
         if new > cur && new + new_bonus > cur + cur_bonus {
             let what = match current {
                 Some(c) => format!("equipping {} (value {new:.1} > {cur:.1} of {})", describe(item), describe(c)),
@@ -731,10 +752,20 @@ fn announce_epics(gs: &GameState) {
 pub async fn manage(session: &mut SimpleSession) -> Outcome {
     if let Some(gs) = session.game_state() {
         announce_epics(gs);
+        // A backpack with room again ends the "instance" of a full backpack (one forced epic per instance, see `last_resort_epic`)
+        if gs.character.inventory.count_free_slots() >= FORCED_EPIC_RESET_FREE
+            && let Ok(mut done) = FORCED_EPIC.lock()
+        {
+            *done = false;
+        }
     }
+    let mut equipped: Vec<EquipmentSlot> = Vec::new();
     for _ in 0..MAX_ACTIONS {
         let Some(gs) = session.game_state() else { return Outcome::Done };
-        let Some((action, what)) = next_action(gs) else { return Outcome::Done };
+        let Some((action, what)) = next_action(gs, &equipped) else { return Outcome::Done };
+        if let Action::Equip { slot, .. } = &action {
+            equipped.push(*slot);
+        }
         let pos_idx = match &action {
             Action::Equip { pos, .. } | Action::Sell { pos } => pos.backpack_pos(),
         };

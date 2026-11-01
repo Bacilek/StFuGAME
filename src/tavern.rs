@@ -578,7 +578,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             && gs.character.inventory.count_free_slots() < REWARD_FREE_SLOTS
             && gs.tavern.expeditions.active().is_some_and(|e| matches!(e.current_stage(), ExpeditionStage::Rewards(r) if !r.is_empty()));
         if reward_needs_room {
-            match crate::potions::make_room_with(session, true).await {
+            match crate::potions::make_room_with(session).await {
                 Err(o) => return o,
                 Ok(true) => {
                     refresh_pending = true;
@@ -589,8 +589,8 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
                     crate::alerts::raise_limited(
                         "inventory",
                         "expedition-backpack",
-                        "Expedice čeká na odměnu: potřebuje 2 volné sloty v batohu a bot žádný bezpečně neuvolní (potion/gem/item k prodeji nejsou, epiky se neprodávají).",
-                        "tavern: free slots < 2 at the reward stage, make_room_with(socket) found nothing",
+                        "Expedice čeká na odměnu: potřebuje 2 volné sloty v batohu a bot je nedokázal uvolnit (potion/gem/socket nepomohly a epic se v tuhle chvíli nesmí obětovat; v batohu může být i neprodaný šrot).",
+                        "tavern: free slots < 2 at the reward stage, make_room_with found nothing",
                         180,
                     );
                     return Outcome::Done;
