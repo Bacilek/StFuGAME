@@ -258,3 +258,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-11-01 (shops): an epic that costs only gold (no mushrooms) is always bought when affordable, whether we would wear it or not (leftovers go to the toilet). Mushroom epics never.
 - 2026-11-01 (forced epics, user): an epic is dismantled ONLY when no slot is free and `make_room` (potions, gems, kept item) plus the Blacksmith socket swap could not help; one per full backpack follows by itself (no extra lock, a slot is free afterwards). See docs/inventory.md.
 | 2026-11-01 | Smietanka slot button | Button and `control::pin_lowest_level` removed (user: bots find guilds with better bonuses on their own; the pinned Sanek and Wecros were never listed anyway). Their pins were deleted. |
+
+- 2026-11-01 (user): an expedition needs its full Thirst for Adventure price; 20 min do NOT start a 25-min expedition (the 2026-10-16 cap `BEER_ALU_SEC` on the price is revoked). The free belt beer (+20 min) is only useful if an offered expedition costs <= the resulting thirst.

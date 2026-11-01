@@ -528,7 +528,7 @@ pub fn beer_justified(gs: &GameState) -> bool {
         return false;
     }
     let cheapest = match gs.tavern.available_tasks() {
-        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec.min(BEER_ALU_SEC)).min().unwrap_or(0),
+        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec).min().unwrap_or(0),
         _ => 0,
     };
     gs.tavern.thirst_for_adventure_sec < cheapest.max(1) || BURST_LEFT.lock().is_ok_and(|b| *b > 0)
@@ -547,7 +547,7 @@ pub fn log_beer_state(gs: &GameState, tavern_done: bool) {
         return;
     }
     let cheapest = match gs.tavern.available_tasks() {
-        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec.min(BEER_ALU_SEC)).min(),
+        AvailableTasks::Expeditions(list) => list.iter().map(|e| e.thirst_for_adventure_sec).min(),
         _ => None,
     };
     let thirst = gs.tavern.thirst_for_adventure_sec;

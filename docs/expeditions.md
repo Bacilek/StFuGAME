@@ -128,7 +128,7 @@ The bot writes every expedition to `logs/expeditions.jsonl` (picks, heroism, key
 Verdict: below 40 = failure, above 45 with a declined key/chest = probably too much heroism instead of chests.
 Tuning constants: `OPPORTUNITY_COST` and `feasibility()` in `src/tavern.rs`.
 
-Expedition price cap (user 2026-10-16): with at least 20 min of Thirst for Adventure a 25-min expedition can still be started (`tavern::choose_expedition` and `tasks::beer_justified` use `min(cost, BEER_ALU_SEC)`). Unverified live.
+Expedition price cap REVOKED (user 2026-11-01): with 20 min of Thirst for Adventure a 25-min expedition can NOT be started; an expedition needs its full price (`tavern::choose_expedition`, `tasks::beer_justified`). The 20 min seen on most characters in the evening are most likely the free Thirsty Wanderer belt beer (+20 min), after which the offered expeditions cost more than 20 -> nothing affordable, City Guard starts. Open: check `No expedition affordable` lines after the next run.
 
 ## Reward needs 2 free backpack slots (2026-10-28, user)
 The server refuses an expedition reward with fewer than 2 free backpack slots ("backpack full, free up at least 2 backpack slots to continue"). `tavern::run` frees slots at the Rewards stage via `potions::make_room_with(session, true)` (gem, potion, kept item, Blacksmith socket swap, last-resort epic; see `docs/blacksmith.md`); if nothing can be freed: bell alert `expedition-backpack`, the expedition waits. Level 100: expeditions cost 25/50 ALU instead of 12.5/25; whether drop chances rise is unknown (no data).

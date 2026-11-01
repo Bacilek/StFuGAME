@@ -97,7 +97,7 @@ fn choose_expedition_with(
         _ => f64::INFINITY,
     };
     let affordable: Vec<usize> =
-        list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec.min(crate::tasks::BEER_ALU_SEC) <= thirst).map(|(i, _)| i).collect();
+        list.iter().enumerate().filter(|(_, e)| e.thirst_for_adventure_sec <= thirst).map(|(i, _)| i).collect();
     let shorter_for_quest = !wanted.is_empty() && !affordable.iter().any(|&i| visits(&list[i]));
     use std::cmp::Ordering::Equal;
     // Greater = `a` is the better choice
