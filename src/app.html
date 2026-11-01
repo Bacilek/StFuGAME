@@ -220,9 +220,7 @@ button.trsubmit{width:100%;font-weight:700} button.trsubmit:disabled{opacity:.4;
     <button id="stopAll">Stop all</button>
     <button id="eod">Run end of day now</button>
     <button id="attackMe" aria-pressed="false" title="While on, every bot character looks up Bacilek31 in the Hall of Fame and attacks him (his honor and rank sink)">Attack me: off</button>
-    <button id="bell" title="Notifikace: co si bot nebyl jistý, kde se zasekl nebo co selhalo">🔔 <span id="bellN">0</span></button>
-    <button id="guildSlot"title="Smietanka shakes has a free slot: the running character with the lowest level that is not in it leaves its guild and joins right away">Smietanka slot free</button>
-    <span id="eodStatus"style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
+    <button id="bell" title="Notifikace: co si bot nebyl jistý, kde se zasekl nebo co selhalo">🔔 <span id="bellN">0</span></button>    <span id="eodStatus"style="display:none;color:var(--ink2);font-size:12px;align-self:center"></span>
     <button id="browser">Open in browser</button>
   </div>
 </header>
@@ -386,11 +384,6 @@ $("alClear").addEventListener("click", () => {
   for (const a of ALERTS) if (a.status !== "resolved"){ a.status = "resolved"; post({cmd:"alert_status", id:a.id, status:"resolved"}); }
   renderBell(); renderAlerts(true);
 });
-$("guildSlot").addEventListener("click", () => {
-  post({cmd:"guild_slot"});
-  const b = $("guildSlot"); b.disabled = true; b.textContent = "⏳ Hledám postavu…";
-  setTimeout(() => { b.disabled = false; b.textContent = "Smietanka slot free"; }, 6000);
-});
 // Toast for messages from the bot (button feedback); each numbered message is shown once
 let lastNotice = -1, toastTimer = null;
 function showToast(msg){
@@ -405,9 +398,7 @@ function onNotice(n){
   if (!n) return;
   if (lastNotice < 0){ lastNotice = n.seq; return; }  // what happened before the window opened is not news
   if (n.seq !== lastNotice){
-    lastNotice = n.seq; showToast(n.msg);
-    const b = $("guildSlot"); b.disabled = false; b.textContent = "Smietanka slot free";
-  }
+    lastNotice = n.seq; showToast(n.msg);  }
 }
 let attackMeOn = false;
 $("attackMe").addEventListener("click", () => post({cmd:"attack_me", on: !attackMeOn}));

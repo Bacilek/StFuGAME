@@ -111,8 +111,8 @@ Popups only when something is wrong; epic drops no longer pop up. Raised at most
 ## Pets tab (user 2026-10-26)
 App tab "Pets" (like Fortress): one collapsible card per character with pets data (`roster/<name>/pets_raw.txt`, >250 numbers). Inside, per habitat the chain of `pets::CHAINS` as `Name (level) -> Name (level)`; the main pet is bold with `-> target`, chain pets we do not own show `(-)`. Data: `pets::overview` via `control::status_json` key `"pets"`, names from `petcatch::name`. Open cards stay open across refreshes. Needs a release build + restart to appear; never seen live.
 
-## "Smietanka slot free" button (user 2026-10-26)
-Header button in the app window. Click -> `app.rs` cmd `guild_slot` -> `control::pin_lowest_level("Smietanka shakes")`: among RUNNING characters without a pending `guild_pin.txt` and not already in that guild (`guild` / `level` from `roster/<name>/now.json`) the lowest level gets `roster/<name>/guild_pin.txt` (the existing pin, see `docs/guild.md`: leaves its guild and joins, ignores margin/loop guard) and `ctx::WAKE` wakes every sleeping main loop so `guild::run` happens at once (retry every 5 min while the guild is full/not listed). Logged as `[control] Smietanka shakes has a free slot: ...`. The button is disabled for 5 s after a click. Stopped characters are never chosen (they cannot act). Needs a release build + restart; not seen live.
+## "Smietanka slot free" button (user 2026-10-26) – REMOVED 2026-11-01
+Removed (user 2026-11-01): the pinned characters never got in (Smietanka was not in the quick-join list for them) and the normal switching rules already find guilds with better bonuses than Smietanka. The `guild_pin.txt` mechanism in `guild::join_pinned` stays (manual file only). Toast mechanism below is unchanged.
 
 ## Bell / notifications (2026-10-26)
 🔔 button with a counter in the header, dialog with alerts and a note box per alert. Details: `docs/alerts.md`. Needs a release build + restart; not seen live (the page script passes a syntax check, the Rust side compiles and tests pass).

@@ -257,3 +257,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-31: never buy the Boots enchant (Many Feet Boots, 41). Arena Manager: buy the cheapest upgrades automatically, no prestige/merchant yet (docs/idle.md).
 - 2026-11-01 (shops): an epic that costs only gold (no mushrooms) is always bought when affordable, whether we would wear it or not (leftovers go to the toilet). Mushroom epics never.
 - 2026-11-01 (forced epics, user): an epic is dismantled ONLY when no slot is free and `make_room` (potions, gems, kept item) plus the Blacksmith socket swap could not help; one per full backpack follows by itself (no extra lock, a slot is free afterwards). See docs/inventory.md.
+| 2026-11-01 | Smietanka slot button | Button and `control::pin_lowest_level` removed (user: bots find guilds with better bonuses on their own; the pinned Sanek and Wecros were never listed anyway). Their pins were deleted. |
