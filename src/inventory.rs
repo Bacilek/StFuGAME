@@ -172,7 +172,7 @@ enum Gems {
     Bare,
 }
 
-fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, potential: Option<Gem>) -> f64 {
+fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, potential: Option<Gem>, ref_avg: Option<f64>) -> f64 {
     let ch = &gs.character;
     let gem = match item.gem_slot {
         // A socketed main/CON gem stays in the item for good, so it counts fully (user 2026-10-18); Luck/secondary ones are replaceable (below)
@@ -226,10 +226,12 @@ fn value_core(gs: &GameState, item: &Item, slot: EquipmentSlot, mode: Gems, pote
     let total_with = (total - (now_m - rest_m) + item_main + gem_main).max(0.0);
     let damage = weapon_value(effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg) + other_hand, total_with);
     // Reference: the weapon worn in this slot (bare hands without one) with the character's current main attribute
-    let ref_avg = match ch.equipment.0[slot].as_ref().map(|w| &w.typ) {
+    // (`compare` passes the mean of the two weapons instead: dividing by the worn one's damage made the gain of A -> B and of
+    // B -> A both positive for a stronger weapon against a weaker one with a gem, Pagan 2026-11-01: 1361 swaps in a day)
+    let ref_avg = ref_avg.unwrap_or_else(|| match ch.equipment.0[slot].as_ref().map(|w| &w.typ) {
         Some(&ItemType::Weapon { min_dmg, max_dmg }) => effective_avg_damage(ch.class, ch.level, secondary, min_dmg, max_dmg),
         _ => effective_avg_damage(ch.class, ch.level, secondary, 0, 0),
-    };
+    });
     let damage_ref = weapon_value(ref_avg + other_hand, total);
     damage_points(damage, damage_ref, total) + stats
 }
@@ -255,18 +257,18 @@ fn damage_points(damage: f64, damage_ref: f64, main_total: f64) -> f64 {
 /// Decisions ignore socketed gems except Legendary/All ones and empty slots count nothing (user 2026-10-16: gems are cheap, items
 /// are compared by their own stats).
 fn value_in(gs: &GameState, item: &Item, slot: EquipmentSlot) -> f64 {
-    value_core(gs, item, slot, Gems::Rare, None)
+    value_core(gs, item, slot, Gems::Rare, None, None)
 }
 
 /// Item value as it really is: a socketed gem counts, an empty slot counts nothing (no hoped-for loose gem). For the
 /// dashboard's day-to-day comparison, which must not jump when a gem merely lies in the backpack at snapshot time.
 pub fn value_as_worn(gs: &GameState, item: &Item) -> f64 {
-    value_core(gs, item, EquipmentSlot::Weapon, Gems::Socketed, None)
+    value_core(gs, item, EquipmentSlot::Weapon, Gems::Socketed, None, None)
 }
 
 /// The value the item would have with `gem` in its (empty) slot.
 pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem) -> f64 {
-    value_core(gs, item, slot, Gems::Rare, Some(gem))
+    value_core(gs, item, slot, Gems::Rare, Some(gem), None)
 }
 
 /// (new value, worn value) on equal footing. When the new OR the worn item has a usable gem socket (empty, or holding a Luck/secondary
@@ -287,7 +289,16 @@ pub fn compare(gs: &GameState, new: &Item, worn: Option<&Item>, slot: EquipmentS
     // an empty socket beat the gem-bearing worn one, and once worn the gem-bearing one beat it back: endless swapping (Pagan
     // 2026-10-19, two talismans, 30+ swaps in 6 minutes that ate every inventory pass and stalled his Tavern).
     let mode = if usable_socket(new) || worn.is_some_and(usable_socket) { Gems::Bare } else { Gems::Rare };
-    (value_core(gs, new, slot, mode, None), worn.map_or(-1.0, |w| value_core(gs, w, slot, mode, None)))
+    // Two weapons are judged against the same damage reference (their mean), so the gain A -> B is exactly minus the gain B -> A
+    let ref_avg = match (new.typ, worn.map(|w| w.typ)) {
+        (ItemType::Weapon { min_dmg: a, max_dmg: b }, Some(ItemType::Weapon { min_dmg: c, max_dmg: d })) => {
+            let secondary = class == Class::Assassin && slot == EquipmentSlot::Shield;
+            let avg = |lo, hi| effective_avg_damage(class, gs.character.level, secondary, lo, hi);
+            Some((avg(a, b) + avg(c, d)) / 2.0)
+        }
+        _ => None,
+    };
+    (value_core(gs, new, slot, mode, None, ref_avg), worn.map_or(-1.0, |w| value_core(gs, w, slot, mode, None, ref_avg)))
 }
 
 /// Item value for our character in the main `Weapon` slot (everyone except an Assassin's off-hand).
@@ -933,6 +944,27 @@ mod tests {
         gs.character.equipment.0[EquipmentSlot::Talisman] = Some(b.clone());
         let (a_new, b_worn) = compare(&gs, &a, Some(&b), EquipmentSlot::Talisman);
         assert!(!(b_new > a_worn && a_new > b_worn), "endless swap: b over a {b_new:.1}>{a_worn:.1}, a over b {a_new:.1}>{b_worn:.1}");
+    }
+
+    /// 2026-11-01 (Pagan, 1361 weapon swaps in a day): a stronger weapon without a gem and a weaker one with an All gem each beat the
+    /// other depending on which was worn (the damage was divided by the worn weapon's). Sweeps the gem size: never both ways.
+    #[test]
+    fn two_weapons_do_not_swap_forever() {
+        use AttributeType::{Constitution as Con, Strength as Str};
+        for gem in (0..300).step_by(10) {
+            let mut gs = GameState::default();
+            gs.character.class = Class::Warrior;
+            gs.character.level = 94;
+            gs.character.attribute_basis[Str] = 1800;
+            gs.character.attribute_basis[Con] = 2500;
+            let strong = item(ItemType::Weapon { min_dmg: 119, max_dmg: 257 }, &[(Str, 187)], None);
+            let gemmed = item(ItemType::Weapon { min_dmg: 105, max_dmg: 175 }, &[(Str, 139)], Some(GemSlot::Filled(Gem { typ: GemType::All, value: gem })));
+            gs.character.equipment.0[EquipmentSlot::Weapon] = Some(strong.clone());
+            let (g_new, s_worn) = compare(&gs, &gemmed, Some(&strong), EquipmentSlot::Weapon);
+            gs.character.equipment.0[EquipmentSlot::Weapon] = Some(gemmed.clone());
+            let (s_new, g_worn) = compare(&gs, &strong, Some(&gemmed), EquipmentSlot::Weapon);
+            assert!(!(g_new > s_worn && s_new > g_worn), "endless swap at gem {gem}: {g_new:.1}>{s_worn:.1} and {s_new:.1}>{g_worn:.1}");
+        }
     }
 
     /// 2026-10-22 (user): a mined gem replaces a worn one when the formula says so: 1 point better of the same type, or a

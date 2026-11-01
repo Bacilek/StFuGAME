@@ -18,3 +18,6 @@ She read the own guild's totals from a stale cache, saw the new guild as better,
 
 ## PajaRizz skipped a dungeon because the backpack was full of gems (2026-10-16)
 Four loose Luck gems and an epic filled all seven slots, and a dungeon fight needs a free one. Hence "one slot always stays free".
+
+## Pagan swapped two weapons 1361 times in one day (2026-11-01)
+A strong plain weapon (119-257) and a weaker one with an All gem (105-175) each beat the other depending on which was worn, because the damage gain was divided by the WORN weapon's damage. One swap every ~10 s from 00:00; the loop ate every inventory pass, so loot piled up, his backpack looked full and the Tavern reward alert fired. Now both are judged against the mean damage (`inventory::compare`, test `two_weapons_do_not_swap_forever`).
