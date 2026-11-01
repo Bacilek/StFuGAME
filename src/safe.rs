@@ -54,8 +54,9 @@ fn is_allowed(cmd: &Command) -> bool {
             // Dungeon unlock (user 2026-10-09: the game client itself sends `UnlockFeature` `30/1` when a character
             // with a pending dungeon unlock opens the Dungeons screen; nothing to pay), see dungeons::unlock_pending.
             // Ident 5 = Scrapbook, 9 = beginners task list (user 2026-10-09, wanted on every character).
+            // Ident 32 = the Toilet of the Arcane Gods (user capture 2026-11-01: `unlockfeature:32/1/` pending at level 100+, then `arcanetoilet:1/0/0/60`).
             // Other idents stay forbidden until the user says what they are.
-            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9, .. } }
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9 | 32, .. } }
             // Ident 20/1 = Pets themselves (user capture 2026-10-24: `unlockfeature:20/1/` pending at login, free), see pets::unlock_pets
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 20, sub_ident: 1 } }
             // Ident 21 = a new pet after an egg was picked (sub ident = pet id 1..=100, user 2026-10-23: the game client sends it when

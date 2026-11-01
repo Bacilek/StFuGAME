@@ -15,6 +15,9 @@ use crate::{safe, session::SimpleSession, tavern::Outcome};
 /// Most flushes in one pass (the mana pool is small, this is only a loop guard).
 const MAX_FLUSHES: usize = 20;
 
+/// Said once per bot run that the toilet of a level 100+ character is still locked.
+static LOCKED_NOTED: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
+
 /// Marker for "the server refused a sacrifice today".
 const REFUSED: u32 = 99;
 
@@ -114,7 +117,31 @@ fn fail(e: &SFError) -> Outcome {
 
 /// One sacrifice if there is something to throw, then flushes while the mana allows (and a backpack slot is free for the new item).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
+    // The toilet waits as a pending unlock 32/1 (user capture 2026-11-01, from level 100); the game client answers it with `UnlockFeature`
+    // and `arcanetoilet` arrives. Free, so the bot sends it itself.
+    let pending: Vec<_> = session
+        .game_state()
+        .map(|gs| gs.pending_unlocks.iter().filter(|u| u.main_ident == 32 && u.sub_ident == 1).copied().collect())
+        .unwrap_or_default();
+    for u in pending {
+        report!("[toilet] Unlocking the toilet (pending unlock 32/1)");
+        if let Err(e) = safe::send(session, Command::UnlockFeature { unlockable: u }).await {
+            return fail(&e);
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e);
+        }
+        if let Some(gs) = session.game_state() {
+            report!("[toilet] After the unlock: {}", state(gs));
+        }
+    }
     if session.game_state().is_none_or(|gs| !unlocked(gs)) {
+        // Once per run, so the state of a locked toilet is visible in the log
+        if let Some(gs) = session.game_state().filter(|gs| gs.character.level >= 100)
+            && LOCKED_NOTED.lock().is_ok_and(|mut seen| !std::mem::replace(&mut *seen, true))
+        {
+            report!("[toilet] Locked at level {}: {}", gs.character.level, state(gs));
+        }
         return Outcome::Done;
     }
     let thrown = thrown_today();

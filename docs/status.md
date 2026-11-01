@@ -1,6 +1,8 @@
 # Project status (handover document)
 
 
+**2026-11-01 (toilet unlock, NOT in a release yet, to verify live):** the toilet is a pending unlock `32/1` (user capture, from level 100; `40/1` beside it is unknown), the game client answers it with `UnlockFeature`, then `arcanetoilet:1/0/0/60` arrives (aura 1, mana 60). The bot never sent it; now `toilet::run` accepts 32/1 (whitelisted in `safe.rs`) and logs `[toilet] Locked at level N: ...` once per run for a 100+ character whose toilet is still locked. NOTE: my earlier claim "no key, the bot must call ToiletOpen" is UNVERIFIED; the ToiletKey is a separate story. Watch the log for `[toilet] Unlocking`.
+
 **2026-11-01 (gold-only epics + alerts, NOT in a release yet):** `shops::epic_purchase`: an epic that costs only gold (no mushrooms, not legendary) is bought whenever affordable, worn or not (cheapest first, up to 4 per pass; an affordable one also triggers a late re-pass); before, only upgrades were bought and other epics were just announced. Toilet check: only TestChar1 (lvl 116) has it open and flushes; Chlamydie, Filminy, Novotne, Mimimimi11 etc. (lvl 105+) have `mana_total` 0 = toilet NOT OPENED (`ToiletOpen` needs a ToiletKey, not automated), so their epics pile up in the backpack. Alert #26 (Novotne "coto???"): the running exe is from 2026-10-27, older than the commit removing the 10 000 g witch price cap, so the Belt enchant (10 523 g+) is refused as "not whitelisted" until the next release build.
 
 **2026-10-31 (Arena Manager + Boots, NOT in a release yet):** `src/idle.rs` buys the cheapest Arena Manager upgrades (`docs/idle.md`; it was never implemented before, hence the piling dollars); the witch no longer enchants Boots (`witch::SKIPPED_ENCHANTS`, enchant 41).
