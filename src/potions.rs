@@ -331,9 +331,6 @@ async fn execute(session: &mut SimpleSession, step: RoomStep, what: &str) -> Res
     let mut cauldron = crate::witch::type_matches(gs, item);
     let dismantle = matches!(step, RoomStep::Sell(_)) && item.is_epic() && crate::smith::epic_disposal(gs, item) == crate::smith::Disposal::Dismantle;
     report!("[potions] {what}");
-    if matches!(step, RoomStep::Sell(_)) && item.is_epic() {
-        crate::inventory::note_forced_epic();
-    }
     if dismantle {
         let RoomStep::Sell(pos) = step else { return Ok(false) };
         match crate::smith::dismantle(session, pos, what).await {
