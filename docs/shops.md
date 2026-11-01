@@ -6,6 +6,7 @@
 - NEVER buy for mushrooms, only for gold. Never `RefreshShop` (a new offer costs a mushroom).
 - Shopping only after the whole Thirst for Adventure is used up (Tavern done), so the best items are already in.
 - An item that improves the equipment even a little (1 stat point is enough) → buy it and equip it. Epic items are still never sold.
+- A gold-only epic (user 2026-11-01) is bought whenever affordable, even if it is no upgrade (`shops::epic_purchase`, after upgrades; the toilet gets what does not fit).
 - Spare gold → "spin" the shop: buy items for gold even when they are worse, sell them right away and look at the new offer.
   Continue until all items in the shops cost mushrooms.
 - Spare gold = above a dynamic reserve: the price of the most expensive gold item for our class seen that day

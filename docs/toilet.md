@@ -46,3 +46,6 @@ got <item>`, let the new item go through the normal inventory comparison; epics 
 
 ## BUG fixed 2026-10-26: a locked toilet counted as unlocked
 sf-api creates `gs.tavern.toilet` from `toiletstate` (sent to locked characters too); only `arcanetoilet` with a level > 0 fills `mana_total`. `toilet::owns_epics`/`candidate`/`run` and `safe::toilet_drop_ok` used `toilet.is_some()`, so TestChar1 (level 81) kept 14 epics in a full backpack ("the toilet owns them", nothing sold, Dungeons stopped; found via the bell's first alert). Now `toilet::unlocked(gs)` = `mana_total > 0`. The user's rule stands: below level 90 (no Blacksmith) and without a toilet the most expensive epic is sold when the backpack is full.
+
+## Check 2026-11-01
+Only TestChar1 (lvl 116) has the toilet open (flushes, aura 7). Chlamydie/Filminy/Novotne/Mimimimi11 (lvl 105-117) report `mana_total` 0 = locked: the bot never calls `ToiletOpen` (needs a ToiletKey item), so their epics pile up. Open question for the user: open it by hand, or automate `ToiletOpen`?

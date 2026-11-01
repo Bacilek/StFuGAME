@@ -255,3 +255,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - 2026-10-31 (witch): no gold cap on enchanting; every new enchant is wanted (price rises every level). Belt free beer verified by the user (first beer of the day, +20 min Thirst for Adventure, no mushroom).
 - 2026-10-31 (battles): Demon Portal, guild Portal and guild pet battle once a day, tried everywhere, a refusal is fine (user). Free beer: the Belt enchant makes the first beer of the day free, also when enchanted during the day (supersedes the 2026-10-19 'worn at day start' rule); see docs/battles.md.
 - 2026-10-31: never buy the Boots enchant (Many Feet Boots, 41). Arena Manager: buy the cheapest upgrades automatically, no prestige/merchant yet (docs/idle.md).
+- 2026-11-01 (shops): an epic that costs only gold (no mushrooms) is always bought when affordable, whether we would wear it or not (leftovers go to the toilet). Mushroom epics never.
