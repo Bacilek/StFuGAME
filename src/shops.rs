@@ -25,6 +25,8 @@ use crate::{inventory, safe, tavern::Outcome};
 const MAX_SPINS: usize = 60;
 /// Safety limit on purchases for tasks per day (in case the task counter does not update).
 const MAX_TASK_BUYS: usize = 6;
+/// Safety limit on gold-only epic purchases per pass.
+const MAX_EPIC_BUYS: usize = 4;
 /// Safety limit on potion purchases per day.
 const MAX_POTION_BUYS: usize = 4;
 
@@ -175,6 +177,12 @@ fn best_upgrade(gs: &GameState) -> Option<(ShopPosition, &Item, f64, f64)> {
             (new > cur).then_some((pos, i, new, cur))
         })
         .max_by(|a, b| (a.2 - a.3).total_cmp(&(b.2 - b.3)))
+}
+
+/// An epic that costs only gold (user 2026-11-01): always bought when affordable, worn or not (what does not fit goes to the toilet).
+/// Epics are never sold, so nothing is lost; the cheapest first.
+fn epic_purchase(gs: &GameState) -> Option<(ShopPosition, &Item)> {
+    gold_offers(gs).into_iter().filter(|(_, i)| i.is_epic() && !i.is_legendary() && u64::from(i.price) <= gs.character.silver).min_by_key(|(_, i)| i.price)
 }
 
 /// The cheapest non-epic affordable gold item that an open task wants bought (Gleeman/event tasks:
@@ -342,7 +350,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             let now = wares(gs);
             if with_day(|d| d.wares == now).unwrap_or(true) {
                 // Gold that arrived since the pass (Gleeman chest, City Guard pay, ...) may now afford a better item
-                let late = best_upgrade(gs).is_some()
+                let late = (best_upgrade(gs).is_some() || epic_purchase(gs).is_some())
                     && with_day(|d| d.last_pass.is_none_or(|t| Local::now() - t >= REPASS_EVERY)).unwrap_or(false);
                 if !late {
                     return respin(session).await;
@@ -424,6 +432,7 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
     let mut spin_cost = 0u64;
     let mut task_buys = 0;
     let mut potion_buys = 0;
+    let mut epic_buys = 0;
     let mut attributes_done = false;
     // Journal the weapons on offer for our class once per visit (user 2026-10-10: "why does Wecros still hold a 3–9 weapon"
     // could not be answered, nothing recorded what the shops offered or whether he could afford it)
@@ -448,6 +457,16 @@ async fn shop(session: &mut SimpleSession) -> Outcome {
 
         if let Some((pos, item, new, cur)) = best_upgrade(gs) {
             report!("[shops] Buying an upgrade: {} (value {new:.1} > {cur:.1})", describe(pos, item));
+            match buy(session, pos).await {
+                Ok(true) => continue,
+                Ok(false) => return Outcome::Done,
+                Err(o) => return o,
+            }
+        }
+
+        if let Some((pos, item)) = epic_purchase(gs).filter(|_| epic_buys < MAX_EPIC_BUYS) {
+            epic_buys += 1;
+            report!("[shops] Buying a gold-only epic: {}", describe(pos, item));
             match buy(session, pos).await {
                 Ok(true) => continue,
                 Ok(false) => return Outcome::Done,
