@@ -184,6 +184,15 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             && LOCKED_NOTED.lock().is_ok_and(|mut seen| !std::mem::replace(&mut *seen, true))
         {
             report!("[toilet] Locked at level {}: {}", gs.character.level, state(gs));
+            let pending: Vec<String> = gs.pending_unlocks.iter().map(|u| format!("{}/{}", u.main_ident, u.sub_ident)).collect();
+            let key = gs.character.inventory.iter().any(|(_, i)| i.is_some_and(|i| matches!(i.typ, ItemType::ToiletKey)));
+            crate::alerts::raise_limited(
+                "toilet",
+                "toilet-locked",
+                "Bot vidí záchod jako zamčený (level 100+), epiky se neházejí.",
+                &format!("level {}, state: {}, pending unlocks: {:?}, ToiletKey in backpack: {key}", gs.character.level, state(gs), pending),
+                720,
+            );
         }
         return Outcome::Done;
     }
