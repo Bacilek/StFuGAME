@@ -578,7 +578,7 @@ pub async fn run(session: &mut SimpleSession, journal: &mut Journal) -> Outcome 
             && gs.character.inventory.count_free_slots() < REWARD_FREE_SLOTS
             && gs.tavern.expeditions.active().is_some_and(|e| matches!(e.current_stage(), ExpeditionStage::Rewards(r) if !r.is_empty()));
         if reward_needs_room {
-            match crate::potions::make_room_with(session).await {
+            match crate::potions::make_room_with(session, REWARD_FREE_SLOTS).await {
                 Err(o) => return o,
                 Ok(true) => {
                     refresh_pending = true;

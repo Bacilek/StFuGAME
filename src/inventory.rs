@@ -573,13 +573,13 @@ fn payout(gs: &GameState, item: &Item) -> u64 {
     u64::from(item.price) * if crate::witch::type_matches(gs, item) { 2 } else { 1 }
 }
 
-/// The very last resort, and the ONLY situation in which an epic is ever sold: the backpack is full (user 2026-10-22: one slot always
+/// The very last resort, and the ONLY situation in which an epic is ever sold: fewer than `need` slots are free (1 normally; the Tavern reward asks 2, Pjotr sat on 14 epics + 1 free slot, 2026-11-02) (user 2026-10-22: one slot always
 /// stays free for a bought potion / mined gem / loot, so epics never fill the last slot; `potions::make_room` tries gems, potions
 /// and the kept item first). Sells the most expensive one (for the future toilet only the number of epics counts, not their price).
-pub fn last_resort_epic(gs: &GameState) -> Option<(BagPosition, String)> {
+pub fn last_resort_epic(gs: &GameState, need: usize) -> Option<(BagPosition, String)> {
     // With the toilet unlocked it takes the epics (user 2026-10-25, `toilet::run`): never sold, dismantled or enchanted for a slot,
     // they wait for the next sacrifice
-    if gs.character.inventory.free_slot().is_some() || crate::toilet::owns_epics(gs) {
+    if gs.character.inventory.count_free_slots() >= need || crate::toilet::owns_epics(gs) {
         return None;
     }
     let epics = gs
@@ -1005,28 +1005,28 @@ mod tests {
         let plain = item(ItemType::Belt, &[(Str, 10)], None);
         let mut gs = GameState::default();
         gs.character.inventory.backpack = (0..5).map(|i| Some(epic(100 + i))).collect();
-        let (pos, _) = last_resort_epic(&gs).expect("full of epics: sell one");
+        let (pos, _) = last_resort_epic(&gs, 1).expect("full of epics: sell one");
         assert_eq!(gs.character.inventory.backpack[pos.backpack_pos()].as_ref().map(|i| i.price), Some(104), "the most expensive");
         gs.character.inventory.backpack[2] = Some(plain);
-        assert!(last_resort_epic(&gs).is_some(), "a plain item in the full backpack: an epic is still sold to keep a slot free");
+        assert!(last_resort_epic(&gs, 1).is_some(), "a plain item in the full backpack: an epic is still sold to keep a slot free");
         gs.character.inventory.backpack[2] = None;
-        assert!(last_resort_epic(&gs).is_none(), "a free slot: no epic is sold");
+        assert!(last_resort_epic(&gs, 1).is_none(), "a free slot: no epic is sold");
 
         // The witch buys rings today at twice the price: a ring worth 60 (120 there) beats the belt worth 104
         gs.character.level = 100;
         // From level 90 the Blacksmith takes over (user 2026-10-24): the epic paying the most Arcane Splinters, not the dearest
         gs.character.inventory.backpack[2] = Some(Item { model_id: 60, price: 1, ..item(ItemType::Ring, &[(Str, 90), (AttributeType::Constitution, 90), (AttributeType::Luck, 90)], None) });
-        let (pos, what) = last_resort_epic(&gs).expect("full");
+        let (pos, what) = last_resort_epic(&gs, 1).expect("full");
         assert_eq!(pos.backpack_pos(), 2, "most splinters: {what}");
         // no dismantles left today (user 2026-10-24): nothing is sold, the bot waits for midnight
         gs.blacksmith = Some(sf_api::gamestate::unlockables::Blacksmith { dismantle_left: 0, last_dismantled: Some(chrono::Local::now()), ..Default::default() });
-        assert!(last_resort_epic(&gs).is_none(), "level 90+, out of dismantles: wait, do not sell an epic");
+        assert!(last_resort_epic(&gs, 1).is_none(), "level 90+, out of dismantles: wait, do not sell an epic");
         // below level 90 the old rule stays: the best-paid epic is sold, the witch's ring at twice the price
         gs.character.level = 80;
         gs.character.inventory.backpack[2] = Some(Item { model_id: 60, price: 60, ..item(ItemType::Ring, &[(Str, 10)], None) });
         gs.witch = Some(sf_api::gamestate::unlockables::Witch { required_item: Some(EquipmentSlot::Ring), ..Default::default() });
         gs.character.level = 80;
-        let (pos, _) = last_resort_epic(&gs).expect("full");
+        let (pos, _) = last_resort_epic(&gs, 1).expect("full");
         assert_eq!(gs.character.inventory.backpack[pos.backpack_pos()].as_ref().map(|i| i.price), Some(60), "below 90 the old payout rule: the witch pays 120 for the ring");
     }
 }

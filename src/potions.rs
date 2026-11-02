@@ -265,12 +265,12 @@ fn bag_action(gs: &GameState, pressure: Pressure) -> Option<(RoomStep, String)> 
 /// Frees one backpack slot: a loose gem goes first (socketed or sold, `gems::free_slot`), then a potion, then the item kept for a gem (swapped
 /// for the worn one), then an epic. Returns true when a slot was freed.
 pub async fn make_room(session: &mut SimpleSession) -> Result<bool, Outcome> {
-    make_room_with(session).await
+    make_room_with(session, 1).await
 }
 
 /// `make_room`; with `socket` the Blacksmith may also add a gem slot to a backpack epic before the last-resort epic sale
 /// (`inventory::socket_swap`, user 2026-10-28; costs Metal and Arcane Splinters, so only where a slot is really needed).
-pub async fn make_room_with(session: &mut SimpleSession) -> Result<bool, Outcome> {
+pub async fn make_room_with(session: &mut SimpleSession, need: usize) -> Result<bool, Outcome> {
     if crate::gems::free_slot(session).await? {
         return Ok(true);
     }
@@ -288,7 +288,7 @@ pub async fn make_room_with(session: &mut SimpleSession) -> Result<bool, Outcome
         return Ok(true);
     }
     let Some(gs) = session.game_state() else { return Ok(false) };
-    let Some((p, what)) = crate::inventory::last_resort_epic(gs) else {
+    let Some((p, what)) = crate::inventory::last_resort_epic(gs, need) else {
         if gs.character.inventory.free_slot().is_none() {
             crate::alerts::raise_limited(
                 "inventory",
