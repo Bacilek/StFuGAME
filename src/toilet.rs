@@ -18,6 +18,13 @@ const MAX_FLUSHES: usize = 20;
 /// Said once per bot run that the toilet of a level 100+ character is still locked.
 static LOCKED_NOTED: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
 
+/// When a fresh login was last forced because a level 100+ toilet looked locked.
+static RELOGIN_AT: crate::ctx::PerChar<Option<std::time::Instant>> = crate::ctx::PerChar::new();
+
+/// The server sends `arcanetoilet` only with a login or after the unlock; a session older than the unlock never sees it (user 2026-11-02:
+/// Pjotr, level 121, toilet open in the game with aura and mana, the bot saw it locked). So a locked 100+ toilet asks for a new login.
+const RELOGIN_EVERY: std::time::Duration = std::time::Duration::from_secs(2 * 3600);
+
 /// Marker for "the server refused a sacrifice today".
 const REFUSED: u32 = 99;
 
@@ -185,14 +192,30 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         {
             report!("[toilet] Locked at level {}: {}", gs.character.level, state(gs));
             let pending: Vec<String> = gs.pending_unlocks.iter().map(|u| format!("{}/{}", u.main_ident, u.sub_ident)).collect();
-            let key = gs.character.inventory.iter().any(|(_, i)| i.is_some_and(|i| matches!(i.typ, ItemType::ToiletKey)));
             crate::alerts::raise_limited(
                 "toilet",
                 "toilet-locked",
                 "Bot vidí záchod jako zamčený (level 100+), epiky se neházejí.",
-                &format!("level {}, state: {}, pending unlocks: {:?}, ToiletKey in backpack: {key}", gs.character.level, state(gs), pending),
+                &format!("level {}, state: {}, pending unlocks: {:?}", gs.character.level, state(gs), pending),
                 720,
             );
+        }
+        let high = session.game_state().is_some_and(|gs| gs.character.level >= 100 && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32));
+        // The first sighting only starts the clock (the login that just happened would have brought `arcanetoilet`)
+        let due = high && RELOGIN_AT.lock().is_ok_and(|mut at| match *at {
+            None => {
+                *at = Some(std::time::Instant::now());
+                false
+            }
+            Some(t) if t.elapsed() >= RELOGIN_EVERY => {
+                *at = Some(std::time::Instant::now());
+                true
+            }
+            Some(_) => false,
+        });
+        if due {
+            report!("[toilet] Looks locked at level 100+, asking for a fresh login");
+            return Outcome::SessionLost;
         }
         return Outcome::Done;
     }

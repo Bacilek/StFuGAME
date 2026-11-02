@@ -33,7 +33,7 @@ expedition; older docs said 100 - re-check). Nothing in the bot touches it yet; 
 Whitelist throw/flush (`ToiletDrop` only for a spare epic or gem, never a worn or better item, never a potion/plain item), a
 `toilet::run` step: throw while `sacrifices_left > 0` and a spare epic/gem exists, flush while `mana >= 60`, log `[toilet] aura a -> b,
 got <item>`, let the new item go through the normal inventory comparison; epics without backpack room go to the toilet instead of
-`last_resort_epic`'s sale/dismantle. `ToiletOpen` needs a `ToiletKey` item (`ItemType::ToiletKey`). Pet Ungere appears at aura 20.
+`last_resort_epic`'s sale/dismantle. There is NO toilet key (user 2026-11-02): it opens by itself at level 100. Pet Ungere appears at aura 20.
 
 ## IMPLEMENTED 2026-10-25 (user, NOT in a release yet, never seen live): `src/toilet.rs`
 - Runs in the main loop right after `inventory::manage` (before potions). Needs `gs.tavern.toilet` (`arcanetoilet` level > 0); the Open-with-key step is not automated.
