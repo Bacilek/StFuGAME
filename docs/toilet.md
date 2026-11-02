@@ -49,3 +49,4 @@ sf-api creates `gs.tavern.toilet` from `toiletstate` (sent to locked characters 
 
 ## Check 2026-11-01
 Only TestChar1 (lvl 116) has the toilet open (flushes, aura 7). Chlamydie/Filminy/Novotne/Mimimimi11 (lvl 105-117) report `mana_total` 0 = locked: the bot never calls `ToiletOpen` (needs a ToiletKey item), so their epics pile up. Open question for the user: open it by hand, or automate `ToiletOpen`?
+- 2026-11-02: room for a Tavern reward (2 slots): loose gem -> potion -> kept item -> socket swap -> TOILET epic (within the daily limit) -> only then the last-resort epic (never with an unlocked toilet).

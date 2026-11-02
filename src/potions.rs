@@ -287,6 +287,10 @@ pub async fn make_room_with(session: &mut SimpleSession, need: usize) -> Result<
     if crate::inventory::socket_swap(session).await? {
         return Ok(true);
     }
+    // The unlocked toilet takes an epic before any is given up (user 2026-11-02)
+    if crate::toilet::free_slot(session).await? {
+        return Ok(true);
+    }
     let Some(gs) = session.game_state() else { return Ok(false) };
     let Some((p, what)) = crate::inventory::last_resort_epic(gs, need) else {
         if gs.character.inventory.free_slot().is_none() {

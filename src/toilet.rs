@@ -73,7 +73,7 @@ fn spare_epic(gs: &GameState) -> Option<(BagPosition, String)> {
 /// What to throw now, or None. `thrown` = sacrifices made today. One a day outside the event (a gem; an epic only with a full backpack),
 /// two during Tidy Toilet Time (epics first). The server's `sacrifices_left` decides too, except that a day with no throw yet is tried once
 /// (the counter is only refreshed by responses that carry it).
-pub fn candidate(gs: &GameState, thrown: u32) -> Option<(BagPosition, String)> {
+pub fn candidate(gs: &GameState, thrown: u32, need_room: bool) -> Option<(BagPosition, String)> {
     let toilet = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs))?;
     let event = event(gs);
     if thrown >= if event { 2 } else { 1 } || (thrown > 0 && toilet.sacrifices_left == 0) {
@@ -81,7 +81,7 @@ pub fn candidate(gs: &GameState, thrown: u32) -> Option<(BagPosition, String)> {
     }
     let gem = || crate::inventory::spare_gem(gs).map(|(pos, _)| (pos, "gem".to_string()));
     let full = gs.character.inventory.free_slot().is_none();
-    if event || full {
+    if event || full || need_room {
         spare_epic(gs).or_else(gem)
     } else {
         gem()
@@ -115,6 +115,49 @@ fn fail(e: &SFError) -> Outcome {
     Outcome::Done
 }
 
+/// One sacrifice if there is something to throw (`need_room`: the Tavern needs slots, so an epic goes even with a free slot left).
+/// `Some(outcome)` = stop the pass.
+async fn sacrifice(session: &mut SimpleSession, need_room: bool) -> Option<Outcome> {
+    let thrown = thrown_today();
+    if let Some((pos, what)) = session.game_state().and_then(|gs| candidate(gs, thrown, need_room)) {
+        let Some(gs) = session.game_state() else { return Some(Outcome::Done) };
+        let ident = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()).map(Item::command_ident);
+        let was = state(gs);
+        match safe::send(session, Command::ToiletDrop { item_pos: pos.into() }).await {
+            Err(e) => {
+                if matches!(e, SFError::ServerError(_)) {
+                    set_thrown_today(REFUSED);
+                }
+                return Some(fail(&e));
+            }
+            Ok(_) => {}
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return Some(fail(&e));
+        }
+        let Some(gs) = session.game_state() else { return Some(Outcome::Done) };
+        let gone = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()).map(Item::command_ident) != ident;
+        if gone {
+            set_thrown_today(thrown + 1);
+            report!("[toilet] Threw a {what} in{}: {was} -> {}", if event(gs) { " (Tidy Toilet Time)" } else { "" }, state(gs));
+        } else {
+            set_thrown_today(REFUSED);
+            report!("[toilet] The {what} is still in the backpack after the sacrifice, no more today ({})", state(gs));
+        }
+    }
+    None
+}
+
+/// Frees a backpack slot with an epic thrown into the toilet (user 2026-11-02: Pjotr could not take a Tavern reward needing 2 slots, the
+/// unlocked toilet stayed unused). `true` = an epic left the backpack.
+pub async fn free_slot(session: &mut SimpleSession) -> Result<bool, Outcome> {
+    let before = session.game_state().map_or(0, |gs| gs.character.inventory.count_free_slots());
+    if let Some(o) = sacrifice(session, true).await {
+        return Err(o);
+    }
+    Ok(session.game_state().is_some_and(|gs| gs.character.inventory.count_free_slots() > before))
+}
+
 /// One sacrifice if there is something to throw, then flushes while the mana allows (and a backpack slot is free for the new item).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     // The toilet waits as a pending unlock 32/1 (user capture 2026-11-01, from level 100); the game client answers it with `UnlockFeature`
@@ -144,32 +187,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
         return Outcome::Done;
     }
-    let thrown = thrown_today();
-    if let Some((pos, what)) = session.game_state().and_then(|gs| candidate(gs, thrown)) {
-        let Some(gs) = session.game_state() else { return Outcome::Done };
-        let ident = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()).map(Item::command_ident);
-        let was = state(gs);
-        match safe::send(session, Command::ToiletDrop { item_pos: pos.into() }).await {
-            Err(e) => {
-                if matches!(e, SFError::ServerError(_)) {
-                    set_thrown_today(REFUSED);
-                }
-                return fail(&e);
-            }
-            Ok(_) => {}
-        }
-        if let Err(e) = safe::send(session, Command::Update).await {
-            return fail(&e);
-        }
-        let Some(gs) = session.game_state() else { return Outcome::Done };
-        let gone = gs.character.inventory.backpack.get(pos.backpack_pos()).and_then(|i| i.as_ref()).map(Item::command_ident) != ident;
-        if gone {
-            set_thrown_today(thrown + 1);
-            report!("[toilet] Threw a {what} in{}: {was} -> {}", if event(gs) { " (Tidy Toilet Time)" } else { "" }, state(gs));
-        } else {
-            set_thrown_today(REFUSED);
-            report!("[toilet] The {what} is still in the backpack after the sacrifice, no more today ({})", state(gs));
-        }
+    if let Some(o) = sacrifice(session, false).await {
+        return o;
     }
     flush(session).await
 }
