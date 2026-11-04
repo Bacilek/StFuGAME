@@ -66,7 +66,8 @@ pub fn build_ok(gs: &GameState, b: B) -> bool {
     match b {
         B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry | B::Treasury | B::Barracks | B::Academy => true,
         B::GemMine => {
-            gs.character.level >= 125 || gs.fortress.as_ref().is_some_and(|f| f.buildings[B::GemMine].level == 0)
+            let mine = gs.fortress.as_ref().map_or(0, |f| f.buildings[B::GemMine].level);
+            gs.character.level >= 125 || mine == 0 || (gs.character.level >= GEM_RUSH_CHAR_LEVEL && mine < GEM_RUSH_LEVEL)
         }
         _ => false,
     }
@@ -79,6 +80,27 @@ fn pick(level: impl Fn(B) -> u16, max_level: u16) -> Option<B> {
 
 /// Barracks level the generic rules aim for (more soldiers = more attacks; the tips say 3-4).
 const BARRACKS_TARGET: u16 = 4;
+/// Around character level 100 the Barracks goes to 5 (user 2026-11-04).
+const BARRACKS_TARGET_100: u16 = 5;
+const BARRACKS_100_FROM_CHAR_LEVEL: u16 = 95;
+/// The Underworld needs character level 125 AND Gem Mine 10 (user 2026-11-04): from character level 120 with the Fortress at 10 the Gem Mine
+/// to level 10 beats every other build (and the gem searches pause, a search in progress blocks the upgrade).
+const GEM_RUSH_CHAR_LEVEL: u16 = 120;
+const GEM_RUSH_FORTRESS_LEVEL: u16 = 10;
+const GEM_RUSH_LEVEL: u16 = 10;
+
+fn gem_rush(level: &dyn Fn(B) -> u16, char_level: u16) -> bool {
+    char_level >= GEM_RUSH_CHAR_LEVEL && level(B::Fortress) >= GEM_RUSH_FORTRESS_LEVEL && level(B::GemMine) < GEM_RUSH_LEVEL
+}
+
+/// The Gem Mine rush is on (the gem searches wait, see `gems::run`).
+pub fn gem_mine_rush(gs: &GameState) -> bool {
+    gs.fortress.as_ref().is_some_and(|f| gem_rush(&|b| f.buildings[b].level, gs.character.level))
+}
+
+fn barracks_target(char_level: u16) -> u16 {
+    if char_level >= BARRACKS_100_FROM_CHAR_LEVEL { BARRACKS_TARGET_100 } else { BARRACKS_TARGET }
+}
 
 /// What to build after the dictated plan. Since fortress attacks supply wood and stone far beyond the storage cap
 /// (user 2026-10-12, confirmed 2026-10-15: storage only limits the production buildings, raids ignore it) the only
@@ -106,7 +128,7 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
     if n >= 6 && level(B::Academy) < cap {
         return Some(B::Academy);
     }
-    if level(B::Barracks) < cap.min(BARRACKS_TARGET) {
+    if level(B::Barracks) < cap.min(barracks_target(char_level)) {
         return Some(B::Barracks);
     }
     if n >= 2 && level(B::Treasury) < cap {
@@ -141,6 +163,9 @@ fn choose(f: &Fortress, char_level: u16) -> Option<B> {
 }
 
 fn next_build(level: &dyn Fn(B) -> u16, char_level: u16, max: u16) -> Option<B> {
+    if gem_rush(level, char_level) {
+        return Some(B::GemMine);
+    }
     pick(level, max).or_else(|| pick_generic(level, char_level, max))
 }
 
@@ -905,9 +930,22 @@ mod tests {
         let f7b = &[(B::Fortress, 7), (B::LaborersQuarters, 7), (B::Academy, 7), (B::Treasury, 6), (B::Barracks, 4), (B::GemMine, 1)];
         assert_eq!(generic(f7b, 30), Some(B::Treasury));
         // the Gem Mine only goes further from character level 125; never the Wall or the resource buildings
-        let g = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 4), (B::GemMine, 1)];
+        let g = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 5), (B::GemMine, 1)];
         assert_eq!(generic(g, 30), Some(B::Fortress));
         assert_eq!(generic(g, 125), Some(B::GemMine));
         assert_eq!(generic(&[], 30), Some(B::Fortress));
+        // Barracks 5 around character level 100 (user 2026-11-04)
+        let b5 = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 2), (B::Barracks, 4), (B::GemMine, 1)];
+        assert_eq!(generic(b5, 94), Some(B::Treasury));
+        let b5 = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 4), (B::GemMine, 1)];
+        assert_eq!(generic(b5, 95), Some(B::Barracks));
+        // Gem Mine rush: character level 120+, Fortress 10+, mine below 10 goes before everything
+        let r = &[(B::Fortress, 10), (B::LaborersQuarters, 9), (B::Academy, 9), (B::Treasury, 9), (B::Barracks, 4), (B::GemMine, 3)];
+        assert_eq!(next_build(&at(r), 120, 20), Some(B::GemMine));
+        assert_ne!(next_build(&at(r), 119, 20), Some(B::GemMine));
+        let r9 = &[(B::Fortress, 9), (B::LaborersQuarters, 9), (B::Academy, 9), (B::Treasury, 9), (B::Barracks, 4), (B::GemMine, 3)];
+        assert_ne!(next_build(&at(r9), 125, 20), Some(B::GemMine));
+        let r10 = &[(B::Fortress, 10), (B::LaborersQuarters, 9), (B::Academy, 9), (B::Treasury, 9), (B::Barracks, 4), (B::GemMine, 10)];
+        assert_ne!(next_build(&at(r10), 125, 20), Some(B::GemMine));
     }
 }

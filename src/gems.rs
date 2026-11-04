@@ -319,6 +319,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if !idle {
         return Outcome::Done;
     }
+    // A search in progress blocks the Gem Mine upgrade (the Underworld needs level 10, user 2026-11-04): none starts during the rush
+    if crate::fortress::gem_mine_rush(gs) {
+        return Outcome::Done;
+    }
     let cost = f.gem_search.cost;
     let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
     // With the "find a gem" task reaching a gold chest (`tasks::gem_task_wanted`) the 150 g are all that is needed, no reserve

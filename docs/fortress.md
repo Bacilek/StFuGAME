@@ -197,3 +197,8 @@ once (passive): when the character inspects someone in the Hall of Fame, items w
 (`scrapbook.rs` already computes the missing items itself). Expected effect on `gems::run`: after the collect no gem arrives, `socket_backpack_gem` /
 `trim_loose` / `sell_unplaced_gem` find nothing, `mark_collected` stops a second collect; only the log line "Collecting the mined gem (target)" would
 be misleading. Open: whether the "find a gem" Gleeman task still counts. Check the first time it shows up in `[gems]` logs.
+
+## Changes 2026-11-04 (user): Gem Mine rush for the Underworld, Barracks 5
+- The Underworld needs character level 125 AND Gem Mine 10. From character level 120 with the Fortress at 10+ and the Gem Mine below 10, the Gem Mine goes before EVERY other build (`fortress::gem_rush`, first in `next_build`; `build_ok` allows the upgrade from level 120, up to level 10; from 125 as before). Gem searches pause during the rush (`gems::run`, a search in progress blocks the upgrade, `Fortress::in_use`).
+- Barracks target 5 (was 4) from character level 95 (`barracks_target`, "around level 100").
+- Smithy (soldier upgrades) NOT done yet: sf-api `can_build` wants Archery Guild, Barracks, Mages' Tower AND Wall at level > 0 before the Smithy, all of them forbidden today (Wall = user rule, `safe.rs`). Question to the user, see `docs/status.md`.
