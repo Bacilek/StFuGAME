@@ -251,13 +251,15 @@ pub fn hok_affordable(gs: &GameState) -> bool {
         && HOK_FAILED.lock().is_ok_and(|x| *x != Some((f.hall_of_knights_level, f.buildings[B::Fortress].level)))
 }
 
-/// Can the soldiers be upgraded right now (the same rule `safe.rs` enforces)? The Smithy exists, the price is known and affordable; a refusal
-/// (the unit level may be capped by the Smithy level, unverified) stops retries until a level changes.
+/// Can the soldiers be upgraded right now (the same rule `safe.rs` enforces)? The Smithy exists and allows it (soldier level < 5 x Smithy level), the
+/// price is known and affordable; a refusal stops retries until a level changes.
 pub fn soldier_upgrade_ok(gs: &GameState) -> bool {
     let Some(f) = gs.fortress.as_ref() else { return false };
     let u = &f.units[U::Soldier];
     let c = u.upgrade_cost;
+    // Each Smithy level allows ONE soldier upgrade of +5 levels (user 2026-11-04), so the soldier level stays below 5 x Smithy level
     f.buildings[B::Smithy].level > 0
+        && u.level < 5 * f.buildings[B::Smithy].level
         && (c.wood > 0 || c.stone > 0)
         && c.wood <= f.resources[R::Wood].current
         && c.stone <= f.resources[R::Stone].current
