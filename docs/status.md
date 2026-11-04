@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 22:04 2026-11-04** (relogin right after the toilet unlock, so `arcanetoilet` arrives; the user starts the bot). Check `[toilet] Threw a ...`.
+
 **Release built 21:38 2026-11-04** (toilet unlock 6/1, fortress Gem Mine rush, Barracks 5, Smithy chain + soldier upgrades; everything marked "NOT in a release yet" from today is in; the user starts the bot). Check: `[toilet] Unlocking the toilet (pending unlock 6/1)`, `[fortress] Upgrading the soldiers`.
 
 **2026-11-04 (fortress: Gem Mine rush + Barracks 5, NOT in a release yet, tests green):** user: from character level 120 with the Fortress at 10 the Gem Mine goes to level 10 before anything else (the Underworld needs level 125 + Gem Mine 10), gem searches pause meanwhile; characters around level 100 (from 95) get the Barracks to 5. Details `docs/fortress.md`. **Smithy chain + soldier upgrades done too (user answered the same day):** Wall, Archery Guild, Mages' Tower to level 1 first (never trained), then Smithy 5 from character level 95, soldiers upgraded right after the Smithy and whenever the material is there (`docs/fortress.md`). Soldier cap: soldier level < 5 x Smithy level (user). Unverified live: prices.
