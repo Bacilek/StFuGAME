@@ -53,3 +53,4 @@ Only TestChar1 (lvl 116) has the toilet open (flushes, aura 7). Chlamydie/Filmin
 
 ## 2026-11-04: the toilet unlock is 6/1 on some characters
 Five level 105-125 characters waited with pending unlocks `3/1, 6/1`; the user accepted 6/1 by hand (PajaRizz) and got `arcanetoilet:1/0/0/60`. `toilet::run` now sends 32/1 and 6/1 (`safe.rs` whitelists both). 3/1 is still unknown and not sent.
+- Live 2026-11-04 (release 21:38): the `6/1` unlock was sent (pending unlock gone), but afterwards `state` stayed aura 0, mana 0/0: neither `UnlockFeature` nor `Update` returns `arcanetoilet`, only a fresh login does. `toilet::run` now returns `SessionLost` right after an unlock that did not bring it (relogin at once; before it waited 2 h). Characters already unlocked get it with the next login (a bot restart).

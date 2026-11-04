@@ -184,6 +184,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if let Some(gs) = session.game_state() {
             report!("[toilet] After the unlock: {}", state(gs));
         }
+        // Seen live 2026-11-04: neither the unlock nor `Update` brings `arcanetoilet` (aura/mana stay 0/0), only a fresh login does (the user's
+        // capture was a login response), so log in again right away instead of waiting for the 2 h relogin below
+        if session.game_state().is_some_and(|gs| !unlocked(gs)) {
+            report!("[toilet] No arcanetoilet after the unlock, logging in again");
+            return Outcome::SessionLost;
+        }
     }
     if session.game_state().is_none_or(|gs| !unlocked(gs)) {
         // Once per run, so the state of a locked toilet is visible in the log
