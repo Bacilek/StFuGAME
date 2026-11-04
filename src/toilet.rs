@@ -81,7 +81,7 @@ fn spare_epic(gs: &GameState) -> Option<(BagPosition, String)> {
 /// two during Tidy Toilet Time (epics first). The server's `sacrifices_left` decides too, except that a day with no throw yet is tried once
 /// (the counter is only refreshed by responses that carry it).
 pub fn candidate(gs: &GameState, thrown: u32, need_room: bool) -> Option<(BagPosition, String)> {
-    let toilet = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs) || may_probe(gs))?;
+    let toilet = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs))?;
     let event = event(gs);
     if thrown >= if event { 2 } else { 1 } || (thrown > 0 && toilet.sacrifices_left == 0) {
         return None;
@@ -100,16 +100,6 @@ pub fn candidate(gs: &GameState, thrown: u32, need_room: bool) -> Option<(BagPos
 /// `arcanetoilet` with a level > 0 fills `mana_total`, so that is the test.
 pub fn unlocked(gs: &GameState) -> bool {
     gs.tavern.toilet.as_ref().is_some_and(|t| t.mana_total > 0)
-}
-
-/// An unlocked toilet nobody has thrown into yet looks locked (user 2026-11-04: Mrožik, Chlamydie, Wecros, PajaRizz, Květoš have it open,
-/// the server sent `toiletstate` ("1 sacrifices left") but no `arcanetoilet`, so `mana_total` stayed 0 and nothing was ever thrown).
-/// From level 100, with no pending unlock 32/1, one probe throw a day is tried; the first accepted throw brings `arcanetoilet`, a refusal
-/// (`REFUSED`) ends the probing for the day.
-pub fn may_probe(gs: &GameState) -> bool {
-    gs.character.level >= 100
-        && gs.tavern.toilet.as_ref().is_some_and(|t| t.mana_total == 0 && t.sacrifices_left > 0)
-        && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32)
 }
 
 /// Is the toilet in charge of getting rid of epics (unlocked)? Then no epic is sold or dismantled for a free slot, it waits for the next
@@ -181,10 +171,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // and `arcanetoilet` arrives. Free, so the bot sends it itself.
     let pending: Vec<_> = session
         .game_state()
-        .map(|gs| gs.pending_unlocks.iter().filter(|u| u.main_ident == 32 && u.sub_ident == 1).copied().collect())
+        .map(|gs| gs.pending_unlocks.iter().filter(|u| (u.main_ident == 32 || u.main_ident == 6) && u.sub_ident == 1).copied().collect())
         .unwrap_or_default();
     for u in pending {
-        report!("[toilet] Unlocking the toilet (pending unlock 32/1)");
+        report!("[toilet] Unlocking the toilet (pending unlock {}/1)", u.main_ident);
         if let Err(e) = safe::send(session, Command::UnlockFeature { unlockable: u }).await {
             return fail(&e);
         }
@@ -194,12 +184,6 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if let Some(gs) = session.game_state() {
             report!("[toilet] After the unlock: {}", state(gs));
         }
-    }
-    if session.game_state().is_some_and(may_probe) {
-        if let Some(o) = sacrifice(session, false).await {
-            return o;
-        }
-        return Outcome::Done;
     }
     if session.game_state().is_none_or(|gs| !unlocked(gs)) {
         // Once per run, so the state of a locked toilet is visible in the log
@@ -216,7 +200,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 720,
             );
         }
-        let high = session.game_state().is_some_and(|gs| gs.character.level >= 100 && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32));
+        let high = session.game_state().is_some_and(|gs| gs.character.level >= 100 && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32 || u.main_ident == 6));
         // The first sighting only starts the clock (the login that just happened would have brought `arcanetoilet`)
         let due = high && RELOGIN_AT.lock().is_ok_and(|mut at| match *at {
             None => {

@@ -51,5 +51,5 @@ sf-api creates `gs.tavern.toilet` from `toiletstate` (sent to locked characters 
 Only TestChar1 (lvl 116) has the toilet open (flushes, aura 7). Chlamydie/Filminy/Novotne/Mimimimi11 (lvl 105-117) report `mana_total` 0 = locked: the bot never calls `ToiletOpen` (needs a ToiletKey item), so their epics pile up. Open question for the user: open it by hand, or automate `ToiletOpen`?
 - 2026-11-02: room for a Tavern reward (2 slots): loose gem -> potion -> kept item -> socket swap -> TOILET epic (within the daily limit) -> only then the last-resort epic (never with an unlocked toilet).
 
-## 2026-11-04: an untouched toilet looks locked
-Five level 105-125 characters had the toilet open but `mana_total` 0 (nothing thrown yet, login holds `arcanetoilet:1/0/0/60`). `toilet::may_probe` lets one probe throw a day through; see `docs/status.md`.
+## 2026-11-04: the toilet unlock is 6/1 on some characters
+Five level 105-125 characters waited with pending unlocks `3/1, 6/1`; the user accepted 6/1 by hand (PajaRizz) and got `arcanetoilet:1/0/0/60`. `toilet::run` now sends 32/1 and 6/1 (`safe.rs` whitelists both). 3/1 is still unknown and not sent.

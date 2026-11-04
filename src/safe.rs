@@ -57,6 +57,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // Ident 32 = the Toilet of the Arcane Gods (user capture 2026-11-01: `unlockfeature:32/1/` pending at level 100+, then `arcanetoilet:1/0/0/60`).
             // Other idents stay forbidden until the user says what they are.
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9 | 32, .. } }
+            // Ident 6/1 = the toilet again on the characters that still wait (user capture 2026-11-04, PajaRizz: `unlockfeature:6/1/` then `arcanetoilet:1/0/0/60`)
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 6, sub_ident: 1 } }
             // Ident 20/1 = Pets themselves (user capture 2026-10-24: `unlockfeature:20/1/` pending at login, free), see pets::unlock_pets
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 20, sub_ident: 1 } }
             // Ident 21 = a new pet after an egg was picked (sub ident = pet id 1..=100, user 2026-10-23: the game client sends it when
@@ -319,7 +321,7 @@ fn dismantle_ok(gs: &GameState, pos: PlayerItemPosition, ident: ItemCommandIdent
 
 /// The toilet takes only a BACKPACK epic equipment piece or gem (never a potion or a plain item), see `toilet::throwable`.
 fn toilet_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
-    (crate::toilet::unlocked(gs) || crate::toilet::may_probe(gs))
+    crate::toilet::unlocked(gs)
         && gs.character.inventory.iter().any(|(bp, item)| PlayerItemPosition::from(bp) == pos && item.is_some_and(crate::toilet::throwable))
 }
 
