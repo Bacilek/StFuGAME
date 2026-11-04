@@ -117,14 +117,16 @@ fn is_allowed(cmd: &Command) -> bool {
             // Lucky coins only when a task chest needs the spins (user 2026-10-07), see `tasks::plan`
             | Command::SpinWheelOfFortune { payment: FortunePayment::LuckyCoins }
             // Fortress (user 2026-10-11, src/fortress.rs): only the agreed buildings, never mushrooms
-            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy }
-            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy, mushrooms: 0 }
+            | Command::FortressBuild { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy | sf_api::gamestate::fortress::FortressBuildingType::Smithy | sf_api::gamestate::fortress::FortressBuildingType::Wall | sf_api::gamestate::fortress::FortressBuildingType::ArcheryGuild | sf_api::gamestate::fortress::FortressBuildingType::MagesTower }
+            | Command::FortressBuildFinish { f_type: sf_api::gamestate::fortress::FortressBuildingType::Fortress | sf_api::gamestate::fortress::FortressBuildingType::LaborersQuarters | sf_api::gamestate::fortress::FortressBuildingType::WoodcuttersHut | sf_api::gamestate::fortress::FortressBuildingType::Quarry | sf_api::gamestate::fortress::FortressBuildingType::Treasury | sf_api::gamestate::fortress::FortressBuildingType::GemMine | sf_api::gamestate::fortress::FortressBuildingType::Barracks | sf_api::gamestate::fortress::FortressBuildingType::Academy | sf_api::gamestate::fortress::FortressBuildingType::Smithy | sf_api::gamestate::fortress::FortressBuildingType::Wall | sf_api::gamestate::fortress::FortressBuildingType::ArcheryGuild | sf_api::gamestate::fortress::FortressBuildingType::MagesTower, mushrooms: 0 }
             | Command::FortressGather { .. }
             // Hall of Knights (user 2026-10-12): instant, only while no build runs; `send_raw` checks `fortress::hok_affordable`
             | Command::FortressUpgradeHallOfKnights
             // Soldiers (user 2026-10-12, src/fortress.rs `military`): train soldiers only, attack with exactly ONE soldier, counter-attack
             // targets. the paid `FortressNewEnemy` stays forbidden. None of these takes mushrooms.
             | Command::FortressBuildUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier, .. }
+            // Soldier upgrades in the Smithy (user 2026-11-04): material only; `send_raw` checks `fortress::soldier_upgrade_ok`
+            | Command::FortressUpgradeUnit { unit: sf_api::gamestate::fortress::FortressUnitType::Soldier }
             | Command::FortressAttack { soldiers: 1 | 2 }
             | Command::FortressSetCAEnemy { .. }
             // The FREE change of the opponent only (user 2026-10-12, once per 5 min); `send_raw` checks `reroll_is_free`. The paid one
@@ -460,6 +462,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("this fortress building may not be built now"));
     }
+    if matches!(cmd, Command::FortressUpgradeUnit { .. }) && !session.game_state().is_some_and(crate::fortress::soldier_upgrade_ok) {
+        return Err(SFError::InvalidRequest("the soldiers cannot be upgraded now"));
+    }
     if matches!(cmd, Command::FortressUpgradeHallOfKnights) && !session.game_state().is_some_and(crate::fortress::hok_affordable) {
         return Err(SFError::InvalidRequest("the Hall of Knights is not affordable now or a build is running"));
     }
@@ -609,12 +614,15 @@ mod fortress_tests {
         // never: skipping with mushrooms, cancelling, the Wall, buildings nobody agreed to, gem search finish
         assert!(!is_allowed(&Command::FortressBuildFinish { f_type: B::Fortress, mushrooms: 1 }));
         assert!(!is_allowed(&Command::FortressBuildCancel { f_type: B::Fortress }));
-        assert!(!is_allowed(&Command::FortressBuild { f_type: B::Wall }));
+        // the Wall, Archery Guild, Mages' Tower and Smithy pass the whitelist, `fortress::build_ok` limits them (level 1 / Smithy 5, from character level 95)
+        assert!(is_allowed(&Command::FortressBuild { f_type: B::Wall }));
         // the Gem Mine passes the whitelist but `fortress::build_ok` limits it to level 1 below character level 125
         assert!(is_allowed(&Command::FortressBuild { f_type: B::GemMine }));
         assert!(is_allowed(&Command::FortressBuild { f_type: B::Barracks }));
         assert!(is_allowed(&Command::FortressBuild { f_type: B::Academy }));
-        assert!(!is_allowed(&Command::FortressBuild { f_type: B::Smithy }));
+        assert!(is_allowed(&Command::FortressBuild { f_type: B::Smithy }));
+        assert!(is_allowed(&Command::FortressUpgradeUnit { unit: U::Soldier }));
+        assert!(!is_allowed(&Command::FortressUpgradeUnit { unit: U::Archer }));
         assert!(!is_allowed(&Command::FortressGemStoneSearchFinish { mushrooms: 1 }));
         assert!(is_allowed(&Command::FortressUpgradeHallOfKnights)); // guarded by `hok_affordable`
         // soldiers: train soldiers, one-soldier attacks, counter-attack targets; never a reroll, never other units or bigger armies

@@ -61,10 +61,16 @@ const PLAN: &[(B, u16)] = &[
 
 /// May the bot build/finish this building right now? The same rule is enforced in `safe.rs`. Fortress, Laborers'
 /// Quarters, Woodcutter's Hut, Quarry and Treasury always; the Gem Mine only to level 1, further levels only from
-/// character level 125 (user 2026-10-11); never the Wall, units or anything else.
+/// character level 125 (user 2026-10-11); never the Wall (except level 1 for the Smithy chain, 2026-11-04), units or anything else.
 pub fn build_ok(gs: &GameState, b: B) -> bool {
     match b {
         B::Fortress | B::LaborersQuarters | B::WoodcuttersHut | B::Quarry | B::Treasury | B::Barracks | B::Academy => true,
+        // The Smithy chain (user 2026-11-04): Wall, Archery Guild and Mages' Tower only to level 1 (the Smithy needs them), the Smithy to 5;
+        // from character level 95; archers and mages are never trained
+        B::Wall | B::ArcheryGuild | B::MagesTower => {
+            gs.character.level >= SMITHY_FROM_CHAR_LEVEL && gs.fortress.as_ref().is_some_and(|f| f.buildings[b].level == 0)
+        }
+        B::Smithy => gs.character.level >= SMITHY_FROM_CHAR_LEVEL && gs.fortress.as_ref().is_some_and(|f| f.buildings[B::Smithy].level < SMITHY_TARGET),
         B::GemMine => {
             let mine = gs.fortress.as_ref().map_or(0, |f| f.buildings[B::GemMine].level);
             gs.character.level >= 125 || mine == 0 || (gs.character.level >= GEM_RUSH_CHAR_LEVEL && mine < GEM_RUSH_LEVEL)
@@ -96,6 +102,26 @@ fn gem_rush(level: &dyn Fn(B) -> u16, char_level: u16) -> bool {
 /// The Gem Mine rush is on (the gem searches wait, see `gems::run`).
 pub fn gem_mine_rush(gs: &GameState) -> bool {
     gs.fortress.as_ref().is_some_and(|f| gem_rush(&|b| f.buildings[b].level, gs.character.level))
+}
+
+/// Smithy 5 (soldier upgrades) around character level 100 (user 2026-11-04), after the Barracks. The Smithy needs the Wall, Archery Guild and
+/// Mages' Tower at level 1 (sf-api `can_build`), built first; only the ones the Fortress level already allows are picked, so the chain never
+/// stalls the Fortress itself.
+const SMITHY_FROM_CHAR_LEVEL: u16 = 95;
+const SMITHY_TARGET: u16 = 5;
+
+fn smithy_chain(level: &dyn Fn(B) -> u16, char_level: u16, cap: u16) -> Option<B> {
+    if char_level < SMITHY_FROM_CHAR_LEVEL {
+        return None;
+    }
+    let n = level(B::Fortress);
+    for b in [B::Wall, B::ArcheryGuild, B::MagesTower] {
+        if level(b) == 0 && b.required_min_fortress_level() <= n {
+            return Some(b);
+        }
+    }
+    let ready = [B::Wall, B::ArcheryGuild, B::MagesTower].iter().all(|&b| level(b) > 0);
+    (ready && level(B::Smithy) < cap.min(SMITHY_TARGET)).then_some(B::Smithy)
 }
 
 fn barracks_target(char_level: u16) -> u16 {
@@ -130,6 +156,9 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
     }
     if level(B::Barracks) < cap.min(barracks_target(char_level)) {
         return Some(B::Barracks);
+    }
+    if let Some(b) = smithy_chain(level, char_level, cap) {
+        return Some(b);
     }
     if n >= 2 && level(B::Treasury) < cap {
         return Some(B::Treasury);
@@ -221,6 +250,21 @@ pub fn hok_affordable(gs: &GameState) -> bool {
         && f.hall_of_knights_level < f.buildings[B::Fortress].level.min(HOK_MAX_TARGET)
         && HOK_FAILED.lock().is_ok_and(|x| *x != Some((f.hall_of_knights_level, f.buildings[B::Fortress].level)))
 }
+
+/// Can the soldiers be upgraded right now (the same rule `safe.rs` enforces)? The Smithy exists, the price is known and affordable; a refusal
+/// (the unit level may be capped by the Smithy level, unverified) stops retries until a level changes.
+pub fn soldier_upgrade_ok(gs: &GameState) -> bool {
+    let Some(f) = gs.fortress.as_ref() else { return false };
+    let u = &f.units[U::Soldier];
+    let c = u.upgrade_cost;
+    f.buildings[B::Smithy].level > 0
+        && (c.wood > 0 || c.stone > 0)
+        && c.wood <= f.resources[R::Wood].current
+        && c.stone <= f.resources[R::Stone].current
+        && c.silver <= gs.character.silver
+        && SOLDIER_UPGRADE_FAILED.lock().is_ok_and(|x| *x != Some((u.level, f.buildings[B::Smithy].level)))
+}
+static SOLDIER_UPGRADE_FAILED: crate::ctx::PerChar<Option<(u16, u16)>> = crate::ctx::PerChar::new();
 
 /// VERIFIED 2026-10-16: the game refuses a Hall of Knights above the Fortress level ("need higher building1", Fortress 6 / Hall 6 -> 7),
 /// so the Hall follows the Fortress, but never above `HOK_MAX_TARGET` (user 2026-10-16: raised 8 -> 9 on 2026-10-22; no Hall of Knights beyond that, for now); `HOK_FAILED` still stops retries after any other refusal until a level changes.
@@ -371,6 +415,26 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if let Err(e) = safe::send(session, Command::FortressUpgradeHallOfKnights).await {
             if !crate::tavern::is_session_error(&e) {
                 if let Ok(mut x) = HOK_FAILED.lock() {
+                    *x = Some(at);
+                }
+            }
+            return fail(&e, line!());
+        }
+        if let Err(e) = safe::send(session, Command::Update).await {
+            return fail(&e, line!());
+        }
+    }
+
+    // 3b. Soldier upgrades (user 2026-11-04): cost only material, no time, done as soon as the Smithy allows and the material is there
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    if soldier_upgrade_ok(gs) {
+        let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
+        let u = &f.units[U::Soldier];
+        report!("[fortress] Upgrading the soldiers {} -> {} (wood {}, stone {}, {})", u.level, u.upgrade_next_lvl, u.upgrade_cost.wood, u.upgrade_cost.stone, crate::report::gold(u.upgrade_cost.silver));
+        let at = (u.level, f.buildings[B::Smithy].level);
+        if let Err(e) = safe::send(session, Command::FortressUpgradeUnit { unit: U::Soldier }).await {
+            if !crate::tavern::is_session_error(&e) {
+                if let Ok(mut x) = SOLDIER_UPGRADE_FAILED.lock() {
                     *x = Some(at);
                 }
             }
@@ -932,7 +996,18 @@ mod tests {
         // the Gem Mine only goes further from character level 125; never the Wall or the resource buildings
         let g = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 5), (B::GemMine, 1)];
         assert_eq!(generic(g, 30), Some(B::Fortress));
-        assert_eq!(generic(g, 125), Some(B::GemMine));
+        assert_eq!(generic(g, 94), Some(B::Fortress));
+        // Smithy chain from character level 95: Wall (Fortress 4), Archery Guild (5), Mages' Tower (7) at level 1, then the Smithy up to 5
+        assert_eq!(generic(g, 95), Some(B::Wall));
+        let w = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 5), (B::GemMine, 1), (B::Wall, 1), (B::ArcheryGuild, 1), (B::MagesTower, 1)];
+        assert_eq!(generic(w, 95), Some(B::Smithy));
+        let w5 = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 8), (B::Barracks, 5), (B::GemMine, 1), (B::Wall, 1), (B::ArcheryGuild, 1), (B::MagesTower, 1), (B::Smithy, 5)];
+        assert_eq!(generic(w5, 95), Some(B::Fortress));
+        assert_eq!(generic(w5, 125), Some(B::GemMine));
+        let f5 = &[(B::Fortress, 5), (B::LaborersQuarters, 5), (B::Barracks, 5), (B::Wall, 1)];
+        assert_eq!(generic(f5, 95), Some(B::ArcheryGuild));
+        let f6 = &[(B::Fortress, 6), (B::LaborersQuarters, 6), (B::Academy, 6), (B::Barracks, 5), (B::Wall, 1), (B::ArcheryGuild, 1)];
+        assert_ne!(generic(f6, 95), Some(B::MagesTower), "Mages Tower needs Fortress 7");
         assert_eq!(generic(&[], 30), Some(B::Fortress));
         // Barracks 5 around character level 100 (user 2026-11-04)
         let b5 = &[(B::Fortress, 8), (B::LaborersQuarters, 8), (B::Academy, 8), (B::Treasury, 2), (B::Barracks, 4), (B::GemMine, 1)];

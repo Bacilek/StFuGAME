@@ -261,4 +261,4 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - 2026-11-01 (user): an expedition needs its full Thirst for Adventure price; 20 min do NOT start a 25-min expedition (the 2026-10-16 cap `BEER_ALU_SEC` on the price is revoked). The free belt beer (+20 min) is only useful if an offered expedition costs <= the resulting thirst.
 
-- Fortress 2026-11-04 (user): Gem Mine to level 10 first from character level 120 + Fortress 10 (Underworld needs level 125 + Gem Mine 10), over Barracks/Smithy/everything; Barracks 5 and Smithy 5 with soldier upgrades around character level 100 (Smithy waits for the prerequisites question).
+- Fortress 2026-11-04 (user): Gem Mine to level 10 first from character level 120 + Fortress 10 (Underworld needs level 125 + Gem Mine 10), over Barracks/Smithy/everything; Barracks 5 and Smithy 5 with soldier upgrades around character level 100 (Smithy chain: Wall + Archery Guild + Mages Tower to level 1 first, never trained; soldiers upgraded right after the Smithy).
