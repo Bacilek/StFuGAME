@@ -251,6 +251,12 @@ mod tests {
     }
 
     #[test]
+    fn holds_the_arcane_pair_of_capture_3() {
+        assert_eq!(choose_hold(&[2, 3, 5, 2, 5]), [0, 0, 5, 0, 5]);
+        assert_eq!(reward("&dicestatus:6/6/5/5/5&dicereward:6/778&"), Some((5, 778)));
+    }
+
+    #[test]
     fn an_unknown_face_is_held_over_everything() {
         assert_eq!(choose_hold(&[7, 5, 5, 5, 1]), [7, 0, 0, 0, 0]);
     }

@@ -27,6 +27,7 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 - Response keys: `dicestatus:a/b/c/d/e`, `dice:<next_free_ts>/<games_left>`, `dicereward:<face+1>/<amount>`, `resources:`.
 - Capture 1 (first roll paid with an hourglass): `dicestatus:6/1/6/3/1` = Hourglass, Silver, Hourglass, Wood, Silver; `dice:1793926883/19` with `timestamp:1793923882` (3001 s to the next free game, 19 left on a Lucky Day).
 - Capture 2 (held both hourglasses, re-rolled 3): `dicestatus:6/3/6/3/3`, `dicereward:4/4968` = 3× Wood, +4968 wood (`resources` idx 5 1514078 → 1519046), `dice:…/18`. The reward arrives in the re-roll response; there is no separate "take" step.
+- Capture 3 (user 2026-11-06, Forge Frenzy active): first roll 2× Stone, 1× Wood, 2× Arcane; held the 2 Arcane, re-rolled 3 -> `dicestatus:6/6/5/5/5`, `dicereward:6/778` = 3× Arcane splinters = **778** (2× from Forge Frenzy, so ~389 base); `dice:…/16` (16 left, Lucky Day). Our hold rule picks exactly this (pair of Arcane beats the pair of Stone).
 - `resources` idx: 1 mushrooms, 2 gold, 3 lucky coins, 4 hourglasses, 5 wood, 7 stone, 9 metal, 10 arcane, 11 souls, 12–16 fruits.
 
 ## Verification status
