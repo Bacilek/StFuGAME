@@ -51,7 +51,9 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] Epické předměty plní batoh: bot je nikdy neprodá, inventář se časem zaplní a podzemí stojí. Kam s nimi?
 - [ ] `WinFightsNoGear` – zatím nemapováno v `src/hunt.rs` (úkol se přeskočí); sundat celou výbavu naráží na plný batoh (viz výše).
 - [x] Záchod: implementováno 2026-10-25 (`src/toilet.rs`, `docs/toilet.md`), čeká na release a ověření v provozu
-- [ ] Věž, mazlíčci, podsvětí – až budou na postavě odemčené
+- [ ] **Zmapovat nové herní oblasti** (user 2026-11-05, jen zapsáno, nic se nedělá): (1) **Tower** – všechny akce (příkazy, ceny, co stojí houby, companions + jejich vybavení), (2) **Wash** (toilet, `PlayerToilettWash:`) – přeměna itemu na jinou třídu, kdy se vyplatí, (3) **Dungeon Twister**, (4) **Dungeon Shadow World**. U každého: captures od uživatele → dokument v `docs/` → návrh strategie → až po souhlasu kód + `safe.rs` (žádné houby).
+- [ ] Mazlíčci, podsvětí – až budou na postavě odemčené
+- [ ] **Witches' Dance: upozornit uživatele, až budou odemčeny VŠECHNY enchanty** (user 2026-11-05) – aby doplnil pravidla pro WD (`docs/events.md`). Claude při každé kontrole `witchshop` hlídá, že všech 9 trojic má nenulový unlock čas.
 - [ ] Odměna po 2. bossovi expedice – bot ji zatím neviděl, ověřit ve hře
 - [ ] Nezmapované mise expedic: hostinský, mořský muž, jízda na tygrovi, zamilovaní (`docs/expeditions.md`)
 - [x] Blacksmith fáze 1 (user 2026-10-24): od levelu 90 rozebírat místo prodeje itemy, které dají Arcane Splinters (po witch), epik s nejvíc splintery místo nuceného prodeje epiku; viz docs/blacksmith.md. Čeká na ověření v běhu (`[smith]` řádky).
