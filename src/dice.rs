@@ -220,6 +220,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         if !unlocked(gs) || gs.tavern.dice_game.remaining == 0 {
             return Outcome::Done;
         }
+        // 4 epics paid an epic weapon earlier today (user 2026-11-06): an item reward needs a free backpack slot
+        if crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::EpicGoodLuckExtravaganza) && gs.character.inventory.free_slot().is_none() {
+            report!("[dice] Backpack full during Epic Good Luck, an epic reward would have no slot - waiting");
+            return Outcome::Done;
+        }
         let payment = if safe::cooldown_free(safe::Cooldown::Dice, gs.tavern.dice_game.next_free) {
             RollDicePrice::Free
         } else if skip_with_hourglass(gs) {
