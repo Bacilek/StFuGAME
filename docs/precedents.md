@@ -266,3 +266,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - Fortress 2026-11-04 (user): Gem Mine to level 10 first from character level 120 + Fortress 10 (Underworld needs level 125 + Gem Mine 10), over Barracks/Smithy/everything; Barracks 5 and Smithy 5 with soldier upgrades around character level 100 (Smithy chain: Wall + Archery Guild + Mages Tower to level 1 first, never trained; soldiers upgraded right after the Smithy).
 
 - Arena Manager prestige (user 2026-11-05): sacrifice when the runes it would give >= the runes we own in total, the first at 20 (20 -> 40 -> 80 ...); if missed, the first moment beyond.
+
+- Game of Dice (user 2026-11-06): unlocks with the Tower (level 125 + Light Dungeon cleared); 1 free game an hour, 10 a day (20 in Lucky Day); after 23:00 hourglasses may skip the wait so all of the day's games get played; never mushrooms. Details and open questions: `docs/dice.md`.
