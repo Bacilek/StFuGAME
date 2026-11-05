@@ -459,7 +459,15 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
     let cost = f.buildings[next].upgrade_cost;
     let silver = gs.character.silver;
-    if !f.can_build(next, silver) {
+    // sf-api treats a collected gem search as still running (the server keeps its finish time), which would block the Gem Mine upgrade forever
+    let can_build = if next == B::GemMine && !crate::gems::search_active(f) {
+        let mut probe = f.clone();
+        probe.gem_search.finish = None;
+        probe.can_build(next, silver)
+    } else {
+        f.can_build(next, silver)
+    };
+    if !can_build {
         // Only GOLD is missing (wood and stone are there): the shops and spinning get the gold first (user 2026-10-18), so warn
         // the user when the build has been waiting for gold alone for hours, to reconsider the priorities
         let gold_only = cost.wood <= f.resources[R::Wood].current

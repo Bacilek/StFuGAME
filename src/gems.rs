@@ -54,6 +54,12 @@ fn last_collected() -> Option<DateTime<Local>> {
     Some(t)
 }
 
+/// A search is really running or waiting to be collected. `gem_search.finish` stays set after a collect (the server does not clear it),
+/// so sf-api's `Fortress::in_use` would block the Gem Mine upgrade forever; the fortress asks this instead.
+pub fn search_active(f: &sf_api::gamestate::fortress::Fortress) -> bool {
+    f.gem_search.finish.is_some_and(|t| t > Local::now() || last_collected() != Some(t))
+}
+
 fn mark_collected(t: DateTime<Local>) {
     if let Ok(mut c) = COLLECTED.lock() {
         *c = Some(t);
@@ -295,6 +301,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             if let Err(e) = safe::send(session, Command::Update).await {
                 return fail(&e);
             }
+            // No gem in the backpack after the collect from level 10 on = the Heart of Darkness (it unlocks the Underworld straight
+            // away and never takes a slot, user 2026-11-05); nothing to do, just say so
+            if gs_free_slots(session) == Some(free) && f_mine_level(session) >= 10 {
+                report!("[gems] The collect brought no gem: probably the Heart of Darkness, the Underworld should be unlocked");
+            }
             if let Some(o) = socket_backpack_gem(session).await {
                 return o;
             }
@@ -340,6 +351,14 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return fail(&e);
     }
     Outcome::Done
+}
+
+fn gs_free_slots(session: &SimpleSession) -> Option<usize> {
+    session.game_state().map(|gs| gs.character.inventory.count_free_slots())
+}
+
+fn f_mine_level(session: &SimpleSession) -> u16 {
+    session.game_state().and_then(|gs| gs.fortress.as_ref()).map_or(0, |f| f.buildings[B::GemMine].level)
 }
 
 /// Never more than MAX_LOOSE loose gems (user 2026-10-18): the weakest extra ones are sold.

@@ -46,3 +46,6 @@
   bot reads into `scrapbook` for the card). The request that unlocked it was not captured, so it was whitelisted on the user's word (2026-10-09: "I want the scrapbook on all characters"; he did not click anything, it appeared right after the fight). `dungeons::run` accepts idents 30 and 5. Every character should have it (collection gives bonus; user: "hodí se to pro bonus xp"). `9/1`, `40/1` still unknown.
 - **Verified live 2026-10-09 18:45** (first release run): `Unlocking feature (30/1)` + `(5/1)`, then a Desecrated Catacombs fight (Filminy, Mrožik: win, xp +1287, gold +6.50 g). So 30 = dungeons works.
 - Ident 9 (`9/1`) = the beginners task list per the user's UI (text "complete the beginners task list to be able to complete new daily tasks and weekly event tasks"); added to the accepted idents 2026-10-09 on the user's request ("claim it on all like the scrapbook"), request not captured, NOT yet run live. `40/1` still unknown.
+
+## Capture 2026-11-05 (user): 11th Light dungeon (Circus) opens without a pending unlock
+After the boss of the 10th Light dungeon the login carried only `unlockfeature:9/1/` (the beginners list, already whitelisted); `dungeonprogresslight` index 10 was already `0` (open). So no `UnlockFeature` is needed for the 11th dungeon, the progress array is enough.
