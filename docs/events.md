@@ -44,6 +44,7 @@ Academy: NO special handling (2026-10-16). A first attempt assumed the stock fil
 - Gleeman beers are gone for good (user: "for the Gleeman we never drink beers any more", at most a quest may offer mushrooms): `Means.beers = 0`, the travel/quest beer helpers are dead code kept with their tests.
 - All characters drink, even those with few mushrooms (they should all have enough); the only stop is 0 mushrooms.
 - (2026-10-17, user: burst of up to 5 beers at 0 Thirst, `BEER_BURST`) One beer per call before that; condition: idle, Thirst for Adventure below the cheapest offered expedition, `beer_drunk < beer_max`.
+- (2026-11-05, user) Total cap 11 = the free Belt beer (Thirsty Wanderer) + 10 paid ones. `tasks::beer_cap` = server `beer_max` + 1 while the belt enchant is worn; if the server already counts the free beer in `beer_max`, the 11th is simply refused (no mushroom). ⏳ verify at the next XP event: `beers n/11` in the log, and whether the 11th beer went through.
 - Verification: ⏳ watch `[tasks] Exceptional XP event: drinking beer n/10` in the logs, the mushroom watchdog must accept each −1.
 
 Correction (user 2026-10-16): the Academy fills at exactly the same speed during the XP event; only the COLLECTION pays 2× XP. So the overflow rules and collection timing stay as they are (`fortress::should_collect`, no event logic).

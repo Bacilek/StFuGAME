@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-05 (XP event beer cap 11, NOT in a release yet):** user: tonight's Exceptional XP event = 1 free Belt beer + 10 paid = 11. `tasks::beer_cap` = server `beer_max` + 1 with the Thirsty Wanderer belt (`docs/events.md`). Open: Lucky Day event is unknown/unhandled (only in sf-api's enum); Forge Frenzy has no extra dismantles for task points. The release needs a rebuild + restart before midnight to pick this up.
+
 **Release built 15:34 2026-11-05** (toilet unlock 3/1, Arena Manager prestige by the rune rule; the user starts the bot). Check `[toilet] Unlocking the toilet (pending unlock 3/1)` and `[idle] ... runes X, a sacrifice would give Y`.
 
 **2026-11-05 (Arena Manager prestige, NOT in a release yet):** the user's rule (he had said it before, I had not recorded it): sacrifice when the runes it gives >= the runes owned, first at 20 (20 -> 40 -> 80 ...). `idle::sacrifice_due`, whitelisted only when due. Verify the first sacrifice live (`[idle] ... SACRIFICE`), see `docs/idle.md`.

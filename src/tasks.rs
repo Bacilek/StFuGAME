@@ -521,7 +521,7 @@ pub fn event_active(gs: &GameState, event: sf_api::gamestate::rewards::Event) ->
 /// out (less than the cheapest offered expedition needs) and the character is idle (not on an expedition or City Guard).
 pub fn beer_justified(gs: &GameState) -> bool {
     if !xp_event_active(gs)
-        || gs.tavern.beer_drunk >= gs.tavern.beer_max
+        || gs.tavern.beer_drunk >= beer_cap(gs)
         || gs.tavern.current_action != CurrentAction::Idle
         || gs.character.mushrooms == 0
     {
@@ -543,7 +543,7 @@ static BURST_LEFT: crate::ctx::PerChar<u32> = crate::ctx::PerChar::new();
 /// Why a beer that looks due is NOT drunk (user 2026-10-17: Filminy and Novotné waited ~3.3 h for the next beer/Thirst
 /// on 2026-10-17 and nothing recorded why). Written to roster/<character>/logs/beer.log whenever the reason changes.
 pub fn log_beer_state(gs: &GameState, tavern_done: bool) {
-    if !xp_event_active(gs) || gs.tavern.beer_drunk >= gs.tavern.beer_max {
+    if !xp_event_active(gs) || gs.tavern.beer_drunk >= beer_cap(gs) {
         return;
     }
     let cheapest = match gs.tavern.available_tasks() {
@@ -598,7 +598,7 @@ pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
         return Outcome::Done;
     }
     let room = crate::roster::MAX_THIRST_SEC.saturating_sub(gs.tavern.thirst_for_adventure_sec) / BEER_ALU_SEC;
-    let left = u32::from(gs.tavern.beer_max.saturating_sub(gs.tavern.beer_drunk));
+    let left = u32::from(beer_cap(gs).saturating_sub(gs.tavern.beer_drunk));
     let n = BEER_BURST.min(room.max(1)).min(left).min(gs.character.mushrooms / BEER_MUSHROOMS.max(1));
     if let Ok(mut b) = BURST_LEFT.lock() {
         *b = n;
@@ -611,7 +611,7 @@ pub async fn event_beer(session: &mut SimpleSession) -> Outcome {
         report!(
             "[tasks] Exceptional XP event: drinking beer {}/{} ({BEER_MUSHROOMS} mushroom, burst of {n})",
             gs.tavern.beer_drunk + 1,
-            gs.tavern.beer_max
+            beer_cap(gs)
         );
         if let Err(e) = safe::send(session, Command::BuyBeer).await {
             report!("[tasks] Beer failed: {e}");
@@ -1032,14 +1032,23 @@ mod tests {
 /// The first beer of the day is FREE while the worn Belt carries the Thirsty Wanderer enchant (user 2026-10-31, verified live: it also
 /// works when the belt was enchanted during the day). Nothing else is free, so `safe.rs` lets the watchdog allow NO mushroom loss for it.
 pub fn free_beer_ok(gs: &GameState) -> bool {
+    gs.tavern.beer_drunk == 0 && has_free_beer_belt(gs)
+}
+
+/// Does the worn Belt carry the Thirsty Wanderer enchant (the first beer of the day is free)?
+fn has_free_beer_belt(gs: &GameState) -> bool {
     use sf_api::gamestate::items::{Enchantment, EquipmentSlot};
-    gs.tavern.beer_drunk == 0
-        && gs
-            .character
-            .equipment
-            .0
-            .iter()
-            .any(|(slot, item)| slot == EquipmentSlot::Belt && item.as_ref().is_some_and(|i| i.enchantment == Some(Enchantment::ThirstyWanderer)))
+    gs.character
+        .equipment
+        .0
+        .iter()
+        .any(|(slot, item)| slot == EquipmentSlot::Belt && item.as_ref().is_some_and(|i| i.enchantment == Some(Enchantment::ThirstyWanderer)))
+}
+
+/// Daily beer cap for the XP event (user 2026-11-05): the free belt beer comes on top of the 10 paid ones, 11 in total.
+/// If the server already counts it in `beer_max`, the server simply refuses the surplus beer (harmless, no mushroom).
+fn beer_cap(gs: &GameState) -> u8 {
+    gs.tavern.beer_max.saturating_add(u8::from(has_free_beer_belt(gs)))
 }
 
 /// Drinks the free beer when its 20 min of Thirst for Adventure fit under the cap, or in the evening when anything still fits.
