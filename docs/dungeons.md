@@ -49,3 +49,4 @@
 
 ## Capture 2026-11-05 (user): 11th Light dungeon (Circus) opens without a pending unlock
 After the boss of the 10th Light dungeon the login carried only `unlockfeature:9/1/` (the beginners list, already whitelisted); `dungeonprogresslight` index 10 was already `0` (open). So no `UnlockFeature` is needed for the 11th dungeon, the progress array is enough.
+Correction (user 2026-11-05): that was Circus of Terror, dungeon number 11, unlocked on Bacilek (the lead character) after beating dungeon 10 Black Skull Fortress; the others probably do not have it yet. Indexing confirmed with sf-api `LightDungeon`: index 0 = Desecrated Catacombs (no dummy dungeon), so index 10 = dungeon 11 = `CircusOfHorror`; it went `-1` -> `0` on its own, no pending `UnlockFeature` (only `9/1` was pending).

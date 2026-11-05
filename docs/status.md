@@ -7,6 +7,8 @@
 **2026-11-05 (toilet unlock is 3/1, NOT in a release yet):** after the 15:00 start Mimimimi11, Mrožik, Wecros, Květoš, Sanek, Novotné, Pagan still saw the toilet locked (aura 0): the pending unlock that is left is `3/1` (6/1 was sent wrongly). `toilet::run` now sends 3/1 at level 100+ (and 32/1), then relogs. Arena Manager: working (`[idle]` buys, ~1M dollars each), NO prestige/runes (`IdleSacrifice` forbidden, timing undecided).
 
 **Release built 15:00 2026-11-05** (power request against Modern Standby, retry after a minute without game state, 60 s request timeout; the user starts the bot). Check `[app] Power request ... set`.
+**2026-11-05 (user):** Circus of Terror = dungeon 11 (index 10) opens without any unlock command (only on Bacilek so far). Waiting: Wheel of Fortune 2.0 unlock (~level 150, after an expedition; ident unknown, not whitelisted; `docs/daily-rewards.md`).
+
 **2026-11-05 (NOT in a release yet):** Gem Mine upgrade no longer blocked by a stale collected search (`gems::search_active`, fortress probes `can_build` with finish cleared); log when a collect at mine 10+ brings no gem (Heart of Darkness = Underworld unlocked). Verify: a character that mined before upgrades the mine in the rush. Details `docs/fortress.md` "Gem Mine upgrade fix". 11th dungeon needs no unlock command (`docs/dungeons.md`).
 
 

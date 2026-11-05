@@ -45,3 +45,6 @@
   fresh every time (never a hardcoded identifier) before ever calling `ShopCheckout`.
 - **Not yet verified live** – written from a capture, not yet seen running against the real server end to end.
 - **Hardened 2026-10-16 (user screenshot `my_input/what.png`: a catalog dump with `sku: BLACKMARKET` items paid in COINS = mushrooms through `cost`, e.g. 799):** `daily::is_free_article` now requires `sku == "FREE"`, `price.amount == 0` AND no `cost` entries, so Black Market / mushroom-priced items can never pass as "free" (unit tests). The Black Market (deeds, trophy shelves, …) is paid with mushrooms – never touch it.
+
+## Expected: Wheel of Fortune 2.0 (user 2026-11-05, NOT seen yet)
+Around character level 150, after finishing an expedition, an unlock feature arrives (ident unknown) for "The Wheel of Fortune 2.0": the daily wheel can then also give Arcane Splinters, fruits and souls. The bot does not send unknown `UnlockFeature` idents (`safe.rs`), so it will sit pending. When a character reaches it: capture the `unlockfeature:` value (and the spin response) and ask the user; watch for sf-api failing to parse the new wheel rewards.
