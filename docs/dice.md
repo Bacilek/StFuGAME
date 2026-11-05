@@ -28,6 +28,8 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 - Capture 1 (first roll paid with an hourglass): `dicestatus:6/1/6/3/1` = Hourglass, Silver, Hourglass, Wood, Silver; `dice:1793926883/19` with `timestamp:1793923882` (3001 s to the next free game, 19 left on a Lucky Day).
 - Capture 2 (held both hourglasses, re-rolled 3): `dicestatus:6/3/6/3/3`, `dicereward:4/4968` = 3× Wood, +4968 wood (`resources` idx 5 1514078 → 1519046), `dice:…/18`. The reward arrives in the re-roll response; there is no separate "take" step.
 - Capture 3 (user 2026-11-06, Forge Frenzy active): first roll 2× Stone, 1× Wood, 2× Arcane; held the 2 Arcane, re-rolled 3 -> `dicestatus:6/6/5/5/5`, `dicereward:6/778` = 3× Arcane splinters = **778** (2× from Forge Frenzy, so ~389 base); `dice:…/16` (16 left, Lucky Day). Our hold rule picks exactly this (pair of Arcane beats the pair of Stone).
+- Capture 4 (user 2026-11-06, Epic Good Luck active): `dicestatus:2/3/4/5/6`; the user saw Stone, Wood, **Epic**, Splinters, Hourglass and kept the epic. So face **4 (sf-api `Souls`) showed as the epic** during the event. The bot ranks face 4 above everything while `Event::EpicGoodLuckExtravaganza` is active (`dice::rank`), otherwise as Souls. ⏳ confirm what face 4 is outside the event.
+- Payout amounts (wood 4968, splinters 778, souls) depend on the character level, they only show the priorities (user 2026-11-06). An hourglass skip costs exactly 1 hourglass (user).
 - `resources` idx: 1 mushrooms, 2 gold, 3 lucky coins, 4 hourglasses, 5 wood, 7 stone, 9 metal, 10 arcane, 11 souls, 12–16 fruits.
 
 ## Verification status
@@ -37,7 +39,7 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 | Reward comes with the re-roll response, no "take" step | ✅ capture 2 (assumed the client sent payment 0 for the re-roll ⏳) |
 | Re-roll payment value the client sends | ⏳ guessed 0 (Free); check the first `[dice]` lines and the alerts |
 | Cooldown between free games 3600 s | ⏳ (capture 1 showed 3001 s ≈ 50 min left) |
-| Hourglass skip price (1 per game?) | ⏳ compare `resources` idx 4 before/after |
+| Hourglass skip price | ✅ 1 hourglass per game (user) |
 | Unlock detection (`dice` key absent before the Tower) | ⏳ |
-| Epic face id / how the epic shows up | ⏳ watch for the "neznámá kostka" alert |
+| Epic face id | ✅ face 4 during Epic Good Luck (capture 4); unknown faces > 6 still raise an alert |
 | Payout table (3/4/5 of a kind per type) | ⏳ collect from the logs |

@@ -65,8 +65,9 @@ pub fn secs_until_ready(gs: &GameState) -> Option<u64> {
 
 /// Value of a die face when choosing what to hold (user 2026-11-06 gave only: epic above all, wood uninteresting, gold a little;
 /// the rest is provisional). An unknown face (> 6) is the event's epic guess.
-fn rank(face: u8) -> u8 {
+fn rank(face: u8, epic_event: bool) -> u8 {
     match face {
+        4 if epic_event => 100, // during Epic Good Luck the user saw an epic on the face sf-api calls Souls (capture 2026-11-06)
         5 => 6,      // Arcane
         4 => 5,      // Souls
         6 => 4,      // Hourglass
@@ -80,13 +81,13 @@ fn rank(face: u8) -> u8 {
 
 /// What to hold after the first roll: one slot value per die, 0 = re-roll. An unknown face (epic) wins over everything; otherwise
 /// the most frequent face, ties by value.
-fn choose_hold(faces: &[u8]) -> [u8; 5] {
+fn choose_hold(faces: &[u8], epic_event: bool) -> [u8; 5] {
     let mut hold = [0u8; 5];
     let Some(best) = faces
         .iter()
         .copied()
         .filter(|f| *f != 0)
-        .max_by_key(|f| (rank(*f) == 100, faces.iter().filter(|x| *x == f).count(), rank(*f)))
+        .max_by_key(|f| (rank(*f, epic_event) == 100, faces.iter().filter(|x| *x == f).count(), rank(*f, epic_event)))
     else {
         return hold;
     };
@@ -104,7 +105,7 @@ fn face_name(face: u8) -> String {
         1 => "Silver".into(),
         2 => "Stone".into(),
         3 => "Wood".into(),
-        4 => "Souls".into(),
+        4 => "Souls/Epic".into(),
         5 => "Arcane".into(),
         6 => "Hourglass".into(),
         n => format!("UNKNOWN({n})"),
@@ -183,7 +184,8 @@ async fn play(session: &mut SimpleSession, payment: RollDicePrice) -> Result<boo
     if faces.iter().any(|f| *f > 6) {
         odd("neznámá kostka (epic?)", &format!("dicestatus {faces:?}"));
     }
-    let hold = choose_hold(&faces);
+    let epic_event = session.game_state().is_some_and(|gs| crate::tasks::event_active(gs, sf_api::gamestate::rewards::Event::EpicGoodLuckExtravaganza));
+    let hold = choose_hold(&faces, epic_event);
     let raw2 = safe::send_raw(session, roll_cmd(RollDicePrice::Free, hold)).await.map_err(|e| fail(&e))?;
     let after = key_values(&raw2, "dicestatus");
     let won = reward(&raw2);
@@ -245,20 +247,28 @@ mod tests {
 
     #[test]
     fn holds_the_most_frequent_face_then_the_dearer_one() {
-        assert_eq!(choose_hold(&[6, 1, 6, 3, 1]), [6, 0, 6, 0, 0], "hourglass pair beats the silver pair");
-        assert_eq!(choose_hold(&[3, 3, 3, 5, 1]), [3, 3, 3, 0, 0]);
-        assert_eq!(choose_hold(&[1, 2, 3, 4, 5]), [0, 0, 0, 0, 5], "all different: the dearest one");
+        assert_eq!(choose_hold(&[6, 1, 6, 3, 1], false), [6, 0, 6, 0, 0], "hourglass pair beats the silver pair");
+        assert_eq!(choose_hold(&[3, 3, 3, 5, 1], false), [3, 3, 3, 0, 0]);
+        assert_eq!(choose_hold(&[1, 2, 3, 4, 5], false), [0, 0, 0, 0, 5], "all different: the dearest one");
     }
 
     #[test]
     fn holds_the_arcane_pair_of_capture_3() {
-        assert_eq!(choose_hold(&[2, 3, 5, 2, 5]), [0, 0, 5, 0, 5]);
+        assert_eq!(choose_hold(&[2, 3, 5, 2, 5], false), [0, 0, 5, 0, 5]);
         assert_eq!(reward("&dicestatus:6/6/5/5/5&dicereward:6/778&"), Some((5, 778)));
     }
 
     #[test]
+    fn the_epic_face_wins_during_the_epic_event() {
+        // capture 4: 2 3 4 5 6, the user saw Stone Wood Epic Splinters Hourglass and kept the epic
+        assert_eq!(choose_hold(&[2, 3, 4, 5, 6], true), [0, 0, 4, 0, 0]);
+        assert_eq!(choose_hold(&[2, 3, 4, 5, 6], false), [0, 0, 0, 5, 0], "without the event Souls rank below Arcane");
+        assert_eq!(choose_hold(&[4, 5, 5, 1, 2], true), [4, 0, 0, 0, 0], "a single epic beats a pair");
+    }
+
+    #[test]
     fn an_unknown_face_is_held_over_everything() {
-        assert_eq!(choose_hold(&[7, 5, 5, 5, 1]), [7, 0, 0, 0, 0]);
+        assert_eq!(choose_hold(&[7, 5, 5, 5, 1], false), [7, 0, 0, 0, 0]);
     }
 
     #[test]
