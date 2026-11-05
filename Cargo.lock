@@ -2715,8 +2715,6 @@ dependencies = [
 [[package]]
 name = "sf-api"
 version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb901d1d77f7b0e6b2f6db70302c938adb738f3d68fcb28d4435cd9e74feb73d"
 dependencies = [
  "base64 0.22.1",
  "chrono",
