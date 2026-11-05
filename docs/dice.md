@@ -40,7 +40,7 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 |---|---|
 | `dicestatus`, `dice`, `dicereward` parsing | ✅ captures above (unit test) |
 | Reward comes with the re-roll response, no "take" step | ✅ capture 2 (assumed the client sent payment 0 for the re-roll ⏳) |
-| Re-roll payment value the client sends | ⏳ guessed 0 (Free); check the first `[dice]` lines and the alerts |
+| Re-roll payment | ✅ always free (user 2026-11-06); the bot sends 0 |
 | Cooldown between free games 3600 s | ⏳ (hourglass rolls do not move `next_free`, so only a free roll shows it) |
 | Hourglass skip price | ✅ 1 hourglass per game (user) |
 | Unlock detection (`dice` key absent before the Tower) | ⏳ |
