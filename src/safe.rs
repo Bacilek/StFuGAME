@@ -57,8 +57,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // Ident 32 = the Toilet of the Arcane Gods (user capture 2026-11-01: `unlockfeature:32/1/` pending at level 100+, then `arcanetoilet:1/0/0/60`).
             // Other idents stay forbidden until the user says what they are.
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 30 | 5 | 9 | 32, .. } }
-            // Ident 6/1 = the toilet again on the characters that still wait (user capture 2026-11-04, PajaRizz: `unlockfeature:6/1/` then `arcanetoilet:1/0/0/60`)
-            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 6, sub_ident: 1 } }
+            // Ident 3/1 = the toilet message at level 100+ (PajaRizz 2026-11-04: after the user accepted the news 3/1 left the pending list and `arcanetoilet:1/0/0/60` appeared; 6/1 stayed pending, NOT it, sent once by mistake)
+            | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 3, sub_ident: 1 } }
             // Ident 20/1 = Pets themselves (user capture 2026-10-24: `unlockfeature:20/1/` pending at login, free), see pets::unlock_pets
             | Command::UnlockFeature { unlockable: sf_api::gamestate::unlockables::Unlockable { main_ident: 20, sub_ident: 1 } }
             // Ident 21 = a new pet after an egg was picked (sub ident = pet id 1..=100, user 2026-10-23: the game client sends it when

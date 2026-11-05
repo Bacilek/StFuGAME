@@ -171,7 +171,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // and `arcanetoilet` arrives. Free, so the bot sends it itself.
     let pending: Vec<_> = session
         .game_state()
-        .map(|gs| gs.pending_unlocks.iter().filter(|u| (u.main_ident == 32 || u.main_ident == 6) && u.sub_ident == 1).copied().collect())
+        .map(|gs| gs.pending_unlocks.iter().filter(|u| (u.main_ident == 32 || (u.main_ident == 3 && gs.character.level >= 100)) && u.sub_ident == 1).copied().collect())
         .unwrap_or_default();
     for u in pending {
         report!("[toilet] Unlocking the toilet (pending unlock {}/1)", u.main_ident);
@@ -206,7 +206,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
                 720,
             );
         }
-        let high = session.game_state().is_some_and(|gs| gs.character.level >= 100 && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32 || u.main_ident == 6));
+        let high = session.game_state().is_some_and(|gs| gs.character.level >= 100 && !gs.pending_unlocks.iter().any(|u| u.main_ident == 32 || u.main_ident == 3));
         // The first sighting only starts the clock (the login that just happened would have brought `arcanetoilet`)
         let due = high && RELOGIN_AT.lock().is_ok_and(|mut at| match *at {
             None => {
