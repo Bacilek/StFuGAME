@@ -416,7 +416,9 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         // Sleep until the nearest event (`schedule::next`: Arena/hunts, Dungeons, City Guard, midnight, daily reward,
         // reports, fortress, end of the expedition), at most 30 min
         let next = session.game_state().map(|gs| schedule::next(gs, true));
-        let wait = next.map_or(30 * 60, |w| w.secs) + fastrand::u64(30..120);
+        // No game state = the last request failed (network blip): try again in about a minute, not in 30 (2026-11-05: three characters lost 30 min after one
+        // "Could not communicate" error)
+        let wait = next.map_or(60, |w| w.secs) + fastrand::u64(30..120);
         let wait = wait.clamp(60, 30 * 60);
         // Guildless: look at the guild list again soon, and do not oversleep 22:00 (the Tavern override)
         let wait = if session.game_state().is_some_and(|gs| gs.guild.is_none()) { wait.min(guild::NO_GUILD_RETRY.num_seconds() as u64) } else { wait };
