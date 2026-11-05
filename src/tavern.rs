@@ -479,7 +479,7 @@ fn choose_encounter(exp: &Expedition, encs: &[ExpeditionEncounter]) -> usize {
 }
 
 /// Picks a reward (user 2026-10-14/21/23): the egg of a pet of our chains (any, user 2026-10-26) > mushrooms > fruit > the egg
-/// of another new pet > Arcane Splinters (user 2026-10-25) > gold > hourglasses > anything else (Metal included) >>> Fortress wood/stone (raids give far more
+/// of another new pet > Arcane Splinters (user 2026-10-25) > Lucky Coins (user 2026-11-05, Lucky Day event; provisional) > gold > hourglasses > anything else (Metal included) >>> Fortress wood/stone (raids give far more
 /// resources than expeditions; also for a leftover expedition). The egg's amount is the pet id (`unlockfeature 21/<id>`, docs/pets.md).
 fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
     use crate::petcatch::{EggKind, egg_kind};
@@ -492,10 +492,11 @@ fn choose_reward(rewards: &[Reward], pets_nums: &[i64]) -> usize {
         RewardType::Mushrooms => 1,
         RewardType::Fruit(_) | RewardType::FruitBasket => 3,
         RewardType::Arcane => 5,
-        RewardType::Silver => 6,
-        RewardType::QuicksandGlass => 7,
-        RewardType::Wood | RewardType::Stone => 9,
-        _ => 8,
+        RewardType::LuckyCoins => 6,
+        RewardType::Silver => 7,
+        RewardType::QuicksandGlass => 8,
+        RewardType::Wood | RewardType::Stone => 10,
+        _ => 9,
     };
     rewards
         .iter()
@@ -1246,6 +1247,8 @@ mod tests {
     fn reward_order() {
         let r = |typ| Reward { typ, amount: 1 };
         assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver), r(RewardType::Mushrooms)], &[]), 2);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::LuckyCoins), r(RewardType::Arcane)], &[]), 2);
+        assert_eq!(choose_reward(&[r(RewardType::Silver), r(RewardType::LuckyCoins), r(RewardType::QuicksandGlass)], &[]), 1);
         assert_eq!(choose_reward(&[r(RewardType::QuicksandGlass), r(RewardType::Silver)], &[]), 1);
         assert_eq!(choose_reward(&[r(RewardType::XP), r(RewardType::QuicksandGlass)], &[]), 1);
         // Fortress resources (user 2026-10-14) rank below everything, hourglasses included
