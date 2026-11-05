@@ -44,7 +44,7 @@ Cost of the first upgrade was 6.
 
 ## User decisions 2026-10-25
 
-- Buy the best dollars-per-cost upgrade (confirmed). Prestige timing: the user looks up the optimum online and tells us (NOT decided).
+- Buy the best dollars-per-cost upgrade (confirmed). Prestige timing: see "Prestige rule" below (2026-11-05).
 - Dollars are collected by time, automatically (no collect command).
 - Merchant sells everything for MUSHROOMS; buyable once a day, then it closes. **Mushroom exception (one time):** exactly ONE
   "speed boost" (25 mushrooms, 2x speed forever on all buildings, survives sacrifice). NEVER time skips or anything else.
@@ -70,3 +70,6 @@ from level 105, if the server sent an idle game (`gs.idle_game`; if not, one `[i
 `IdleUpgrade` commands: the building with the cheapest next level, in the biggest affordable batch (100/25/10/1). Simple because the earning per cycle of
 unbuilt buildings is unknown (no ratio possible yet). `safe.rs` allows only affordable `IdleUpgrade` batches (`idle::upgrade_ok`); `IdleSacrifice` (prestige),
 `IdleUpgradeAmount::Max` and the merchant stay forbidden. NOT seen live: check `[idle]` lines; open: prestige timing (user looks up the optimum), runes.
+
+## Prestige rule (user 2026-11-05, was said earlier but never written down; implemented, NOT in a release yet, never seen live)
+Sacrifice (`IdleSacrifice` = `IdlePrestige:0`, resets the buildings, gives runes) as soon as the runes it would give (`sacrifice_runes`) are at least the runes we already have in total (`current_runes`), the first one at 20: 20 -> 40 -> 80 -> ...; when the exact number is missed, the first moment beyond it (22 -> 44+ -> ...). The runes are never spent. `idle::sacrifice_due` / `rune_rule` (unit test), checked at the start of every 20-minute pass, and again in `safe.rs` (`IdleSacrifice` is whitelisted only when due). Log lines: the first pass after a start shows `runes X, a sacrifice would give Y, resets Z`; a sacrifice logs `SACRIFICE ...` and the state after it. To verify live: whether `sacrifice_runes` is really the gain of a sacrifice now (sf-api doc says so) and whether `current_runes` is the running total; check the first sacrifice by hand against the game. Open: what the runes buy (user does not know yet).

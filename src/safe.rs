@@ -91,7 +91,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::GambleSilver { .. }
             // Beer only during the Exceptional XP event (user 2026-10-16), see tasks::beer_justified
             | Command::BuyBeer
-            // Arena Manager upgrades (user 2026-10-25/31, src/idle.rs): dollars only; `IdleSacrifice` and the merchant stay forbidden
+            // Arena Manager upgrades (user 2026-10-25/31, src/idle.rs): dollars only; the prestige `IdleSacrifice` only by the user's rune rule (`idle::sacrifice_due`, 2026-11-05, checked in `send_raw`); the merchant stays forbidden
+            | Command::IdleSacrifice
             | Command::IdleUpgrade { amount: sf_api::command::IdleUpgradeAmount::One | sf_api::command::IdleUpgradeAmount::Ten | sf_api::command::IdleUpgradeAmount::TwentyFive | sf_api::command::IdleUpgradeAmount::Hundred, .. }
             // Once-a-day battles (user 2026-10-31, src/battles.rs): no mushroom parameter except the pet battle, which is never sent with one
             | Command::FightPortal
@@ -498,6 +499,9 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         && !session.game_state().is_some_and(|gs| crate::potions::removal_ok(gs, *pos))
     {
         return Err(SFError::InvalidRequest("this active potion may not be removed"));
+    }
+    if matches!(cmd, Command::IdleSacrifice) && !session.game_state().is_some_and(crate::idle::sacrifice_due) {
+        return Err(SFError::InvalidRequest("the Arena Manager sacrifice is not due"));
     }
     if let Command::IdleUpgrade { typ, amount } = &cmd
         && !session.game_state().is_some_and(|gs| crate::idle::upgrade_ok(gs, *typ, *amount))
