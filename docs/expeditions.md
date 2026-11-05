@@ -103,7 +103,7 @@ For an unmapped mission it treats items from the same tens range as the target a
 - Normally: mushrooms > gold > hourglasses.
 - Leftover expedition (≤ 3 min of Thirst for Adventure): since 2026-10-14 no special case, same order as always (mushrooms > gold > hourglasses >>> Fortress wood/stone).
 - Since 2026-10-25: Arcane Splinters rank above gold (Metal stays in "anything else"); full order in `docs/precedents.md`.
-- Since 2026-11-05 (user, provisional): Lucky Coins rank between Arcane Splinters and gold (Lucky Day event: chance to find lucky coins on expeditions). The user will revisit the position once we see how many coins arrive.
+- Since 2026-11-06 (user, provisional): Lucky Coins (~50 a time, Lucky Day event) rank right after fruit, above the egg of another new pet and Arcane Splinters; Souls rank after Arcane, before gold. Full order: chain eggs > mushrooms > fruit > Lucky Coins > other new eggs > Arcane > Souls > gold > hourglasses > rest >>> wood/stone. The user will revisit once we see how many coins arrive.
   It gives little gold (2026-10-07: 9 silver) but the same hourglasses. After a bot restart mid-expedition it is treated as a full one.
 - Hourglasses are never used.
 
