@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 00:06 2026-11-06** (XP event beer cap 11, Lucky Coins/Souls in the expedition reward order; the user starts the bot). Check `beers n/11` in the log and the rewards picked on expeditions.
+
 **2026-11-05 (Lucky Day, NOT in a release yet):** expedition rewards: reward order is now chain eggs > mushrooms > fruit > Lucky Coins (~50 a time) > other eggs > Arcane > Souls > gold > hourglasses (`tavern::choose_reward`, provisional, user tunes after seeing the volume; `docs/events.md`).
 
 **2026-11-05 (XP event beer cap 11, NOT in a release yet):** user: tonight's Exceptional XP event = 1 free Belt beer + 10 paid = 11. `tasks::beer_cap` = server `beer_max` + 1 with the Thirsty Wanderer belt (`docs/events.md`). Open: Lucky Day event is unknown/unhandled (only in sf-api's enum); Forge Frenzy has no extra dismantles for task points. The release needs a rebuild + restart before midnight to pick this up.
