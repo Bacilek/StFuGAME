@@ -29,6 +29,8 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 - Capture 2 (held both hourglasses, re-rolled 3): `dicestatus:6/3/6/3/3`, `dicereward:4/4968` = 3× Wood, +4968 wood (`resources` idx 5 1514078 → 1519046), `dice:…/18`. The reward arrives in the re-roll response; there is no separate "take" step.
 - Capture 3 (user 2026-11-06, Forge Frenzy active): first roll 2× Stone, 1× Wood, 2× Arcane; held the 2 Arcane, re-rolled 3 -> `dicestatus:6/6/5/5/5`, `dicereward:6/778` = 3× Arcane splinters = **778** (2× from Forge Frenzy, so ~389 base); `dice:…/16` (16 left, Lucky Day). Our hold rule picks exactly this (pair of Arcane beats the pair of Stone).
 - Capture 4 (user 2026-11-06, Epic Good Luck active): `dicestatus:2/3/4/5/6`; the user saw Stone, Wood, **Epic**, Splinters, Hourglass and kept the epic. So face **4 (sf-api `Souls`) showed as the epic** during the event. The bot ranks face 4 above everything while `Event::EpicGoodLuckExtravaganza` is active (`dice::rank`), otherwise as Souls. ⏳ confirm what face 4 is outside the event.
+- Captures 5-7 (user 2026-11-06, Epic Good Luck; all three games paid with an hourglass): (A) `2/5/6/3/4` -> user kept nothing (mistake) -> `1/6/6/1/4`, no win; (B) `4/6/1/5/6`, kept the epic -> `4/4/1/2/5`, no win; (C) `6/4/5/4/6`, kept both epics -> `2/4/6/4/3`, no win. Our hold rule makes the choices of B and C (an epic outranks a pair).
+- Counters seen in those captures: `dice:<ts>/<left>` drops by 1 in the RE-ROLL response (the end of a game), not at the first roll; `<ts>` (next free game) stayed `1793926883` through every hourglass-paid game, so an hourglass roll does not push the free timer; `resources` idx 4 (hourglasses) fell by exactly 1 per game (385 -> 384 -> 383).
 - Payout amounts (wood 4968, splinters 778, souls) depend on the character level, they only show the priorities (user 2026-11-06). An hourglass skip costs exactly 1 hourglass (user).
 - `resources` idx: 1 mushrooms, 2 gold, 3 lucky coins, 4 hourglasses, 5 wood, 7 stone, 9 metal, 10 arcane, 11 souls, 12–16 fruits.
 
@@ -38,7 +40,7 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 | `dicestatus`, `dice`, `dicereward` parsing | ✅ captures above (unit test) |
 | Reward comes with the re-roll response, no "take" step | ✅ capture 2 (assumed the client sent payment 0 for the re-roll ⏳) |
 | Re-roll payment value the client sends | ⏳ guessed 0 (Free); check the first `[dice]` lines and the alerts |
-| Cooldown between free games 3600 s | ⏳ (capture 1 showed 3001 s ≈ 50 min left) |
+| Cooldown between free games 3600 s | ⏳ (hourglass rolls do not move `next_free`, so only a free roll shows it) |
 | Hourglass skip price | ✅ 1 hourglass per game (user) |
 | Unlock detection (`dice` key absent before the Tower) | ⏳ |
 | Epic face id | ✅ face 4 during Epic Good Luck (capture 4); unknown faces > 6 still raise an alert |
