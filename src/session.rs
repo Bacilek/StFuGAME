@@ -6,6 +6,10 @@ use std::time::Duration;
 
 use sf_api::{command::Command, error::SFError, gamestate::GameState, session::Session};
 
+/// sf-api's HTTP client has no timeout: after a network blip a request can hang for ever (2026-11-05: TestChar1, Mimimimi11 and Pagan
+/// went silent for 20+ min after one "Could not communicate" error). A request over this long is treated as a connection error.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
 pub struct SimpleSession {
     session: Session,
     gamestate: Option<GameState>,
@@ -53,10 +57,8 @@ fn parse_witch_shop(raw: &str) -> Option<Vec<i64>> {
 impl SimpleSession {
     /// Logs in to the S&F account (SSO) and returns a session for every character of the account.
     pub async fn login_sf_account(username: &str, password: &str) -> Result<Vec<Self>, SFError> {
-        let acc = sf_api::sso::SFAccount::login(username.to_string(), password.to_string()).await?;
-        Ok(acc
-            .characters()
-            .await?
+        let acc = tokio::time::timeout(REQUEST_TIMEOUT, sf_api::sso::SFAccount::login(username.to_string(), password.to_string())).await.map_err(|_| SFError::ConnectionError)??;
+        Ok(tokio::time::timeout(REQUEST_TIMEOUT, acc.characters()).await.map_err(|_| SFError::ConnectionError)??
             .into_iter()
             .flatten()
             .map(|session| Self { session, gamestate: None, char_save: None, witch_shop: None, pets_save: None })
@@ -99,7 +101,7 @@ impl SimpleSession {
     /// (`key:value&key:value…`).
     pub async fn send_raw(&mut self, cmd: Command) -> Result<String, SFError> {
         if self.gamestate.is_none() {
-            let resp = self.session.login().await?;
+            let resp = tokio::time::timeout(REQUEST_TIMEOUT, self.session.login()).await.map_err(|_| SFError::ConnectionError)??;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
             self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
@@ -107,7 +109,7 @@ impl SimpleSession {
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
-        let resp = match self.session.send_command(cmd).await {
+        let resp = match tokio::time::timeout(REQUEST_TIMEOUT, self.session.send_command(cmd)).await.unwrap_or(Err(SFError::ConnectionError)) {
             Ok(resp) => resp,
             Err(e) => {
                 self.gamestate = None;
@@ -133,7 +135,7 @@ impl SimpleSession {
     /// the next pass refreshes the game state as usual; this only returns what the command itself said.
     pub async fn send_raw_only(&mut self, cmd: Command) -> Result<String, SFError> {
         if self.gamestate.is_none() {
-            let resp = self.session.login().await?;
+            let resp = tokio::time::timeout(REQUEST_TIMEOUT, self.session.login()).await.map_err(|_| SFError::ConnectionError)??;
             self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
             self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());
@@ -141,7 +143,7 @@ impl SimpleSession {
             self.gamestate = Some(GameState::new(resp)?);
             tokio::time::sleep(Duration::from_millis(fastrand::u64(1000..2000))).await;
         }
-        let resp = self.session.send_command(cmd).await?;
+        let resp = tokio::time::timeout(REQUEST_TIMEOUT, self.session.send_command(cmd)).await.map_err(|_| SFError::ConnectionError)??;
         self.char_save = parse_char_save(resp.raw_response()).or(self.char_save.take());
             self.witch_shop = parse_witch_shop(resp.raw_response()).or(self.witch_shop.take());
             self.pets_save = parse_pets_save(resp.raw_response()).or(self.pets_save.take());

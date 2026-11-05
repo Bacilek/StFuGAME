@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-05 (hung requests, NOT in a release yet):** TestChar1, Mimimimi11 and Pagan went silent from 13:59 (one `[tavern] Error: Could not communicate with the server`, then nothing for 20+ min while the other characters ran). sf-api's reqwest client has no timeout, so a request after a network blip hangs for ever (most likely the re-login). `session.rs`: every login and command (and the SSO login) now has a 60 s timeout (`REQUEST_TIMEOUT`) that becomes `ConnectionError`, so the normal relogin path takes over. The hang itself was inferred (no stack to look at), verify: after the next network blip a `Could not communicate` is followed by a normal relogin. The three hung characters need the bot restarted (or the character switched off and on in the app).
+
 **Release built 22:04 2026-11-04** (relogin right after the toilet unlock, so `arcanetoilet` arrives; the user starts the bot). Check `[toilet] Threw a ...`.
 
 **Release built 21:38 2026-11-04** (toilet unlock 6/1, fortress Gem Mine rush, Barracks 5, Smithy chain + soldier upgrades; everything marked "NOT in a release yet" from today is in; the user starts the bot). Check: `[toilet] Unlocking the toilet (pending unlock 6/1)`, `[fortress] Upgrading the soldiers`.
