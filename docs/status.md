@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 15:00 2026-11-05** (power request against Modern Standby, retry after a minute without game state, 60 s request timeout; the user starts the bot). Check `[app] Power request ... set`.
+
 **2026-11-05 (the PC slept 03:00-13:14, NOT in a release yet):** user: "TestChar1, Mimimimi11, Pagan stuck, still Thirst for Adventure at 2 pm". Real cause: Windows Modern Standby 03:00:06 -> 13:14:22 (System log, events 506/507; PC on AC, sleep timeout "never", lid action "do nothing"), every character frozen (City Guard shifts due 05:00-12:50 were collected 13:18-13:25), so ALU stood unused. `SetThreadExecutionState` (2026-10-21) does NOT stop it: `app::keep_awake` now also creates a power request (System + Execution required, log line `[app] Power request ... set`). Unverified; if it still sleeps: keep the screen on (DisplayRequired) or switch off Modern Standby/"sleep" in Windows (powercfg needs admin). Second finding: after one `Could not communicate` the character had no game state, so the main loop slept the 30 min maximum (`schedule::next` None); now 60 s + jitter. The 60 s request timeout in `session.rs` stays (sf-api has none) although the hang theory turned out wrong for these three. Check `Get-WinEvent -LogName System -Id 506,507` when characters idle again.
 
 **Release built 22:04 2026-11-04** (relogin right after the toilet unlock, so `arcanetoilet` arrives; the user starts the bot). Check `[toilet] Threw a ...`.
