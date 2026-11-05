@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 15:34 2026-11-05** (toilet unlock 3/1, Arena Manager prestige by the rune rule; the user starts the bot). Check `[toilet] Unlocking the toilet (pending unlock 3/1)` and `[idle] ... runes X, a sacrifice would give Y`.
+
 **2026-11-05 (Arena Manager prestige, NOT in a release yet):** the user's rule (he had said it before, I had not recorded it): sacrifice when the runes it gives >= the runes owned, first at 20 (20 -> 40 -> 80 ...). `idle::sacrifice_due`, whitelisted only when due. Verify the first sacrifice live (`[idle] ... SACRIFICE`), see `docs/idle.md`.
 
 **2026-11-05 (toilet unlock is 3/1, NOT in a release yet):** after the 15:00 start Mimimimi11, Mrožik, Wecros, Květoš, Sanek, Novotné, Pagan still saw the toilet locked (aura 0): the pending unlock that is left is `3/1` (6/1 was sent wrongly). `toilet::run` now sends 3/1 at level 100+ (and 32/1), then relogs. Arena Manager: working (`[idle]` buys, ~1M dollars each), NO prestige/runes (`IdleSacrifice` forbidden, timing undecided).
