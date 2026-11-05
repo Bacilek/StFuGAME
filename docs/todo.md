@@ -40,7 +40,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
   - [ ] Fáze 4: PvP 5×/den a útoky na trenéry (ovoce)
 
 ## Návrhy od Clauda (nic se nedělá bez souhlasu uživatele)
-- [ ] **Gambler – Dice rolling** (user 2026-11-02; 2026-11-06 pravidla a první captures v `docs/dice.md`, čeká na odpovědi ke strategii, pak implementace): zjistit, jak minihra v Gamblerovi (kostky) funguje (příkazy, ceny, výhry, zda stojí houby/lucky coiny), zdokumentovat a navrhnout strategii; až po souhlasu uživatele. Pozor na pravidlo: žádné houby.
+- [x] **Gambler – Dice rolling** (2026-11-06 implemented in `src/dice.rs`, čeká na release a ověření řádků ⏳ v `docs/dice.md`)
 - [ ] **Arena Manager (idle hra, lvl 105)** (nákup upgradů hotový 2026-10-31, zbývá prestige/runy) – odemčeno 2026-10-25, zatím jen zdokumentováno (`docs/idle.md`). Čeká na strategii od uživatele: co kupovat, kdy dělat `IdleSacrifice`, co prodává merchant a jestli něco stojí houby.
 - [ ] (2026-10-18, zatím neřešit) Spinning může přes den brát gold, který by fortress potřebovala na DALŠÍ buildy (spin šetří jen cenu jednoho následujícího buildu). Pokud přijde varování "build čeká na gold", přehodnotit priority (např. šetřit gold na víc buildů dopředu).
 - [ ] **Assassin: počítá se gem v off-hand (Shield slot) dvojnásobně jako ve zbrani?** (user 2026-10-16, neví) – zjistit: Assassinovi dát stejný gem do off-handu a porovnat `derived.damage` v `roster/<postava>/days/*.json` před/po (nebo user v klientu porovná damage). Do té doby se Shield slot v `gems::weapon_socket` NEbere jako zbraň. Pokud ano, rozšířit `Socket.weapon` na Shield u Assassina.

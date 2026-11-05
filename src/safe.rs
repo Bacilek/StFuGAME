@@ -82,6 +82,8 @@ fn is_allowed(cmd: &Command) -> bool {
             // backpack epic / gem (`toilet_drop_ok`), the flush only with enough mana and a free slot (`toilet_flush_ok`)
             | Command::ToiletDrop { .. }
             | Command::ToiletFlush
+            // Game of Dice (user 2026-11-06, src/dice.rs): free or hourglass payment only, never mushrooms; gated by `dice_roll_ok`
+            | Command::RollDice { payment: sf_api::command::RollDicePrice::Free | sf_api::command::RollDicePrice::Hourglass, .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
             | Command::CollectDailyQuestReward { .. }
@@ -166,6 +168,8 @@ pub enum Cooldown {
     PetDungeon,
     /// Pet PvP fight against the offered player, free again 15 min after the last one (user 2026-10-24; `petsSave` 232)
     PetPvp,
+    /// Free first roll of the Game of Dice (once an hour; user 2026-11-06, `docs/dice.md`)
+    Dice,
 }
 
 /// When we last used each cooldown action (during this run of the bot).
@@ -193,7 +197,22 @@ pub fn cooldown_free(kind: Cooldown, next_free: Option<DateTime<Local>>) -> bool
     }
 }
 
+/// A Game of Dice roll (plain or custom wire form): (payment number, is it the first roll = every die re-rolled).
+fn dice_roll(cmd: &Command) -> Option<(u8, bool)> {
+    match cmd {
+        Command::RollDice { payment, dices } => Some((*payment as u8, dices.iter().all(|d| *d == sf_api::command::DiceType::ReRoll))),
+        Command::Custom { cmd_name, arguments } if cmd_name == "RollDice" && arguments.len() == 6 => {
+            let faces: Option<Vec<u8>> = arguments[1..].iter().map(|a| a.parse().ok()).collect();
+            Some((arguments[0].parse().ok()?, faces?.iter().all(|f| *f == 0)))
+        }
+        _ => None,
+    }
+}
+
 fn fight_kind(cmd: &Command) -> Option<Cooldown> {
+    if matches!(dice_roll(cmd), Some((0, true))) {
+        return Some(Cooldown::Dice);
+    }
     match cmd {
         Command::Fight { .. } => Some(Cooldown::Arena),
         Command::FightDungeon { .. } => Some(Cooldown::Dungeon),
@@ -342,6 +361,8 @@ fn raw_witch_price(session: &SimpleSession) -> Option<u64> {
 
 fn custom_allowed(gs: Option<&GameState>, raw_price: Option<u64>, cmd_name: &str, arguments: &[String]) -> bool {
     match (cmd_name, arguments) {
+        // Game of Dice with a die face sf-api has no name for (the event epic?), same wire shape as `RollDice`; payment 0 or 2 only
+        ("RollDice", [p, faces@ ..]) => matches!(p.as_str(), "0" | "2") && faces.len() == 5 && faces.iter().all(|f| f.parse::<u8>().is_ok_and(|v| v <= 9)),
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
         ("GroupJoin", [_, suffix]) => suffix == "int",
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
@@ -403,10 +424,20 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
         Some(Cooldown::Wheel) if !session.game_state().is_some_and(wheel_is_free) => {
             return Err(SFError::InvalidRequest("no free Wheel of Fortune spin available"));
         }
+        Some(Cooldown::Dice) if !session.game_state().is_some_and(|gs| gs.tavern.dice_game.remaining > 0 && cooldown_free(Cooldown::Dice, gs.tavern.dice_game.next_free)) => {
+            return Err(SFError::InvalidRequest("Game of Dice: no free game now, it would cost an hourglass or a mushroom"));
+        }
         Some(Cooldown::Reroll) if !session.game_state().is_some_and(reroll_is_free) => {
             return Err(SFError::InvalidRequest("the free change of the fortress opponent is not available, it would cost gold"));
         }
         _ => {}
+    }
+    // Game of Dice: a re-roll (some die held) is free; a first roll is free off cooldown (`Cooldown::Dice` above) or paid with an hourglass
+    // only per `dice::skip_with_hourglass`; mushrooms (payment 1) never reach this point
+    if let Some((payment, first)) = dice_roll(&cmd)
+        && !(payment == 0 || (payment == 2 && first && session.game_state().is_some_and(crate::dice::skip_with_hourglass)))
+    {
+        return Err(SFError::InvalidRequest("Game of Dice: only free rolls, or an hourglass skip from 23:00"));
     }
     // Feeding: only an owned pet (level > 0 in the raw `petsSave`, index = pet id + 1) and one of the 5 fruit kinds
     if let Command::PetFeed { pet_id, fruit_idx } = &cmd
@@ -707,5 +738,23 @@ mod witch_tests {
         gs.character.silver = 100_000;
         assert!(!custom_allowed(Some(&gs), None, "PlayerWitchEnchantItem", &args("2", "1")), "not enough gold");
         gs.character.silver = 5_000_000;
+    }
+}
+
+#[cfg(test)]
+mod dice_tests {
+    use super::*;
+    use sf_api::command::{DiceType, RollDicePrice};
+
+    #[test]
+    fn dice_never_with_mushrooms() {
+        let roll = |payment| Command::RollDice { payment, dices: [DiceType::ReRoll; 5] };
+        assert!(is_allowed(&roll(RollDicePrice::Free)));
+        assert!(is_allowed(&roll(RollDicePrice::Hourglass)));
+        assert!(!is_allowed(&roll(RollDicePrice::Mushrooms)));
+        let custom = |p: &str| vec![p.to_string(), "0".into(), "7".into(), "0".into(), "0".into(), "0".into()];
+        assert!(custom_allowed(None, None, "RollDice", &custom("0")));
+        assert!(custom_allowed(None, None, "RollDice", &custom("2")));
+        assert!(!custom_allowed(None, None, "RollDice", &custom("1")));
     }
 }

@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-06 (Game of Dice, NOT in a release yet):** `src/dice.rs` plays the hourly free game (roll, hold one type, one re-roll), hourglass skips from 23:00, `safe.rs` gates (never mushrooms, `Cooldown::Dice`). Never run on a real character yet; verify the ⏳ rows in `docs/dice.md` after the first release (re-roll payment guess 0, cooldown 3600 s, unknown epic face alert). Souls reward capture (+2970 from a 75-min expedition) in `docs/expeditions.md`.
+
 **Release built 00:06 2026-11-06** (XP event beer cap 11, Lucky Coins/Souls in the expedition reward order; the user starts the bot). Check `beers n/11` in the log and the rewards picked on expeditions.
 
 **2026-11-05 (Lucky Day, NOT in a release yet):** expedition rewards: reward order is now chain eggs > mushrooms > fruit > Lucky Coins (~50 a time) > other eggs > Arcane > Souls > gold > hourglasses (`tavern::choose_reward`, provisional, user tunes after seeing the volume; `docs/events.md`).

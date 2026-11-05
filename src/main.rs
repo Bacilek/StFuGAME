@@ -15,6 +15,7 @@ mod control;
 mod coupons;
 mod ctx;
 mod daily;
+mod dice;
 mod dungeons;
 mod fortress;
 mod gems;
@@ -285,6 +286,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Game of Dice (user 2026-11-06): hourly free game, hourglass skips from 23:00
+        if let tavern::Outcome::SessionLost = dice::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         // Toilet of the Arcane Gods (user 2026-10-25): sacrifice a spare epic/gem, flush while there is mana

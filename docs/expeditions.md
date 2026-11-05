@@ -136,3 +136,6 @@ The server refuses an expedition reward with fewer than 2 free backpack slots ("
 
 ## Expedition choice order (2026-10-19, user) – `tavern::choose_expedition`
 1. an expedition through a location wanted by an open Gleeman/event travel task; 2. when such a task is open but neither offer passes the location: the SHORTER one (more expeditions today = more chances); 3. better tier (S > A > B); 4. within a tier the better success rate of reaching 40 heroism over all characters' `expeditions.jsonl` (`success_rates`, smoothed `(ok+1)/(runs+2)`, re-read hourly; a failure is `verdict == "failure: below 40"`); an unmapped or bonus-unverified mission still wins here so it gets mapped; 5. shorter, then `Mission::ease`. Tests: `same_tier_better_success_rate_wins`, `open_location_task_that_neither_offer_meets_takes_the_shorter`.
+
+## Reward captures (user 2026-11-06)
+- After level 150 the Tavern offers expeditions of 25 and 75 min Thirst for Adventure. The 75-min one paid 3 fruits (`resources` idx 12–16 are the fruits) and, in another capture, **Souls: +2970** (`resources` idx 11 `297 -> 3267`, the underworld souls pile) from a 75-min expedition.
