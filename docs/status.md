@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-07 (toilet fallback, NOT in a release yet):** a sacrifice goes in every day: epic -> loose gem (secondary/Luck gems are now held back from the gem sale while one is owed) -> from 20:00 the cheapest plain item (`docs/toilet.md`). Verify `[toilet] Threw a plain ...` after 20:00 on a day without epics/gems, and Pagan (1/2 on the TTT day, no epic left).
+
 **Release built 00:48 2026-11-06 (Game of Dice; the user starts the bot).** Check `[dice] Rolled` lines.
 
 **2026-11-06 (Game of Dice, in the 00:48 release):** `src/dice.rs` plays the hourly free game (roll, hold one type, one re-roll), hourglass skips from 23:00, `safe.rs` gates (never mushrooms, `Cooldown::Dice`). Never run on a real character yet; verify the ⏳ rows in `docs/dice.md` after the first release (re-roll payment guess 0, cooldown 3600 s, unknown epic face alert). Souls reward capture (+2970 from a 75-min expedition) in `docs/expeditions.md`.
@@ -520,6 +522,7 @@ Updated: 2026-10-16. Rewrite after every bigger change.
   **Needs a release rebuild + bot restart** – the bot was still running the old build when this was found, not
   restarted by Claude per the "user starts the bot themselves" rule.
 
+- 2026-11-07: toilet fallback chain (epic -> gem -> plain item from 20:00), secondary gems held back for the toilet; NOT released/verified yet (docs/toilet.md).
 ## Where we are
 - 2026-10-28: (1) **Expedition rewards need 2 free backpack slots** (server message "backpack full ... free up at least 2 backpack slots", seen on the main character at 14/15): `tavern::run` calls `potions::make_room_with(session, true)` at the Rewards stage when fewer than 2 slots are free (loose gem -> potion -> kept item -> NEW Blacksmith socket swap -> last-resort epic, in that order); nothing freeable = bell alert `expedition-backpack` and the Tavern pass ends. (2) **Socket swap** (`inventory::socket_swap`): a backpack epic WITHOUT a gem slot that, with the expected gem, beats the worn non-epic item gets `BlacksmithAction::SocketUpgrade` (whitelisted, only for a backpack epic without a slot; `...WithMushrooms` still forbidden), is worn, and the plain item is sold. Level 90+, floor 2000 Metal / 4000 splinters (the user's by-hand price, real price unknown), a server refusal stops it for the day. UNVERIFIED live (command, cost, whether the item keeps its bag position: logged as `[smith] Socket upgrade ... paid X Metal / Y splinters`). (3) Witch: a **shield counts as a weapon** when she wants weapons (`witch::slot_wanted`, test). Tests pass, NOT in a release yet. Not verifiable by statistics yet: whether drops rise from level 100 (no bot character is 100).
 - 2026-10-20: guild join fix (docs/guild.md "Failed joins"): `no matching join slots` guilds are avoided 12 h, a refused attempt ends the round; Wecros was guildless 16 h because FF15 headed his list every round. Tests pass, NOT in a release yet. Retracted: my ALU pace estimate (15 min/h) was wrong, the user started the characters late; the question whether the 22:00 guildless override leaves enough time for the whole Thirst for Adventure is open.

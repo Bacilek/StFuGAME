@@ -642,7 +642,7 @@ fn next_action(gs: &GameState, equipped: &[EquipmentSlot]) -> Option<(Action, St
             return Some((Action::Equip { pos, slot }, what));
         }
         if !item.is_epic() {
-            if keep == Some(pos) {
+            if keep == Some(pos) || crate::toilet::plain_reserve(gs) == Some(pos) {
                 continue;
             }
             return Some((

@@ -400,7 +400,9 @@ async fn sell_secondary_gems(session: &mut SimpleSession) -> Option<Outcome> {
     loop {
         let gs = session.game_state()?;
         let class = gs.character.class;
-        let (pos, gem, ident) = backpack_gems(gs).into_iter().find(|g| tier(g.1.typ, class) >= 3)?;
+        // The toilet owes a sacrifice today (user 2026-11-07): the weakest few secondary gems are held back for it
+        let secondary: Vec<_> = backpack_gems(gs).into_iter().filter(|g| tier(g.1.typ, class) >= 3).collect();
+        let (pos, gem, ident) = *secondary.get(..secondary.len().saturating_sub(crate::toilet::gems_to_keep(gs)))?.first()?;
         report!("[gems] Selling the loose secondary-attribute gem {:?} {}", gem.typ, gem.value);
         if let Err(e) = safe::send(session, Command::SellShop { item_pos: pos.into(), item_ident: ident }).await {
             return Some(fail(&e));

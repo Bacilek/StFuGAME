@@ -3,7 +3,7 @@
 //! item that the normal inventory pass then equips, dismantles, enchants or sells) whenever the mana reaches the flush cost.
 //! Potions and plain items are never thrown.
 
-use chrono::{Local, NaiveDate};
+use chrono::{Local, NaiveDate, Timelike};
 use sf_api::{
     command::Command,
     error::SFError,
@@ -51,11 +51,16 @@ pub fn event(gs: &GameState) -> bool {
     crate::tasks::event_active(gs, Event::TidyToiletTime)
 }
 
-/// An epic equipment piece or a gem may be thrown in; never a unique, a legendary, a potion or a plain item.
+/// From this hour a day with nothing better to throw ends with a plain item (user 2026-11-07: something goes in EVERY day). Late, so a
+/// gem that is mined / an epic that drops during the day still comes first (a plain item is worth gold in the shop).
+const PLAIN_FROM_HOUR: u32 = 20;
+
+/// An equipment piece (epic or plain) or a gem may be thrown in; never a unique, a legendary or a potion. Which of them is actually
+/// chosen is `candidate`'s business (a plain item only as the last fallback).
 pub fn throwable(item: &Item) -> bool {
     match item.typ {
         ItemType::Gem(_) => true,
-        _ => item.is_epic() && !item.is_legendary() && !item.is_unique() && item.typ.equipment_slot().is_some(),
+        _ => !item.is_legendary() && !item.is_unique() && item.typ.equipment_slot().is_some(),
     }
 }
 
@@ -77,22 +82,67 @@ fn spare_epic(gs: &GameState) -> Option<(BagPosition, String)> {
         .map(|(pos, i)| (pos, describe(i)))
 }
 
-/// What to throw now, or None. `thrown` = sacrifices made today. One a day outside the event (a gem; an epic only with a full backpack),
-/// two during Tidy Toilet Time (epics first). The server's `sacrifices_left` decides too, except that a day with no throw yet is tried once
-/// (the counter is only refreshed by responses that carry it).
-pub fn candidate(gs: &GameState, thrown: u32, need_room: bool) -> Option<(BagPosition, String)> {
-    let toilet = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs))?;
-    let event = event(gs);
-    if thrown >= if event { 2 } else { 1 } || (thrown > 0 && toilet.sacrifices_left == 0) {
+/// The cheapest plain (non-epic) equipment item in the backpack, never the one kept for its gem slot: the last-fallback sacrifice.
+fn spare_plain(gs: &GameState) -> Option<(BagPosition, String)> {
+    let kept = crate::inventory::kept_item(gs);
+    gs.character
+        .inventory
+        .iter()
+        .filter_map(|(pos, i)| Some((pos, i?)))
+        .filter(|(pos, i)| !i.is_epic() && throwable(i) && !matches!(i.typ, ItemType::Gem(_)) && Some(*pos) != kept)
+        .min_by_key(|(_, i)| i.price)
+        .map(|(pos, i)| (pos, format!("plain {:?}", i.typ)))
+}
+
+/// Sacrifices still owed today (0 when the toilet is locked). The server's `sacrifices_left` counts too, except that a day with no throw
+/// yet is tried once (the counter is only refreshed by responses that carry it).
+fn owed(gs: &GameState, thrown: u32) -> u32 {
+    let Some(toilet) = gs.tavern.toilet.as_ref().filter(|_| unlocked(gs)) else { return 0 };
+    if thrown > 0 && toilet.sacrifices_left == 0 {
+        return 0;
+    }
+    (if event(gs) { 2 } else { 1 } as u32).saturating_sub(thrown)
+}
+
+/// How many loose secondary/Luck gems the gem pass must NOT sell right now: they are the day's sacrifices (user 2026-11-07), unless
+/// spare epics already cover them during the event.
+pub fn gems_to_keep(gs: &GameState) -> usize {
+    if !unlocked(gs) {
+        return 0;
+    }
+    let epics = if event(gs) { gs.character.inventory.iter().filter(|(_, i)| i.is_some_and(|i| i.is_epic() && throwable(i))).count() } else { 0 };
+    (owed(gs, thrown_today()) as usize).saturating_sub(epics)
+}
+
+/// The plain item the inventory pass must not sell: today's sacrifice is still owed, nothing better is there to throw and it is late.
+pub fn plain_reserve(gs: &GameState) -> Option<BagPosition> {
+    if !unlocked(gs) || Local::now().hour() < PLAIN_FROM_HOUR {
         return None;
     }
+    if owed(gs, thrown_today()) == 0 || preferred(gs, false).is_some() {
+        return None;
+    }
+    spare_plain(gs).map(|p| p.0)
+}
+
+/// The preferred sacrifice (epic / gem), without the plain-item fallback.
+fn preferred(gs: &GameState, need_room: bool) -> Option<(BagPosition, String)> {
     let gem = || crate::inventory::spare_gem(gs).map(|(pos, _)| (pos, "gem".to_string()));
     let full = gs.character.inventory.free_slot().is_none();
-    if event || full || need_room {
+    if event(gs) || full || need_room {
         spare_epic(gs).or_else(gem)
     } else {
         gem()
     }
+}
+
+/// What to throw now, or None. `thrown` = sacrifices made today. One a day outside the event (a gem; an epic only with a full backpack),
+/// two during Tidy Toilet Time (epics first, then gems); from 20:00 the cheapest plain item when nothing else is left.
+pub fn candidate(gs: &GameState, thrown: u32, need_room: bool) -> Option<(BagPosition, String)> {
+    if owed(gs, thrown) == 0 {
+        return None;
+    }
+    preferred(gs, need_room).or_else(|| if Local::now().hour() >= PLAIN_FROM_HOUR { spare_plain(gs) } else { None })
 }
 
 /// Is the toilet really unlocked? sf-api creates `gs.tavern.toilet` already from `toiletstate`, which the server sends to locked
@@ -268,9 +318,9 @@ mod tests {
     use sf_api::gamestate::items::ItemType;
 
     #[test]
-    fn only_epic_equipment_and_gems_may_be_thrown() {
+    fn only_equipment_and_gems_may_be_thrown() {
         assert!(throwable(&crate::smith::test_item(ItemType::Belt, 60)));
-        assert!(!throwable(&crate::smith::test_item(ItemType::Belt, 5)), "a plain item");
+        assert!(throwable(&crate::smith::test_item(ItemType::Belt, 5)), "a plain item is the last fallback");
         assert!(!throwable(&crate::smith::test_item(ItemType::Belt, 95)), "a legendary");
     }
 }

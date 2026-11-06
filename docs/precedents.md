@@ -269,3 +269,5 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - Game of Dice (user 2026-11-06): unlocks with the Tower (level 125 + Light Dungeon cleared); 1 free game an hour, 10 a day (20 in Lucky Day); after 23:00 hourglasses may skip the wait so all of the day's games get played; never mushrooms. Details and open questions: `docs/dice.md`.
 - Game of Dice details (user 2026-11-06): one roll, then keep any one type and one free re-roll; no hourglass re-rolls; hourglass skips from 23:00 without a reserve; during the Epic Good Luck event an epic in the game outranks everything. Hold choice by frequency then value is OUR provisional rule (Arcane > Souls > Hourglass > Silver > Stone > Wood).
+
+- Toilet sacrifices every day (user 2026-11-07): when no epic is left during Tidy Toilet Time throw a secondary/Luck gem, and if there is none a lazy plain item (e.g. one bought while spinning the shop). Outside the event throw the gem that would otherwise be sold (a secondary/Luck gem, or a main-stat gem worse than what is socketed). Min-max: something goes in daily, the least valuable thing first.

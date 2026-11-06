@@ -341,7 +341,7 @@ fn dismantle_ok(gs: &GameState, pos: PlayerItemPosition, ident: ItemCommandIdent
         })
 }
 
-/// The toilet takes only a BACKPACK epic equipment piece or gem (never a potion or a plain item), see `toilet::throwable`.
+/// The toilet takes only a BACKPACK epic equipment piece or gem (never a potion; a plain item only as the last fallback), see `toilet::throwable`.
 fn toilet_drop_ok(gs: &GameState, pos: PlayerItemPosition) -> bool {
     crate::toilet::unlocked(gs)
         && gs.character.inventory.iter().any(|(bp, item)| PlayerItemPosition::from(bp) == pos && item.is_some_and(crate::toilet::throwable))
