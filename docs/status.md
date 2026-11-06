@@ -1,6 +1,8 @@
 # Project status (handover document)
 
-**2026-11-07 (toilet fallback, NOT in a release yet):** a sacrifice goes in every day: epic -> loose gem (secondary/Luck gems are now held back from the gem sale while one is owed) -> from 20:00 the cheapest plain item (`docs/toilet.md`). Verify `[toilet] Threw a plain ...` after 20:00 on a day without epics/gems, and Pagan (1/2 on the TTT day, no epic left).
+**Release built 00:47 2026-11-07** (toilet fallback; the user starts the bot). Check `[idle] ... runes X, a sacrifice would give Y` at start (first live look at the Arena Manager prestige) and `[toilet] Threw a plain ...`.
+
+**2026-11-07 (toilet fallback, in the 00:47 release):** a sacrifice goes in every day: epic -> loose gem (secondary/Luck gems are now held back from the gem sale while one is owed) -> from 20:00 the cheapest plain item (`docs/toilet.md`). Verify `[toilet] Threw a plain ...` after 20:00 on a day without epics/gems, and Pagan (1/2 on the TTT day, no epic left).
 
 **Release built 00:48 2026-11-06 (Game of Dice; the user starts the bot).** Check `[dice] Rolled` lines.
 
