@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-08 (checks, user asked):** pet feeding works (characters log `Not feeding ... refused today: true` 00:11-00:20 = the daily fruit limit was used right after midnight; `pets_feed_idx.txt` learned). Wash probe: marker `roster/TestChar1/wash_probe.todo` is gone but NO `[wash-probe]` line is in any log (progress.log keeps ~100 lines): result unknown, re-arm and read it right after the run. Game of Dice: nobody has it, every character logs `cannot roll yet` from 23:00 (the hourglass skip fires on locked characters; `dice::unlocked` trusts the `dice` key) - fix pending. Tower/Twister/Shadow implementation requested by the user; blocked on captures (`docs/tower.md` "Capture 2026-11-08": request line of the unequip missing).
+
 **Release built 2026-11-07 17:26 (Twister + Shadow World excluded from the dungeon choice, re-arming Wash probe; the user starts the bot).** The probe runs again after midnight on TestChar1 (marker re-created); read `[wash-probe]`. User confirmed the client sends nothing but Poll + bare `PlayerToilettWash:` (many tries).
 
 **2026-11-07 (Twister and all Shadow World dungeons excluded from the dungeon choice, docs/twister.md, docs/shadow-world.md; not in a release).**
