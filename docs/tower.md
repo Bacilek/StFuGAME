@@ -33,3 +33,12 @@ character's level and NO equipment; we have to supply it.
 - One-shot probe, runs when `roster/<character>/wash_probe.todo` exists (deleted first): A) bare Wash; B) if nothing washed, `ToiletDrop` (`PlayerToilettLoad:<pos>`) of an
   unwashed backpack epic + bare Wash. Logs `[wash-probe]` lines with the answers. `safe.rs` allows `PlayerToilettWash` with no arguments only when the toilet is unlocked.
   Marker created for TestChar1 (user agreed 2026-11-07; the toilet is already used up for the day, so nothing can be flushed by accident).
+
+## Tower fight (user 2026-11-07)
+- `PlayerTowerBattle:<current_level>/<use_mush>` (sf-api `Command::FightTower`; `use_mush` always 0). The Tower fight uses the SAME hourly dungeon cooldown as the
+  normal dungeons (it takes the slot of one dungeon fight), so a lost Tower fight costs a dungeon fight.
+- The Tower boss is far stronger than the same-level light dungeon enemy: the user beats a level 200 normal dungeon enemy alone easily, but in the Tower 4 v 1 (level 200) it lost.
+  Capture (loss): boss level 200, 16,019,700 HP, damage/attributes ~4.2k/1.7k/1.7k/15.9k; response has 4 fights in sequence (`fightheader1..3` = the companions, `fightheader4` = the character),
+  the boss HP carries over from fight to fight (16,019,700 -> 14,084,360 -> 13,072,184 -> 11,853,432), `winnerid*.s:0` = the boss won all four, `fightresult.battlereward` all zeros.
+- Rule: even when the Tower is the lowest-level dungeon, a Tower loss must not block the normal dungeon choice: if a Tower fight failed (or is not expected to win), fight another dungeon
+  with that cooldown. Do not retry the Tower until our side got stronger (companion gear / levels). Needs a win estimate (sf-api `simulate` supports companions) before spending the slot. Not built yet.
