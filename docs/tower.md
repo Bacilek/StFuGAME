@@ -10,7 +10,7 @@ character's level and NO equipment; we have to supply it.
 - Companion offer: compare with the companion's current item of the same slot using the SAME power formula as the main character (Arena formula on
   the item's attributes, weapons by damage); only items of the same class are ever compared, so class-specific damage/stat ratios do not matter.
   Better -> equip, the old item falls out into the backpack and goes through the same chain (companion offer is moot for it, then wash, ...).
-- Wash (`PlayerToiletWash`): free (no mushrooms), unlimited a day, once per item (`Item::is_washed`). Same item type (glove stays glove), another class
+- Wash (`PlayerToilettWash`): free (no mushrooms), unlimited a day, once per item (`Item::is_washed`). Same item type (glove stays glove), another class
   (if it has one) with other stats; gems stay. Tried on items we would sell/throw and on the item just taken off. Epics are washed too (washed epics can be thrown into the toilet).
 - Dug-out gems (luck / secondary; also main attribute, CON, black, legendary) are checked for a companion that would benefit, after the main character.
 - Amulet, Talisman, Ring are class independent (magic shop sources); the rest of the armor is class specific.
@@ -20,9 +20,9 @@ character's level and NO equipment; we have to supply it.
   (same as `warriorcompanionaverageequiplevel`, `magecompanion…`, `huntercompanion…`). Response keys: `ownplayersavecharacter`, `owntower.towerSave`, `backpack`,
   `companionequipment`, `*companionaverageequiplevel`, `itemlevelshop`. Epic weapon swapped for epic on Bert, non-epic for epic on Mark: both fine, the old item lands in the backpack.
 - Wrong class: `error:class cannot use this item` (wizard glove onto Kunigunde) -> check `Item::can_be_equipped_by_companion` first.
-- Wash: `PlayerToiletWash:` response is just `toiletstate:0/1/0` + `backpack:` (no resources -> free). Ring 344 CON -> 344 CON (coincidence); epic heavy armor -> medium armor, same stat total.
+- Wash: `PlayerToilettWash:` response is just `toiletstate:0/1/0` + `backpack:` (no resources -> free). Ring 344 CON -> 344 CON (coincidence); epic heavy armor -> medium armor, same stat total.
 - sf-api 0.4.4 has `EquipCompanion`, `WitchEnchantCompanion`, `Item::is_washed`, `can_be_equipped_by_companion`; no Wash command (needs `Command::Custom`, allowed in `safe.rs`).
 
 ## Open
-- Full request line of `PlayerToiletWash` (arguments).
+- Full request line of `PlayerToilettWash` (arguments).
 - Gem sockets on companions' items, how to read companion stats for the power formula.
