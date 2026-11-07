@@ -40,5 +40,7 @@ character's level and NO equipment; we have to supply it.
 - The Tower boss is far stronger than the same-level light dungeon enemy: the user beats a level 200 normal dungeon enemy alone easily, but in the Tower 4 v 1 (level 200) it lost.
   Capture (loss): boss level 200, 16,019,700 HP, damage/attributes ~4.2k/1.7k/1.7k/15.9k; response has 4 fights in sequence (`fightheader1..3` = the companions, `fightheader4` = the character),
   the boss HP carries over from fight to fight (16,019,700 -> 14,084,360 -> 13,072,184 -> 11,853,432), `winnerid*.s:0` = the boss won all four, `fightresult.battlereward` all zeros.
-- Rule: even when the Tower is the lowest-level dungeon, a Tower loss must not block the normal dungeon choice: if a Tower fight failed (or is not expected to win), fight another dungeon
-  with that cooldown. Do not retry the Tower until our side got stronger (companion gear / levels). Needs a win estimate (sf-api `simulate` supports companions) before spending the slot. Not built yet.
+- Rule (user 2026-11-07, corrected): the Tower is NOT fought just because it is the lowest level. A lost Tower fight has already used the cooldown, so NOTHING is fought right away
+  (that would cost a mushroom, never); the NEXT free slot (next hour) goes to another dungeon, not to the Tower again. Try the Tower again only when our side got stronger (companion gear / levels)
+  or the loss was close. Needs a win estimate (sf-api `simulate` supports companions) before spending the slot; not built yet. The loss above was NOT close (user).
+- Win reward (user 2026-11-07): +1 % City Guard reward, permanent, and always 1 epic (needs a free backpack slot).
