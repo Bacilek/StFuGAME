@@ -48,23 +48,51 @@ fn journal(msg: &str) {
     }
 }
 
-/// The cheapest affordable batch: (building, amount, price).
-fn next_purchase(gs: &GameState) -> Option<(IdleBuildingType, IdleUpgradeAmount, f64)> {
+use IdleBuildingType::*;
+
+/// The user's upgrade order (2026-11-07): building levels are breakpoints (25, 50, 100, 250, 500, ...) where the earning doubles and the cycle
+/// shortens, a jump bigger than the cost efficiency of any single upgrade. A staggered wave: each building starts two steps behind the previous one.
+/// The bot works down the list, buys exactly up to the next unreached target (never past it) and invests nowhere else while it saves for it.
+/// TO EXTEND: the user adds the rest (VIPSeat, Snacks, StrayingMonsters, Toilet, higher breakpoints). Past the end the old rule applies
+/// (the building with the cheapest next level).
+const STEPS: &[(IdleBuildingType, u32)] = &[
+    (Seat, 25), (Seat, 50), (PopcornStand, 25), (Seat, 100), (PopcornStand, 50), (PopcornStand, 100),
+    (ParkingLot, 25), (ParkingLot, 50), (Seat, 250), (ParkingLot, 100), (Trap, 25), (PopcornStand, 250),
+    (Trap, 50), (Trap, 100), (Drinks, 25), (ParkingLot, 250), (Drinks, 50), (Drinks, 100),
+    (DeadlyTrap, 25), (Seat, 500), (Trap, 250), (DeadlyTrap, 50), (PopcornStand, 500), (DeadlyTrap, 100),
+];
+
+/// The first step whose building has not reached its target yet: (building, levels still missing).
+fn next_step(steps: &[(IdleBuildingType, u32)], level: impl Fn(IdleBuildingType) -> u32) -> Option<(IdleBuildingType, u32)> {
+    steps.iter().find_map(|&(typ, target)| target.checked_sub(level(typ)).filter(|m| *m > 0).map(|m| (typ, m)))
+}
+
+type Batch = (IdleUpgradeAmount, u32, f64);
+
+/// The biggest batch that does not exceed the `missing` levels and is affordable: (amount, levels, price).
+fn pick_batch(missing: u32, money: f64, batches: [Batch; 4]) -> Option<Batch> {
+    batches.into_iter().find(|&(_, n, p)| n <= missing && p <= money)
+}
+
+fn batches(b: &sf_api::gamestate::idle::IdleBuilding) -> [Batch; 4] {
+    [
+        (IdleUpgradeAmount::Hundred, 100, num(&b.upgrade_cost_100x)),
+        (IdleUpgradeAmount::TwentyFive, 25, num(&b.upgrade_cost_25x)),
+        (IdleUpgradeAmount::Ten, 10, num(&b.upgrade_cost_10x)),
+        (IdleUpgradeAmount::One, 1, num(&b.upgrade_cost)),
+    ]
+}
+
+/// What to buy now: (building, batch). While the list has an unreached step ONLY that step is bought (None = save up); past the end of the
+/// list the building with the cheapest next level, in the biggest affordable batch.
+fn next_purchase(gs: &GameState) -> Option<(IdleBuildingType, Batch)> {
     let idle = gs.idle_game.as_ref()?;
     let money = num(&idle.current_money);
-    let (typ, b) = idle.buildings.iter().min_by(|a, b| num(&a.1.upgrade_cost).total_cmp(&num(&b.1.upgrade_cost)))?;
-    if num(&b.upgrade_cost) > money {
-        return None;
+    if let Some((typ, missing)) = next_step(STEPS, |t| idle.buildings[t].level) {
+        return Some((typ, pick_batch(missing, money, batches(&idle.buildings[typ]))?));
     }
-    let (amount, price) = [
-        (IdleUpgradeAmount::Hundred, num(&b.upgrade_cost_100x)),
-        (IdleUpgradeAmount::TwentyFive, num(&b.upgrade_cost_25x)),
-        (IdleUpgradeAmount::Ten, num(&b.upgrade_cost_10x)),
-        (IdleUpgradeAmount::One, num(&b.upgrade_cost)),
-    ]
-    .into_iter()
-    .find(|(_, p)| *p <= money)?;
-    Some((typ, amount, price))
+    let (typ, b) = idle.buildings.iter().min_by(|a, b| num(&a.1.upgrade_cost).total_cmp(&num(&b.1.upgrade_cost)))?;
+    Some((typ, pick_batch(u32::MAX, money, batches(b))?))
 }
 
 /// The guard for `safe.rs`: the Arena Manager exists and the chosen batch is affordable.
@@ -129,8 +157,8 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     }
     for _ in 0..MAX_PER_PASS {
         let Some(gs) = session.game_state() else { break };
-        let Some((typ, amount, price)) = next_purchase(gs) else { break };
-        report!("[idle] Arena Manager: {typ:?} x{} for {price:.0} dollars", amount as i32);
+        let Some((typ, (amount, n, price))) = next_purchase(gs) else { break };
+        report!("[idle] Arena Manager: {typ:?} x{n} for {price:.0} dollars");
         match safe::send(session, Command::IdleUpgrade { typ, amount }).await {
             Ok(_) => {}
             Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
@@ -146,7 +174,31 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
 
 #[cfg(test)]
 mod tests {
-    use super::rune_rule;
+    use super::{IdleBuildingType::*, IdleUpgradeAmount as A, next_step, pick_batch, rune_rule};
+
+    fn prices() -> [(A, u32, f64); 4] {
+        [(A::Hundred, 100, 1000.0), (A::TwentyFive, 25, 300.0), (A::Ten, 10, 100.0), (A::One, 1, 10.0)]
+    }
+
+    #[test]
+    fn buys_exactly_up_to_the_breakpoint() {
+        let n = |missing, money| pick_batch(missing, money, prices()).map(|b| b.1);
+        assert_eq!(n(24, 1e9), Some(10)); // 100 and 25 would overshoot
+        assert_eq!(n(25, 1e9), Some(25));
+        assert_eq!(n(1, 1e9), Some(1));
+        assert_eq!(n(250, 1e9), Some(100));
+        assert_eq!(n(250, 150.0), Some(10)); // the biggest affordable
+        assert_eq!(n(25, 5.0), None); // even one level is too dear: save up
+    }
+
+    #[test]
+    fn the_list_is_followed_in_order() {
+        let steps = [(Seat, 25), (Seat, 50), (PopcornStand, 25)];
+        assert_eq!(next_step(&steps, |_| 0), Some((Seat, 25)));
+        assert_eq!(next_step(&steps, |t| if t == Seat { 30 } else { 0 }), Some((Seat, 20)));
+        assert_eq!(next_step(&steps, |t| if t == Seat { 50 } else { 0 }), Some((PopcornStand, 25)));
+        assert_eq!(next_step(&steps, |_| 99), None);
+    }
 
     #[test]
     fn sacrifice_when_the_gain_equals_the_runes_owned() {
