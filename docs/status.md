@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 13:34 2026-11-07** (idle.log; the user starts the bot). After the start read `roster/<character>/logs/idle.log`.
+
 **2026-11-07 (idle.log, NOT in a release yet):** the Arena Manager writes a persistent `roster/<character>/logs/idle.log` (state per pass + sacrifices) to verify the prestige rule live; no sacrifice was seen in the logs so far (`docs/idle.md`).
 
 **Release built 00:47 2026-11-07** (toilet fallback; the user starts the bot). Check `[idle] ... runes X, a sacrifice would give Y` at start (first live look at the Arena Manager prestige) and `[toilet] Threw a plain ...`.
