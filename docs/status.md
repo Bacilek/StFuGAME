@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-07 (Arena Manager full breakpoint list, NOT in a release yet):** all 70 steps are in `idle::STEPS` (docs/idle.md "Full list"); the bot needs a restart/release to pick it up.
+
 **2026-11-07 15:50 (VERIFIED):** Arena Manager sacrifice works (six characters 27 -> 54 runes at 15:34-15:36) and the breakpoint list buys exactly to its targets (`docs/idle.md`). Open: the rest of the list from the user.
 
 **Release built 13:59 2026-11-07** (Arena Manager breakpoint list up to DeadlyTrap 100, City Guard fresh Update before a shift; the user starts the bot). Check `[idle]` lines against `idle::STEPS`; the user still owes the rest of the list.

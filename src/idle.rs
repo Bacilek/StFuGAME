@@ -53,13 +53,21 @@ use IdleBuildingType::*;
 /// The user's upgrade order (2026-11-07): building levels are breakpoints (25, 50, 100, 250, 500, ...) where the earning doubles and the cycle
 /// shortens, a jump bigger than the cost efficiency of any single upgrade. A staggered wave: each building starts two steps behind the previous one.
 /// The bot works down the list, buys exactly up to the next unreached target (never past it) and invests nowhere else while it saves for it.
-/// TO EXTEND: the user adds the rest (VIPSeat, Snacks, StrayingMonsters, Toilet, higher breakpoints). Past the end the old rule applies
-/// (the building with the cheapest next level).
+/// The full list (70 steps = 10 buildings x 7 breakpoints, user 2026-11-07). Past its end the old rule applies (the building with the
+/// cheapest next level); the unit test pins that every building has every breakpoint exactly once.
 const STEPS: &[(IdleBuildingType, u32)] = &[
     (Seat, 25), (Seat, 50), (PopcornStand, 25), (Seat, 100), (PopcornStand, 50), (PopcornStand, 100),
     (ParkingLot, 25), (ParkingLot, 50), (Seat, 250), (ParkingLot, 100), (Trap, 25), (PopcornStand, 250),
     (Trap, 50), (Trap, 100), (Drinks, 25), (ParkingLot, 250), (Drinks, 50), (Drinks, 100),
     (DeadlyTrap, 25), (Seat, 500), (Trap, 250), (DeadlyTrap, 50), (PopcornStand, 500), (DeadlyTrap, 100),
+    (VIPSeat, 25), (Drinks, 250), (VIPSeat, 50), (ParkingLot, 500), (VIPSeat, 100), (Snacks, 25),
+    (DeadlyTrap, 250), (Snacks, 50), (Trap, 500), (Snacks, 100), (StrayingMonsters, 25), (VIPSeat, 250),
+    (StrayingMonsters, 50), (Drinks, 500), (StrayingMonsters, 100), (Toilet, 25), (Snacks, 250), (Toilet, 50),
+    (DeadlyTrap, 500), (Toilet, 100), (Seat, 1000), (StrayingMonsters, 250), (PopcornStand, 1000), (VIPSeat, 500),
+    (Toilet, 250), (ParkingLot, 1000), (Snacks, 500), (Trap, 1000), (StrayingMonsters, 500), (Drinks, 1000),
+    (Toilet, 500), (DeadlyTrap, 1000), (VIPSeat, 1000), (Snacks, 1000), (StrayingMonsters, 1000), (Toilet, 1000),
+    (Seat, 2500), (PopcornStand, 2500), (ParkingLot, 2500), (Trap, 2500), (Drinks, 2500), (DeadlyTrap, 2500),
+    (VIPSeat, 2500), (Snacks, 2500), (StrayingMonsters, 2500), (Toilet, 2500),
 ];
 
 /// The first step whose building has not reached its target yet: (building, levels still missing).
@@ -189,6 +197,15 @@ mod tests {
         assert_eq!(n(250, 1e9), Some(100));
         assert_eq!(n(250, 150.0), Some(10)); // the biggest affordable
         assert_eq!(n(25, 5.0), None); // even one level is too dear: save up
+    }
+
+    #[test]
+    fn the_list_has_every_breakpoint_of_every_building_once() {
+        assert_eq!(super::STEPS.len(), 70);
+        for typ in [Seat, PopcornStand, ParkingLot, Trap, Drinks, DeadlyTrap, VIPSeat, Snacks, StrayingMonsters, Toilet] {
+            let levels: Vec<u32> = super::STEPS.iter().filter(|s| s.0 == typ).map(|s| s.1).collect();
+            assert_eq!(levels, [25, 50, 100, 250, 500, 1000, 2500], "{typ:?}");
+        }
     }
 
     #[test]
