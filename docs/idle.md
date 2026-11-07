@@ -76,3 +76,6 @@ Sacrifice (`IdleSacrifice` = `IdlePrestige:0`, resets the buildings, gives runes
 
 ## Journal `idle.log` (2026-11-07)
 `roster/<character>/logs/idle.log` (not rotated, unlike progress.log): a `state:` line at every 20-minute pass (runes, sacrifice gain, resets, total sacrificed, money) and `SACRIFICE sent` / `after the sacrifice:` lines. Added because the start-up `[idle] ... runes X` line rotated out of the 100-line logs before anyone saw it, so the live check of the prestige rule was impossible. Read it to verify `sacrifice_runes` / `current_runes` semantics against the rule. NOT in a release yet.
+
+## First live data 2026-11-07 13:40 (`idle.log`, the user did the first sacrifice by hand on several characters)
+`current_runes` is the running total, `sacrifice_runes` the gain of the next one (matches the rule). Chlamydie / Květoš / Wecros 27 runes (gain 25, resets 1), TestChar1 29 (gain 25, resets 1), Pagan 20 (gain 5, resets 1), PajaRizz 42 (gain 13, resets 2), Sanek 46 (gain 1, resets 2: sacrificed shortly before, money 594k). 42 = 20 + 22 and 46 = ~23 + 23 fit "second sacrifice when gain >= owned", so the bot probably did the second one on PajaRizz and Sanek; no `SACRIFICE` line was captured yet (verify with the next one in `idle.log`). Next due for the 27/29-rune characters when the gain reaches 27/29.
