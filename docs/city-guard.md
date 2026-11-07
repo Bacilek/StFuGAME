@@ -61,3 +61,6 @@
 
 ## Journal
 Every shift start/finish/pay is appended to `roster/<character>/logs/guard.log` (local, never trimmed) to explain gaps later.
+
+## Stale state at midnight (2026-11-07)
+Mimimimi11 finished a shift at 23:57, then at 00:00:06 started a 10 h shift on the state of 23:57 (Thirst for Adventure 0, but the new day had already reset it) and so skipped the whole night's expeditions until 10:00. Fix: `guard::run` sends `Update` right before starting a "Tavern done" shift and re-checks Thirst for Adventure/idle on the fresh state. NOT in a release yet.

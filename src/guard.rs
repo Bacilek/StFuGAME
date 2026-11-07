@@ -114,6 +114,15 @@ pub async fn run(session: &mut SimpleSession, tavern_done: bool, pet_wait: Optio
     {
         return Outcome::Done;
     }
+    // The state may be minutes old (found 2026-11-07: Mimimimi11 started a 10 h shift at 00:00:06 on the state of 23:57, thirst 0, and slept
+    // through the new day's Thirst for Adventure until 10:00): ask the server again before committing to a shift.
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return fail(&e);
+    }
+    let Some(gs) = session.game_state() else { return Outcome::Done };
+    if gs.tavern.current_action != CurrentAction::Idle || gs.tavern.thirst_for_adventure_sec > 0 {
+        return Outcome::Done;
+    }
     let hours = guard_hours(Local::now());
     report!(
         "[guard] Tavern done, starting a {hours} h City Guard shift (wage {} s/h)",

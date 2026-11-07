@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-07 (City Guard stale state, NOT in a release yet):** a shift is only started after a fresh `Update` (Mimi lost the night: 10 h shift at 00:00:06 on the 23:57 state). `docs/city-guard.md`.
+
 **Release built 13:34 2026-11-07** (idle.log; the user starts the bot). After the start read `roster/<character>/logs/idle.log`.
 
 **2026-11-07 (idle.log, NOT in a release yet):** the Arena Manager writes a persistent `roster/<character>/logs/idle.log` (state per pass + sacrifices) to verify the prestige rule live; no sacrifice was seen in the logs so far (`docs/idle.md`).
