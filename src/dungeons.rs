@@ -6,7 +6,7 @@ use sf_api::{
     command::{AttributeType, Command},
     gamestate::{
         GameState,
-        dungeons::{Dungeon, DungeonProgress, LightDungeon, ShadowDungeon},
+        dungeons::{Dungeon, DungeonProgress, LightDungeon},
         rewards::TaskType,
     },
 };
@@ -34,7 +34,8 @@ pub struct Candidate {
 fn open_dungeons(gs: &GameState) -> Vec<Dungeon> {
     let is_open = |p: &DungeonProgress| matches!(p, DungeonProgress::Open { .. });
     let light = gs.dungeons.light.iter().filter(|(d, p)| *d != LightDungeon::Tower && is_open(p)).map(|(d, _)| Dungeon::Light(d));
-    let shadow = gs.dungeons.shadow.iter().filter(|(d, p)| *d != ShadowDungeon::Twister && is_open(p)).map(|(d, _)| Dungeon::Shadow(d));
+    // No Shadow World dungeons until the companions are equipped (they fight with them, user 2026-11-07, `docs/shadow-world.md`); the Twister is not mapped either (`docs/twister.md`)
+    let shadow = gs.dungeons.shadow.iter().filter(|_| false).map(|(d, _)| Dungeon::Shadow(d));
     light.chain(shadow).collect()
 }
 

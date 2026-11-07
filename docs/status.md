@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-**2026-11-07 (Twister excluded from the dungeon choice until mapped, docs/twister.md; not in a release).**
+**2026-11-07 (Twister and all Shadow World dungeons excluded from the dungeon choice, docs/twister.md, docs/shadow-world.md; not in a release).**
 
 **Release built 2026-11-07 (with the Wash probe; the user starts the bot).** Next:
 
