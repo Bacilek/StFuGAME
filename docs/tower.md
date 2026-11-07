@@ -26,3 +26,10 @@ character's level and NO equipment; we have to supply it.
 ## Open
 - Full request line of `PlayerToilettWash` (arguments).
 - Gem sockets on companions' items, how to read companion stats for the power formula.
+
+## Wash probe (2026-11-07, `src/wash_probe.rs`, NOT in a release yet)
+- Captured request is a bare `PlayerToilettWash:` (no payload) right after a `Poll`; in the client the item is dragged onto the "wash cycle" tub, which sends nothing else.
+  The item washes in place in its backpack slot. So how the server picks the item is unknown.
+- One-shot probe, runs when `roster/<character>/wash_probe.todo` exists (deleted first): A) bare Wash; B) if nothing washed, `ToiletDrop` (`PlayerToilettLoad:<pos>`) of an
+  unwashed backpack epic + bare Wash. Logs `[wash-probe]` lines with the answers. `safe.rs` allows `PlayerToilettWash` with no arguments only when the toilet is unlocked.
+  Marker created for TestChar1 (user agreed 2026-11-07; the toilet is already used up for the day, so nothing can be flushed by accident).

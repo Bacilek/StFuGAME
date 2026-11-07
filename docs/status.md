@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-07 (Tower companions, docs only + Wash probe code, NOT in a release):** design and captures in `docs/tower.md`; `src/wash_probe.rs` is a one-shot probe for TestChar1 (marker `roster/TestChar1/wash_probe.todo`), read `[wash-probe]` lines in its progress.log after the next release and write the result into `docs/tower.md`.
+
 **Release built 16:03 2026-11-07** (Arena Manager full 70-step breakpoint list; the user starts the bot). Check `[idle]` lines follow the list (VIP/Snacks/Monster/Toilet appear once the earlier steps are done).
 
 **2026-11-07 (Arena Manager full breakpoint list, NOT in a release yet):** all 70 steps are in `idle::STEPS` (docs/idle.md "Full list"); the bot needs a restart/release to pick it up.

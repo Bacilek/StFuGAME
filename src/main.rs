@@ -45,6 +45,7 @@ mod toilet;
 mod tournament;
 #[cfg(test)]
 mod weaponsim;
+mod wash_probe;
 mod weapons;
 mod witch;
 mod tray;
@@ -290,6 +291,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
         }
         // Game of Dice (user 2026-11-06): hourly free game, hourglass skips from 23:00
         if let tavern::Outcome::SessionLost = dice::run(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // One-shot Wash probe (user 2026-11-07, docs/tower.md); only with the marker file wash_probe.todo
+        if let tavern::Outcome::SessionLost = wash_probe::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         // Toilet of the Arcane Gods (user 2026-10-25): sacrifice a spare epic/gem, flush while there is mana
