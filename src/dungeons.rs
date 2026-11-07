@@ -6,7 +6,7 @@ use sf_api::{
     command::{AttributeType, Command},
     gamestate::{
         GameState,
-        dungeons::{Dungeon, DungeonProgress, LightDungeon},
+        dungeons::{Dungeon, DungeonProgress, LightDungeon, ShadowDungeon},
         rewards::TaskType,
     },
 };
@@ -30,11 +30,11 @@ pub struct Candidate {
     pub power: f64,
 }
 
-/// All open dungeons fightable with FightDungeon (the Tower has its own command).
+/// All open dungeons fightable with FightDungeon (the Tower has its own command; the Twister is not mapped yet, user 2026-11-07, `docs/twister.md`).
 fn open_dungeons(gs: &GameState) -> Vec<Dungeon> {
     let is_open = |p: &DungeonProgress| matches!(p, DungeonProgress::Open { .. });
     let light = gs.dungeons.light.iter().filter(|(d, p)| *d != LightDungeon::Tower && is_open(p)).map(|(d, _)| Dungeon::Light(d));
-    let shadow = gs.dungeons.shadow.iter().filter(|(_, p)| is_open(p)).map(|(d, _)| Dungeon::Shadow(d));
+    let shadow = gs.dungeons.shadow.iter().filter(|(d, p)| *d != ShadowDungeon::Twister && is_open(p)).map(|(d, _)| Dungeon::Shadow(d));
     light.chain(shadow).collect()
 }
 

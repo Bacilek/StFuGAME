@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**2026-11-07 (Twister excluded from the dungeon choice until mapped, docs/twister.md; not in a release).**
+
 **Release built 2026-11-07 (with the Wash probe; the user starts the bot).** Next:
 
 **2026-11-07 (Tower companions, docs only + Wash probe code, NOT in a release):** design and captures in `docs/tower.md`; `src/wash_probe.rs` is a one-shot probe for TestChar1 (marker `roster/TestChar1/wash_probe.todo`), read `[wash-probe]` lines in its progress.log after the next release and write the result into `docs/tower.md`.
