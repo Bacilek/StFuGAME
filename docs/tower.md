@@ -51,3 +51,11 @@ character's level and NO equipment; we have to supply it.
   blocked by `safe.rs` ("not whitelisted", probably the session state was gone after the server error), so it never reached the server.
 - The probe now re-arms itself (recreates the marker) when the Load is refused and tries again the next day (after midnight, when the sacrifice is available). It will THROW the epic into
   the toilet (the Load is a real sacrifice, a flush may then burn it) if the Wash is not what takes it out again - accepted by the user (an unused epic).
+
+## Capture 2026-11-08 (user: epic weapon taken off Bert) – REQUEST LINE MISSING
+The user pasted only the response (the request line came out as a bare `PlayerItemMove:`); ask for the full request (from/to/slot/ident).
+Response keys: `ownplayersavecharacter`, `owntower.towerSave` (companion blocks of 148 numbers from index 3: level at +0, attributes from +4, so the Tower save is already parsed by sf-api),
+`characterstatus`, `subscriptionstatus`, `ownplayersavepotions`, `backpack`, `companionequipment` (3 x 10 slots, 12 numbers per item, empty slots all zeros, as in the equip capture),
+`warrior/mage/huntercompanionaverageequiplevel` (142/165/170) and `itemlevelshop` (186). Reading: the taken-off item is in the backpack and the companion slot is empty,
+so an unequip IS possible without a swap (to verify against the request: the target should be a backpack position).
+Decision (user 2026-11-08): implement Tower / Twister / Shadow World "for the characters that get them" – scope and blockers in status.md.
