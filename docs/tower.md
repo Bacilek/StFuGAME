@@ -59,3 +59,5 @@ Response keys: `ownplayersavecharacter`, `owntower.towerSave` (companion blocks 
 `warrior/mage/huntercompanionaverageequiplevel` (142/165/170) and `itemlevelshop` (186). Reading: the taken-off item is in the backpack and the companion slot is empty,
 so an unequip IS possible without a swap (to verify against the request: the target should be a backpack position).
 Decision (user 2026-11-08): implement Tower / Twister / Shadow World "for the characters that get them" – scope and blockers in status.md.
+
+Companion equip request decoded (user 2026-11-08, base64 of `params` in the URL): `2/1/101/9/1/52/6557379/0` = from backpack(2)/position 1 -> companion 101 (Bert) slot 9 (weapon) with item ident `1/52/6557379/0`. The unequip request (companion slot -> backpack) was NOT captured yet (the user only saw the equip one).

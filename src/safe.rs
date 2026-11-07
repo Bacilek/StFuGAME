@@ -484,11 +484,12 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     if let Command::ClaimablePreview { msg_id } | Command::ClaimableClaim { msg_id } = &cmd
         && !session.game_state().is_some_and(|gs| {
             gs.mail.claimables.iter().any(|m| {
-                m.msg_id == *msg_id && m.typ == sf_api::gamestate::social::ClaimableMailType::Coupon
+                m.msg_id == *msg_id
+                    && (m.typ == sf_api::gamestate::social::ClaimableMailType::Coupon || m.name == crate::daily::FACTION_MAIL)
             })
         })
     {
-        return Err(SFError::InvalidRequest("only the reward of a coupon mail may be viewed or claimed"));
+        return Err(SFError::InvalidRequest("only the reward of a coupon mail or the faction-title mail may be viewed or claimed"));
     }
     // Fortress buildings: the Gem Mine only to level 1 until character level 125 (user 2026-10-11), see fortress::build_ok
     if let Command::FortressBuild { f_type } | Command::FortressBuildFinish { f_type, .. } = &cmd

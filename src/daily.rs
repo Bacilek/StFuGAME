@@ -68,6 +68,10 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         return Outcome::SessionLost;
     }
 
+    if let Outcome::SessionLost = claim_faction_title(session).await {
+        return Outcome::SessionLost;
+    }
+
     // Coupon codes from roster/coupons.txt (user 2026-10-09), at most every 30 min while something is pending
     if may_try("coupons")
         && let Outcome::SessionLost = crate::coupons::run(session).await
@@ -168,4 +172,54 @@ pub fn secs_until_ready(gs: &sf_api::gamestate::GameState) -> Option<u64> {
         .filter(|t| *t > now)
         .map(|t| u64::try_from((t - now).num_seconds()).unwrap_or(0))
         .min()
+}
+
+/// Name of the one-off Mail reward `pending_faction_title` (user 2026-11-08: two legendary gems, main attribute + CON).
+pub const FACTION_MAIL: &str = "pending_faction_title";
+
+fn faction_marker() -> std::path::PathBuf {
+    std::path::Path::new("roster").join(crate::ctx::name()).join("faction_title_claimed")
+}
+
+/// Claims the one-off `pending_faction_title` mail (2 legendary gems, needs 2 free backpack slots). Once per character
+/// (marker file); `safe.rs` lets exactly this mail name through besides coupons. Nothing here costs mushrooms.
+async fn claim_faction_title(session: &mut SimpleSession) -> Outcome {
+    use sf_api::gamestate::social::ClaimableStatus;
+    if faction_marker().exists() || !may_try("faction_title") {
+        return Outcome::Done;
+    }
+    let mail = session.game_state().and_then(|gs| {
+        gs.mail.claimables.iter().find(|m| m.name == FACTION_MAIL).map(|m| (m.msg_id, m.status))
+    });
+    let Some((msg_id, status)) = mail else { return Outcome::Done };
+    if status == ClaimableStatus::Claimed {
+        let _ = std::fs::write(faction_marker(), "already claimed");
+        return Outcome::Done;
+    }
+    for _ in 0..3 {
+        if session.game_state().is_some_and(|gs| gs.character.inventory.count_free_slots() >= 2) {
+            break;
+        }
+        match crate::potions::make_room_with(session, 2).await {
+            Ok(true) => {}
+            Ok(false) => break,
+            Err(o) => return o,
+        }
+    }
+    if session.game_state().is_none_or(|gs| gs.character.inventory.count_free_slots() < 2) {
+        report!("[rewards] The faction title reward needs 2 free backpack slots, trying again later");
+        return Outcome::Done;
+    }
+    if let Err(e) = safe::send(session, Command::ClaimablePreview { msg_id }).await {
+        return fail(&e);
+    }
+    if let Err(e) = safe::send(session, Command::ClaimableClaim { msg_id }).await {
+        return fail(&e);
+    }
+    if let Err(e) = safe::send(session, Command::Update).await {
+        return fail(&e);
+    }
+    report!("[rewards] Claimed the faction title reward (2 legendary gems) from the Mail");
+    let _ = std::fs::write(faction_marker(), "claimed");
+    Outcome::Done
 }
