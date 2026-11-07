@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 2026-11-07 17:26 (Twister + Shadow World excluded from the dungeon choice, re-arming Wash probe; the user starts the bot).** The probe runs again after midnight on TestChar1 (marker re-created); read `[wash-probe]`. User confirmed the client sends nothing but Poll + bare `PlayerToilettWash:` (many tries).
+
 **2026-11-07 (Twister and all Shadow World dungeons excluded from the dungeon choice, docs/twister.md, docs/shadow-world.md; not in a release).**
 
 **Release built 2026-11-07 (with the Wash probe; the user starts the bot).** Next:
