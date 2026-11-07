@@ -36,6 +36,18 @@ fn rune_rule(gain: f64, owned: f64) -> bool {
 const FIRST_SACRIFICE_RUNES: f64 = 20.0;
 static STATE_SHOWN: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
 
+/// Persistent journal (`idle.log`, not rotated like the progress log): the state at every pass and every sacrifice.
+fn journal(msg: &str) {
+    use std::io::Write;
+    let path = crate::ctx::log_path("idle.log");
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{} {msg}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+    }
+}
+
 /// The cheapest affordable batch: (building, amount, price).
 fn next_purchase(gs: &GameState) -> Option<(IdleBuildingType, IdleUpgradeAmount, f64)> {
     let idle = gs.idle_game.as_ref()?;
@@ -94,10 +106,14 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Ok(mut l) = LAST_PASS.lock() {
         *l = Some(std::time::Instant::now());
     }
+    if let Some(i) = session.game_state().and_then(|gs| gs.idle_game.as_ref()) {
+        journal(&format!("state: runes {}, a sacrifice would give {}, resets {}, total sacrificed {}, money {}", i.current_runes, i.sacrifice_runes, i.resets, i.total_sacrificed, i.current_money));
+    }
     // The prestige first (user 2026-11-05): it resets the buildings, the upgrades below start over with the new runes
     if let Some(gs) = session.game_state().filter(|gs| sacrifice_due(gs)) {
         let idle = gs.idle_game.as_ref();
         report!("[idle] Arena Manager: SACRIFICE, runes {} + {} (reset no. {})", idle.map_or(String::new(), |i| i.current_runes.to_string()), idle.map_or(String::new(), |i| i.sacrifice_runes.to_string()), idle.map_or(0, |i| i.resets + 1));
+        journal("SACRIFICE sent");
         match safe::send(session, Command::IdleSacrifice).await {
             Ok(_) => {}
             Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
@@ -108,6 +124,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         }
         if let Some(i) = session.game_state().and_then(|gs| gs.idle_game.as_ref()) {
             report!("[idle] Arena Manager after the sacrifice: runes {}, a next one would give {}, resets {}", i.current_runes, i.sacrifice_runes, i.resets);
+            journal(&format!("after the sacrifice: runes {}, a next one would give {}, resets {}, total sacrificed {}", i.current_runes, i.sacrifice_runes, i.resets, i.total_sacrificed));
         }
     }
     for _ in 0..MAX_PER_PASS {
