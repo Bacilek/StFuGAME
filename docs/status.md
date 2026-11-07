@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+**Release built 13:59 2026-11-07** (Arena Manager breakpoint list up to DeadlyTrap 100, City Guard fresh Update before a shift; the user starts the bot). Check `[idle]` lines against `idle::STEPS`; the user still owes the rest of the list.
+
 **2026-11-07 (Arena Manager breakpoint list, NOT in a release yet):** upgrades now follow the user's breakpoint order (`idle::STEPS`, exact targets, saving for the next step); the user still owes the rest of the list (after DeadlyTrap 100). `docs/idle.md`.
 
 **2026-11-07 (City Guard stale state, NOT in a release yet):** a shift is only started after a fresh `Update` (Mimi lost the night: 10 h shift at 00:00:06 on the 23:57 state). `docs/city-guard.md`.
