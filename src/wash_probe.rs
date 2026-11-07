@@ -73,7 +73,12 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     // B: ToiletDrop (puts the item in the toilet, nothing is lost until a flush) then Wash
     match safe::send_raw(session, Command::ToiletDrop { item_pos: pos }).await {
         Ok(raw) => report!("[wash-probe] B Load -> OK {}", short(&raw)),
-        Err(e) => report!("[wash-probe] B Load -> {e}"),
+        Err(e) => {
+            // The daily sacrifice is used up (2026-11-07: "toilett has been used today"): try again tomorrow
+            report!("[wash-probe] B Load -> {e}; the probe stays armed for the next day");
+            let _ = std::fs::write(marker(), "");
+            return Outcome::Done;
+        }
     }
     match safe::send_raw(session, wash_cmd()).await {
         Ok(raw) => report!("[wash-probe] B Wash -> OK {}", short(&raw)),

@@ -44,3 +44,10 @@ character's level and NO equipment; we have to supply it.
   (that would cost a mushroom, never); the NEXT free slot (next hour) goes to another dungeon, not to the Tower again. Try the Tower again only when our side got stronger (companion gear / levels)
   or the loss was close. Needs a win estimate (sf-api `simulate` supports companions) before spending the slot; not built yet. The loss above was NOT close (user).
 - Win reward (user 2026-11-07): +1 % City Guard reward, permanent, and always 1 epic (needs a free backpack slot).
+
+### Wash probe result 2026-11-07 16:56 (TestChar1, Talisman epic at backpack slot 2)
+- A bare `PlayerToilettWash:` -> `Server responded with error: server not available`; nothing washed.
+- B `ToiletDrop` (`PlayerToilettLoad:`) -> `toilett has been used today` (the day's sacrifices were used up), so the Load+Wash sequence could not be tested today. The second Wash was then
+  blocked by `safe.rs` ("not whitelisted", probably the session state was gone after the server error), so it never reached the server.
+- The probe now re-arms itself (recreates the marker) when the Load is refused and tries again the next day (after midnight, when the sacrifice is available). It will THROW the epic into
+  the toilet (the Load is a real sacrifice, a flush may then burn it) if the Wash is not what takes it out again - accepted by the user (an unused epic).

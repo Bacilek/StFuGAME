@@ -67,11 +67,11 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - Vše o soutěži (plán, soupiska, reporty) je jen lokálně v `roster/` (`roster/plan.md`, `roster/README.md`).
 
 ## Od uživatele potřebuji (Tower / Wash / Twister / Shadow World, user 2026-11-07; plníme po hodinách podle cooldownu)
-- [ ] **Wash probe**: spustit bota (release 16:52 už je postavený), TestChar1 musí běžet a mít v backpacku nepoužitý epic; pak přečíst `[wash-probe]` v `roster/TestChar1/logs/progress.log`. Výsledek zapsat do `docs/tower.md`.
+- [ ] **Wash probe**: 2026-11-07 neúspěch (bare Wash = "server not available", Load = "toilett has been used today"); probe se znovu zbrojí sám a poběží po půlnoci. Bot musí běžet s novým buildem, TestChar1 s nepoužitým epicem. Číst `[wash-probe]`.
 - [ ] **Wash**: jestli se po přetažení na káď posílá víc než `Poll` + `PlayerToilettWash:` (už víme: nic dalšího nebylo), jinak čekáme na probe.
 - [ ] **Tower**: request + response `PlayerTowerBattle` VÝHRY (odměna: epic, +1 % guard, jak se pozná v odpovědi), a co vrací stav Toweru (`owntower.towerSave`) – patro, kolik jsme porazili.
 - [ ] **Pomocníci**: capture sundání itemu z pomocníka (jestli to jde samostatně, nebo jen výměnou), capture `EquipCompanion` s gemem v itemu, jestli companion item může mít socket/gem.
 - [ ] **Pomocníci**: jestli mají sloty stejné jako postava (zbraň, 8 kusů zbroje, amulet, ring, talisman…) a které sloty jsou pro koho zakázané (Bert bez štítu).
 - [ ] **Twister** (`docs/twister.md`): 1) request + response souboje, kdy zbyde >90 % HP, 2) souboj, kdy ne, 3) kde je vidět, že další patro je zdarma, 4) jestli porážka bere hodinový cooldown dungeonů.
 - [ ] **Shadow World** (`docs/shadow-world.md`): request + response souboje a dropu epicu, zpráva o nalezení klíče v Gem Mine (response + co se objeví v dungeonech).
-- [ ] **Odpovědi**: (a) mají epiky z Toweru/Shadow World jít nejdřív pomocníkům? (podle pravidla ano), (b) kdy má bot zkusit Tower po prohře (jen po zlepšení výbavy pomocníků, nebo i pravidelně např. 1× denně?), (c) jak poznat těsnou prohru – stačí zbytek HP bossa pod X %?
+- [x] **Odpovědi** (user 2026-11-07): epicy nejdřív hlavní postavě; Tower zkoušet i pravidelně, když se jinde nedaří; těsná prohra = zbytek HP bossa (stačí).
