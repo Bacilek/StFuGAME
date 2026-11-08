@@ -71,7 +71,7 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [x] ~~Sundání itemu z pomocníka~~ (hotovo 2026-11-08: `PlayerItemMove:101/9/2/1/<ident>`), ~~request Wash~~ (hotovo: `PlayerToilettWash:2/<pos>`).
 - [ ] **Wash probe**: po releasu 2026-11-08 poběží na TestChar1 (marker armed, potřebuje nepraný epic v batohu); číst `[wash-probe]`. Pak sám pošlu výsledek, nic nepotřebuju kromě toho, aby TestChar1 měl epic.
 - [ ] **Gem do itemu pomocníka**: capture vložení gemu do itemu společníka (request + response; jde to vůbec?). Bez toho gemy pro společníky nejdou (pravidlo 5 %: `docs/tower.md`).
-- [ ] **Tower**: request + response `PlayerTowerBattle` VÝHRY (odměna: epic, +1 % guard, jak se pozná v odpovědi) a co vrací `owntower.towerSave` (patro).
+- [x] **Tower** výhra patra 1 (user 2026-11-08, `docs/tower.md`). Zbývá: capture PROHRY (co vrátí a jak se pozná zbytek HP bosse) a patro, kde padá cooldown, pokud nějaký je.
 - [ ] **Twister** (`docs/twister.md`): request + response souboje (>90 % HP zbylo / ne), kde je vidět, že další patro je zdarma, jestli porážka bere hodinový cooldown dungeonů.
 - [ ] **Shadow World** (`docs/shadow-world.md`): request + response souboje a dropu epicu, zpráva o nalezení klíče v Gem Mine.
 - [x] **Pomocníci sloty** (user 2026-11-08): žádné zakázané; Kunigunde = běžné sloty scouta, Mark = mage, Bert = warrior BEZ štítu (odpovídá `can_be_equipped_by_companion`).
