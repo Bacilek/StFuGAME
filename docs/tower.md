@@ -61,3 +61,7 @@ so an unequip IS possible without a swap (to verify against the request: the tar
 Decision (user 2026-11-08): implement Tower / Twister / Shadow World "for the characters that get them" – scope and blockers in status.md.
 
 Companion equip request decoded (user 2026-11-08, base64 of `params` in the URL): `2/1/101/9/1/52/6557379/0` = from backpack(2)/position 1 -> companion 101 (Bert) slot 9 (weapon) with item ident `1/52/6557379/0`. The unequip request (companion slot -> backpack) was NOT captured yet (the user only saw the equip one).
+
+Unequip DECODED (user 2026-11-08, base64 `params` `MTAxLzkvMi8xLzEvNTIvNjU1NzM3OS8w`): `PlayerItemMove:101/9/2/1/1/52/6557379/0` = companion 101 (Bert) slot 9 (weapon) -> backpack(2) position 1, ident `1/52/6557379/0`.
+So the generic shape is `PlayerItemMove:<from_kind>/<from_pos>/<to_kind>/<to_pos>/<ident>` with kind 2 = backpack, 101/102/103 = companions (equip = `2/<pos>/101/<slot>/<ident>`).
+A swap-free unequip works as long as the backpack has a free slot; needs `Command::Custom` (sf-api has no typed unequip) + a `safe.rs` entry.
