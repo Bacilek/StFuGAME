@@ -1,5 +1,8 @@
 # Project status (handover document)
 
+**2026-11-08 (user):** no companion enchants; gems for companions only if the main character would not use them (not implemented, needs a socket capture).
+
+
 **2026-11-08 (companion gear, NOT in a release yet):** `src/companions.rs` step 1 of the Tower plan (`docs/tower.md`); Wash probe now sends `PlayerToilettWash:2/<pos>` and is re-armed on TestChar1. Next: Tower fight probe (step 2).
 
 

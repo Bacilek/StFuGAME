@@ -74,3 +74,7 @@ Wash request DECODED (user 2026-11-08, base64 `params` `Mi8z` = `2/3`): `PlayerT
 of its class when it beats the companion's item in the slot (weapons by average damage, rest by the Arena power formula, +1 % margin; an empty slot always gains; a worn item with a filled gem is left alone).
 `Command::EquipCompanion` is whitelisted in `safe.rs` with `companion_equip_ok` (same ident, the class may wear it, never a shield, companions exist). The old item falls into the backpack and is disposed of as usual.
 Not done: unequip (not needed for a swap), the wash step of the chain (waits for the probe), dug-out gems for companions, companion enchants. Log lines `[companions] Equipping ...`, journal `companion ...` in inventory.log.
+
+## Decisions 2026-11-08 (user)
+- Companion enchants (witch): NOT handled, not planned.
+- Gems go to companions only if the main character would not use them (same "main first" rule as for items). Not implemented: needs a capture of socketing a gem into a companion's item (and whether that is possible).
