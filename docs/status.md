@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+- 2026-11-08: guild/Demon Portal and pet battles are retried hourly (max 4) until the game state shows them done; soldier training refreshes the state after raids; Twister excluded from dungeon counts. Not in a release yet.
+
 - 2026-11-08: worn gear gets a blacksmith upgrade to level 2 right after it is put on (`src/upgrade.rs`, `docs/blacksmith.md`); not yet in a release, verify the `[smith] Upgrading` lines.
 
 - 2026-11-08: toilet - a day starting with <= 1 free backpack slot throws an epic in right away (`docs/toilet.md`). Not yet in a release; verify `[toilet] Threw a epic` early on such a day.

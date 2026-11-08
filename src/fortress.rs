@@ -707,11 +707,16 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
     }
 
     // 4. Train soldiers up to the limit as far as wood and stone allow
+    // User 2026-11-08: fighters often stood at 1 alive with an empty queue. The attack responses do not refresh the soldier counts, so the
+    // numbers below were stale after raids (8 raids, 1 "Training" line in the logs): look again first, whenever a soldier was spent.
+    if !attacked.is_empty() && let Err(e) = safe::send(session, Command::Update).await {
+        return fail(&e, line!());
+    }
     let Some(gs) = session.game_state() else { return Outcome::Done };
     let Some(f) = gs.fortress.as_ref() else { return Outcome::Done };
     let u = &f.units[U::Soldier];
     let missing = u64::from(u.limit.saturating_sub(u.count + u.in_training));
-    if missing > 0 && u.in_training == 0 {
+    if missing > 0 {
         let (wood, stone) = (f.resources[R::Wood].current, f.resources[R::Stone].current);
         let cost = u.training.cost;
         let afford = [
@@ -726,7 +731,7 @@ pub async fn military(session: &mut SimpleSession) -> Outcome {
         // as finish by then (training is assumed sequential, one `training.cost.time` each; the finish is logged to verify it)
         if let Some(due) = barracks_due(gs) {
             let per = u.training.cost.time.as_secs().max(60) as i64;
-            let fit = ((due - Local::now()).num_seconds().max(0) / per) as u64;
+            let fit = (((due - Local::now()).num_seconds().max(0) / per) as u64).saturating_sub(u64::from(u.in_training));
             if fit < n {
                 report!("[fortress] Barracks upgrade due at {}: training {fit} instead of {n} soldier(s)", due.format("%H:%M"));
                 n = fit;

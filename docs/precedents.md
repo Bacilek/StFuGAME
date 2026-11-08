@@ -277,3 +277,5 @@ In similar situations it then follows this list. Newest at the bottom.
 
 - **Tower companions (user 2026-11-08):** no witch enchants for companions; gems for companions when the main character would not use them OR gains only a minimal bit (+300 -> +301) and the companion socket is empty; items likewise main character first (`docs/tower.md`, `src/companions.rs`).
 - **Companion gem threshold (user 2026-11-08):** 5 % of the mined gem's value (main gain below that + empty companion socket).
+- 2026-11-08 (user): app / graphs count dungeon kills only for the Light World, Shadow World and Tower; never the Twister, the Demon Portal or the guild Portal (`roster::counts_as_dungeon`).
+- 2026-11-08 (user): soldiers are retrained whenever some were spent.

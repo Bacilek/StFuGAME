@@ -18,3 +18,8 @@ belt was enchanted during the day, `PlayerBeerBuy` response without any mushroom
 Adventure fit under the 100 min cap (or from 21:00 when anything fits). `safe.rs` allows `BuyBeer` for it and gives the mushroom watchdog a
 spend allowance of **0**, so a wrong assumption exits the app instead of burning a mushroom. Later beers keep the old rules (Exceptional XP event only).
 Supersedes the "belt worn at the start of the day" condition of 2026-10-19.
+
+## Retries (user 2026-11-08)
+Květoš never fought the guild Portal (task `FightGuildPortal 0/1`) although it was open: the single midnight attempt (marker `battles_day.txt` written
+before the send) was spent, the log line was gone. Now a kind is marked done only when the command went through AND the game state no longer offers
+the fight; otherwise `<kind>-fail <date> <unix time> <count>` is written and the fight is retried after an hour, at most 4 times a day.

@@ -55,7 +55,45 @@ pub fn pet_battle_ok(gs: &GameState) -> bool {
     gs.guild.as_ref().is_some_and(|g| !g.hydra.last_battle.is_some_and(is_today))
 }
 
-/// Fights whatever is still open today, one attempt per kind and day.
+/// Attempts per kind and day: a failure (midnight data not ready yet, a refusal, a fight that did not register) is retried after an hour.
+const MAX_TRIES: u32 = 4;
+const RETRY_SECS: i64 = 3600;
+
+/// Failed attempts today and the time of the last one (`kind-fail <date> <unix time> <count>`).
+fn failures(kind: &str) -> (u32, i64) {
+    let today = Local::now().date_naive().to_string();
+    let key = format!("{kind}-fail");
+    std::fs::read_to_string(marker_file())
+        .unwrap_or_default()
+        .lines()
+        .find_map(|l| {
+            let mut it = l.split_whitespace();
+            (it.next() == Some(key.as_str()) && it.next() == Some(today.as_str())).then(|| {
+                let t = it.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+                (it.next().and_then(|v| v.parse().ok()).unwrap_or(0), t)
+            })
+        })
+        .unwrap_or((0, 0))
+}
+
+fn mark_failure(kind: &str) {
+    let (n, _) = failures(kind);
+    let key = format!("{kind}-fail");
+    let mut lines: Vec<String> = std::fs::read_to_string(marker_file()).unwrap_or_default().lines().filter(|l| !l.starts_with(&key)).map(str::to_string).collect();
+    lines.push(format!("{key} {} {} {}", Local::now().date_naive(), Local::now().timestamp(), n + 1));
+    let _ = std::fs::write(marker_file(), lines.join("\n") + "\n");
+    if n + 1 >= MAX_TRIES {
+        mark(kind);
+    }
+}
+
+fn retry_due(kind: &str) -> bool {
+    let (n, t) = failures(kind);
+    n == 0 || Local::now().timestamp() - t >= RETRY_SECS
+}
+
+/// Fights whatever is still open today, once per kind; a failure is retried hourly, at most `MAX_TRIES` times (user 2026-11-08: Květoš
+/// never fought the guild Portal although it was open, the single midnight attempt had been spent).
 pub async fn run(session: &mut SimpleSession) -> Outcome {
     for (kind, label) in [("portal", "Demon Portal"), ("guild-portal", "guild Portal"), ("guild-pet", "guild pet vs. hydra")] {
         let Some(gs) = session.game_state() else { return Outcome::Done };
@@ -64,20 +102,33 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             "guild-portal" => (guild_portal_ok(gs), Command::GuildPortalBattle),
             _ => (pet_battle_ok(gs), Command::GuildPetBattle { use_mushroom: false }),
         };
-        if !ok || tried_today(kind) {
+        if !ok || tried_today(kind) || !retry_due(kind) {
             continue;
         }
-        report!("[battles] {label}: fighting");
-        mark(kind);
-        match safe::send(session, cmd).await {
-            Ok(_) => report!("[battles] {label}: done"),
-            Err(e) if crate::tavern::is_session_error(&e) => return Outcome::SessionLost,
-            Err(e) => report!("[battles] {label}: refused or failed ({e}); next try tomorrow"),
+        report!("[battles] {label}: fighting (try {})", failures(kind).0 + 1);
+        let sent = safe::send(session, cmd).await.map(|_| ());
+        match &sent {
+            Ok(_) => {}
+            Err(e) if crate::tavern::is_session_error(e) => return Outcome::SessionLost,
+            Err(e) => report!("[battles] {label}: refused or failed ({e})"),
         }
         if let Err(e) = safe::send(session, Command::Update).await {
             if crate::tavern::is_session_error(&e) {
                 return Outcome::SessionLost;
             }
+        }
+        // Done only when the game state no longer offers the fight
+        let still_open = session.game_state().is_some_and(|gs| match kind {
+            "portal" => personal_portal_ok(gs),
+            "guild-portal" => guild_portal_ok(gs),
+            _ => pet_battle_ok(gs),
+        });
+        if sent.is_ok() && !still_open {
+            mark(kind);
+            report!("[battles] {label}: done");
+        } else {
+            report!("[battles] {label}: not done yet, trying again in an hour");
+            mark_failure(kind);
         }
         safe::human_pause().await;
     }

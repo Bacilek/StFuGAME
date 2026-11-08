@@ -199,13 +199,19 @@ struct Snapshot {
 const CSV_HEADER: &str = "date,level,rank,honor,power,gold,mushrooms,lucky_coins,hourglasses,arena_wins,guild,\
 gold_gained,mushrooms_gained,xp_gained,dungeons,class";
 
+/// Only the Light World, Shadow World and Tower count as dungeons in the app and the graphs (user 2026-11-08): never the Twister (the Demon Portal
+/// and the guild Portal are not in these lists at all).
+fn counts_as_dungeon(d: sf_api::gamestate::dungeons::ShadowDungeon) -> bool {
+    d != sf_api::gamestate::dungeons::ShadowDungeon::Twister
+}
+
 /// Dungeons that are open or finished (name, enemies done, finished) for the card; part of the daily snapshot too.
 fn dungeon_list(gs: &GameState) -> Vec<serde_json::Value> {
     gs.dungeons
         .light
         .iter()
         .map(|(d, p)| (format!("{d:?}"), p))
-        .chain(gs.dungeons.shadow.iter().map(|(d, p)| (format!("Shadow {d:?}"), p)))
+        .chain(gs.dungeons.shadow.iter().filter(|(d, _)| counts_as_dungeon(*d)).map(|(d, p)| (format!("Shadow {d:?}"), p)))
         .filter_map(|(name, p)| match p {
             DungeonProgress::Open { finished } => Some(serde_json::json!({ "name": name, "done": finished, "finished": false })),
             DungeonProgress::Finished => Some(serde_json::json!({ "name": name, "done": 10, "finished": true })),
@@ -221,7 +227,7 @@ fn dungeons_defeated(gs: &GameState) -> u32 {
         DungeonProgress::Finished => 10,
         DungeonProgress::Locked => 0,
     };
-    gs.dungeons.light.values().map(count).sum::<u32>() + gs.dungeons.shadow.values().map(count).sum::<u32>()
+    gs.dungeons.light.values().map(count).sum::<u32>() + gs.dungeons.shadow.iter().filter(|(d, _)| counts_as_dungeon(*d)).map(|(_, p)| count(p)).sum::<u32>()
 }
 
 impl Snapshot {

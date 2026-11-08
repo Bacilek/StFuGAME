@@ -207,3 +207,8 @@ be misleading. Open: whether the "find a gem" Gleeman task still counts. Check t
 ## Gem Mine upgrade fix + Heart of Darkness (2026-11-05, user) – NOT in a release yet
 - Risk found: sf-api `Fortress::in_use(GemMine)` is true whenever `gem_search.finish` is set, and the server keeps it after a collect (`gems.rs` `COLLECTED`), so `can_build(GemMine)` could be false forever for a character that ever mined. Fix: `gems::search_active` (running, or finished and not yet collected); `fortress.rs` step 4 probes `can_build` on a clone with `finish = None` when no search is really active. Verify live: a character that has mined before gets `Upgrading Gem Mine` during the rush.
 - Plan (user): from character level 120 the running build finishes, no new searches, Gem Mine to 10 first; then a search takes ~8 h or less and the gems are much better. In the first few searches at Gem Mine 10+ (user got it on the 4th/5th) the result is the **Heart of Darkness** instead of a gem: it is never in the inventory, the collect instantly unlocks the Underworld. So a collect that brings NO gem at level 10+ = Underworld unlocked; the bot only logs `[gems] The collect brought no gem: probably the Heart of Darkness` (no pending-unlock command is expected).
+
+## Soldier training after raids (user 2026-11-08)
+Users saw characters with 1 soldier alive and an empty training queue. The log showed 8 raids and one `Training` line: the attack responses do not
+refresh the soldier counts, so step 4 of `military` worked with stale numbers. Fix: `Update` before training whenever a raid happened this pass, and
+training is no longer skipped while some soldiers are still in training (`missing` already subtracts them; the Barracks-due `fit` is reduced by them).
