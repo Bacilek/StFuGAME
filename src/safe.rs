@@ -363,8 +363,8 @@ fn custom_allowed(gs: Option<&GameState>, raw_price: Option<u64>, cmd_name: &str
     match (cmd_name, arguments) {
         // Game of Dice with a die face sf-api has no name for (the event epic?), same wire shape as `RollDice`; payment 0 or 2 only
         ("RollDice", [p, faces@ ..]) => matches!(p.as_str(), "0" | "2") && faces.len() == 5 && faces.iter().all(|f| f.parse::<u8>().is_ok_and(|v| v <= 9)),
-        // Toilet Wash cycle (user 2026-11-07): free, takes no argument (the item is the one in the toilet), only with an unlocked toilet
-        ("PlayerToilettWash", []) => gs.is_some_and(crate::toilet::unlocked),
+        // Toilet Wash cycle (user 2026-11-07): free, takes the item as "2/<backpack position>" (capture 2026-11-08, the bare call fails), only with an unlocked toilet
+        ("PlayerToilettWash", [pos]) => pos.starts_with("2/") && pos[2..].parse::<u16>().is_ok() && gs.is_some_and(crate::toilet::unlocked),
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
         ("GroupJoin", [_, suffix]) => suffix == "int",
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),

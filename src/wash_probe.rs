@@ -28,8 +28,9 @@ fn short(s: &str) -> String {
     format!("{head} ({} chars)", s.len())
 }
 
-fn wash_cmd() -> Command {
-    Command::Custom { cmd_name: "PlayerToilettWash".to_string(), arguments: Vec::new() }
+fn wash_cmd(pos: sf_api::gamestate::items::PlayerItemPosition) -> Command {
+    // user capture 2026-11-08: `PlayerToilettWash:2/3` = backpack position 3 (same "kind/position" text as the item moves)
+    Command::Custom { cmd_name: "PlayerToilettWash".to_string(), arguments: vec![pos.to_string()] }
 }
 
 pub async fn run(session: &mut SimpleSession) -> Outcome {
@@ -55,7 +56,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     report!("[wash-probe] Start: epic {what} at {pos:?}, already washed: {:?}", washed_slots(gs));
 
     // A: bare Wash
-    match safe::send_raw(session, wash_cmd()).await {
+    match safe::send_raw(session, wash_cmd(pos)).await {
         Ok(raw) => report!("[wash-probe] A bare Wash -> OK {}", short(&raw)),
         Err(e) => report!("[wash-probe] A bare Wash -> {e}"),
     }
@@ -80,7 +81,7 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
             return Outcome::Done;
         }
     }
-    match safe::send_raw(session, wash_cmd()).await {
+    match safe::send_raw(session, wash_cmd(pos)).await {
         Ok(raw) => report!("[wash-probe] B Wash -> OK {}", short(&raw)),
         Err(e) => report!("[wash-probe] B Wash -> {e}"),
     }

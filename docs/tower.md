@@ -65,3 +65,6 @@ Companion equip request decoded (user 2026-11-08, base64 of `params` in the URL)
 Unequip DECODED (user 2026-11-08, base64 `params` `MTAxLzkvMi8xLzEvNTIvNjU1NzM3OS8w`): `PlayerItemMove:101/9/2/1/1/52/6557379/0` = companion 101 (Bert) slot 9 (weapon) -> backpack(2) position 1, ident `1/52/6557379/0`.
 So the generic shape is `PlayerItemMove:<from_kind>/<from_pos>/<to_kind>/<to_pos>/<ident>` with kind 2 = backpack, 101/102/103 = companions (equip = `2/<pos>/101/<slot>/<ident>`).
 A swap-free unequip works as long as the backpack has a free slot; needs `Command::Custom` (sf-api has no typed unequip) + a `safe.rs` entry.
+
+Wash request DECODED (user 2026-11-08, base64 `params` `Mi8z` = `2/3`): `PlayerToilettWash:2/3` = backpack (2), position 3, item in place, response `toiletstate:0/1/0` + `backpack:`. The bare call of the earlier probe was wrong.
+`wash_probe.rs` now sends `PlayerToilettWash:<pos>` (safe.rs: one argument `2/<n>`, unlocked toilet); marker re-armed on TestChar1 (NOT in a release yet). Next: real wash logic in the disposal chain.
