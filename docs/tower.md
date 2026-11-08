@@ -78,3 +78,4 @@ Not done: unequip (not needed for a swap), the wash step of the chain (waits for
 ## Decisions 2026-11-08 (user)
 - Companion enchants (witch): NOT handled, not planned.
 - Gems go to companions only if the main character would not use them (same "main first" rule as for items). Not implemented: needs a capture of socketing a gem into a companion's item (and whether that is possible).
+- CORRECTION of the gem rule (user 2026-11-08): a gem also goes to a companion when it would only give the main character a MINIMAL gain (example: worn weakest gem main +300, mined main +301 -> better into an EMPTY companion socket of that main stat than +1 for us). Compare: gain for the main character (`inventory::gem_gain`/`socket_gain`) vs. the value of filling an empty companion socket; "minimal" threshold NOT fixed yet (to ask the user, suggestion: main gain below ~5 % of the gem's value). Still not implemented (needs the socket capture).
