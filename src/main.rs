@@ -39,6 +39,7 @@ mod session;
 mod stuck;
 mod shops;
 mod smith;
+mod upgrade;
 mod stable;
 mod tasks;
 mod tavern;
@@ -288,6 +289,10 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             return tavern::Outcome::SessionLost;
         }
         if let tavern::Outcome::SessionLost = inventory::manage(session).await {
+            return tavern::Outcome::SessionLost;
+        }
+        // Level 2 upgrade of the worn equipment right after it was put on (user 2026-11-08, src/upgrade.rs)
+        if let tavern::Outcome::SessionLost = upgrade::run(session).await {
             return tavern::Outcome::SessionLost;
         }
         // Game of Dice (user 2026-11-06): hourly free game, hourglass skips from 23:00

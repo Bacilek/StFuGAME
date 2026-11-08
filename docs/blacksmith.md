@@ -69,3 +69,13 @@ Response `timestamp&resources&smith:1/<t>&characterstatus&backpack&dailytasklist
 Frenzy Festival), the backpack lost the item, the task list ends `14/15/4` (type 9 `BlacksmithDismantle`, +1 per dismantle). Resources after:
 Metal idx 9 = 18308, Arcane idx 10 = 8713; metal fell since the previous capture because upgrades were bought in between, so the single
 payout is not isolated. The bot's own `[smith] Dismantled ...` lines will give the first clean prediction-vs-reality numbers.
+
+## Level 2 upgrade of worn gear (user 2026-11-08, `src/upgrade.rs`, NOT in a release yet)
+Capture (Květoš, weapon): `PlayerItemUpgrade:1/9/2` (params `MS85LzI=`) = place 1 (equipment), position 9 (`EquipmentSlot::Weapon`; the
+slots are Hat 1, BreastPlate 2, Gloves 3, FootWear 4, Amulet 5, Belt 6, Ring 7, Talisman 8, Weapon 9, Shield 10), 2 = wanted level (assumed:
+the weapon row of the answer shows `upgrade_count` 2). The bot upgrades every worn item of the MAIN character (never a companion's) that is
+below level 2, in the main loop right after `inventory::manage` (so a freshly equipped piece goes at once). Needs `gs.blacksmith`; cost =
+`Item::upgrade_costs()` summed for the missing levels; short of Metal / splinters -> bell alert `upgrade-<Slot>` (12 h cooldown). After each
+upgrade the bot checks `upgrade_count == 2`, else it stops for the day and raises `upgrade-mismatch`. `safe.rs` whitelist: place "1", level "2",
+slot must hold a worn item below level 2. UNVERIFIED: whether the last number is the target level or an amount; watch `[smith] Upgrading` /
+`OK` / `shows upgrade level` lines on the first run.

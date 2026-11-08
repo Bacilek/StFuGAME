@@ -367,6 +367,10 @@ fn custom_allowed(gs: Option<&GameState>, raw_price: Option<u64>, cmd_name: &str
         ("RollDice", [p, faces@ ..]) => matches!(p.as_str(), "0" | "2") && faces.len() == 5 && faces.iter().all(|f| f.parse::<u8>().is_ok_and(|v| v <= 9)),
         // Toilet Wash cycle (user 2026-11-07): free, takes the item as "2/<backpack position>" (capture 2026-11-08, the bare call fails), only with an unlocked toilet
         ("PlayerToilettWash", [pos]) => pos.starts_with("2/") && pos[2..].parse::<u16>().is_ok() && gs.is_some_and(crate::toilet::unlocked),
+        // Blacksmith upgrade of the main character's own worn item to level 2 (user capture 2026-11-08): metal + splinters only, no mushrooms
+        ("PlayerItemUpgrade", [place, pos, level]) => {
+            place == "1" && level == &crate::upgrade::TARGET.to_string() && gs.is_some_and(|gs| crate::upgrade::allowed(gs, pos))
+        }
         ("GroupJoinList", [page]) => page.parse::<u32>().is_ok(),
         ("GroupJoin", [_, suffix]) => suffix == "int",
         ("GroupRemoveMember", [id]) => gs.is_some_and(|gs| *id == gs.character.player_id.to_string()),
