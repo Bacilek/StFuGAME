@@ -1,5 +1,8 @@
 # Project status (handover document)
 
+**Release built 01:14 2026-11-08 (companion gear, faction title mail claim, Wash probe with position; the user starts the bot).** Check `[rewards] Claimed the faction title reward`, `[wash-probe]` on TestChar1. Open captures: `docs/todo.md` "Od uživatele potřebuji". Dice still plays on locked characters (cannot roll yet) - fix pending.
+
+
 **2026-11-08 (user):** no companion enchants; gems for companions only if the main character would not use them (not implemented, needs a socket capture).
 
 
