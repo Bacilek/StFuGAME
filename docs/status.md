@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+- Release built 2026-11-08 18:23 (toilet tight-day rule, Epic Good Luck dice, level 2 upgrade of worn gear, portal retries, soldier training refresh, Twister out of dungeon counts). Verify: `[smith] Upgrading`, `[battles] ... try`, `[fortress] Training`, `[toilet] Threw`.
+
 - 2026-11-08: guild/Demon Portal and pet battles are retried hourly (max 4) until the game state shows them done; soldier training refreshes the state after raids; Twister excluded from dungeon counts. Not in a release yet.
 
 - 2026-11-08: worn gear gets a blacksmith upgrade to level 2 right after it is put on (`src/upgrade.rs`, `docs/blacksmith.md`); not yet in a release, verify the `[smith] Upgrading` lines.
