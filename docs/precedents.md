@@ -276,3 +276,4 @@ In similar situations it then follows this list. Newest at the bottom.
 - Tower/Shadow World epics (user 2026-11-07): the main character first, then companions if the class fits, then wash etc.; Shadow World epics are probably already washed. Retry the Tower periodically when other dungeons keep failing; a close loss (boss HP left) is the signal that attacking again is worth it, otherwise go elsewhere.
 
 - **Tower companions (user 2026-11-08):** no witch enchants for companions; gems for companions when the main character would not use them OR gains only a minimal bit (+300 -> +301) and the companion socket is empty; items likewise main character first (`docs/tower.md`, `src/companions.rs`).
+- **Companion gem threshold (user 2026-11-08):** 5 % of the mined gem's value (main gain below that + empty companion socket).
