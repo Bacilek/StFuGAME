@@ -1,5 +1,8 @@
 # Project status (handover document)
 
+**2026-11-08 (companion gear, NOT in a release yet):** `src/companions.rs` step 1 of the Tower plan (`docs/tower.md`); Wash probe now sends `PlayerToilettWash:2/<pos>` and is re-armed on TestChar1. Next: Tower fight probe (step 2).
+
+
 **2026-11-08 (faction title reward, NOT in a release yet):** one-off Mail claim `pending_faction_title` (2 legendary gems, 2 free slots) in `daily.rs`, whitelisted by mail name in `safe.rs`; verify `[rewards] Claimed the faction title reward` after the next release. Pagan Smithy: not a bug, the Gem Mine rush (char level 120+, Fortress 10+) and LQ 11 / Barracks 5 come first, the Smithy chain follows.
 
 **2026-11-08 (checks, user asked):** pet feeding works (characters log `Not feeding ... refused today: true` 00:11-00:20 = the daily fruit limit was used right after midnight; `pets_feed_idx.txt` learned). Wash probe: marker `roster/TestChar1/wash_probe.todo` is gone but NO `[wash-probe]` line is in any log (progress.log keeps ~100 lines): result unknown, re-arm and read it right after the run. Game of Dice: nobody has it, every character logs `cannot roll yet` from 23:00 (the hourglass skip fires on locked characters; `dice::unlocked` trusts the `dice` key) - fix pending. Tower/Twister/Shadow implementation requested by the user; blocked on captures (`docs/tower.md` "Capture 2026-11-08": request line of the unequip missing).

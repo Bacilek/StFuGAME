@@ -68,3 +68,9 @@ A swap-free unequip works as long as the backpack has a free slot; needs `Comman
 
 Wash request DECODED (user 2026-11-08, base64 `params` `Mi8z` = `2/3`): `PlayerToilettWash:2/3` = backpack (2), position 3, item in place, response `toiletstate:0/1/0` + `backpack:`. The bare call of the earlier probe was wrong.
 `wash_probe.rs` now sends `PlayerToilettWash:<pos>` (safe.rs: one argument `2/<n>`, unlocked toilet); marker re-armed on TestChar1 (NOT in a release yet). Next: real wash logic in the disposal chain.
+
+## Step 1 IMPLEMENTED 2026-11-08: companion equipment (`src/companions.rs`, NOT in a release yet, no character owns the Tower so it never ran)
+`companions::offer` runs at the start of `inventory::manage`: a backpack equipment item that the main character would NOT wear (other class, or `compare` says not better) goes to the companion
+of its class when it beats the companion's item in the slot (weapons by average damage, rest by the Arena power formula, +1 % margin; an empty slot always gains; a worn item with a filled gem is left alone).
+`Command::EquipCompanion` is whitelisted in `safe.rs` with `companion_equip_ok` (same ident, the class may wear it, never a shield, companions exist). The old item falls into the backpack and is disposed of as usual.
+Not done: unequip (not needed for a swap), the wash step of the chain (waits for the probe), dug-out gems for companions, companion enchants. Log lines `[companions] Equipping ...`, journal `companion ...` in inventory.log.

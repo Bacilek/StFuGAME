@@ -12,6 +12,7 @@ mod attributes;
 mod balance;
 mod battles;
 mod control;
+mod companions;
 mod coupons;
 mod ctx;
 mod daily;

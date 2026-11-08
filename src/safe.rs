@@ -86,6 +86,8 @@ fn is_allowed(cmd: &Command) -> bool {
             | Command::RollDice { payment: sf_api::command::RollDicePrice::Free | sf_api::command::RollDicePrice::Hourglass, .. }
             | Command::BuyShop { .. }
             | Command::Equip { .. }
+            // Tower companion gear (user 2026-11-08); checked in `companion_equip_ok`
+            | Command::EquipCompanion { .. }
             | Command::CollectDailyQuestReward { .. }
             | Command::CollectEventTaskReward { .. }
             | Command::UpgradeSkill { .. }
@@ -481,6 +483,11 @@ pub async fn send_raw(session: &mut SimpleSession, cmd: Command) -> Result<Strin
     {
         return Err(SFError::InvalidRequest("shop item costs mushrooms or changed, not buying"));
     }
+    if let Command::EquipCompanion { from_pos, to_slot, item_ident, to_companion } = &cmd
+        && !session.game_state().is_some_and(|gs| companion_equip_ok(gs, *from_pos, *to_slot, *item_ident, *to_companion))
+    {
+        return Err(SFError::InvalidRequest("companion equip: the item is gone, changed, or not for that companion"));
+    }
     if let Command::ClaimablePreview { msg_id } | Command::ClaimableClaim { msg_id } = &cmd
         && !session.game_state().is_some_and(|gs| {
             gs.mail.claimables.iter().any(|m| {
@@ -760,4 +767,20 @@ mod dice_tests {
         assert!(custom_allowed(None, None, "RollDice", &custom("2")));
         assert!(!custom_allowed(None, None, "RollDice", &custom("1")));
     }
+}
+
+/// An equip onto a companion is only sent for a backpack item that is still there (same ident) and that the companion's class may wear
+/// (never a shield), into the slot the item belongs to.
+fn companion_equip_ok(
+    gs: &GameState,
+    from_pos: sf_api::gamestate::items::PlayerItemPosition,
+    to_slot: sf_api::gamestate::items::EquipmentSlot,
+    ident: sf_api::gamestate::items::ItemCommandIdent,
+    companion: sf_api::gamestate::dungeons::CompanionClass,
+) -> bool {
+    gs.dungeons.companions.is_some()
+        && gs.character.inventory.iter().any(|(pos, item)| {
+            sf_api::gamestate::items::PlayerItemPosition::from(pos).to_string() == from_pos.to_string()
+                && item.is_some_and(|i| i.command_ident() == ident && i.typ.equipment_slot() == Some(to_slot) && i.can_be_equipped_by_companion(sf_api::gamestate::character::Class::from(companion)))
+        })
 }

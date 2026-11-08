@@ -733,6 +733,9 @@ fn announce_epics(gs: &GameState) {
 }
 
 pub async fn manage(session: &mut SimpleSession) -> Outcome {
+    if let Outcome::SessionLost = crate::companions::offer(session).await {
+        return Outcome::SessionLost;
+    }
     if let Some(gs) = session.game_state() {
         announce_epics(gs);
     }
