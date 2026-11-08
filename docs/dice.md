@@ -46,3 +46,6 @@ Status: IMPLEMENTED 2026-11-06 (`src/dice.rs`, gates in `src/safe.rs`), waiting 
 | Unlock detection (`dice` key absent before the Tower) | ⏳ |
 | Epic face id | ✅ face 4 during Epic Good Luck (capture 4); unknown faces > 6 still raise an alert |
 | Payout table (3/4/5 of a kind per type) | ⏳ collect from the logs |
+
+## Epic Good Luck strategy (user 2026-11-08)
+During `Event::EpicGoodLuckExtravaganza` the first roll keeps ONLY the epic dice (face 4); with none, all five are re-rolled. The re-roll then either lands more epics (the epic prize) or a random triple of something else, which is taken as the consolation prize. Outside the event the old rule (most frequent face) stays. `dice::choose_hold`, tests `the_epic_face_wins_during_the_epic_event`.

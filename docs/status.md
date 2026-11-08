@@ -1,5 +1,8 @@
 # Project status (handover document)
 
+**2026-11-08 (dice, NOT in a release yet):** Epic Good Luck: keep only the epic dice (`dice::choose_hold`, `docs/dice.md`). Tower floors have a normal cooldown (user).
+
+
 **Release built 01:14 2026-11-08 (companion gear, faction title mail claim, Wash probe with position; the user starts the bot).** Check `[rewards] Claimed the faction title reward`, `[wash-probe]` on TestChar1. Open captures: `docs/todo.md` "Od uživatele potřebuji". Dice still plays on locked characters (cannot roll yet) - fix pending.
 
 

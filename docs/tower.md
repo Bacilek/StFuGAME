@@ -90,3 +90,4 @@ Response (keys in order): `fightresult.battlereward`, `battlerewarditem`, `ownto
 - `owntower.towerSave`: index 0 = player id, **index 2 = floors cleared (0 -> 1)**, index 3 = character level; companion blocks (148 numbers each) follow; sf-api already parses it.
 - `characterstatus` idx 6: 1500 -> 4500 (unknown, maybe tower related), idx 7: 0 -> 10.
 - Pending: does a win give the epic every floor (user said "+1 % guard" earlier), cooldown between floors (none seen), what a LOSS returns.
+- Tower (user 2026-11-08): the cooldown between floors is the normal dungeon-style cooldown; only a Twister win with 90+ % HP left is free.

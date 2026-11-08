@@ -83,6 +83,16 @@ fn rank(face: u8, epic_event: bool) -> u8 {
 /// the most frequent face, ties by value.
 fn choose_hold(faces: &[u8], epic_event: bool) -> [u8; 5] {
     let mut hold = [0u8; 5];
+    // Epic Good Luck (user 2026-11-08): keep ONLY the epic dice (none when there is none, all five are re-rolled); the re-roll either adds
+    // epics or lands a random triple that is taken as the consolation prize
+    if epic_event {
+        for (slot, f) in hold.iter_mut().zip(faces) {
+            if *f != 0 && rank(*f, true) == 100 {
+                *slot = *f;
+            }
+        }
+        return hold;
+    }
     let Some(best) = faces
         .iter()
         .copied()
@@ -269,6 +279,8 @@ mod tests {
         assert_eq!(choose_hold(&[2, 3, 4, 5, 6], true), [0, 0, 4, 0, 0]);
         assert_eq!(choose_hold(&[2, 3, 4, 5, 6], false), [0, 0, 0, 5, 0], "without the event Souls rank below Arcane");
         assert_eq!(choose_hold(&[4, 5, 5, 1, 2], true), [4, 0, 0, 0, 0], "a single epic beats a pair");
+        assert_eq!(choose_hold(&[4, 5, 5, 4, 2], true), [4, 0, 0, 4, 0], "only the epics are kept");
+        assert_eq!(choose_hold(&[3, 3, 3, 5, 5], true), [0, 0, 0, 0, 0], "no epic: even a triple is re-rolled, the re-roll is the lottery");
     }
 
     #[test]
