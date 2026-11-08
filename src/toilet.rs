@@ -125,11 +125,28 @@ pub fn plain_reserve(gs: &GameState) -> Option<BagPosition> {
     spare_plain(gs).map(|p| p.0)
 }
 
+/// A day that starts with at most one free backpack slot (user 2026-11-08): an epic may go into the toilet right away, so it never has
+/// to be dismantled or sold later. Measured by the first pass of the day and remembered in `toilet_tight.txt`.
+fn tight_day(gs: &GameState) -> bool {
+    let path = std::path::Path::new("roster").join(crate::ctx::name()).join("toilet_tight.txt");
+    let today = Local::now().date_naive();
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut it = text.split_whitespace();
+    if let (Some(day), Some(flag)) = (it.next(), it.next())
+        && day.parse::<NaiveDate>().ok() == Some(today)
+    {
+        return flag == "1";
+    }
+    let tight = gs.character.inventory.count_free_slots() <= 1;
+    let _ = std::fs::write(&path, format!("{today} {}", u8::from(tight)));
+    tight
+}
+
 /// The preferred sacrifice (epic / gem), without the plain-item fallback.
 fn preferred(gs: &GameState, need_room: bool) -> Option<(BagPosition, String)> {
     let gem = || crate::inventory::spare_gem(gs).map(|(pos, _)| (pos, "gem".to_string()));
     let full = gs.character.inventory.free_slot().is_none();
-    if event(gs) || full || need_room {
+    if event(gs) || full || need_room || tight_day(gs) {
         spare_epic(gs).or_else(gem)
     } else {
         gem()
