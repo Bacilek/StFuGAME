@@ -74,5 +74,5 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 - [ ] **Tower**: request + response `PlayerTowerBattle` VÝHRY (odměna: epic, +1 % guard, jak se pozná v odpovědi) a co vrací `owntower.towerSave` (patro).
 - [ ] **Twister** (`docs/twister.md`): request + response souboje (>90 % HP zbylo / ne), kde je vidět, že další patro je zdarma, jestli porážka bere hodinový cooldown dungeonů.
 - [ ] **Shadow World** (`docs/shadow-world.md`): request + response souboje a dropu epicu, zpráva o nalezení klíče v Gem Mine.
-- [ ] **Pomocníci**: které sloty jsou pro koho zakázané (kromě štítu).
+- [x] **Pomocníci sloty** (user 2026-11-08): žádné zakázané; Kunigunde = běžné sloty scouta, Mark = mage, Bert = warrior BEZ štítu (odpovídá `can_be_equipped_by_companion`).
 - [x] **Odpovědi** (user 2026-11-07/08): epicy nejdřív hlavní postavě; Tower zkoušet i pravidelně; těsná prohra = zbytek HP bossa; žádné enchanty pro pomocníky; gem pomocníkovi když main gain < 5 % a slot prázdný.
