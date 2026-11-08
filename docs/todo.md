@@ -66,12 +66,13 @@ Naposledy pročištěno 2026-10-14. Nehotové ale pozastavené nápady jsou dole
 ## Soutěž postav s kamarády
 - Vše o soutěži (plán, soupiska, reporty) je jen lokálně v `roster/` (`roster/plan.md`, `roster/README.md`).
 
-## Od uživatele potřebuji (Tower / Wash / Twister / Shadow World, user 2026-11-07; plníme po hodinách podle cooldownu)
-- [ ] **Wash probe**: 2026-11-07 neúspěch (bare Wash = "server not available", Load = "toilett has been used today"); probe se znovu zbrojí sám a poběží po půlnoci. Bot musí běžet s novým buildem, TestChar1 s nepoužitým epicem. Číst `[wash-probe]`.
-- [ ] **Wash**: jestli se po přetažení na káď posílá víc než `Poll` + `PlayerToilettWash:` (už víme: nic dalšího nebylo), jinak čekáme na probe.
-- [ ] **Tower**: request + response `PlayerTowerBattle` VÝHRY (odměna: epic, +1 % guard, jak se pozná v odpovědi), a co vrací stav Toweru (`owntower.towerSave`) – patro, kolik jsme porazili.
-- [ ] **Pomocníci**: capture sundání itemu z pomocníka (jestli to jde samostatně, nebo jen výměnou), capture `EquipCompanion` s gemem v itemu, jestli companion item může mít socket/gem.
-- [ ] **Pomocníci**: jestli mají sloty stejné jako postava (zbraň, 8 kusů zbroje, amulet, ring, talisman…) a které sloty jsou pro koho zakázané (Bert bez štítu).
-- [ ] **Twister** (`docs/twister.md`): 1) request + response souboje, kdy zbyde >90 % HP, 2) souboj, kdy ne, 3) kde je vidět, že další patro je zdarma, 4) jestli porážka bere hodinový cooldown dungeonů.
-- [ ] **Shadow World** (`docs/shadow-world.md`): request + response souboje a dropu epicu, zpráva o nalezení klíče v Gem Mine (response + co se objeví v dungeonech).
-- [x] **Odpovědi** (user 2026-11-07): epicy nejdřív hlavní postavě; Tower zkoušet i pravidelně, když se jinde nedaří; těsná prohra = zbytek HP bossa (stačí).
+## Od uživatele potřebuji (Tower / Wash / Twister / Shadow World, user 2026-11-07; plníme po hodinách podle cooldownu; STAV 2026-11-08)
+**Pravidlo (user 2026-11-08): při KAŽDÉ zprávě uživatele ho zkrátka vyzvat k tomuto seznamu, dokud není splněn (viz memory `ask-user-for-captures`).**
+- [x] ~~Sundání itemu z pomocníka~~ (hotovo 2026-11-08: `PlayerItemMove:101/9/2/1/<ident>`), ~~request Wash~~ (hotovo: `PlayerToilettWash:2/<pos>`).
+- [ ] **Wash probe**: po releasu 2026-11-08 poběží na TestChar1 (marker armed, potřebuje nepraný epic v batohu); číst `[wash-probe]`. Pak sám pošlu výsledek, nic nepotřebuju kromě toho, aby TestChar1 měl epic.
+- [ ] **Gem do itemu pomocníka**: capture vložení gemu do itemu společníka (request + response; jde to vůbec?). Bez toho gemy pro společníky nejdou (pravidlo 5 %: `docs/tower.md`).
+- [ ] **Tower**: request + response `PlayerTowerBattle` VÝHRY (odměna: epic, +1 % guard, jak se pozná v odpovědi) a co vrací `owntower.towerSave` (patro).
+- [ ] **Twister** (`docs/twister.md`): request + response souboje (>90 % HP zbylo / ne), kde je vidět, že další patro je zdarma, jestli porážka bere hodinový cooldown dungeonů.
+- [ ] **Shadow World** (`docs/shadow-world.md`): request + response souboje a dropu epicu, zpráva o nalezení klíče v Gem Mine.
+- [ ] **Pomocníci**: které sloty jsou pro koho zakázané (kromě štítu).
+- [x] **Odpovědi** (user 2026-11-07/08): epicy nejdřív hlavní postavě; Tower zkoušet i pravidelně; těsná prohra = zbytek HP bossa; žádné enchanty pro pomocníky; gem pomocníkovi když main gain < 5 % a slot prázdný.
