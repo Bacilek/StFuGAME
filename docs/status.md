@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+- 2026-11-09: gems the main character barely uses (< 5 %) go into an EMPTY companion socket of the class main attribute (`companions::gem_target`, capture in `docs/tower.md`); Tower floor 2 win captured. Not in a release yet.
+
 - Release built 2026-11-08 18:23 (toilet tight-day rule, Epic Good Luck dice, level 2 upgrade of worn gear, portal retries, soldier training refresh, Twister out of dungeon counts). Verify: `[smith] Upgrading`, `[battles] ... try`, `[fortress] Training`, `[toilet] Threw`.
 
 - 2026-11-08: guild/Demon Portal and pet battles are retried hourly (max 4) until the game state shows them done; soldier training refreshes the state after raids; Twister excluded from dungeon counts. Not in a release yet.

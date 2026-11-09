@@ -785,6 +785,17 @@ fn companion_equip_ok(
     gs.dungeons.companions.is_some()
         && gs.character.inventory.iter().any(|(pos, item)| {
             sf_api::gamestate::items::PlayerItemPosition::from(pos).to_string() == from_pos.to_string()
-                && item.is_some_and(|i| i.command_ident() == ident && i.typ.equipment_slot() == Some(to_slot) && i.can_be_equipped_by_companion(sf_api::gamestate::character::Class::from(companion)))
+                && item.is_some_and(|i| i.command_ident() == ident && (matches!(i.typ, sf_api::gamestate::items::ItemType::Gem(_)) && gem_socket_free(gs, companion, to_slot)
+                    || i.typ.equipment_slot() == Some(to_slot) && i.can_be_equipped_by_companion(sf_api::gamestate::character::Class::from(companion))))
         })
+}
+
+/// The companion wears an item in `slot` whose gem socket is empty (user capture 2026-11-09: a gem is moved onto the companion's item
+/// with the same `PlayerItemMove` shape as an equip).
+fn gem_socket_free(gs: &GameState, companion: sf_api::gamestate::dungeons::CompanionClass, slot: sf_api::gamestate::items::EquipmentSlot) -> bool {
+    gs.dungeons
+        .companions
+        .as_ref()
+        .and_then(|c| c[companion].equipment.0[slot].as_ref())
+        .is_some_and(|i| i.gem_slot == Some(sf_api::gamestate::items::GemSlot::Empty))
 }

@@ -504,6 +504,14 @@ async fn socket_backpack_gem(session: &mut SimpleSession) -> Option<Outcome> {
                 break;
             }
             let pick = if farm { farm_socket(gs, &candidates, gem) } else { choose_socket(&candidates, gem, class) };
+            // A gem the main character would barely use (or not at all) fills an EMPTY socket of a companion that wants it (user 2026-11-08)
+            let (m, o) = inventory::gem_effect(class, gem);
+            let minimal = pick.is_none_or(|i| farm && inventory::socket_gain(gs, candidates[i].content, candidates[i].weapon, gem) < crate::companions::MINIMAL_SHARE * (m + o));
+            if minimal && let Some((companion, slot)) = crate::companions::gem_target(gs, gem) {
+                report!("[gems] Socketing {:?} {} into {companion:?}'s {slot:?} (the main character gains next to nothing)", gem.typ, gem.value);
+                placed = Some((Command::EquipCompanion { from_pos: pos.into(), to_companion: companion, item_ident: ident, to_slot: slot }, "companion item"));
+                break;
+            }
             if let Some(i) = pick {
                 let slot = list[i].0;
                 report!(

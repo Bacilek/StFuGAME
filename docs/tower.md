@@ -91,3 +91,17 @@ Response (keys in order): `fightresult.battlereward`, `battlerewarditem`, `ownto
 - `characterstatus` idx 6: 1500 -> 4500 (unknown, maybe tower related), idx 7: 0 -> 10.
 - Pending: does a win give the epic every floor (user said "+1 % guard" earlier), cooldown between floors (none seen), what a LOSS returns.
 - Tower (user 2026-11-08): the cooldown between floors is the normal dungeon-style cooldown; only a Twister win with 90+ % HP left is free.
+
+## Capture: a gem onto a companion's item (user 2026-11-09, Mark's item at slot 5, an Intelligence gem)
+`PlayerItemMove:2/1/102/5/15/22/5703296/0` = backpack position 1 -> companion 102 (Mark), slot 5 (`EquipmentSlot` 5 = Amulet in sf-api numbering; the user
+said "head", so the label/slot numbering may differ for companions - to be checked on the first live socket), item ident `15/22/5703296/0` (type 15 = gem).
+It is the SAME wire shape as an equip, so `Command::EquipCompanion` carries it. Implemented 2026-11-09: `companions::gem_target` (an item of the
+companion with an EMPTY socket and a gem of the class's main attribute; weapon first) is tried in `gems::socket_backpack_gem` when the main
+character gains next to nothing (below `companions::MINIMAL_SHARE` = 5 % of the gem's value, or no socket at all); `safe.rs::companion_equip_ok`
+accepts a gem only onto an item with an empty socket. NOT in a release yet; nobody owns the Tower companions on the bot's side until a character
+unlocks the Tower, so it stays idle until then. Verify `[gems] Socketing ... into <Companion>'s ...`.
+
+## Capture: Tower floor 2 WIN (user 2026-11-09, `PlayerTowerBattle:2/0`, params `Mi8w`)
+Same shape as floor 1: four fights (`fightheader1..4`), the three companions lose one after the other (`winnerid1..3.s:0`) and wear the boss down
+(HP 6 552 840 -> 5 121 904 -> 4 729 067 -> 4 236 618), the main character wins the last one (`winnerid4.s` = the player id 23994). `battlereward` index 2
+= XP 27 958 275, `battlerewarditem` = an epic. `owntower.towerSave` index 2 = 2 (floors cleared). Still missing: a LOSS capture.

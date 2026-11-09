@@ -94,3 +94,38 @@ pub async fn offer(session: &mut SimpleSession) -> Outcome {
     }
     Outcome::Done
 }
+
+/// Share of the mined gem's value below which the main character's gain counts as minimal (user 2026-11-08: worn +300, mined +301).
+pub const MINIMAL_SHARE: f64 = 0.05;
+
+/// A companion's worn item with an EMPTY gem socket that wants this gem (user 2026-11-08): the gem is the companion class's main
+/// attribute gem, the socket is empty (a filled one is never replaced). The weapon first, then the slot order. `None` = no place.
+/// Wire shape (user capture 2026-11-09, Mark's item): `PlayerItemMove:2/<backpack pos>/102/<slot>/<gem ident>`, same as an equip.
+pub fn gem_target(gs: &GameState, gem: sf_api::gamestate::items::Gem) -> Option<(CompanionClass, EquipmentSlot)> {
+    let companions = gs.dungeons.companions.as_ref()?;
+    let mut places: Vec<(CompanionClass, EquipmentSlot)> = Vec::new();
+    for c in CLASSES {
+        if gem.typ != inventory::main_gem(Class::from(c)) {
+            continue;
+        }
+        for (slot, item) in &companions[c].equipment.0 {
+            if item.as_ref().is_some_and(|i| i.gem_slot == Some(sf_api::gamestate::items::GemSlot::Empty)) {
+                places.push((c, slot));
+            }
+        }
+    }
+    places.sort_by_key(|(_, slot)| *slot != EquipmentSlot::Weapon);
+    places.into_iter().next()
+}
+
+#[cfg(test)]
+mod gem_tests {
+    use super::*;
+
+    #[test]
+    fn nothing_without_the_tower() {
+        let gs = GameState::default();
+        let gem = sf_api::gamestate::items::Gem { typ: sf_api::gamestate::items::GemType::Intelligence, value: 100 };
+        assert!(gem_target(&gs, gem).is_none());
+    }
+}
