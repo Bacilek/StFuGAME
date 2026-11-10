@@ -279,3 +279,6 @@ In similar situations it then follows this list. Newest at the bottom.
 - **Companion gem threshold (user 2026-11-08):** 5 % of the mined gem's value (main gain below that + empty companion socket).
 - 2026-11-08 (user): app / graphs count dungeon kills only for the Light World, Shadow World and Tower; never the Twister, the Demon Portal or the guild Portal (`roster::counts_as_dungeon`).
 - 2026-11-08 (user): soldiers are retrained whenever some were spent.
+
+## Naked-player list (user 2026-11-10)
+- TestChar1 scans the Hall of Fame for the weakest naked player on every level % 5 == 0 (5..200) for Underworld attacks (`docs/nakeds.md`). Look for better ones only by chance; re-check the saved players daily and keep them while naked and still on a multiple of 5; search only levels without an entry. Search efficiently by bisecting the rank where a level sits, not by reading the whole ranking. Output `roster/nakeds.json` + `roster/nakeds.md` (local).

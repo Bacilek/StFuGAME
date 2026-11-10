@@ -29,6 +29,7 @@ mod idle;
 mod inventory;
 mod journal;
 mod missions;
+mod nakeds;
 mod potions;
 mod rawid;
 mod roster;
@@ -348,6 +349,11 @@ async fn play(session: &mut SimpleSession, journal: &mut journal::Journal) -> ta
             if let tavern::Outcome::SessionLost = dungeons::run(session).await {
                 return tavern::Outcome::SessionLost;
             }
+        }
+
+        // Naked-player list for Underworld attacks (user 2026-11-10); only the scanner character, see src/nakeds.rs
+        if let tavern::Outcome::SessionLost = nakeds::run(session).await {
+            return tavern::Outcome::SessionLost;
         }
 
         let Some(gs) = session.game_state() else { return tavern::Outcome::SessionLost };
