@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+- 2026-11-10: blacksmith upgrades no longer count in item comparison (`inventory::at_target_upgrade`, `docs/inventory.md`): worn and new items are both rescaled to upgrade level 2 (/1.04 per upgrade, *1.04^2) before `compare`. Not in a release yet; unverified: that weapon damage also grows ~4 % per upgrade, and the exact factor (sf-api uses 1.04, rounding per step).
+
 - 2026-11-10: naked-player scan (`src/nakeds.rs`, `docs/nakeds.md`): TestChar1 keeps the weakest naked player per level 5,10..200 in `roster/nakeds.json/.md` (bisection over the Hall of Fame, daily re-check). Not in a release yet, untested live; verify `[nakeds]` lines and the table after the first run (is `equipment` really empty for naked players, how long does the first scan take).
 
 - 2026-11-09: gems the main character barely uses (< 5 %) go into an EMPTY companion socket of the class main attribute (`companions::gem_target`, capture in `docs/tower.md`); Tower floor 2 win captured. Not in a release yet.

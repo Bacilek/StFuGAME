@@ -282,3 +282,6 @@ In similar situations it then follows this list. Newest at the bottom.
 
 ## Naked-player list (user 2026-11-10)
 - TestChar1 scans the Hall of Fame for the weakest naked player on every level % 5 == 0 (5..200) for Underworld attacks (`docs/nakeds.md`). Look for better ones only by chance; re-check the saved players daily and keep them while naked and still on a multiple of 5; search only levels without an entry. Search efficiently by bisecting the rank where a level sits, not by reading the whole ranking. Output `roster/nakeds.json` + `roster/nakeds.md` (local).
+
+## Blacksmith upgrades in item comparison (user 2026-11-10)
+- Upgrades must not decide equip/sell: a worn upgraded item and a fresh one are compared on the same upgrade level (the level the bot upgrades to, `upgrade::TARGET`), so a fresh piece with better base stats replaces the worn one and gets upgraded itself.

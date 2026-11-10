@@ -113,3 +113,6 @@ Replaces the "epic sold only from a backpack full of epics" rule. Reason: the us
 
 ## Forced epics and starvation (2026-11-01)
 Pagan (lvl 95, toilet locked) lost 13 epics 00:14-01:20: an endless weapon swap (fixed in `compare`, mean damage as reference) ate every `manage` pass (30 actions, first-in-backpack-order), plain junk was never sold, the backpack stayed full and `last_resort_epic` dismantled an epic every 5 min. Fixes: one equip per slot per pass (`next_action(gs, equipped)`), socket swap before any epic (`make_room_with`). An extra "one epic per episode" lock was tried and removed (user 2026-11-01: epics go only when there is no free slot, that already limits it).
+
+## Upgrades are normalised (2026-11-10, user)
+`compare()` rescales both items to `upgrade::TARGET` (2) upgrades (`at_target_upgrade`: server stats include upgrades, ~4 % per level, sf-api divides by 1.04; weapon damage too; items with price 0 untouched). Test `worn_upgrades_do_not_count_in_the_comparison`. Only `compare` (equip decisions, shops, companions); other value helpers unchanged. UNVERIFIED live: weapon damage growth per upgrade.
