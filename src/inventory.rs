@@ -271,12 +271,45 @@ pub fn value_with_gem(gs: &GameState, item: &Item, slot: EquipmentSlot, gem: Gem
     value_core(gs, item, slot, Gems::Rare, Some(gem), None)
 }
 
+/// Each Blacksmith upgrade adds about 4 % to every stat and weapon damage (sf-api `dismantle_reward` undoes it with `/ 1.04`); the
+/// stats the server sends already contain them. The item rescaled as if it had exactly `upgrade::TARGET` upgrades, so a worn upgraded
+/// piece and a fresh one (which the bot upgrades just the same) are compared by their base stats. Unupgradable items (price 0) stay.
+fn at_target_upgrade(item: &Item) -> Item {
+    let target = crate::upgrade::TARGET;
+    let mut it = item.clone();
+    if item.price == 0 || item.upgrade_count == target {
+        return it;
+    }
+    let scale = |v: u32| -> u32 {
+        let mut x = f64::from(v);
+        for _ in 0..item.upgrade_count {
+            x = (x / 1.04).round();
+        }
+        for _ in 0..target {
+            x = (x * 1.04).round();
+        }
+        x as u32
+    };
+    for v in it.attributes.values_mut() {
+        *v = scale(*v);
+    }
+    if let ItemType::Weapon { min_dmg, max_dmg } = &mut it.typ {
+        *min_dmg = scale(*min_dmg);
+        *max_dmg = scale(*max_dmg);
+    }
+    it.upgrade_count = target;
+    it
+}
+
 /// (new value, worn value) on equal footing. When the new OR the worn item has a usable gem socket (empty, or holding a Luck/secondary
 /// gem), the worn item's socketed Main/CON gem is NOT counted for the worn item: the socket can be filled again with a freshly mined
 /// gem, so the old gem is no advantage (user 2026-10-18, Pagan: a shop weapon with an empty slot and +10 % damage must beat his
 /// weapon with a STR gem). With a new item WITHOUT a socket the worn gem counts in full (a weapon's twice).
 pub fn compare(gs: &GameState, new: &Item, worn: Option<&Item>, slot: EquipmentSlot) -> (f64, f64) {
     let class = gs.character.class;
+    // Both items on the level the Blacksmith will bring them to (user 2026-11-10): the server's stats include upgrades
+    let (new, worn) = (at_target_upgrade(new), worn.map(at_target_upgrade));
+    let (new, worn) = (&new, worn.as_ref());
     let usable_socket = |item: &Item| {
         worth_a_gem(class, item)
             && match item.gem_slot {
@@ -936,6 +969,30 @@ mod tests {
         let belt_new = item(ItemType::Belt, &[(Con, 104)], Some(GemSlot::Empty));
         let (nb, cb) = compare(&gs, &belt_new, Some(&belt), EquipmentSlot::Belt);
         assert!(nb > cb, "belt {nb:.1} vs {cb:.1}");
+    }
+
+    /// 2026-11-10 (user): worn upgrades must not count. A worn belt with 2 upgrades (STR 100 -> 108) loses to a fresh belt of base 104
+    /// (which the Blacksmith brings to 112), and a fresh belt of base 98 still loses.
+    #[test]
+    fn worn_upgrades_do_not_count_in_the_comparison() {
+        use AttributeType::Strength as Str;
+        let mut gs = GameState::default();
+        gs.character.class = Class::Warrior;
+        gs.character.level = 100;
+        gs.character.attribute_basis[Str] = 1000;
+        let mut worn = item(ItemType::Belt, &[(Str, 108)], None);
+        worn.price = 100;
+        worn.upgrade_count = 2;
+        let fresh = |v| {
+            let mut i = item(ItemType::Belt, &[(Str, v)], None);
+            i.price = 100;
+            i
+        };
+        gs.character.equipment.0[EquipmentSlot::Belt] = Some(worn.clone());
+        let (n, w) = compare(&gs, &fresh(104), Some(&worn), EquipmentSlot::Belt);
+        assert!(n > w, "base 104 ({n:.1}) must beat the upgraded base-100 belt ({w:.1})");
+        let (n, w) = compare(&gs, &fresh(98), Some(&worn), EquipmentSlot::Belt);
+        assert!(n < w, "base 98 ({n:.1}) must lose to the upgraded base-100 belt ({w:.1})");
     }
 
     /// 2026-10-19 (Pagan, Mimimimi11: 30+ swaps in 6 minutes): an item with an empty socket and one with a socketed main gem must not
