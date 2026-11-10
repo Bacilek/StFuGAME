@@ -1,5 +1,7 @@
 # Project status (handover document)
 
+- 2026-11-10: naked-player scan (`src/nakeds.rs`, `docs/nakeds.md`): TestChar1 keeps the weakest naked player per level 5,10..200 in `roster/nakeds.json/.md` (bisection over the Hall of Fame, daily re-check). Not in a release yet, untested live; verify `[nakeds]` lines and the table after the first run (is `equipment` really empty for naked players, how long does the first scan take).
+
 - 2026-11-09: gems the main character barely uses (< 5 %) go into an EMPTY companion socket of the class main attribute (`companions::gem_target`, capture in `docs/tower.md`); Tower floor 2 win captured. Not in a release yet.
 
 - Release built 2026-11-08 18:23 (toilet tight-day rule, Epic Good Luck dice, level 2 upgrade of worn gear, portal retries, soldier training refresh, Twister out of dungeon counts). Verify: `[smith] Upgrading`, `[battles] ... try`, `[fortress] Training`, `[toilet] Threw`.
