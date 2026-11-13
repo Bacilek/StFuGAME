@@ -212,3 +212,5 @@ be misleading. Open: whether the "find a gem" Gleeman task still counts. Check t
 Users saw characters with 1 soldier alive and an empty training queue. The log showed 8 raids and one `Training` line: the attack responses do not
 refresh the soldier counts, so step 4 of `military` worked with stale numbers. Fix: `Update` before training whenever a raid happened this pass, and
 training is no longer skipped while some soldiers are still in training (`missing` already subtracts them; the Barracks-due `fit` is reduced by them).
+
+- **Smithy priority (user 2026-11-13, NOT in a release yet):** from char level 95 Barracks 5 + smithy chain are picked before Laborers' Quarters and Academy (`pick_generic`).

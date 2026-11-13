@@ -14,6 +14,7 @@
 
 - 2026-11-13: toilet - the thrown epic is the one with the fewest splinters; an epic is thrown only during Tidy Toilet Time, when the Tavern needs room, or with MORE than 6 epics in the backpack (replaces the full-backpack and 2026-11-08 tight-day rules; `docs/toilet.md`). Not yet in a release; verify `[toilet] Threw a epic` on a character with 7+ epics.
 
+**2026-11-13 (Smithy first, NOT in a release yet, tests green):** user wanted Smithy ASAP after char level 100; `pick_generic` now does Barracks 5 + smithy chain before LQ/Academy. Running Academy 11 (8 chars, ~3.6 days) is not cancelled, so those chars get the chain after it; Filminy/Květoš/Mimimimi11/Mrožik get it right after the current LQ 11. Needs a release rebuild.
 **2026-11-08 (dice, NOT in a release yet):** Epic Good Luck: keep only the epic dice (`dice::choose_hold`, `docs/dice.md`). Tower floors have a normal cooldown (user).
 
 

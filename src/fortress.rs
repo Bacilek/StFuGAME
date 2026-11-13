@@ -148,6 +148,15 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
         return Some(B::Fortress);
     }
     let cap = n.min(max_level.max(1));
+    // From character level 95 the soldier line (Barracks 5, then the Smithy chain) beats everything else (user 2026-11-13).
+    if char_level >= SMITHY_FROM_CHAR_LEVEL {
+        if level(B::Barracks) < cap.min(barracks_target(char_level)) {
+            return Some(B::Barracks);
+        }
+        if let Some(b) = smithy_chain(level, char_level, cap) {
+            return Some(b);
+        }
+    }
     if level(B::LaborersQuarters) < cap {
         return Some(B::LaborersQuarters);
     }
@@ -156,9 +165,6 @@ fn pick_generic(level: &dyn Fn(B) -> u16, char_level: u16, max_level: u16) -> Op
     }
     if level(B::Barracks) < cap.min(barracks_target(char_level)) {
         return Some(B::Barracks);
-    }
-    if let Some(b) = smithy_chain(level, char_level, cap) {
-        return Some(b);
     }
     if n >= 2 && level(B::Treasury) < cap {
         return Some(B::Treasury);
