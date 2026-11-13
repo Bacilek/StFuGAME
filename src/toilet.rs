@@ -71,14 +71,15 @@ fn describe(item: &Item) -> String {
     }
 }
 
-/// The cheapest backpack epic (the dearer ones may still be worth something to the witch or the shop).
+/// The backpack epic that would pay the FEWEST Arcane Splinters when dismantled (user 2026-11-13; the dearer ones are kept for the
+/// Blacksmith, price breaks ties).
 fn spare_epic(gs: &GameState) -> Option<(BagPosition, String)> {
     gs.character
         .inventory
         .iter()
         .filter_map(|(pos, i)| Some((pos, i?)))
         .filter(|(_, i)| i.is_epic() && throwable(i) && !matches!(i.typ, ItemType::Gem(_)))
-        .min_by_key(|(_, i)| i.price)
+        .min_by_key(|(_, i)| (crate::smith::splinters(i), i.price))
         .map(|(pos, i)| (pos, describe(i)))
 }
 

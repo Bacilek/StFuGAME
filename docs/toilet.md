@@ -66,3 +66,8 @@ Five level 105-125 characters waited with pending unlocks `3/1, 6/1`; the user a
 An epic is the preferred sacrifice only during Tidy Toilet Time, when the Tavern needs room (`need_room`), or when the backpack holds
 MORE than 6 throwable epics (`toilet::epic_surplus`; one event weekend uses at most 2 x 3 = 6). Otherwise a gem (from 20:00 a plain
 item). A full backpack or a tight day alone no longer triggers it; `toilet_tight.txt` is no longer written.
+
+## Which epic goes in (user 2026-11-13)
+`spare_epic` throws the epic with the FEWEST Arcane Splinters (`smith::splinters`, price breaks ties); the forced free-slot dismantle
+(`inventory::last_resort_epic`) already takes the one with the MOST. Upgrades do not change the amount: sf-api's `dismantle_reward`
+divides the attribute by 1.04 per upgrade, so it is the base item's value.
