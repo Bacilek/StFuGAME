@@ -1030,3 +1030,5 @@ Goblin Gleeman chest claims + attribute-task counting · session-loss auto-relog
 - **Trainer analysis implemented (2026-10-17):** slot bonus in item comparison (`inventory::slot_bonus`, `replaceable`), free sockets before replacing Luck (`gems::choose_socket`), smaller potions kept (`potions::Pressure`), trainer mirror updated. 92 tests green. Needs a release rebuild. Watch `inventory.log`: epics staying in the bag next to a worn socket item, a kept item with a secondary gem getting the gem.
 
 - 2026-10-29: alerts dialog got "Vyřešit vše" and Enter-to-submit in the note textarea (needs a visual check after the next release build); see docs/alerts.md.
+
+- 2026-11-13: ALL 12 characters sit at Pyramids of Madness (dungeon 9) 9/10; finishing it unlocks dungeon 10 (user), and with level ≥125 the Tower, Game of Dice, companions' gear and Gem Mine upgrades hang on it. `[dungeons] No open dungeon` is logged every pass although it is open at 9/10 = suspected bug (mirror fight as 10th enemy not picked up), UNDIAGNOSED, see `docs/dungeons.md` "Dungeon 9 is the gate". Top priority next session.

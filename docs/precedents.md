@@ -285,3 +285,6 @@ In similar situations it then follows this list. Newest at the bottom.
 
 ## Blacksmith upgrades in item comparison (user 2026-11-10)
 - Upgrades must not decide equip/sell: a worn upgraded item and a fresh one are compared on the same upgrade level (the level the bot upgrades to, `upgrade::TARGET`), so a fresh piece with better base stats replaces the worn one and gets upgraded itself.
+
+## Dungeon 9 gates dungeon 10 (user 2026-11-13)
+- Dungeon 10 unlocks only after dungeon 9 (Pyramids of Madness) is finished; finishing it is the top dungeon goal for every character (it also gates Tower, Dice, companions). Details: `docs/dungeons.md`.
