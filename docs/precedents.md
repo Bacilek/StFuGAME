@@ -288,3 +288,4 @@ In similar situations it then follows this list. Newest at the bottom.
 
 ## Dungeon 9 gates dungeon 10 (user 2026-11-13)
 - Dungeon 10 unlocks only after dungeon 9 (Pyramids of Madness) is finished; finishing it is the top dungeon goal for every character (it also gates Tower, Dice, companions). Details: `docs/dungeons.md`.
+- Toilet epics (user 2026-11-13): an epic is thrown only during Tidy Toilet Time, when the Tavern needs room, or with more than 6 epics in the backpack (not for a full backpack or tight day alone). See `docs/toilet.md`.

@@ -12,7 +12,7 @@
 
 - 2026-11-08: worn gear gets a blacksmith upgrade to level 2 right after it is put on (`src/upgrade.rs`, `docs/blacksmith.md`); not yet in a release, verify the `[smith] Upgrading` lines.
 
-- 2026-11-08: toilet - a day starting with <= 1 free backpack slot throws an epic in right away (`docs/toilet.md`). Not yet in a release; verify `[toilet] Threw a epic` early on such a day.
+- 2026-11-13: toilet - an epic is thrown only during Tidy Toilet Time, when the Tavern needs room, or with MORE than 6 epics in the backpack (replaces the full-backpack and 2026-11-08 tight-day rules; `docs/toilet.md`). Not yet in a release; verify `[toilet] Threw a epic` on a character with 7+ epics.
 
 **2026-11-08 (dice, NOT in a release yet):** Epic Good Luck: keep only the epic dice (`dice::choose_hold`, `docs/dice.md`). Tower floors have a normal cooldown (user).
 

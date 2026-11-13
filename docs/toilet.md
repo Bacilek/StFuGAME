@@ -62,7 +62,7 @@ Five level 105-125 characters waited with pending unlocks `3/1, 6/1`; the user a
 - The plain fallback needs an item to exist: from 20:00, with a sacrifice owed and no epic/gem, `inventory::next_action` does not sell the cheapest plain item (`toilet::plain_reserve`); `toilet::run` throws it right after. `safe.rs::toilet_drop_ok` / `throwable` now accept plain equipment (not unique/legendary, not potions).
 - Not live yet (built dev only): watch for `[toilet] Threw a plain ...` after 20:00 and a gem held back at `[gems]`.
 
-## Tight-backpack day (user 2026-11-08)
-If the first toilet pass of a day finds at most 1 free backpack slot, that whole day an epic is the preferred sacrifice right away
-(`toilet::tight_day`, remembered in `roster/<char>/toilet_tight.txt` as `date 0/1`), exactly as with a full backpack or during the event.
-Reason: avoids having to dismantle or sell an epic later that day. The 1 sacrifice a day outside the event still applies (2 in the event).
+## Epic surplus rule (user 2026-11-13, replaces the full-backpack and tight-day (2026-11-08) rules)
+An epic is the preferred sacrifice only during Tidy Toilet Time, when the Tavern needs room (`need_room`), or when the backpack holds
+MORE than 6 throwable epics (`toilet::epic_surplus`; one event weekend uses at most 2 x 3 = 6). Otherwise a gem (from 20:00 a plain
+item). A full backpack or a tight day alone no longer triggers it; `toilet_tight.txt` is no longer written.

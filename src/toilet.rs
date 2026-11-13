@@ -1,5 +1,5 @@
 //! Toilet of the Arcane Gods (user 2026-10-25, `docs/toilet.md`): the epics we keep go here. One sacrifice a day (preferably a gem),
-//! two during Tidy Toilet Time (preferably an epic); a full backpack makes an epic the preferred sacrifice. Flushing (+1 aura, a random
+//! two during Tidy Toilet Time (preferably an epic); more than 6 backpack epics make an epic the preferred sacrifice. Flushing (+1 aura, a random
 //! item that the normal inventory pass then equips, dismantles, enchants or sells) whenever the mana reaches the flush cost.
 //! Potions and plain items are never thrown.
 
@@ -125,28 +125,17 @@ pub fn plain_reserve(gs: &GameState) -> Option<BagPosition> {
     spare_plain(gs).map(|p| p.0)
 }
 
-/// A day that starts with at most one free backpack slot (user 2026-11-08): an epic may go into the toilet right away, so it never has
-/// to be dismantled or sold later. Measured by the first pass of the day and remembered in `toilet_tight.txt`.
-fn tight_day(gs: &GameState) -> bool {
-    let path = std::path::Path::new("roster").join(crate::ctx::name()).join("toilet_tight.txt");
-    let today = Local::now().date_naive();
-    let text = std::fs::read_to_string(&path).unwrap_or_default();
-    let mut it = text.split_whitespace();
-    if let (Some(day), Some(flag)) = (it.next(), it.next())
-        && day.parse::<NaiveDate>().ok() == Some(today)
-    {
-        return flag == "1";
-    }
-    let tight = gs.character.inventory.count_free_slots() <= 1;
-    let _ = std::fs::write(&path, format!("{today} {}", u8::from(tight)));
-    tight
+/// More backpack epics than one Tidy Toilet Time can use up (user 2026-11-13: 2 a day x 3 days = 6), so the surplus goes in right away.
+const EPIC_SURPLUS: usize = 6;
+
+fn epic_surplus(gs: &GameState) -> bool {
+    gs.character.inventory.iter().filter(|(_, i)| i.is_some_and(|i| i.is_epic() && throwable(i))).count() > EPIC_SURPLUS
 }
 
 /// The preferred sacrifice (epic / gem), without the plain-item fallback.
 fn preferred(gs: &GameState, need_room: bool) -> Option<(BagPosition, String)> {
     let gem = || crate::inventory::spare_gem(gs).map(|(pos, _)| (pos, "gem".to_string()));
-    let full = gs.character.inventory.free_slot().is_none();
-    if event(gs) || full || need_room || tight_day(gs) {
+    if event(gs) || need_room || epic_surplus(gs) {
         spare_epic(gs).or_else(gem)
     } else {
         gem()
