@@ -6,7 +6,7 @@ use sf_api::{
     command::{AttributeType, Command},
     gamestate::{
         GameState,
-        dungeons::{Dungeon, DungeonProgress, LightDungeon},
+        dungeons::{Dungeon, DungeonProgress, LightDungeon, ShadowDungeon},
         rewards::TaskType,
     },
 };
@@ -131,6 +131,11 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
     if let Some(w) = wanted {
         report!("[dungeons] Task: defeat monsters in {:?}", w.dungeon);
     }
+    // Twister (user 2026-11-14): when the normal dungeons give nothing (none open, or the last fight there was lost), run the free chain
+    let lost_last = LAST_NORMAL_LOSS.lock().map(|g| *g).unwrap_or(false);
+    if wanted.is_none() && (cands.is_empty() || lost_last) && matches!(gs.dungeons.shadow[ShadowDungeon::Twister], DungeonProgress::Open { .. }) {
+        return twister_chain(session).await;
+    }
     let Some(pick) = wanted.or_else(|| choose(&cands)).cloned() else {
         // Diagnostics (user 2026-10-09: every character is level 16 but only Training Camp shows up): the server lists
         // features waiting for an explicit unlock in `pending_unlocks`; this bot never sends UnlockFeature yet.
@@ -144,6 +149,9 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         Ok(gs) => gs,
         Err(e) => return fail(&e),
     };
+    if let (Some(f), Ok(mut l)) = (&gs.last_fight, LAST_NORMAL_LOSS.lock()) {
+        *l = !f.has_player_won;
+    }
     match &gs.last_fight {
         Some(f) => report!(
             "[dungeons] {}: xp +{}, gold {}, item {}",
@@ -155,6 +163,66 @@ pub async fn run(session: &mut SimpleSession) -> Outcome {
         None => report!("[dungeons] Fight done, the server sent no result"),
     }
     // New cooldown time (without it the guard in safe.rs will not allow another fight)
+    match safe::send(session, Command::UpdateDungeons).await {
+        Ok(gs) => {
+            if let Some(t) = gs.dungeons.next_free_fight {
+                report!("[dungeons] Next free fight at {}", t.format("%H:%M:%S"));
+            }
+            Outcome::Done
+        }
+        Err(e) => fail(&e),
+    }
+}
+
+/// Did our last fight in a normal dungeon end in a loss? Then the Twister is tried instead (user 2026-11-14).
+static LAST_NORMAL_LOSS: crate::ctx::PerChar<bool> = crate::ctx::PerChar::new();
+
+/// Safety cap of floors per Twister visit.
+const TWISTER_MAX_FLOORS: u32 = 60;
+
+/// The Twister (shadow dungeon 14, solo, shares the hourly dungeon cooldown, `docs/twister.md`): fight floor after floor as long as the
+/// server keeps the dungeon timer in the past (a win with > 90 % HP left). After every fight a FRESH `UpdateDungeons` decides; the first
+/// fight that is not free ends the visit. Never a mushroom: `safe::send` still requires the timer to be past.
+async fn twister_chain(session: &mut SimpleSession) -> Outcome {
+    let twister = Dungeon::Shadow(ShadowDungeon::Twister);
+    report!("[dungeons] Twister visit");
+    let (mut floors, mut xp, mut gold) = (0u32, 0u64, 0i64);
+    let why = loop {
+        if floors >= TWISTER_MAX_FLOORS {
+            break "floor cap";
+        }
+        if session.game_state().is_some_and(|gs| gs.character.inventory.count_free_slots() <= 1) {
+            if let Outcome::SessionLost = crate::inventory::manage(session).await {
+                return Outcome::SessionLost;
+            }
+            if session.game_state().is_none_or(|gs| gs.character.inventory.count_free_slots() == 0) {
+                break "backpack full";
+            }
+        }
+        let gs = match safe::send(session, Command::FightDungeon { dungeon: twister, use_mushroom: false }).await {
+            Ok(gs) => gs,
+            Err(e) => return fail(&e),
+        };
+        floors += 1;
+        let Some(f) = &gs.last_fight else { break "no fight result" };
+        xp += f.xp_change;
+        gold += f.silver_change;
+        report!("[dungeons] Twister floor: {}, xp +{}, gold {}, item {}", if f.has_player_won { "win" } else { "loss" }, f.xp_change, crate::report::gold_change(f.silver_change), if f.item_won.is_some() { "yes" } else { "no" });
+        if !f.has_player_won {
+            break "lost";
+        }
+        let gs = match safe::send(session, Command::UpdateDungeons).await {
+            Ok(gs) => gs,
+            Err(e) => return fail(&e),
+        };
+        // The timer is past only after a win with > 90 % HP (the server's rule); otherwise it is now +1 h and the chain ends
+        let timer_past = gs.dungeons.next_free_fight.is_some_and(|t| chrono::Local::now() >= t + chrono::Duration::seconds(safe::COOLDOWN_SAFETY_SEC));
+        if !timer_past {
+            break "HP below 90 %";
+        }
+        safe::forget_dungeon_fight();
+    };
+    report!("[dungeons] Twister visit over ({why}): {floors} floors, xp +{xp}, gold {}", crate::report::gold_change(gold));
     match safe::send(session, Command::UpdateDungeons).await {
         Ok(gs) => {
             if let Some(t) = gs.dungeons.next_free_fight {

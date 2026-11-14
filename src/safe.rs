@@ -199,6 +199,15 @@ pub fn cooldown_free(kind: Cooldown, next_free: Option<DateTime<Local>>) -> bool
     }
 }
 
+/// Twister chain only (user 2026-11-14, `docs/twister.md`): after a >90 % HP win the server leaves the dungeon timer in the past, so the next
+/// floor is free although no NEWER cooldown end arrives. The caller must have just read a FRESH `UpdateDungeons` whose timer is already
+/// past (`dungeon_is_free`-style check); this forgets our last dungeon fight so `cooldown_free` judges by that timer alone.
+pub fn forget_dungeon_fight() {
+    if let Ok(mut v) = LAST_FIGHT.lock() {
+        v.retain(|(k, _)| *k != Cooldown::Dungeon);
+    }
+}
+
 /// A Game of Dice roll (plain or custom wire form): (payment number, is it the first roll = every die re-rolled).
 fn dice_roll(cmd: &Command) -> Option<(u8, bool)> {
     match cmd {
