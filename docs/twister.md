@@ -1,4 +1,4 @@
-# Dungeon Twister (user 2026-11-07; NOT implemented, the bot skips it)
+# Dungeon Twister (user 2026-11-07; implemented 2026-11-14, UNVERIFIED live)
 
 - Unlocks at character level 130 (the user believes that is the only requirement). A special (shadow-list) dungeon with 1000 floors.
 - Rule from the user: whenever we beat the opponent with MORE THAN 90 % of our HP left, the next floor can be fought for free (no mushroom, no waiting), so the fights chain.
@@ -26,3 +26,10 @@
 ## Needed from the user
 - One capture of a Twister fight that ends with < 90 % HP left (does `characterstatus[21]` jump to fight time + 1 h?) and the request line (expected `PlayerDungeonBattle:15/0`).
 - Whether the user wants the bot to chain the Twister fully (all floors while > 90 %) – risk: each chain fight takes real time and fills the backpack with common items (inventory logic would have to sell them).
+
+## Implementation 2026-11-14 (user: Twister shares the hourly dungeon cooldown; visit it now and then, run as many floors as it lets us for free)
+- `dungeons::twister_chain` (src/dungeons.rs). Visit policy: the Twister is `Open`, no Gleeman dungeon task is pending, AND (no normal dungeon candidate, OR our last normal dungeon fight was a loss, `LAST_NORMAL_LOSS`, per character, resets on restart).
+- Chain: `FightDungeon { Shadow(Twister), use_mushroom: false }` -> on a win a FRESH `UpdateDungeons`; if its timer is already past (+30 s) the server granted the free chain (> 90 % HP) -> `safe::forget_dungeon_fight()` (the only relaxation of the "newer cooldown end" rule) and the next floor. Ends on a loss, a timer pushed +1 h (HP < 90 %), a full backpack, no fight result, or 60 floors.
+- The HP is NOT computed by the bot: `fightversion:2` rounds are not parsed by sf-api; the server's timer is the signal. Caveat: the fight response itself may carry a stale timer, which is why only the post-fight `UpdateDungeons` is trusted.
+- Backpack: with <= 1 free slot `inventory::manage` runs (sells/equips) mid-chain; still 0 free -> the visit ends. Mushroom watchdog still applies (worst case one mushroom if the server's timer were stale, then the bot exits).
+- Verify live: `[dungeons] Twister visit`, `Twister floor: ...`, `Twister visit over (...)`; confirm that a < 90 % win ends with `HP below 90 %` and the next fight time = +1 h, and that no mushroom is lost.

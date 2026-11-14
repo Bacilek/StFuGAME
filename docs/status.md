@@ -1,6 +1,6 @@
 # Project status (handover document)
 
-- 2026-11-14: Twister capture from the user analysed (`docs/twister.md`): a win with > 90 % HP left (91.4 % in the sample) leaves `characterstatus[21]` (dungeon timer) in the past, so the next floor is free; command `PlayerDungeonBattle:15/0`. NOT implemented: the chain needs a Twister-specific exception in `safe.rs` (a second fight is normally blocked until a new cooldown end arrives). Waiting for the user's go + a < 90 % capture.
+- 2026-11-14: Twister capture from the user analysed (`docs/twister.md`): a win with > 90 % HP left (91.4 % in the sample) leaves `characterstatus[21]` (dungeon timer) in the past, so the next floor is free; command `PlayerDungeonBattle:15/0`. User confirmed (shares the hourly cooldown, visit now and then, free chain) -> IMPLEMENTED the same day (`dungeons::twister_chain`, `safe::forget_dungeon_fight`), not in a release, unverified live; see `docs/twister.md` "Implementation". Verify the `[dungeons] Twister ...` log lines and that no mushroom is spent.
 
 - 2026-11-10: blacksmith upgrades no longer count in item comparison (`inventory::at_target_upgrade`, `docs/inventory.md`): worn and new items are both rescaled to upgrade level 2 (/1.04 per upgrade, *1.04^2) before `compare`. Not in a release yet; unverified: that weapon damage also grows ~4 % per upgrade, and the exact factor (sf-api uses 1.04, rounding per step).
 

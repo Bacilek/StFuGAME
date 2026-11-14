@@ -55,3 +55,6 @@ Correction (user 2026-11-05): that was Circus of Terror, dungeon number 11, unlo
 - Dungeon 10 (Black Skull Fortress) unlocks after dungeon 9 is FINISHED (user, confirmed). Tower and Game of Dice need level 125 + dungeons 1–9 cleared (`docs/tower.md`, `docs/dice.md`); the Gem Mine upgrades wait for it too (`docs/fortress.md`).
 - State 2026-11-13 (`roster/*/now.json`): all 12 characters (levels 136–141) have Pyramids at 9/10 (sf-api: `Open{finished: 9}`, finished only at 10; the 10th fight is the "mirror" = copy of our character, handled in `candidates`). Sanek also has Frost Blood Temple (8th) at 9/10. Everything else 10/10.
 - OPEN BUG: the logs of TestChar1 and Mimimimi11 say `[dungeons] No open dungeon (pending unlocks: none)` every pass since at least 07:13 although Pyramids is open at 9/10, so nobody fights the 9th dungeon. Not diagnosed yet: `candidates()` returns empty (current_enemy None for the mirror at index 9? level-0 handling?). Next step: a throwaway test on the real code with an `Open{9}` Pyramids state.
+
+## Twister (user 2026-11-14)
+When the normal dungeons give nothing (none open or last fight lost) the bot runs a Twister chain (free floors while the server keeps the timer past). Details: `docs/twister.md`.

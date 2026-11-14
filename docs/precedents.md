@@ -291,3 +291,5 @@ In similar situations it then follows this list. Newest at the bottom.
 - Toilet epics (user 2026-11-13): an epic is thrown only during Tidy Toilet Time, when the Tavern needs room, or with more than 6 epics in the backpack (not for a full backpack or tight day alone). See `docs/toilet.md`.
 - Epic choice (user 2026-11-13): the toilet takes the epic with the fewest Arcane Splinters, a forced dismantle the one with the most; blacksmith upgrades do not change the splinters. See `docs/toilet.md`.
 - Fortress 2026-11-13 (user): the soldier line (Barracks 5, then Wall/Archery Guild/Mages' Tower 1, then Smithy 5) comes BEFORE Laborers' Quarters and the Academy as soon as character level >= 95 (only the Gem Mine rush is above it); a running build is never cancelled. `fortress::pick_generic`.
+
+- Twister (user 2026-11-14): shares the hourly dungeon cooldown; visit it now and then (e.g. when the normal dungeons fail) and fight as many floors as the server grants for free (win with > 90 % HP); XP/gold welcome, common items sold at once. Never a mushroom.
